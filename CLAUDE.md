@@ -37,6 +37,24 @@
 - Never use Linear for this project
 - When starting work on a ticket, assign it first: `gh issue edit XXX --add-assignee "@me"`
 
+#### Issue Labels
+
+Three labels track the state of Claude-handled issues. Update them with `gh issue edit XXX --repo SGAOperations/aplio`:
+
+- `claude` — add when starting work on any ticket (signals Claude is handling it)
+- `in progress` — add when a worktree/branch is created and implementation begins
+- `pr opened` — add when a PR is opened; remove `in progress` at the same time
+
+Example workflow:
+
+```bash
+# Starting work
+gh issue edit 42 --repo SGAOperations/aplio --add-label "claude,in progress"
+
+# Opening a PR
+gh issue edit 42 --repo SGAOperations/aplio --add-label "pr opened" --remove-label "in progress"
+```
+
 ## Tech Stack
 
 - **Framework**: Next.js with App Router
@@ -146,15 +164,15 @@ prisma/
 
 ### Pre-Push Checks
 
-Before pushing, always run these locally and fix any failures before pushing:
+Before pushing any commits, always run all three CI check scripts and fix any failures before pushing:
 
 ```bash
-npx eslint . --max-warnings=0
-npx prettier --write .
-npx tsc --noEmit
+npm run prettier:check   # fix with: npx prettier --write .
+npm run eslint:check     # fix the underlying code — never add eslint-disable
+npm run tsc:check        # fix type errors before pushing
 ```
 
-CI runs all three checks and will fail if any are off.
+Never push with known failures — CI will catch them and the PR will be blocked.
 
 ### ESLint
 
