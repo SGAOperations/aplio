@@ -1,8 +1,7 @@
 'use client';
 
-import * as React from 'react';
-
 import dynamic from 'next/dynamic';
+import * as React from 'react';
 
 const NextThemesProvider = dynamic(
   () => import('next-themes').then((e) => e.ThemeProvider),
