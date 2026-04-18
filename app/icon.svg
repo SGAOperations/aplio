@@ -1,6 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40" role="img" aria-label="Aplio">
-  <path d="M3 5 L14 5 L18 9 L18 35 L3 35 Z" fill="none" stroke="#D41B2C" stroke-width="1.5" stroke-linejoin="round"/>
-  <path d="M14 5 L14 9 L18 9" fill="none" stroke="#D41B2C" stroke-width="1.5" stroke-linejoin="round"/>
-  <path d="M21 10 L29 20 L21 30" stroke="#D41B2C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.45"/>
-  <path d="M32 10 L38 20 L32 30" stroke="#D41B2C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Square border: left side + top + bottom, right side with stubs (broken by arrows) -->
+  <!-- Left + top -->
+  <path d="M 4 36 L 4 4 L 36 4" fill="none" stroke="#D41B2C" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Bottom -->
+  <path d="M 4 36 L 36 36" fill="none" stroke="#D41B2C" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Right side stubs (top and bottom only, arrows pierce through the gaps) -->
+  <path d="M 36 4 L 36 8" fill="none" stroke="#D41B2C" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M 36 32 L 36 36" fill="none" stroke="#D41B2C" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Three right-pointing chevron arrows at y=12, y=20, y=28 -->
+  <path d="M 8 8 L 34 12 L 8 16" fill="none" stroke="#D41B2C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 8 16 L 34 20 L 8 24" fill="none" stroke="#D41B2C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 8 24 L 34 28 L 8 32" fill="none" stroke="#D41B2C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
