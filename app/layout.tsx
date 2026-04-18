@@ -3,7 +3,8 @@ import { Inter } from 'next/font/google';
 
 import { cn } from '@/lib/utils';
 
-import { ThemeProvider } from '@/components/providers/theme-provider';
+import { MainLayout } from '@/components/layouts/main-layout';
+import { Providers } from '@/components/providers';
 
 import './globals.css';
 
@@ -20,14 +21,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={cn('w-full font-sans antialiased', inter.variable)}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          {children}
-        </ThemeProvider>
+        <Providers>
+          <MainLayout>{children}</MainLayout>
+        </Providers>
       </body>
     </html>
   );
