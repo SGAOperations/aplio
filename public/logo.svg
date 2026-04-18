@@ -1,6 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 40" width="160" height="40" role="img" aria-label="Aplio">
-  <rect width="40" height="40" rx="10" fill="#6366f1"/>
-  <path d="M13 22 L20 14 L27 22" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-  <path d="M13 29 L20 21 L27 29" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.45"/>
+  <rect width="40" height="40" rx="10" fill="#D41B2C"/>
+  <path d="M9 7 L22 7 L27 12 L27 33 L9 33 Z" fill="none" stroke="white" stroke-width="1.5" stroke-linejoin="round" opacity="0.35"/>
+  <path d="M22 7 L22 12 L27 12" fill="none" stroke="white" stroke-width="1.5" stroke-linejoin="round" opacity="0.35"/>
+  <path d="M11 13 L22 20 L11 27" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.45"/>
+  <path d="M17 13 L28 20 L17 27" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
   <text x="50" y="27" font-family="system-ui,-apple-system,sans-serif" font-size="20" font-weight="600" letter-spacing="-0.3" fill="#09090b">Aplio</text>
 </svg>
