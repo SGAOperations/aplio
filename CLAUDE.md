@@ -55,6 +55,32 @@ gh issue edit 42 --repo SGAOperations/aplio --add-label "claude,in progress"
 gh issue edit 42 --repo SGAOperations/aplio --add-label "pr opened" --remove-label "in progress"
 ```
 
+#### Sub-Issues
+
+Sub-issues are linked via the REST API using the database `id` (not the issue number):
+
+```bash
+# Get the database ID of the child issue
+gh api repos/SGAOperations/aplio/issues/<number> --jq '.id'
+
+# Add it as a sub-issue of a parent
+gh api repos/SGAOperations/aplio/issues/<parent-number>/sub_issues -X POST --input - <<'EOF'
+{"sub_issue_id": <database-id>}
+EOF
+```
+
+#### Blockers
+
+Blocker relationships are added via GraphQL using node IDs:
+
+```bash
+# Get the node ID of an issue
+gh api repos/SGAOperations/aplio/issues/<number> --jq '.node_id'
+
+# Add a blocked-by relationship (issueId = blocked issue, blockingIssueId = the blocker)
+gh api graphql -f query='mutation { addBlockedBy(input: { issueId: "BLOCKED_NODE_ID", blockingIssueId: "BLOCKER_NODE_ID" }) { clientMutationId } }'
+```
+
 ## Tech Stack
 
 - **Framework**: Next.js with App Router
