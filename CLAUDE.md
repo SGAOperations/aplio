@@ -37,6 +37,24 @@
 - Never use Linear for this project
 - When starting work on a ticket, assign it first: `gh issue edit XXX --add-assignee "@me"`
 
+#### Issue Labels
+
+Three labels track the state of Claude-handled issues. Update them with `gh issue edit XXX --repo SGAOperations/aplio`:
+
+- `claude` — add when starting work on any ticket (signals Claude is handling it)
+- `in progress` — add when a worktree/branch is created and implementation begins
+- `pr opened` — add when a PR is opened; remove `in progress` at the same time
+
+Example workflow:
+
+```bash
+# Starting work
+gh issue edit 42 --repo SGAOperations/aplio --add-label "claude,in progress"
+
+# Opening a PR
+gh issue edit 42 --repo SGAOperations/aplio --add-label "pr opened" --remove-label "in progress"
+```
+
 ## Tech Stack
 
 - **Framework**: Next.js with App Router
