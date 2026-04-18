@@ -160,6 +160,12 @@ prisma/
    - Never expose sensitive data to client
    - Use environment variables for secrets
 
+6. **Mobile Support**:
+   - All UI components and pages must support mobile viewports
+   - Use mobile-first Tailwind classes — start with base/mobile styles, add `md:` / `lg:` for larger screens
+   - Sidebars must collapse on mobile — use a Sheet/drawer with a hamburger button on small screens, hidden on `md:` and above
+   - Never use fixed pixel widths that break on small screens
+
 ## Claude-Specific Rules
 
 ### Pre-Push Checks
