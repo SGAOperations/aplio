@@ -164,15 +164,15 @@ prisma/
 
 ### Pre-Push Checks
 
-Before pushing, always run these locally and fix any failures before pushing:
+Before pushing any commits, always run all three CI check scripts and fix any failures before pushing:
 
 ```bash
-npx eslint . --max-warnings=0
-npx prettier --write .
-npx tsc --noEmit
+npm run prettier:check   # fix with: npx prettier --write .
+npm run eslint:check     # fix the underlying code — never add eslint-disable
+npm run tsc:check        # fix type errors before pushing
 ```
 
-CI runs all three checks and will fail if any are off.
+Never push with known failures — CI will catch them and the PR will be blocked.
 
 ### ESLint
 
