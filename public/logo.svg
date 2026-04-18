@@ -1,8 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 40" width="160" height="40" role="img" aria-label="Aplio">
-  <rect width="40" height="40" rx="10" fill="#D41B2C"/>
-  <path d="M9 7 L22 7 L27 12 L27 33 L9 33 Z" fill="none" stroke="white" stroke-width="1.5" stroke-linejoin="round" opacity="0.35"/>
-  <path d="M22 7 L22 12 L27 12" fill="none" stroke="white" stroke-width="1.5" stroke-linejoin="round" opacity="0.35"/>
-  <path d="M11 13 L22 20 L11 27" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.45"/>
-  <path d="M17 13 L28 20 L17 27" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M3 5 L14 5 L18 9 L18 35 L3 35 Z" fill="none" stroke="#D41B2C" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M14 5 L14 9 L18 9" fill="none" stroke="#D41B2C" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M21 10 L29 20 L21 30" stroke="#D41B2C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.45"/>
+  <path d="M32 10 L38 20 L32 30" stroke="#D41B2C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
   <text x="50" y="27" font-family="system-ui,-apple-system,sans-serif" font-size="20" font-weight="600" letter-spacing="-0.3" fill="#09090b">Aplio</text>
 </svg>
