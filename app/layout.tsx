@@ -4,8 +4,8 @@ import { Inter } from 'next/font/google';
 import { cn } from '@/lib/utils';
 
 import { MainLayout } from '@/components/layouts/main-layout';
-import { AuthProvider } from '@/components/providers/auth-provider';
 import { Providers } from '@/components/providers';
+import { AuthProvider } from '@/components/providers/auth-provider';
 
 import './globals.css';
 
