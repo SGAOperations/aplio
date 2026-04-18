@@ -194,3 +194,23 @@ Never push with known failures — CI will catch them and the PR will be blocked
 
 - **Always use git worktrees** when working on a feature branch to avoid branch switching issues
 - Use `isolation: "worktree"` when spawning agents so each agent works in an isolated copy of the repo
+
+### Syncing Before Resuming Work
+
+Before resuming work on any existing branch or worktree, always sync to the latest remote state:
+
+1. **Fetch and reset the branch** to match the remote:
+
+```bash
+git -C <worktree-path> fetch origin
+git -C <worktree-path> reset --hard origin/<branch-name>
+```
+
+2. **Check if `main` has advanced** and rebase if needed:
+
+```bash
+git -C <worktree-path> fetch origin main
+git -C <worktree-path> rebase origin/main
+```
+
+Never assume the local branch is up to date — always fetch first.
