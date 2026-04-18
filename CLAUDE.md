@@ -220,3 +220,10 @@ git -C <worktree-path> rebase origin/main
 ```
 
 Never assume the local branch is up to date — always fetch first.
+
+### Design Specs
+
+- Specs are brainstormed and written collaboratively as a document
+- The final spec content goes into the **GitHub Issue description** for the relevant ticket — using `gh issue edit` to update the body
+- Spec files must **never be committed to git** — not to main, not to feature branches
+- The brainstormed document is for thinking only; the GitHub Issue is the source of truth
