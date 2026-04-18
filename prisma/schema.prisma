@@ -14,6 +14,7 @@ enum PositionStatus {
 }
 
 enum ApplicationStatus {
+  draft
   applied
   reached_out
   interview_scheduled
