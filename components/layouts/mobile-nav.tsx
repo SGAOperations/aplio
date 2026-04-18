@@ -46,7 +46,7 @@ export function MobileNav() {
             <Menu className="size-5" />
           </Button>
           <SheetContent side="left">
-            <SheetHeader className="border-sidebar-border border-b pb-4">
+            <SheetHeader className="border-sidebar-border flex h-14 items-center border-b px-4">
               <SheetTitle>
                 <Link
                   href="/"
