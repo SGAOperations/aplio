@@ -35,6 +35,7 @@
 
 - Issues are tracked in **GitHub Issues** at `SGAOperations/aplio`
 - Never use Linear for this project
+- When starting work on a ticket, assign it first: `gh issue edit XXX --add-assignee "@me"`
 
 ## Tech Stack
 
