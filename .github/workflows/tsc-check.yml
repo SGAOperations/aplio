@@ -1,6 +1,9 @@
 name: TypeScript Check
 on:
   pull_request:
+  push:
+    branches:
+      - main
 jobs:
   run-tsc-check:
     runs-on: ubuntu-latest

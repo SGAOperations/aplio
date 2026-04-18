@@ -1,6 +1,9 @@
 name: Linting Check
 on:
   pull_request:
+  push:
+    branches:
+      - main
 jobs:
   run-linting-check:
     runs-on: ubuntu-latest

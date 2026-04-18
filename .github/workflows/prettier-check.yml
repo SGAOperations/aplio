@@ -1,6 +1,9 @@
 name: Prettier Check
 on:
   pull_request:
+  push:
+    branches:
+      - main
 jobs:
   run-prettier-check:
     runs-on: ubuntu-latest
