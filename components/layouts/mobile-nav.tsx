@@ -9,12 +9,7 @@ import { BriefcaseBusiness, FileText, Menu, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 
 const navItems = [
   { href: '/positions', label: 'Positions', icon: BriefcaseBusiness },
@@ -46,8 +41,8 @@ export function MobileNav() {
             <Menu className="size-5" />
           </Button>
           <SheetContent side="left">
-            <SheetHeader className="border-sidebar-border flex h-14 items-center border-b px-4">
-              <SheetTitle>
+            <div className="border-sidebar-border flex h-14 items-center border-b px-4">
+              <SheetTitle asChild>
                 <Link
                   href="/"
                   className="flex items-center gap-2"
@@ -63,7 +58,7 @@ export function MobileNav() {
                   </span>
                 </Link>
               </SheetTitle>
-            </SheetHeader>
+            </div>
 
             <nav className="flex flex-col gap-1 p-2">
               {navItems.map(({ href, label, icon: Icon }) => {
