@@ -176,10 +176,11 @@
   }
   body {
     @apply bg-background text-foreground;
-    overflow-y: scroll;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
   }
   body[data-scroll-locked] {
-    overflow-y: scroll !important;
+    overflow-y: hidden !important;
     padding-right: 0 !important;
     margin-right: 0 !important;
   }
