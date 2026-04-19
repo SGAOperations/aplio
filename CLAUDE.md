@@ -226,6 +226,12 @@ Never push with known failures — CI will catch them and the PR will be blocked
 
 - **Always use git worktrees** when working on a feature branch to avoid branch switching issues
 - Use `isolation: "worktree"` when spawning agents so each agent works in an isolated copy of the repo
+- After creating a worktree, symlink shared resources from the main repo instead of reinstalling:
+
+```bash
+ln -s ../../node_modules <worktree-path>/node_modules
+ln -s ../../.env <worktree-path>/.env
+```
 
 ### Syncing Before Resuming Work
 
