@@ -9,7 +9,7 @@ updates:
     groups:
       radix-ui:
         patterns:
-          - "@radix-ui/*"
+          - '@radix-ui/*'
       tanstack:
         patterns:
-          - "@tanstack/*"
+          - '@tanstack/*'
