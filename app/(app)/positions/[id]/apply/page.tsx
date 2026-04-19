@@ -14,7 +14,8 @@ interface ApplyPageProps {
 export default async function ApplyPage({ params }: ApplyPageProps) {
   const { id } = await params;
 
-  const session = await authServer.getSession();
+  const { data: session } = await authServer.getSession();
+  if (!session?.user) redirect('/auth/login');
   const user = await prisma.user.findUniqueOrThrow({
     where: { neonAuthId: session.user.id },
   });
