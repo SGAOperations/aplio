@@ -1,6 +1,14 @@
+import 'dotenv/config';
+
+import { PrismaPg } from '@prisma/adapter-pg';
+
 import { PrismaClient } from './client';
 
-const prisma = new PrismaClient();
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) throw new Error('DATABASE_URL environment variable is not set');
+
+const adapter = new PrismaPg({ connectionString: databaseUrl });
+const prisma = new PrismaClient({ adapter });
 
 const S = '01970000-0000-7000-8000-000000000001'; // seed user id
 
