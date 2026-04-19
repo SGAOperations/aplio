@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { getOpenPositions } from '@/prisma/data/positions';
 
 import { PositionCard } from '@/components/features/position-card';
