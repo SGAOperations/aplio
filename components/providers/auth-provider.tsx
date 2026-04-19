@@ -21,6 +21,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       navigate={router.push}
       replace={router.replace}
       onSessionChange={() => router.refresh()}
+      credentials={false}
       emailOTP
       redirectTo="/positions"
       Link={Link}
