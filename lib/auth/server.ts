@@ -8,10 +8,24 @@ export const authServer = createAuthServer();
 export async function getCurrentUser() {
   const { data: session } = await authServer.getSession();
   if (!session?.user) redirect('/auth/login');
-  return prisma.user.upsert({
-    where: { neonAuthId: session.user.id },
-    update: {},
-    create: {
+
+  const existing = await prisma.user.findFirst({
+    where: {
+      OR: [{ neonAuthId: session.user.id }, { email: session.user.email }],
+    },
+  });
+
+  if (existing) {
+    if (existing.neonAuthId !== session.user.id)
+      return prisma.user.update({
+        where: { id: existing.id },
+        data: { neonAuthId: session.user.id },
+      });
+    return existing;
+  }
+
+  return prisma.user.create({
+    data: {
       neonAuthId: session.user.id,
       email: session.user.email,
       name: session.user.name ?? null,
