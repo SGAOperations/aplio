@@ -99,6 +99,8 @@ gh api graphql -f query='mutation { addBlockedBy(input: { issueId: "BLOCKED_NODE
 - **Use server components** for data fetching with Prisma calls
 - Import Prisma queries from separate service files in `prisma/services/`
 
+> **Exception**: `app/api/auth/[...path]/route.ts` is required by Neon Auth — this is the only permitted API route.
+
 ### Component Structure
 
 - Components live in the centralized `components/` directory

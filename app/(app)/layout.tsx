@@ -1,11 +1,9 @@
+import type { ReactNode } from 'react';
+
 import { MobileNav } from '@/components/layouts/mobile-nav';
 import { Sidebar } from '@/components/layouts/sidebar';
 
-interface MainLayoutProps {
-  children: React.ReactNode;
-}
-
-export function MainLayout({ children }: MainLayoutProps) {
+export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-screen w-full overflow-hidden">
       <Sidebar />

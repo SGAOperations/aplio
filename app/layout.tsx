@@ -3,8 +3,8 @@ import { Inter } from 'next/font/google';
 
 import { cn } from '@/lib/utils';
 
-import { MainLayout } from '@/components/layouts/main-layout';
 import { Providers } from '@/components/providers';
+import { AuthProvider } from '@/components/providers/auth-provider';
 
 import './globals.css';
 
@@ -21,9 +21,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={cn('w-full font-sans antialiased', inter.variable)}>
-        <Providers>
-          <MainLayout>{children}</MainLayout>
-        </Providers>
+        <AuthProvider>
+          <Providers>{children}</Providers>
+        </AuthProvider>
       </body>
     </html>
   );
