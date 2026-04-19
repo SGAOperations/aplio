@@ -6,3 +6,230 @@ generator client {
 datasource db {
     provider = "postgresql"
 }
+
+enum PositionStatus {
+  draft
+  open
+  closed
+}
+
+enum ApplicationStatus {
+  draft
+  applied
+  reached_out
+  interview_scheduled
+  reviewing
+  accepted
+  rejected
+}
+
+enum QuestionType {
+  short_answer
+  long_answer
+  single_choice
+  multiple_choice
+}
+
+model User {
+  id          String    @id @default(uuid(7))
+  neonAuthId  String    @unique
+  email       String    @unique
+  name        String?
+  isAdmin     Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+  createdById String?
+  updatedById String?
+  deletedById String?
+
+  createdBy    User?  @relation("UserCreatedBy", fields: [createdById], references: [id])
+  updatedBy    User?  @relation("UserUpdatedBy", fields: [updatedById], references: [id])
+  deletedBy    User?  @relation("UserDeletedBy", fields: [deletedById], references: [id])
+  createdUsers User[] @relation("UserCreatedBy")
+  updatedUsers User[] @relation("UserUpdatedBy")
+  deletedUsers User[] @relation("UserDeletedBy")
+
+  managedPositions Position[]     @relation("PositionManagers")
+  applications     Application[]
+  globalAnswers    GlobalAnswer[]
+
+  createdPositions          Position[]                 @relation("PositionCreatedBy")
+  updatedPositions          Position[]                 @relation("PositionUpdatedBy")
+  deletedPositions          Position[]                 @relation("PositionDeletedBy")
+  createdGlobalQuestions    GlobalQuestion[]            @relation("GlobalQuestionCreatedBy")
+  updatedGlobalQuestions    GlobalQuestion[]            @relation("GlobalQuestionUpdatedBy")
+  deletedGlobalQuestions    GlobalQuestion[]            @relation("GlobalQuestionDeletedBy")
+  createdPositionQuestions  PositionQuestion[]          @relation("PositionQuestionCreatedBy")
+  updatedPositionQuestions  PositionQuestion[]          @relation("PositionQuestionUpdatedBy")
+  deletedPositionQuestions  PositionQuestion[]          @relation("PositionQuestionDeletedBy")
+  createdGlobalAnswers      GlobalAnswer[]              @relation("GlobalAnswerCreatedBy")
+  updatedGlobalAnswers      GlobalAnswer[]              @relation("GlobalAnswerUpdatedBy")
+  deletedGlobalAnswers      GlobalAnswer[]              @relation("GlobalAnswerDeletedBy")
+  createdApplications       Application[]               @relation("ApplicationCreatedBy")
+  updatedApplications       Application[]               @relation("ApplicationUpdatedBy")
+  deletedApplications       Application[]               @relation("ApplicationDeletedBy")
+  createdGlobalAppAnswers   GlobalApplicationAnswer[]   @relation("GlobalApplicationAnswerCreatedBy")
+  updatedGlobalAppAnswers   GlobalApplicationAnswer[]   @relation("GlobalApplicationAnswerUpdatedBy")
+  deletedGlobalAppAnswers   GlobalApplicationAnswer[]   @relation("GlobalApplicationAnswerDeletedBy")
+  createdPositionAppAnswers PositionApplicationAnswer[] @relation("PositionApplicationAnswerCreatedBy")
+  updatedPositionAppAnswers PositionApplicationAnswer[] @relation("PositionApplicationAnswerUpdatedBy")
+  deletedPositionAppAnswers PositionApplicationAnswer[] @relation("PositionApplicationAnswerDeletedBy")
+}
+
+model Position {
+  id          String         @id @default(uuid(7))
+  title       String
+  description String
+  status      PositionStatus @default(draft)
+  opensAt     DateTime?
+  closesAt    DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  deletedAt   DateTime?
+  createdById String
+  updatedById String
+  deletedById String?
+
+  createdBy User  @relation("PositionCreatedBy", fields: [createdById], references: [id])
+  updatedBy User  @relation("PositionUpdatedBy", fields: [updatedById], references: [id])
+  deletedBy User? @relation("PositionDeletedBy", fields: [deletedById], references: [id])
+
+  managers     User[]             @relation("PositionManagers")
+  questions    PositionQuestion[]
+  applications Application[]
+}
+
+model GlobalQuestion {
+  id          String       @id @default(uuid(7))
+  label       String
+  type        QuestionType
+  required    Boolean      @default(true)
+  order       Int
+  options     String[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  deletedAt   DateTime?
+  createdById String
+  updatedById String
+  deletedById String?
+
+  createdBy User  @relation("GlobalQuestionCreatedBy", fields: [createdById], references: [id])
+  updatedBy User  @relation("GlobalQuestionUpdatedBy", fields: [updatedById], references: [id])
+  deletedBy User? @relation("GlobalQuestionDeletedBy", fields: [deletedById], references: [id])
+
+  answers            GlobalAnswer[]
+  applicationAnswers GlobalApplicationAnswer[]
+}
+
+model PositionQuestion {
+  id          String       @id @default(uuid(7))
+  positionId  String
+  label       String
+  type        QuestionType
+  required    Boolean      @default(true)
+  order       Int
+  options     String[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  deletedAt   DateTime?
+  createdById String
+  updatedById String
+  deletedById String?
+
+  createdBy User  @relation("PositionQuestionCreatedBy", fields: [createdById], references: [id])
+  updatedBy User  @relation("PositionQuestionUpdatedBy", fields: [updatedById], references: [id])
+  deletedBy User? @relation("PositionQuestionDeletedBy", fields: [deletedById], references: [id])
+
+  position Position                    @relation(fields: [positionId], references: [id])
+  answers  PositionApplicationAnswer[]
+}
+
+model GlobalAnswer {
+  id               String    @id @default(uuid(7))
+  userId           String
+  globalQuestionId String
+  value            String[]
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+  createdById      String
+  updatedById      String
+  deletedById      String?
+
+  createdBy User  @relation("GlobalAnswerCreatedBy", fields: [createdById], references: [id])
+  updatedBy User  @relation("GlobalAnswerUpdatedBy", fields: [updatedById], references: [id])
+  deletedBy User? @relation("GlobalAnswerDeletedBy", fields: [deletedById], references: [id])
+
+  user           User           @relation(fields: [userId], references: [id])
+  globalQuestion GlobalQuestion @relation(fields: [globalQuestionId], references: [id])
+
+  @@unique([userId, globalQuestionId])
+}
+
+model Application {
+  id          String            @id @default(uuid(7))
+  userId      String
+  positionId  String
+  status      ApplicationStatus @default(applied)
+  submittedAt DateTime          @default(now())
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  deletedAt   DateTime?
+  createdById String
+  updatedById String
+  deletedById String?
+
+  createdBy User  @relation("ApplicationCreatedBy", fields: [createdById], references: [id])
+  updatedBy User  @relation("ApplicationUpdatedBy", fields: [updatedById], references: [id])
+  deletedBy User? @relation("ApplicationDeletedBy", fields: [deletedById], references: [id])
+
+  user            User                       @relation(fields: [userId], references: [id])
+  position        Position                   @relation(fields: [positionId], references: [id])
+  globalAnswers   GlobalApplicationAnswer[]
+  positionAnswers PositionApplicationAnswer[]
+
+  @@unique([userId, positionId])
+}
+
+model GlobalApplicationAnswer {
+  id               String    @id @default(uuid(7))
+  applicationId    String
+  globalQuestionId String
+  questionLabel    String
+  value            String[]
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+  createdById      String
+  updatedById      String
+  deletedById      String?
+
+  createdBy User  @relation("GlobalApplicationAnswerCreatedBy", fields: [createdById], references: [id])
+  updatedBy User  @relation("GlobalApplicationAnswerUpdatedBy", fields: [updatedById], references: [id])
+  deletedBy User? @relation("GlobalApplicationAnswerDeletedBy", fields: [deletedById], references: [id])
+
+  application    Application    @relation(fields: [applicationId], references: [id])
+  globalQuestion GlobalQuestion @relation(fields: [globalQuestionId], references: [id])
+}
+
+model PositionApplicationAnswer {
+  id                 String    @id @default(uuid(7))
+  applicationId      String
+  positionQuestionId String
+  questionLabel      String
+  value              String[]
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  deletedAt          DateTime?
+  createdById        String
+  updatedById        String
+  deletedById        String?
+
+  createdBy User  @relation("PositionApplicationAnswerCreatedBy", fields: [createdById], references: [id])
+  updatedBy User  @relation("PositionApplicationAnswerUpdatedBy", fields: [updatedById], references: [id])
+  deletedBy User? @relation("PositionApplicationAnswerDeletedBy", fields: [deletedById], references: [id])
+
+  application      Application      @relation(fields: [applicationId], references: [id])
+  positionQuestion PositionQuestion @relation(fields: [positionQuestionId], references: [id])
+}
