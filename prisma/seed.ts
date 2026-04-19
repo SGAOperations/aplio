@@ -2,7 +2,7 @@ import 'dotenv/config';
 
 import { PrismaPg } from '@prisma/adapter-pg';
 
-import { PrismaClient } from './client';
+import { PrismaClient, type QuestionType } from './client';
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl)
@@ -11,16 +11,10 @@ if (!databaseUrl)
 const adapter = new PrismaPg({ connectionString: databaseUrl });
 const prisma = new PrismaClient({ adapter });
 
-type QType =
-  | 'short_answer'
-  | 'long_answer'
-  | 'single_choice'
-  | 'multiple_choice';
-
 interface QuestionDef {
   order: number;
   label: string;
-  type: QType;
+  type: QuestionType;
   required?: boolean;
   options?: string[];
 }
