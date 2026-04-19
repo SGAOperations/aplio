@@ -1,18 +1,11 @@
-import { redirect } from 'next/navigation';
-
 import { getProfileData } from '@/prisma/data/profile';
 
-import { authServer } from '@/lib/auth/server';
-import prisma from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth/server';
 
 import { ProfileQuestion } from '@/components/features/profile-question';
 
 export default async function ProfilePage() {
-  const { data: session } = await authServer.getSession();
-  if (!session?.user) redirect('/auth/login');
-  const user = await prisma.user.findUniqueOrThrow({
-    where: { neonAuthId: session.user.id },
-  });
+  const user = await getCurrentUser();
   const profileData = await getProfileData(user.id);
 
   return (
