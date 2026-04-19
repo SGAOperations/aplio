@@ -2,13 +2,18 @@
 
 import type {
   Application,
+  GlobalAnswer,
   GlobalApplicationAnswer,
+  GlobalQuestion,
   PositionApplicationAnswer,
-  Prisma,
 } from '@/prisma/client';
 
 import prisma from '@/lib/prisma';
 import { type ResponseType } from '@/lib/utils';
+
+type GlobalAnswerWithQuestion = GlobalAnswer & {
+  globalQuestion: GlobalQuestion;
+};
 
 export async function createDraftApplication(
   userId: string,
@@ -24,10 +29,6 @@ export async function createDraftApplication(
     where: { userId, deletedAt: null },
     include: { globalQuestion: true },
   });
-
-  type GlobalAnswerWithQuestion = Prisma.GlobalAnswerGetPayload<{
-    include: { globalQuestion: true };
-  }>;
 
   return prisma.application.create({
     data: {
@@ -49,7 +50,7 @@ export async function createDraftApplication(
   });
 }
 
-export async function upsertApplicationAnswer(params: {
+export async function createOrUpdateApplicationAnswer(params: {
   applicationId: string;
   questionId: string;
   questionLabel: string;
@@ -65,12 +66,11 @@ export async function upsertApplicationAnswer(params: {
       where: { applicationId, globalQuestionId: questionId },
     });
 
-    if (existing) {
+    if (existing)
       return prisma.globalApplicationAnswer.update({
         where: { id: existing.id },
         data: { value, updatedById: userId },
       });
-    }
 
     return prisma.globalApplicationAnswer.create({
       data: {
@@ -88,12 +88,11 @@ export async function upsertApplicationAnswer(params: {
     where: { applicationId, positionQuestionId: questionId },
   });
 
-  if (existing) {
+  if (existing)
     return prisma.positionApplicationAnswer.update({
       where: { id: existing.id },
       data: { value, updatedById: userId },
     });
-  }
 
   return prisma.positionApplicationAnswer.create({
     data: {
