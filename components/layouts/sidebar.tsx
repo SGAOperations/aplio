@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -20,9 +21,7 @@ export function Sidebar() {
     <aside className="bg-sidebar border-sidebar-border hidden h-full w-56 shrink-0 flex-col border-r md:flex">
       <div className="border-sidebar-border flex h-14 items-center border-b px-4">
         <Link href="/" className="flex items-center gap-2">
-          <div className="bg-primary flex size-8 items-center justify-center rounded-lg shadow-sm">
-            <span className="text-primary-foreground text-sm font-bold">A</span>
-          </div>
+          <Image src="/logo-icon.svg" alt="Aplio" width={32} height={32} />
           <span className="text-sm font-semibold tracking-tight">Aplio</span>
         </Link>
       </div>

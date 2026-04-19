@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
@@ -24,9 +25,7 @@ export function MobileNav() {
   return (
     <header className="bg-sidebar border-sidebar-border flex h-14 items-center border-b px-4 md:hidden">
       <Link href="/" className="flex items-center gap-2">
-        <div className="bg-primary flex size-8 items-center justify-center rounded-lg shadow-sm">
-          <span className="text-primary-foreground text-sm font-bold">A</span>
-        </div>
+        <Image src="/logo-icon.svg" alt="Aplio" width={32} height={32} />
         <span className="text-sm font-semibold tracking-tight">Aplio</span>
       </Link>
 
@@ -48,11 +47,12 @@ export function MobileNav() {
                   className="flex items-center gap-2"
                   onClick={() => setOpen(false)}
                 >
-                  <div className="bg-primary flex size-8 items-center justify-center rounded-lg shadow-sm">
-                    <span className="text-primary-foreground text-sm font-bold">
-                      A
-                    </span>
-                  </div>
+                  <Image
+                    src="/logo-icon.svg"
+                    alt="Aplio"
+                    width={32}
+                    height={32}
+                  />
                   <span className="text-sm font-semibold tracking-tight">
                     Aplio
                   </span>
