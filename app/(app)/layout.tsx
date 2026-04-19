@@ -1,7 +1,18 @@
 import type { ReactNode } from 'react';
 
-import { MainLayout } from '@/components/layouts/main-layout';
+import { MobileNav } from '@/components/layouts/mobile-nav';
+import { Sidebar } from '@/components/layouts/sidebar';
 
 export default function AppLayout({ children }: { children: ReactNode }) {
-  return <MainLayout>{children}</MainLayout>;
+  return (
+    <div className="flex h-screen w-full overflow-hidden">
+      <Sidebar />
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <MobileNav />
+        <main className="flex flex-1 flex-col overflow-y-auto">
+          <div className="flex-1 p-6">{children}</div>
+        </main>
+      </div>
+    </div>
+  );
 }
