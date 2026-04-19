@@ -2,7 +2,7 @@
 CREATE TYPE "PositionStatus" AS ENUM ('draft', 'open', 'closed');
 
 -- CreateEnum
-CREATE TYPE "ApplicationStatus" AS ENUM ('applied', 'reached_out', 'interview_scheduled', 'reviewing', 'accepted', 'rejected');
+CREATE TYPE "ApplicationStatus" AS ENUM ('draft', 'applied', 'reached_out', 'interview_scheduled', 'reviewing', 'accepted', 'rejected');
 
 -- CreateEnum
 CREATE TYPE "QuestionType" AS ENUM ('short_answer', 'long_answer', 'single_choice', 'multiple_choice');
