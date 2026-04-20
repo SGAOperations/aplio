@@ -6,6 +6,7 @@ import { useState, useTransition } from 'react';
 import { submitApplication } from '@/prisma/actions/applications';
 import type {
   Application,
+  GlobalAnswer,
   GlobalApplicationAnswer,
   GlobalQuestion,
   PositionApplicationAnswer,
@@ -16,6 +17,7 @@ import { isError } from '@/lib/utils';
 
 import { ApplicationQuestion } from '@/components/features/application-question';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 
 interface ApplicationStepperProps {
   application: Application & {
@@ -23,6 +25,7 @@ interface ApplicationStepperProps {
     positionAnswers: PositionApplicationAnswer[];
   };
   globalQuestions: GlobalQuestion[];
+  globalAnswers: GlobalAnswer[];
   positionQuestions: PositionQuestion[];
   userId: string;
 }
@@ -30,11 +33,13 @@ interface ApplicationStepperProps {
 export function ApplicationStepper({
   application,
   globalQuestions,
+  globalAnswers,
   positionQuestions,
   userId,
 }: ApplicationStepperProps) {
   const router = useRouter();
   const [step, setStep] = useState<1 | 2>(1);
+  const [isCustomizing, setIsCustomizing] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -53,13 +58,7 @@ export function ApplicationStepper({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center gap-2">
-        <div
-          className={`flex size-7 items-center justify-center rounded-full text-sm font-medium ${
-            step === 1
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-primary text-primary-foreground'
-          }`}
-        >
+        <div className="bg-primary text-primary-foreground flex size-7 items-center justify-center rounded-full text-sm font-medium">
           1
         </div>
         <div className="bg-border h-px flex-1" />
@@ -76,14 +75,23 @@ export function ApplicationStepper({
 
       {step === 1 && (
         <div className="flex flex-col gap-6">
-          <div>
-            <h2 className="text-lg font-semibold tracking-tight">
-              Your Profile
-            </h2>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Step 1 of 2 — Answer the global questions below. Your answers will
-              be saved automatically.
-            </p>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight">
+                Your Profile
+              </h2>
+              <p className="text-muted-foreground mt-1 text-sm">
+                Step 1 of 2 — These answers come from your profile and apply to
+                all applications.
+              </p>
+            </div>
+            <label className="flex shrink-0 cursor-pointer items-center gap-2 pt-1 text-sm">
+              <Switch
+                checked={isCustomizing}
+                onCheckedChange={setIsCustomizing}
+              />
+              Customize for this application
+            </label>
           </div>
 
           {globalQuestions.length === 0 ? (
@@ -93,17 +101,22 @@ export function ApplicationStepper({
           ) : (
             <div className="flex flex-col gap-6">
               {globalQuestions.map((question) => {
-                const answer =
+                const profileAnswer =
+                  globalAnswers.find(
+                    (a) => a.globalQuestionId === question.id,
+                  ) ?? null;
+                const customAnswer =
                   application.globalAnswers.find(
-                    (a: GlobalApplicationAnswer) =>
-                      a.globalQuestionId === question.id,
+                    (a) => a.globalQuestionId === question.id,
                   ) ?? null;
                 return (
                   <ApplicationQuestion
                     key={question.id}
                     applicationId={application.id}
                     question={question}
-                    answer={answer}
+                    answer={isCustomizing ? customAnswer : null}
+                    profileAnswer={profileAnswer}
+                    readOnly={!isCustomizing}
                     isGlobal={true}
                     userId={userId}
                   />
@@ -148,6 +161,8 @@ export function ApplicationStepper({
                     applicationId={application.id}
                     question={question}
                     answer={answer}
+                    profileAnswer={null}
+                    readOnly={false}
                     isGlobal={false}
                     userId={userId}
                   />
