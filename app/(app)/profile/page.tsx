@@ -18,6 +18,7 @@ export default async function ProfilePage() {
             question={question}
             answer={answer}
             userId={user.id}
+            isEditing={false}
           />
         ))}
       </div>
