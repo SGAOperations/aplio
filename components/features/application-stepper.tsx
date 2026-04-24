@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
@@ -17,7 +18,6 @@ import { isError } from '@/lib/utils';
 
 import { ApplicationQuestion } from '@/components/features/application-question';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
 
 interface ApplicationStepperProps {
   application: Application & {
@@ -42,8 +42,45 @@ export function ApplicationStepper({
   const [isCustomizing, setIsCustomizing] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  function handleNext() {
+    const missing = globalQuestions.filter((q) => {
+      if (!q.required) return false;
+      const value = isCustomizing
+        ? (application.globalAnswers.find(
+            (a: GlobalApplicationAnswer) => a.globalQuestionId === q.id,
+          )?.value ?? [])
+        : (globalAnswers.find((a: GlobalAnswer) => a.globalQuestionId === q.id)
+            ?.value ?? []);
+      return (value as string[]).length === 0;
+    });
+    if (missing.length > 0) {
+      setValidationError(
+        `Please fill in all required fields before continuing.`,
+      );
+      return;
+    }
+    setValidationError(null);
+    setStep(2);
+  }
 
   function handleSubmit() {
+    const missing = positionQuestions.filter((q) => {
+      if (!q.required) return false;
+      const value =
+        application.positionAnswers.find(
+          (a: PositionApplicationAnswer) => a.positionQuestionId === q.id,
+        )?.value ?? [];
+      return (value as string[]).length === 0;
+    });
+    if (missing.length > 0) {
+      setValidationError(
+        `Please fill in all required fields before submitting.`,
+      );
+      return;
+    }
+    setValidationError(null);
     setSubmitError(null);
     startTransition(async () => {
       const result = await submitApplication(application.id, userId);
@@ -81,25 +118,37 @@ export function ApplicationStepper({
                 Your Profile
               </h2>
               <p className="text-muted-foreground mt-1 text-sm">
-                Step 1 of 2 — These answers come from your profile and apply to
-                all applications.
+                These answers come from your profile and apply to all
+                applications.
               </p>
             </div>
-            <label className="flex shrink-0 cursor-pointer items-center gap-2 pt-1 text-sm">
-              <Switch
-                checked={isCustomizing}
-                onCheckedChange={setIsCustomizing}
-              />
-              Customize for this application
-            </label>
+            <Button
+              variant={isCustomizing ? 'default' : 'outline'}
+              size="sm"
+              className="mt-0.5 shrink-0"
+              onClick={() => setIsCustomizing(!isCustomizing)}
+            >
+              {isCustomizing ? 'Using custom answers' : 'Customize'}
+            </Button>
           </div>
+
+          {isCustomizing && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+              These answers are saved for this application only. To update your
+              answers permanently, visit your{' '}
+              <Link href="/profile" className="font-medium underline">
+                profile page
+              </Link>
+              .
+            </div>
+          )}
 
           {globalQuestions.length === 0 ? (
             <p className="text-muted-foreground text-sm">
               No global questions configured.
             </p>
           ) : (
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-4">
               {globalQuestions.map((question) => {
                 const profileAnswer =
                   globalAnswers.find(
@@ -107,7 +156,8 @@ export function ApplicationStepper({
                   ) ?? null;
                 const customAnswer =
                   application.globalAnswers.find(
-                    (a) => a.globalQuestionId === question.id,
+                    (a: GlobalApplicationAnswer) =>
+                      a.globalQuestionId === question.id,
                   ) ?? null;
                 return (
                   <ApplicationQuestion
@@ -125,8 +175,12 @@ export function ApplicationStepper({
             </div>
           )}
 
+          {validationError && (
+            <p className="text-destructive text-sm">{validationError}</p>
+          )}
+
           <div className="flex justify-end">
-            <Button onClick={() => setStep(2)}>Next</Button>
+            <Button onClick={handleNext}>Next</Button>
           </div>
         </div>
       )}
@@ -138,8 +192,8 @@ export function ApplicationStepper({
               Position-Specific Questions
             </h2>
             <p className="text-muted-foreground mt-1 text-sm">
-              Step 2 of 2 — Answer the questions specific to this position. Your
-              answers will be saved automatically.
+              Answer the questions specific to this position. Your answers will
+              be saved automatically.
             </p>
           </div>
 
@@ -148,7 +202,7 @@ export function ApplicationStepper({
               No position-specific questions for this role.
             </p>
           ) : (
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-4">
               {positionQuestions.map((question) => {
                 const answer =
                   application.positionAnswers.find(
@@ -171,12 +225,22 @@ export function ApplicationStepper({
             </div>
           )}
 
+          {validationError && (
+            <p className="text-destructive text-sm">{validationError}</p>
+          )}
+
           {submitError && (
             <p className="text-destructive text-sm">{submitError}</p>
           )}
 
           <div className="flex justify-between">
-            <Button variant="outline" onClick={() => setStep(1)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setValidationError(null);
+                setStep(1);
+              }}
+            >
               Back
             </Button>
             <Button onClick={handleSubmit} disabled={isPending}>
