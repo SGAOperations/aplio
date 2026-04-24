@@ -26,11 +26,16 @@ export function ProfileQuestion({
   const [currentValue, setCurrentValue] = useState<string[]>(initial);
   const [savedValue, setSavedValue] = useState<string[]>(initial);
   const savingRef = useRef(false);
+  const pendingValueRef = useRef<string[] | null>(null);
 
   async function autosave(newValue: string[]) {
-    if (savingRef.current) return;
     if (JSON.stringify(newValue) === JSON.stringify(savedValue)) return;
+    if (savingRef.current) {
+      pendingValueRef.current = newValue;
+      return;
+    }
     savingRef.current = true;
+    pendingValueRef.current = null;
     try {
       await updateGlobalAnswer(userId, question.id, newValue);
       setSavedValue(newValue);
@@ -38,15 +43,20 @@ export function ProfileQuestion({
       // silent — autosave is best-effort
     } finally {
       savingRef.current = false;
+      const pending = pendingValueRef.current;
+      if (pending !== null) {
+        pendingValueRef.current = null;
+        autosave(pending);
+      }
     }
   }
 
   const displayValue =
-    savedValue.length === 0
+    currentValue.length === 0
       ? null
       : question.type === 'multiple_choice'
-        ? savedValue.join(', ')
-        : savedValue[0];
+        ? currentValue.join(', ')
+        : currentValue[0];
 
   return (
     <div className="bg-card rounded-lg border p-4 shadow-sm">
