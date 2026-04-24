@@ -12,3 +12,14 @@ export async function getOpenPositions(): Promise<PositionWithQuestions[]> {
     orderBy: { title: 'asc' },
   });
 }
+
+export async function getPositionForApply(
+  id: string,
+): Promise<PositionWithQuestions | null> {
+  return prisma.position.findFirst({
+    where: { id, status: 'open', deletedAt: null },
+    include: {
+      questions: { where: { deletedAt: null }, orderBy: { order: 'asc' } },
+    },
+  });
+}
