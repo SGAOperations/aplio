@@ -2,11 +2,11 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
 
 import { submitApplication } from '@/prisma/actions/applications';
 import type {
-  Application,
   GlobalAnswer,
   GlobalApplicationAnswer,
   GlobalQuestion,
@@ -14,16 +14,14 @@ import type {
   PositionQuestion,
 } from '@/prisma/client';
 
+import { type DraftApplication } from '@/lib/types';
 import { isError } from '@/lib/utils';
 
 import { ApplicationQuestion } from '@/components/features/application-question';
 import { Button } from '@/components/ui/button';
 
 interface ApplicationStepperProps {
-  application: Application & {
-    globalAnswers: GlobalApplicationAnswer[];
-    positionAnswers: PositionApplicationAnswer[];
-  };
+  application: DraftApplication;
   globalQuestions: GlobalQuestion[];
   globalAnswers: GlobalAnswer[];
   positionQuestions: PositionQuestion[];
@@ -40,57 +38,53 @@ export function ApplicationStepper({
   const router = useRouter();
   const [step, setStep] = useState<1 | 2>(1);
   const [isCustomizing, setIsCustomizing] = useState(false);
-  const [isPending, startTransition] = useTransition();
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const {
+    handleSubmit,
+    setError,
+    clearErrors,
+    formState: { errors, isSubmitting },
+  } = useForm();
 
   function handleNext() {
-    const missing = globalQuestions.filter((q) => {
+    const hasEmpty = globalQuestions.some((q) => {
       if (!q.required) return false;
       const value = isCustomizing
-        ? (application.globalAnswers.find(
+        ? application.globalAnswers.find(
             (a: GlobalApplicationAnswer) => a.globalQuestionId === q.id,
-          )?.value ?? [])
-        : (globalAnswers.find((a: GlobalAnswer) => a.globalQuestionId === q.id)
-            ?.value ?? []);
-      return (value as string[]).length === 0;
+          )?.value
+        : globalAnswers.find((a: GlobalAnswer) => a.globalQuestionId === q.id)
+            ?.value;
+      return !(value as string[] | undefined)?.length;
     });
-    if (missing.length > 0) {
-      setValidationError(
-        `Please fill in all required fields before continuing.`,
-      );
+    if (hasEmpty) {
+      setError('root', {
+        message: 'Please fill in all required fields before continuing.',
+      });
       return;
     }
-    setValidationError(null);
+    clearErrors();
     setStep(2);
   }
 
-  function handleSubmit() {
-    const missing = positionQuestions.filter((q) => {
+  const onSubmit = handleSubmit(async () => {
+    const hasEmpty = positionQuestions.some((q) => {
       if (!q.required) return false;
       const value =
         application.positionAnswers.find(
           (a: PositionApplicationAnswer) => a.positionQuestionId === q.id,
         )?.value ?? [];
-      return (value as string[]).length === 0;
+      return !(value as string[]).length;
     });
-    if (missing.length > 0) {
-      setValidationError(
-        `Please fill in all required fields before submitting.`,
-      );
+    if (hasEmpty) {
+      setError('root', {
+        message: 'Please fill in all required fields before submitting.',
+      });
       return;
     }
-    setValidationError(null);
-    setSubmitError(null);
-    startTransition(async () => {
-      const result = await submitApplication(application.id, userId);
-      if (isError(result)) {
-        setSubmitError(result.error);
-        return;
-      }
-      router.push('/applications');
-    });
-  }
+    const result = await submitApplication(application.id, userId);
+    if (isError(result)) setError('root', { message: result.error });
+    else router.push('/applications');
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -128,7 +122,7 @@ export function ApplicationStepper({
               className="mt-0.5 shrink-0"
               onClick={() => setIsCustomizing(!isCustomizing)}
             >
-              {isCustomizing ? 'Using custom answers' : 'Customize'}
+              {isCustomizing ? 'Use profile answers' : 'Customize'}
             </Button>
           </div>
 
@@ -143,40 +137,34 @@ export function ApplicationStepper({
             </div>
           )}
 
-          {globalQuestions.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              No global questions configured.
-            </p>
-          ) : (
-            <div className="flex flex-col gap-4">
-              {globalQuestions.map((question) => {
-                const profileAnswer =
-                  globalAnswers.find(
-                    (a) => a.globalQuestionId === question.id,
-                  ) ?? null;
-                const customAnswer =
-                  application.globalAnswers.find(
-                    (a: GlobalApplicationAnswer) =>
-                      a.globalQuestionId === question.id,
-                  ) ?? null;
-                return (
-                  <ApplicationQuestion
-                    key={question.id}
-                    applicationId={application.id}
-                    question={question}
-                    answer={isCustomizing ? customAnswer : null}
-                    profileAnswer={profileAnswer}
-                    readOnly={!isCustomizing}
-                    isGlobal={true}
-                    userId={userId}
-                  />
-                );
-              })}
-            </div>
-          )}
+          <div className="flex flex-col gap-4">
+            {globalQuestions.map((question) => {
+              const profileAnswer =
+                globalAnswers.find(
+                  (a: GlobalAnswer) => a.globalQuestionId === question.id,
+                ) ?? null;
+              const customAnswer =
+                application.globalAnswers.find(
+                  (a: GlobalApplicationAnswer) =>
+                    a.globalQuestionId === question.id,
+                ) ?? null;
+              return (
+                <ApplicationQuestion
+                  key={question.id}
+                  applicationId={application.id}
+                  question={question}
+                  answer={isCustomizing ? customAnswer : null}
+                  profileAnswer={profileAnswer}
+                  readOnly={!isCustomizing}
+                  isGlobal={true}
+                  userId={userId}
+                />
+              );
+            })}
+          </div>
 
-          {validationError && (
-            <p className="text-destructive text-sm">{validationError}</p>
+          {errors.root && (
+            <p className="text-destructive text-sm">{errors.root.message}</p>
           )}
 
           <div className="flex justify-end">
@@ -197,54 +185,44 @@ export function ApplicationStepper({
             </p>
           </div>
 
-          {positionQuestions.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              No position-specific questions for this role.
-            </p>
-          ) : (
-            <div className="flex flex-col gap-4">
-              {positionQuestions.map((question) => {
-                const answer =
-                  application.positionAnswers.find(
-                    (a: PositionApplicationAnswer) =>
-                      a.positionQuestionId === question.id,
-                  ) ?? null;
-                return (
-                  <ApplicationQuestion
-                    key={question.id}
-                    applicationId={application.id}
-                    question={question}
-                    answer={answer}
-                    profileAnswer={null}
-                    readOnly={false}
-                    isGlobal={false}
-                    userId={userId}
-                  />
-                );
-              })}
-            </div>
-          )}
+          <div className="flex flex-col gap-4">
+            {positionQuestions.map((question) => {
+              const answer =
+                application.positionAnswers.find(
+                  (a: PositionApplicationAnswer) =>
+                    a.positionQuestionId === question.id,
+                ) ?? null;
+              return (
+                <ApplicationQuestion
+                  key={question.id}
+                  applicationId={application.id}
+                  question={question}
+                  answer={answer}
+                  profileAnswer={null}
+                  readOnly={false}
+                  isGlobal={false}
+                  userId={userId}
+                />
+              );
+            })}
+          </div>
 
-          {validationError && (
-            <p className="text-destructive text-sm">{validationError}</p>
-          )}
-
-          {submitError && (
-            <p className="text-destructive text-sm">{submitError}</p>
+          {errors.root && (
+            <p className="text-destructive text-sm">{errors.root.message}</p>
           )}
 
           <div className="flex justify-between">
             <Button
               variant="outline"
               onClick={() => {
-                setValidationError(null);
+                clearErrors();
                 setStep(1);
               }}
             >
               Back
             </Button>
-            <Button onClick={handleSubmit} disabled={isPending}>
-              {isPending ? 'Submitting...' : 'Submit Application'}
+            <Button onClick={onSubmit} disabled={isSubmitting}>
+              {isSubmitting ? 'Submitting...' : 'Submit Application'}
             </Button>
           </div>
         </div>
