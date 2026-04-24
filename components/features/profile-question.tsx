@@ -61,99 +61,86 @@ export function ProfileQuestion({
         </p>
       )}
 
-      {isEditing && question.type === 'short_answer' && (
+      {isEditing && (
         <Controller
           control={control}
           name="value"
-          render={({ field }) => (
-            <Input
-              value={field.value[0] ?? ''}
-              onChange={(e) =>
-                field.onChange(e.target.value ? [e.target.value] : [])
-              }
-              onBlur={handleBlur}
-              placeholder="Your answer"
-            />
-          )}
-        />
-      )}
+          render={({ field }) => {
+            if (question.type === 'short_answer')
+              return (
+                <Input
+                  value={field.value[0] ?? ''}
+                  onChange={(e) =>
+                    field.onChange(e.target.value ? [e.target.value] : [])
+                  }
+                  onBlur={handleBlur}
+                  placeholder="Your answer"
+                />
+              );
 
-      {isEditing && question.type === 'long_answer' && (
-        <Controller
-          control={control}
-          name="value"
-          render={({ field }) => (
-            <Textarea
-              value={field.value[0] ?? ''}
-              onChange={(e) =>
-                field.onChange(e.target.value ? [e.target.value] : [])
-              }
-              onBlur={handleBlur}
-              placeholder="Your answer"
-              className="min-h-[100px]"
-            />
-          )}
-        />
-      )}
+            if (question.type === 'long_answer')
+              return (
+                <Textarea
+                  value={field.value[0] ?? ''}
+                  onChange={(e) =>
+                    field.onChange(e.target.value ? [e.target.value] : [])
+                  }
+                  onBlur={handleBlur}
+                  placeholder="Your answer"
+                  className="min-h-[100px]"
+                />
+              );
 
-      {isEditing && question.type === 'single_choice' && (
-        <Controller
-          control={control}
-          name="value"
-          render={({ field }) => (
-            <div className="flex flex-col gap-2">
-              {question.options.map((option: string) => (
-                <Label
-                  key={option}
-                  className="flex cursor-pointer items-center gap-2 font-normal"
-                >
-                  <input
-                    type="radio"
-                    name={question.id}
-                    value={option}
-                    checked={field.value[0] === option}
-                    onChange={() => {
-                      field.onChange([option]);
-                      save([option]);
-                    }}
-                    className="accent-primary size-4"
-                  />
-                  {option}
-                </Label>
-              ))}
-            </div>
-          )}
-        />
-      )}
+            if (question.type === 'single_choice')
+              return (
+                <div className="flex flex-col gap-2">
+                  {question.options.map((option: string) => (
+                    <Label
+                      key={option}
+                      className="flex cursor-pointer items-center gap-2 font-normal"
+                    >
+                      <input
+                        type="radio"
+                        name={question.id}
+                        value={option}
+                        checked={field.value[0] === option}
+                        onChange={() => {
+                          field.onChange([option]);
+                          save([option]);
+                        }}
+                        className="accent-primary size-4"
+                      />
+                      {option}
+                    </Label>
+                  ))}
+                </div>
+              );
 
-      {isEditing && question.type === 'multiple_choice' && (
-        <Controller
-          control={control}
-          name="value"
-          render={({ field }) => (
-            <div className="flex flex-col gap-2">
-              {question.options.map((option: string) => (
-                <Label
-                  key={option}
-                  className="flex cursor-pointer items-center gap-2 font-normal"
-                >
-                  <input
-                    type="checkbox"
-                    checked={field.value.includes(option)}
-                    onChange={() => {
-                      const next = field.value.includes(option)
-                        ? field.value.filter((v) => v !== option)
-                        : [...field.value, option];
-                      field.onChange(next);
-                      save(next);
-                    }}
-                    className="accent-primary size-4"
-                  />
-                  {option}
-                </Label>
-              ))}
-            </div>
-          )}
+            return (
+              <div className="flex flex-col gap-2">
+                {question.options.map((option: string) => (
+                  <Label
+                    key={option}
+                    className="flex cursor-pointer items-center gap-2 font-normal"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={field.value.includes(option)}
+                      onChange={() => {
+                        const next = field.value.includes(option)
+                          ? field.value.filter((v) => v !== option)
+                          : [...field.value, option];
+                        field.onChange(next);
+                        save(next);
+                      }}
+                      className="accent-primary size-4"
+                    />
+                    {option}
+                  </Label>
+                ))}
+              </div>
+            );
+          }}
         />
       )}
     </div>
