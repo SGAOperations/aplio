@@ -5,7 +5,7 @@ import { Sidebar } from '@/components/layouts/sidebar';
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="flex h-screen w-full overflow-hidden">
+    <div className="flex h-dvh w-full overflow-hidden">
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <MobileNav />
