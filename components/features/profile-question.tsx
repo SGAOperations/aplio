@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import { updateGlobalAnswer } from '@/prisma/actions/profile';
@@ -25,18 +24,15 @@ export function ProfileQuestion({
   userId,
   isEditing,
 }: ProfileQuestionProps) {
-  const initial = answer?.value ?? [];
-  const [savedValue, setSavedValue] = useState(initial);
   const { control, formState, getValues, reset } = useForm<FormValues>({
-    defaultValues: { value: initial },
+    defaultValues: { value: answer?.value ?? [] },
   });
 
-  const displayValue = savedValue.join(', ') || null;
+  const displayValue = getValues('value').join(', ') || null;
 
   async function save(value: string[]) {
     try {
       await updateGlobalAnswer(userId, question.id, value);
-      setSavedValue(value);
       reset({ value });
     } catch {
       // silent — autosave is best-effort
