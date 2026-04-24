@@ -1,6 +1,7 @@
 'use client';
 
-import { useRef, useTransition } from 'react';
+import { useTransition } from 'react';
+import { Controller, useForm } from 'react-hook-form';
 
 import { createOrUpdateApplicationAnswer } from '@/prisma/actions/applications';
 import type {
@@ -11,10 +12,8 @@ import type {
   PositionQuestion,
 } from '@/prisma/client';
 
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 
 interface ApplicationQuestionProps {
@@ -37,17 +36,13 @@ export function ApplicationQuestion({
   userId,
 }: ApplicationQuestionProps) {
   const [isPending, startTransition] = useTransition();
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastSavedRef = useRef<string>(JSON.stringify(answer?.value ?? []));
+  const { control, formState, getValues, reset } = useForm<{ value: string[] }>(
+    { defaultValues: { value: answer?.value ?? profileAnswer?.value ?? [] } },
+  );
 
-  const currentValue = answer?.value ?? profileAnswer?.value ?? [];
   const options = question.options as string[];
 
   function save(value: string[]) {
-    const serialized = JSON.stringify(value);
-    if (serialized === lastSavedRef.current) return;
-    lastSavedRef.current = serialized;
-
     startTransition(async () => {
       await createOrUpdateApplicationAnswer({
         applicationId,
@@ -57,34 +52,30 @@ export function ApplicationQuestion({
         isGlobal,
         userId,
       });
+      reset({ value });
     });
   }
 
-  function scheduleSave(value: string[]) {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => save(value), 1500);
-  }
-
-  function handleTextBlur(newValue: string) {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    save([newValue]);
+  function handleBlur() {
+    if (!formState.isDirty) return;
+    save(getValues('value'));
   }
 
   if (readOnly) {
     const displayValue = profileAnswer?.value ?? [];
     return (
-      <div className="flex flex-col gap-1.5">
-        <Label>
+      <div className="bg-card rounded-lg border p-4 shadow-sm">
+        <p className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase">
           {question.label}
           {question.required && (
-            <span className="text-destructive ml-0.5">*</span>
+            <span className="text-destructive ml-1">*</span>
           )}
-        </Label>
+        </p>
         {displayValue.length === 0 ? (
-          <p className="text-muted-foreground text-sm italic">No answer</p>
+          <p className="text-muted-foreground text-sm italic">No answer yet</p>
         ) : question.type === 'multiple_choice' ? (
           <div className="flex flex-wrap gap-1.5">
-            {displayValue.map((v) => (
+            {displayValue.map((v: string) => (
               <span
                 key={v}
                 className="bg-muted text-muted-foreground rounded-md px-2 py-0.5 text-sm"
@@ -94,87 +85,106 @@ export function ApplicationQuestion({
             ))}
           </div>
         ) : (
-          <p className="text-sm">{displayValue[0]}</p>
+          <p className="text-foreground text-base font-medium">
+            {displayValue[0]}
+          </p>
         )}
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <Label className={isPending ? 'opacity-60' : ''}>
+    <div className="bg-card rounded-lg border p-4 shadow-sm">
+      <p className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase">
         {question.label}
-        {question.required && (
-          <span className="text-destructive ml-0.5">*</span>
-        )}
-      </Label>
+        {question.required && <span className="text-destructive ml-1">*</span>}
+      </p>
 
-      {question.type === 'short_answer' && (
-        <Input
-          defaultValue={currentValue[0] ?? ''}
-          onChange={(e) => scheduleSave([e.target.value])}
-          onBlur={(e) => handleTextBlur(e.target.value)}
-          placeholder="Your answer"
-        />
-      )}
-
-      {question.type === 'long_answer' && (
-        <Textarea
-          defaultValue={currentValue[0] ?? ''}
-          onChange={(e) => scheduleSave([e.target.value])}
-          onBlur={(e) => handleTextBlur(e.target.value)}
-          placeholder="Your answer"
-          className="min-h-[120px]"
-        />
-      )}
-
-      {question.type === 'single_choice' && (
-        <RadioGroup
-          defaultValue={currentValue[0] ?? ''}
-          onValueChange={(value) => scheduleSave([value])}
-          className="flex flex-col gap-2"
-        >
-          {options.map((option) => (
-            <div key={option} className="flex items-center gap-2">
-              <RadioGroupItem value={option} id={`${question.id}-${option}`} />
-              <Label
-                htmlFor={`${question.id}-${option}`}
-                className="cursor-pointer font-normal"
-              >
-                {option}
-              </Label>
-            </div>
-          ))}
-        </RadioGroup>
-      )}
-
-      {question.type === 'multiple_choice' && (
-        <div className="flex flex-col gap-2">
-          {options.map((option) => (
-            <div key={option} className="flex items-center gap-2">
-              <Checkbox
-                id={`${question.id}-${option}`}
-                defaultChecked={currentValue.includes(option)}
-                onCheckedChange={(checked) => {
-                  const next = checked
-                    ? [...currentValue, option]
-                    : currentValue.filter((v) => v !== option);
-                  scheduleSave(next);
-                }}
+      <Controller
+        control={control}
+        name="value"
+        render={({ field }) => {
+          if (question.type === 'short_answer')
+            return (
+              <Input
+                value={field.value[0] ?? ''}
+                onChange={(e) =>
+                  field.onChange(e.target.value ? [e.target.value] : [])
+                }
+                onBlur={handleBlur}
+                placeholder="Your answer"
               />
-              <Label
-                htmlFor={`${question.id}-${option}`}
-                className="cursor-pointer font-normal"
-              >
-                {option}
-              </Label>
+            );
+
+          if (question.type === 'long_answer')
+            return (
+              <Textarea
+                value={field.value[0] ?? ''}
+                onChange={(e) =>
+                  field.onChange(e.target.value ? [e.target.value] : [])
+                }
+                onBlur={handleBlur}
+                placeholder="Your answer"
+                className="min-h-[120px]"
+              />
+            );
+
+          if (question.type === 'single_choice')
+            return (
+              <div className="flex flex-col gap-2">
+                {options.map((option) => (
+                  <Label
+                    key={option}
+                    className="flex cursor-pointer items-center gap-2 font-normal"
+                  >
+                    <input
+                      type="radio"
+                      name={question.id}
+                      value={option}
+                      checked={field.value[0] === option}
+                      onChange={() => {
+                        field.onChange([option]);
+                        save([option]);
+                      }}
+                      className="accent-primary size-4"
+                    />
+                    {option}
+                  </Label>
+                ))}
+              </div>
+            );
+
+          return (
+            <div className="flex flex-col gap-2">
+              {options.map((option) => (
+                <Label
+                  key={option}
+                  className="flex cursor-pointer items-center gap-2 font-normal"
+                >
+                  <input
+                    type="checkbox"
+                    checked={field.value.includes(option)}
+                    onChange={() => {
+                      const next = field.value.includes(option)
+                        ? field.value.filter((v) => v !== option)
+                        : [...field.value, option];
+                      field.onChange(next);
+                      save(next);
+                    }}
+                    className="accent-primary size-4"
+                  />
+                  {option}
+                </Label>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          );
+        }}
+      />
 
       {isPending && (
-        <span className="text-muted-foreground text-xs">Saving...</span>
+        <span className="text-muted-foreground mt-2 block text-xs">
+          Saving...
+        </span>
       )}
     </div>
   );
