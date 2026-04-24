@@ -161,4 +161,7 @@
     padding-right: 0 !important;
     margin-right: 0 !important;
   }
+  [data-slot='input-otp-slot'] {
+    @apply h-14 w-12 text-xl;
+  }
 }
