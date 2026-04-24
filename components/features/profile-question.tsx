@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import { updateGlobalAnswer } from '@/prisma/actions/profile';
@@ -24,36 +25,27 @@ export function ProfileQuestion({
   userId,
   isEditing,
 }: ProfileQuestionProps) {
+  const initial = answer?.value ?? [];
+  const [savedValue, setSavedValue] = useState(initial);
   const { control, formState, getValues, reset } = useForm<FormValues>({
-    defaultValues: { value: answer?.value ?? [] },
+    defaultValues: { value: initial },
   });
 
-  const displayValue =
-    ((formState.defaultValues?.value as string[] | undefined) ?? []).join(
-      ', ',
-    ) || null;
+  const displayValue = savedValue.join(', ') || null;
 
-  async function handleBlur() {
-    if (!formState.isDirty) return;
-    const value = getValues('value');
+  async function save(value: string[]) {
     try {
       await updateGlobalAnswer(userId, question.id, value);
+      setSavedValue(value);
       reset({ value });
     } catch {
       // silent — autosave is best-effort
     }
   }
 
-  async function handleChoiceChange(newValue: string[]) {
-    const saved =
-      (formState.defaultValues?.value as string[] | undefined) ?? [];
-    if (JSON.stringify(newValue) === JSON.stringify(saved)) return;
-    try {
-      await updateGlobalAnswer(userId, question.id, newValue);
-      reset({ value: newValue });
-    } catch {
-      // silent — autosave is best-effort
-    }
+  async function handleBlur() {
+    if (!formState.isDirty) return;
+    save(getValues('value'));
   }
 
   return (
@@ -127,9 +119,8 @@ export function ProfileQuestion({
                     value={option}
                     checked={field.value[0] === option}
                     onChange={() => {
-                      const next = [option];
-                      field.onChange(next);
-                      handleChoiceChange(next);
+                      field.onChange([option]);
+                      save([option]);
                     }}
                     className="accent-primary size-4"
                   />
@@ -154,14 +145,13 @@ export function ProfileQuestion({
                 >
                   <input
                     type="checkbox"
-                    value={option}
                     checked={field.value.includes(option)}
-                    onChange={(e) => {
-                      const next = e.target.checked
-                        ? [...field.value, option]
-                        : field.value.filter((v) => v !== option);
+                    onChange={() => {
+                      const next = field.value.includes(option)
+                        ? field.value.filter((v) => v !== option)
+                        : [...field.value, option];
                       field.onChange(next);
-                      handleChoiceChange(next);
+                      save(next);
                     }}
                     className="accent-primary size-4"
                   />
