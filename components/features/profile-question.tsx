@@ -16,15 +16,13 @@ interface ProfileQuestionProps {
   isEditing: boolean;
 }
 
-type FormValues = { value: string[] };
-
 export function ProfileQuestion({
   question,
   answer,
   userId,
   isEditing,
 }: ProfileQuestionProps) {
-  const { control, formState, getValues, reset } = useForm<FormValues>({
+  const { control, formState, getValues, reset } = useForm<{ value: string[] }>({
     defaultValues: { value: answer?.value ?? [] },
   });
 
