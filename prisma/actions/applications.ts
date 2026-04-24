@@ -9,6 +9,7 @@ import type {
 } from '@/prisma/client';
 
 import prisma from '@/lib/prisma';
+import { type DraftApplication } from '@/lib/types';
 import { type ResponseType } from '@/lib/utils';
 
 type GlobalAnswerWithQuestion = GlobalAnswer & {
@@ -18,9 +19,10 @@ type GlobalAnswerWithQuestion = GlobalAnswer & {
 export async function createDraftApplication(
   userId: string,
   positionId: string,
-): Promise<Application> {
+): Promise<DraftApplication> {
   const existing = await prisma.application.findUnique({
     where: { userId_positionId: { userId, positionId } },
+    include: { globalAnswers: true, positionAnswers: true },
   });
 
   if (existing) return existing;
@@ -47,6 +49,7 @@ export async function createDraftApplication(
         })),
       },
     },
+    include: { globalAnswers: true, positionAnswers: true },
   });
 }
 
