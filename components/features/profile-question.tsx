@@ -22,9 +22,9 @@ export function ProfileQuestion({
   userId,
   isEditing,
 }: ProfileQuestionProps) {
-  const { control, formState, getValues, reset } = useForm<{ value: string[] }>({
-    defaultValues: { value: answer?.value ?? [] },
-  });
+  const { control, formState, getValues, reset } = useForm<{ value: string[] }>(
+    { defaultValues: { value: answer?.value ?? [] } },
+  );
 
   const displayValue = getValues('value').join(', ') || null;
 
