@@ -4,9 +4,8 @@ import { useState } from 'react';
 
 import type { GlobalAnswer, GlobalQuestion } from '@/prisma/client';
 
-import { Button } from '@/components/ui/button';
-
 import { ProfileQuestion } from '@/components/features/profile-question';
+import { Button } from '@/components/ui/button';
 
 interface ProfileFormProps {
   profileData: { question: GlobalQuestion; answer: GlobalAnswer | null }[];
@@ -20,7 +19,11 @@ export function ProfileForm({ profileData, userId }: ProfileFormProps) {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Profile</h1>
-        <Button variant={isEditing ? 'default' : 'outline'} size="sm" onClick={() => setIsEditing(!isEditing)}>
+        <Button
+          variant={isEditing ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setIsEditing(!isEditing)}
+        >
           {isEditing ? 'Done' : 'Edit'}
         </Button>
       </div>

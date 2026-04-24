@@ -16,7 +16,12 @@ interface ProfileQuestionProps {
   isEditing: boolean;
 }
 
-export function ProfileQuestion({ question, answer, userId, isEditing }: ProfileQuestionProps) {
+export function ProfileQuestion({
+  question,
+  answer,
+  userId,
+  isEditing,
+}: ProfileQuestionProps) {
   const initial = answer?.value ?? [];
   const [currentValue, setCurrentValue] = useState<string[]>(initial);
   const [savedValue, setSavedValue] = useState<string[]>(initial);
@@ -45,13 +50,19 @@ export function ProfileQuestion({ question, answer, userId, isEditing }: Profile
 
   return (
     <div className="bg-card rounded-lg border p-4 shadow-sm">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <p className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase">
         {question.label}
         {question.required && <span className="text-destructive ml-1">*</span>}
       </p>
 
       {!isEditing && (
-        <p className={displayValue ? 'text-base font-medium text-foreground' : 'text-sm italic text-muted-foreground'}>
+        <p
+          className={
+            displayValue
+              ? 'text-foreground text-base font-medium'
+              : 'text-muted-foreground text-sm italic'
+          }
+        >
           {displayValue ?? 'No answer yet'}
         </p>
       )}
@@ -59,7 +70,9 @@ export function ProfileQuestion({ question, answer, userId, isEditing }: Profile
       {isEditing && question.type === 'short_answer' && (
         <Input
           value={currentValue[0] ?? ''}
-          onChange={(e) => setCurrentValue(e.target.value ? [e.target.value] : [])}
+          onChange={(e) =>
+            setCurrentValue(e.target.value ? [e.target.value] : [])
+          }
           onBlur={() => autosave(currentValue)}
           placeholder="Your answer"
         />
@@ -68,7 +81,9 @@ export function ProfileQuestion({ question, answer, userId, isEditing }: Profile
       {isEditing && question.type === 'long_answer' && (
         <Textarea
           value={currentValue[0] ?? ''}
-          onChange={(e) => setCurrentValue(e.target.value ? [e.target.value] : [])}
+          onChange={(e) =>
+            setCurrentValue(e.target.value ? [e.target.value] : [])
+          }
           onBlur={() => autosave(currentValue)}
           placeholder="Your answer"
           className="min-h-[100px]"
@@ -78,7 +93,10 @@ export function ProfileQuestion({ question, answer, userId, isEditing }: Profile
       {isEditing && question.type === 'single_choice' && (
         <div className="flex flex-col gap-2">
           {question.options.map((option: string) => (
-            <Label key={option} className="flex cursor-pointer items-center gap-2 font-normal">
+            <Label
+              key={option}
+              className="flex cursor-pointer items-center gap-2 font-normal"
+            >
               <input
                 type="radio"
                 name={question.id}
@@ -100,7 +118,10 @@ export function ProfileQuestion({ question, answer, userId, isEditing }: Profile
       {isEditing && question.type === 'multiple_choice' && (
         <div className="flex flex-col gap-2">
           {question.options.map((option: string) => (
-            <Label key={option} className="flex cursor-pointer items-center gap-2 font-normal">
+            <Label
+              key={option}
+              className="flex cursor-pointer items-center gap-2 font-normal"
+            >
               <input
                 type="checkbox"
                 value={option}
