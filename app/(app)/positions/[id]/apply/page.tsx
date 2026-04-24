@@ -42,7 +42,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
       <div className="mx-auto max-w-2xl">
         <div className="mb-8">
           <h1 className="text-2xl font-semibold tracking-tight">
-            Apply — {position.title}
+            Apply: {position.title}
           </h1>
         </div>
         <div className="bg-muted rounded-lg p-6">
@@ -69,7 +69,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
     <div className="mx-auto max-w-2xl">
       <div className="mb-8">
         <h1 className="text-2xl font-semibold tracking-tight">
-          Apply — {position.title}
+          Apply: {position.title}
         </h1>
         <p className="text-muted-foreground mt-1 text-sm">
           Complete the form below to submit your application.
