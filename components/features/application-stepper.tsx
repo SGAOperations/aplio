@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { type Control, Controller, useForm } from 'react-hook-form';
 
+import { CheckIcon } from 'lucide-react';
+
 import {
   createOrUpdateApplicationAnswer,
   submitApplication,
@@ -108,7 +110,7 @@ function QuestionList({
             key={question.id}
             control={control}
             name={fieldName}
-            shouldUnregister={isGlobal}
+            shouldUnregister={false}
             rules={{
               validate: (value) =>
                 !question.required ||
@@ -207,7 +209,7 @@ export function ApplicationStepper({
     <div className="flex flex-col gap-6">
       <div className="flex items-center gap-2">
         <div className="bg-primary text-primary-foreground flex size-7 items-center justify-center rounded-full text-sm font-medium">
-          1
+          {step === 2 ? <CheckIcon className="size-4" /> : '1'}
         </div>
         <div className="bg-border h-px flex-1" />
         <div
