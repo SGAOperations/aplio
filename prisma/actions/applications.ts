@@ -64,19 +64,16 @@ export async function createOrUpdateApplicationAnswer(params: {
   const { applicationId, questionId, questionLabel, value, isGlobal, userId } =
     params;
 
-  if (isGlobal) {
-    const existing = await prisma.globalApplicationAnswer.findFirst({
-      where: { applicationId, globalQuestionId: questionId },
-    });
-
-    if (existing)
-      return prisma.globalApplicationAnswer.update({
-        where: { id: existing.id },
-        data: { value, updatedById: userId },
-      });
-
-    return prisma.globalApplicationAnswer.create({
-      data: {
+  if (isGlobal)
+    return prisma.globalApplicationAnswer.upsert({
+      where: {
+        applicationId_globalQuestionId: {
+          applicationId,
+          globalQuestionId: questionId,
+        },
+      },
+      update: { value, updatedById: userId },
+      create: {
         applicationId,
         globalQuestionId: questionId,
         questionLabel,
@@ -85,20 +82,16 @@ export async function createOrUpdateApplicationAnswer(params: {
         updatedById: userId,
       },
     });
-  }
 
-  const existing = await prisma.positionApplicationAnswer.findFirst({
-    where: { applicationId, positionQuestionId: questionId },
-  });
-
-  if (existing)
-    return prisma.positionApplicationAnswer.update({
-      where: { id: existing.id },
-      data: { value, updatedById: userId },
-    });
-
-  return prisma.positionApplicationAnswer.create({
-    data: {
+  return prisma.positionApplicationAnswer.upsert({
+    where: {
+      applicationId_positionQuestionId: {
+        applicationId,
+        positionQuestionId: questionId,
+      },
+    },
+    update: { value, updatedById: userId },
+    create: {
       applicationId,
       positionQuestionId: questionId,
       questionLabel,
@@ -115,9 +108,25 @@ export async function submitApplication(
 ): Promise<ResponseType<Application>> {
   const application = await prisma.application.findFirst({
     where: { id: applicationId, userId },
+    include: {
+      positionAnswers: true,
+      position: { include: { questions: { where: { deletedAt: null } } } },
+    },
   });
 
   if (!application) return { error: 'Unauthorized' };
+
+  const hasUnanswered = application.position.questions.some(
+    (q) =>
+      q.required &&
+      !application.positionAnswers.some(
+        (a) =>
+          a.positionQuestionId === q.id && (a.value as string[]).length > 0,
+      ),
+  );
+
+  if (hasUnanswered)
+    return { error: 'Please answer all required questions before submitting.' };
 
   return prisma.application.update({
     where: { id: applicationId },
