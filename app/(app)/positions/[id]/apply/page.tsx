@@ -29,8 +29,16 @@ export default async function ApplyPage({
   const globalAnswers = profileData.flatMap((d) =>
     d.answer ? [d.answer] : [],
   );
-  const application =
-    globalAnswers.length > 0 ? await createDraftApplication(user.id, id) : null;
+
+  const profileComplete =
+    profileData.length === 0 ||
+    profileData
+      .filter((d) => d.question.required)
+      .every((d) => d.answer !== null);
+
+  const application = profileComplete
+    ? await createDraftApplication(user.id, id)
+    : null;
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -49,7 +57,7 @@ export default async function ApplyPage({
         <div className="bg-muted rounded-lg p-6">
           <p className="font-medium">Complete your profile first</p>
           <p className="text-muted-foreground mt-1 text-sm">
-            You need to fill out your profile before applying to any position.
+            You need to answer all required profile questions before applying.
             Your profile answers are shared across all applications.
           </p>
           <Button asChild className="mt-4">
