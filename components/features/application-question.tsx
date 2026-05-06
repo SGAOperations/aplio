@@ -6,8 +6,10 @@ import type { GlobalQuestion, PositionQuestion } from '@/prisma/client';
 
 import { cn } from '@/lib/utils';
 
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 
 interface ApplicationQuestionProps {
@@ -30,6 +32,7 @@ export function ApplicationQuestion({
   onSave,
 }: ApplicationQuestionProps) {
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState(false);
   const savedValueRef = useRef(JSON.stringify(field.value));
   const options = question.options as string[];
 
@@ -37,9 +40,12 @@ export function ApplicationQuestion({
     const serialized = JSON.stringify(value);
     if (serialized === savedValueRef.current) return;
     setIsSaving(true);
+    setSaveError(false);
     try {
       await onSave(value);
       savedValueRef.current = serialized;
+    } catch {
+      setSaveError(true);
     } finally {
       setIsSaving(false);
     }
@@ -86,27 +92,23 @@ export function ApplicationQuestion({
       )}
 
       {question.type === 'single_choice' && (
-        <div className="flex flex-col gap-2">
+        <RadioGroup
+          value={field.value[0] ?? ''}
+          onValueChange={(value) => {
+            field.onChange([value]);
+            save([value]);
+          }}
+        >
           {options.map((option) => (
             <Label
               key={option}
               className="flex cursor-pointer items-center gap-2 font-normal"
             >
-              <input
-                type="radio"
-                name={question.id}
-                value={option}
-                checked={field.value[0] === option}
-                onChange={() => {
-                  field.onChange([option]);
-                  save([option]);
-                }}
-                className="accent-primary size-4"
-              />
+              <RadioGroupItem value={option} />
               {option}
             </Label>
           ))}
-        </div>
+        </RadioGroup>
       )}
 
       {question.type === 'multiple_choice' && (
@@ -116,17 +118,15 @@ export function ApplicationQuestion({
               key={option}
               className="flex cursor-pointer items-center gap-2 font-normal"
             >
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={field.value.includes(option)}
-                onChange={() => {
-                  const next = field.value.includes(option)
-                    ? field.value.filter((v) => v !== option)
-                    : [...field.value, option];
+                onCheckedChange={(checked) => {
+                  const next = checked
+                    ? [...field.value, option]
+                    : field.value.filter((v) => v !== option);
                   field.onChange(next);
                   save(next);
                 }}
-                className="accent-primary size-4"
               />
               {option}
             </Label>
@@ -139,6 +139,11 @@ export function ApplicationQuestion({
         <span className="text-muted-foreground mt-2 block text-xs">
           Saving...
         </span>
+      )}
+      {saveError && (
+        <p className="text-destructive mt-2 text-xs">
+          Failed to save. Please try again.
+        </p>
       )}
     </div>
   );
