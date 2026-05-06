@@ -211,6 +211,8 @@ model GlobalApplicationAnswer {
 
   application    Application    @relation(fields: [applicationId], references: [id])
   globalQuestion GlobalQuestion @relation(fields: [globalQuestionId], references: [id])
+
+  @@unique([applicationId, globalQuestionId])
 }
 
 model PositionApplicationAnswer {
@@ -232,4 +234,6 @@ model PositionApplicationAnswer {
 
   application      Application      @relation(fields: [applicationId], references: [id])
   positionQuestion PositionQuestion @relation(fields: [positionQuestionId], references: [id])
+
+  @@unique([applicationId, positionQuestionId])
 }
