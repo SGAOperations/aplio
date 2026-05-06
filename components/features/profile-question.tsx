@@ -47,30 +47,26 @@ export function ProfileQuestion({
         {question.required && <span className="text-destructive ml-1">*</span>}
       </p>
 
-      {!isEditing && (
-        <>
-          {getValues('value').length === 0 ? (
-            <p className="text-muted-foreground text-sm italic">
-              No answer yet
-            </p>
-          ) : question.type === 'multiple_choice' ? (
-            <div className="flex flex-wrap gap-1.5">
-              {getValues('value').map((v) => (
-                <span
-                  key={v}
-                  className="bg-primary/10 text-primary rounded-md px-2 py-0.5 text-sm font-medium"
-                >
-                  {v}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <p className="text-foreground text-base font-medium">
-              {getValues('value')[0]}
-            </p>
-          )}
-        </>
-      )}
+      {!isEditing &&
+        (getValues('value').length === 0 ? (
+          <p className="text-muted-foreground text-sm italic">No answer yet</p>
+        ) : question.type === 'multiple_choice' ||
+          question.type === 'single_choice' ? (
+          <div className="flex flex-wrap gap-1.5">
+            {getValues('value').map((v) => (
+              <span
+                key={v}
+                className="bg-primary/10 text-primary rounded-md px-2 py-0.5 text-sm font-medium"
+              >
+                {v}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="text-foreground text-base font-medium">
+            {getValues('value')[0] ?? 'No answer yet'}
+          </p>
+        ))}
 
       {isEditing && (
         <Controller
