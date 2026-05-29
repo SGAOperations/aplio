@@ -30,14 +30,24 @@ gh pr view $ARGUMENTS --repo SGAOperations/aplio --comments
 
 Find the most recent `## Code Review` comment. That is the review to address.
 
-### 2. Check out the branch
+### 2. Derive the issue number and check out the branch
+
+Parse the issue number from the PR body — it appears as `Closes #XXX`:
+
+```bash
+gh pr view $ARGUMENTS --repo SGAOperations/aplio --json body --jq '.body'
+```
+
+Extract the number after `Closes #` — this is `<issue-number>`, used in the commit message below.
+
+Check out the branch:
 
 ```bash
 git fetch origin
-git checkout <headRefName>
+git checkout -b <headRefName> origin/<headRefName>
 ```
 
-If a worktree already exists for this branch, work from there instead.
+If the branch is already checked out locally, omit `-b origin/<headRefName>`. If a worktree already exists for this branch, work from there instead.
 
 ### 3. Apply fixes
 
@@ -66,7 +76,7 @@ Fix all failures before pushing.
 
 ```bash
 git add <changed files>
-git commit -m "$(cat <<'EOF'
+git commit -m "$(cat <<EOF
 #<issue-number> address review feedback
 
 Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>

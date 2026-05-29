@@ -62,7 +62,7 @@ Work through each item in the plan's implementation checklist. Follow all projec
 Commit each logical unit:
 
 ```bash
-git commit -m "$(cat <<'EOF'
+git commit -m "$(cat <<EOF
 #$ARGUMENTS <imperative message in lowercase>
 
 Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>

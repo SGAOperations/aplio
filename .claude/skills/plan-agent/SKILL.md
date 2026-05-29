@@ -62,5 +62,7 @@ gh issue edit $ARGUMENTS --repo SGAOperations/aplio --body "<full plan content>"
 ## Handoff
 
 ```bash
-gh issue edit $ARGUMENTS --repo SGAOperations/aplio --remove-label "ready" --add-label "plan approved"
+gh issue edit $ARGUMENTS --repo SGAOperations/aplio \
+  --remove-label "ready" \
+  --add-label "claude,plan approved"
 ```
