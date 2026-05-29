@@ -17,21 +17,21 @@ This repo uses a four-stage Claude Code skill pipeline to take GitHub Issues fro
 
 ### Issue labels
 
-| Label | Set by | Meaning |
-|---|---|---|
-| `claude` | Human | Claude is handling this ticket |
-| `ready` | Human | Ready for plan agent |
+| Label           | Set by     | Meaning                                |
+| --------------- | ---------- | -------------------------------------- |
+| `claude`        | Human      | Claude is handling this ticket         |
+| `ready`         | Human      | Ready for plan agent                   |
 | `plan approved` | Plan agent | Plan written; ready for implementation |
-| `in progress` | Impl agent | Implementation underway |
-| `pr opened` | Impl agent | PR has been opened |
+| `in progress`   | Impl agent | Implementation underway                |
+| `pr opened`     | Impl agent | PR has been opened                     |
 
 ### PR labels
 
-| Label | Set by | Meaning |
-|---|---|---|
-| `ready for review` | Impl agent / Revise agent | Ready for review agent |
-| `needs revision` | Review agent | Critical or Medium issues found |
-| `approved` | Review agent | Only Low/Nit issues; ready to merge |
+| Label              | Set by                    | Meaning                             |
+| ------------------ | ------------------------- | ----------------------------------- |
+| `ready for review` | Impl agent / Revise agent | Ready for review agent              |
+| `needs revision`   | Review agent              | Critical or Medium issues found     |
+| `approved`         | Review agent              | Only Low/Nit issues; ready to merge |
 
 ## Flow
 

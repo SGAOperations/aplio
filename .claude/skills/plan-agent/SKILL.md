@@ -17,6 +17,7 @@ gh issue view $ARGUMENTS --repo SGAOperations/aplio --json labels,title
 ```
 
 If the issue does not have the `ready` label, stop immediately and say:
+
 > "Issue #$ARGUMENTS is not labeled `ready`. Current labels: [list them]. Nothing was changed."
 
 ## Work

@@ -17,6 +17,7 @@ gh pr view $ARGUMENTS --repo SGAOperations/aplio --json labels,title,headRefName
 ```
 
 If the PR does not have the `needs revision` label, stop immediately and say:
+
 > "PR #$ARGUMENTS is not labeled `needs revision`. Current labels: [list them]. Nothing was changed."
 
 ## Work
@@ -42,12 +43,12 @@ If a worktree already exists for this branch, work from there instead.
 
 For each finding in the review comment, use this decision table:
 
-| Severity | Introduced in this PR | Preexisting code |
-|---|---|---|
-| Critical | Fix always | Note in summary comment as a suggested future ticket |
-| Medium | Fix always | Note in summary comment as a suggested future ticket |
-| Low | Fix unless genuinely not an issue — if skipping, explain why | Note in summary comment as a suggested future ticket |
-| Nit | Fix unless genuinely not an issue — if skipping, explain why | Note in summary comment as a suggested future ticket |
+| Severity | Introduced in this PR                                        | Preexisting code                                     |
+| -------- | ------------------------------------------------------------ | ---------------------------------------------------- |
+| Critical | Fix always                                                   | Note in summary comment as a suggested future ticket |
+| Medium   | Fix always                                                   | Note in summary comment as a suggested future ticket |
+| Low      | Fix unless genuinely not an issue — if skipping, explain why | Note in summary comment as a suggested future ticket |
+| Nit      | Fix unless genuinely not an issue — if skipping, explain why | Note in summary comment as a suggested future ticket |
 
 Do not address anything outside the review comment — no scope creep.
 

@@ -17,6 +17,7 @@ gh pr view $ARGUMENTS --repo SGAOperations/aplio --json labels,title,body
 ```
 
 If the PR does not have the `ready for review` label, stop immediately and say:
+
 > "PR #$ARGUMENTS is not labeled `ready for review`. Current labels: [list them]. Nothing was changed."
 
 ## Work
