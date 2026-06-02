@@ -8,6 +8,16 @@ description: Pipeline Stage 2 — reads the approved plan from an issue and impl
 **Trigger:** Issue labeled `plan approved`
 **Input:** `$ARGUMENTS` — the issue number
 
+Spawn a background sub-agent with the instructions below, then return immediately.
+
+```
+Agent({
+  description: "impl-agent for issue #$ARGUMENTS",
+  run_in_background: true,
+  prompt: "<paste the ## Work section below as the prompt>"
+})
+```
+
 ## Pre-flight
 
 Fetch the issue and verify it is labeled `plan approved`:
@@ -70,7 +80,24 @@ EOF
 )"
 ```
 
-If something unanticipated arises that the plan did not cover, pause and ask the user before continuing.
+If something unanticipated arises that the plan did not cover, do **not** pause — instead:
+
+1. Post a blocker comment on the issue:
+
+   ```bash
+   gh issue comment $ARGUMENTS --repo SGAOperations/aplio --body "## Blocker
+
+   <description of what was encountered and why it blocks progress>
+
+   **Stopped at:** <last completed checklist item>
+   **Needs:** <what decision or information is required to continue>"
+   ```
+
+2. Update labels:
+   ```bash
+   gh issue edit $ARGUMENTS --repo SGAOperations/aplio --remove-label "in progress" --add-label "blocked"
+   ```
+3. Exit without pushing any partial work.
 
 ### 5. Run CI checks
 

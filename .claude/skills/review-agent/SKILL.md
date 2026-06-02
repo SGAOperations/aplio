@@ -1,24 +1,56 @@
 ---
 name: review-agent
-description: Pipeline Stage 3 — reviews a PR diff against the original plan and posts a structured review comment. Usage: /review-agent <pr-number>
+description: Pipeline Stage 3 — reviews a PR diff against the original plan and posts a structured review comment. Usage: /review-agent <pr-or-issue-number>
 ---
 
 # Review Agent — Stage 3
 
 **Trigger:** PR labeled `ready for review`
-**Input:** `$ARGUMENTS` — the PR number
+**Input:** `$ARGUMENTS` — a PR number or issue number
+
+Spawn a background sub-agent with the instructions below, then return immediately.
+
+```
+Agent({
+  description: "review-agent for #$ARGUMENTS",
+  run_in_background: true,
+  prompt: "<paste the ## Work section below as the prompt>"
+})
+```
 
 ## Pre-flight
 
-Fetch the PR and verify it is labeled `ready for review`:
+### Resolve input to a PR number
+
+Try to fetch the input as a PR directly:
 
 ```bash
 gh pr view $ARGUMENTS --repo SGAOperations/aplio --json labels,title,body
 ```
 
+If that succeeds, `$ARGUMENTS` is the PR number — proceed.
+
+If it fails (the input is an issue number), find the linked PR:
+
+```bash
+gh pr list --repo SGAOperations/aplio --search "closes #$ARGUMENTS" --json number,title
+```
+
+If a PR is found, use its number as the PR number for all steps below. If no PR is found, stop and say:
+
+> "No open PR found linked to issue #$ARGUMENTS. Nothing was changed."
+
+### Verify label
+
+Fetch the PR and confirm it is labeled `ready for review`:
+
+```bash
+gh pr view <pr-number> --repo SGAOperations/aplio --json labels,title,body
+```
+
 If the PR does not have the `ready for review` label, stop immediately and say:
 
-> "PR #$ARGUMENTS is not labeled `ready for review`. Current labels: [list them]. Nothing was changed."
+> "PR #<pr-number> is not labeled `ready for review`. Current labels: [list them]. Nothing was changed."
 
 ## Work
 
@@ -26,10 +58,10 @@ If the PR does not have the `ready for review` label, stop immediately and say:
 
 ```bash
 # Full PR diff
-gh pr diff $ARGUMENTS --repo SGAOperations/aplio
+gh pr diff <pr-number> --repo SGAOperations/aplio
 
 # PR metadata — find the linked issue number in "Closes #XXX"
-gh pr view $ARGUMENTS --repo SGAOperations/aplio --json body,title,headRefName
+gh pr view <pr-number> --repo SGAOperations/aplio --json body,title,headRefName
 
 # Fetch the linked issue to get the original plan
 gh issue view <issue-number> --repo SGAOperations/aplio
@@ -51,7 +83,7 @@ Review across these dimensions:
 ### 3. Post structured review comment
 
 ```bash
-gh pr comment $ARGUMENTS --repo SGAOperations/aplio --body "<review comment>"
+gh pr comment <pr-number> --repo SGAOperations/aplio --body "<review comment>"
 ```
 
 Format:
@@ -81,12 +113,12 @@ Omit any severity section that has no findings.
 
 ```bash
 # Critical or Medium findings exist:
-gh pr edit $ARGUMENTS --repo SGAOperations/aplio \
+gh pr edit <pr-number> --repo SGAOperations/aplio \
   --remove-label "ready for review" \
   --add-label "needs revision"
 
 # Only Low/Nit findings (or none):
-gh pr edit $ARGUMENTS --repo SGAOperations/aplio \
+gh pr edit <pr-number> --repo SGAOperations/aplio \
   --remove-label "ready for review" \
   --add-label "approved"
 ```
