@@ -1,6 +1,7 @@
 ---
 name: impl-agent
 description: Pipeline Stage 2 — reads the approved plan from an issue and implements it. Usage: /impl-agent <issue-number>
+allowed-tools: Bash(gh issue view *) Bash(gh issue edit *) Bash(gh issue comment *) Bash(gh pr create *) Bash(gh pr edit *) Bash(git fetch *) Bash(git worktree *) Bash(git add *) Bash(git commit *) Bash(git push *) Bash(ln -s *) Bash(npm run prettier:check) Bash(npx prettier --write *) Bash(npm run eslint:check) Bash(npm run tsc:check)
 ---
 
 # Impl Agent — Stage 2

@@ -1,6 +1,7 @@
 ---
 name: review-all
 description: Dispatches background review-agents for all PRs labeled `ready for review`. Usage: /review-all
+allowed-tools: Bash(gh pr list *)
 ---
 
 # Review All — Bulk Dispatcher

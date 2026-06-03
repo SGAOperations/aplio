@@ -1,6 +1,7 @@
 ---
 name: revise-all
 description: Dispatches background revise-agents for all PRs labeled `needs revision`. Usage: /revise-all
+allowed-tools: Bash(gh pr list *)
 ---
 
 # Revise All — Bulk Dispatcher

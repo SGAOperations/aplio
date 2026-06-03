@@ -1,6 +1,7 @@
 ---
 name: plan-agent
 description: Pipeline Stage 1 — reads an issue labeled `ready`, researches the codebase, and writes a full implementation plan back into the issue. Usage: /plan-agent <issue-number>
+allowed-tools: Bash(gh issue view *) Bash(gh issue edit *) Bash(gh pr list *)
 ---
 
 # Plan Agent — Stage 1

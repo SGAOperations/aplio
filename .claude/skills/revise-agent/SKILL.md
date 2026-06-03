@@ -1,6 +1,7 @@
 ---
 name: revise-agent
 description: Pipeline Stage 4 — reads the review comment on a PR labeled `needs revision` and implements fixes. Usage: /revise-agent <pr-or-issue-number>
+allowed-tools: Bash(gh issue view *) Bash(gh pr list *) Bash(gh pr view *) Bash(gh pr comment *) Bash(gh pr edit *) Bash(git fetch *) Bash(git checkout *) Bash(git add *) Bash(git commit *) Bash(git push *) Bash(npm run prettier:check) Bash(npx prettier --write *) Bash(npm run eslint:check) Bash(npm run tsc:check)
 ---
 
 # Revise Agent — Stage 4
