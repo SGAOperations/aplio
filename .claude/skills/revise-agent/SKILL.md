@@ -1,44 +1,74 @@
 ---
 name: revise-agent
-description: Pipeline Stage 4 — reads the review comment on a PR labeled `needs revision` and implements fixes. Usage: /revise-agent <pr-number>
+description: Pipeline Stage 4 — reads the review comment on a PR labeled `needs revision` and implements fixes. Usage: /revise-agent <pr-or-issue-number>
 ---
 
 # Revise Agent — Stage 4
 
 **Trigger:** PR labeled `needs revision`
-**Input:** `$ARGUMENTS` — the PR number
+**Input:** `$ARGUMENTS` — a PR number or issue number
+
+Spawn a background sub-agent with the instructions below, then return immediately.
+
+```
+Agent({
+  description: "revise-agent for #$ARGUMENTS",
+  run_in_background: true,
+  prompt: "<paste the ## Work section below as the prompt>"
+})
+```
 
 ## Pre-flight
 
-Fetch the PR and verify it is labeled `needs revision`:
+### Resolve input to a PR number
+
+Try to fetch the input as a PR directly:
 
 ```bash
 gh pr view $ARGUMENTS --repo SGAOperations/aplio --json labels,title,headRefName
 ```
 
+If that succeeds, `$ARGUMENTS` is the PR number — proceed.
+
+If it fails (the input is an issue number), find the linked PR:
+
+```bash
+gh pr list --repo SGAOperations/aplio --search "closes #$ARGUMENTS" --json number,title,headRefName
+```
+
+If a PR is found, use its number as the PR number for all steps below. If no PR is found, stop and say:
+
+> "No open PR found linked to issue #$ARGUMENTS. Nothing was changed."
+
+### Verify label
+
+Confirm the PR is labeled `needs revision`:
+
+```bash
+gh pr view <pr-number> --repo SGAOperations/aplio --json labels,title,headRefName
+```
+
 If the PR does not have the `needs revision` label, stop immediately and say:
 
-> "PR #$ARGUMENTS is not labeled `needs revision`. Current labels: [list them]. Nothing was changed."
+> "PR #<pr-number> is not labeled `needs revision`. Current labels: [list them]. Nothing was changed."
 
 ## Work
 
 ### 1. Fetch the review comment
 
 ```bash
-gh pr view $ARGUMENTS --repo SGAOperations/aplio --comments
+gh pr view <pr-number> --repo SGAOperations/aplio --comments
 ```
 
 Find the most recent `## Code Review` comment. That is the review to address.
 
 ### 2. Derive the issue number and check out the branch
 
-Parse the issue number from the PR body — it appears as `Closes #XXX`:
+If input was already an issue number, use it directly. Otherwise parse from the PR body (`Closes #XXX`):
 
 ```bash
-gh pr view $ARGUMENTS --repo SGAOperations/aplio --json body --jq '.body'
+gh pr view <pr-number> --repo SGAOperations/aplio --json body --jq '.body'
 ```
-
-Extract the number after `Closes #` — this is `<issue-number>`, used in the commit message below.
 
 Check out the branch:
 
@@ -88,7 +118,7 @@ git push origin <headRefName>
 ### 6. Post summary comment
 
 ```bash
-gh pr comment $ARGUMENTS --repo SGAOperations/aplio --body "<summary>"
+gh pr comment <pr-number> --repo SGAOperations/aplio --body "<summary>"
 ```
 
 Format:
@@ -111,7 +141,7 @@ Omit any section with no entries.
 ## Handoff
 
 ```bash
-gh pr edit $ARGUMENTS --repo SGAOperations/aplio \
+gh pr edit <pr-number> --repo SGAOperations/aplio \
   --remove-label "needs revision" \
   --add-label "ready for review"
 ```
