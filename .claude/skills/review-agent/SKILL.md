@@ -1,6 +1,7 @@
 ---
 name: review-agent
 description: Pipeline Stage 3 — reviews a PR diff against the original plan and posts a structured review comment. Usage: /review-agent <pr-or-issue-number>
+allowed-tools: Bash(gh issue view *) Bash(gh pr list *) Bash(gh pr view *) Bash(gh pr diff *) Bash(gh pr comment *) Bash(gh pr edit *)
 ---
 
 # Review Agent — Stage 3
