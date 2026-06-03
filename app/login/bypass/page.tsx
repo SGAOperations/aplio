@@ -1,4 +1,4 @@
-import { loginAsBypassUser } from '@/prisma/actions/dev-bypass';
+import { loginAsBypassUser } from '@/prisma/services/dev-bypass';
 
 import { Button } from '@/components/ui/button';
 

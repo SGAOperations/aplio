@@ -28,10 +28,10 @@ const BYPASS_USERS: Record<
   },
 };
 
-export async function loginAsBypassUser(role: string) {
+export async function loginAsBypassUser(role: BypassRole) {
   if (process.env.VERCEL_ENV === 'production') return;
 
-  const config = BYPASS_USERS[role as BypassRole];
+  const config = BYPASS_USERS[role];
   if (!config) return;
 
   const { email, neonAuthId, isAdmin } = config;
@@ -67,7 +67,11 @@ export async function loginAsBypassUser(role: string) {
   }
 
   const cookieStore = await cookies();
-  cookieStore.set('dev-bypass-user-id', user.id, { httpOnly: true, path: '/' });
+  cookieStore.set('dev-bypass-user-id', user.id, {
+    httpOnly: true,
+    secure: true,
+    path: '/',
+  });
 
   redirect('/positions');
 }
