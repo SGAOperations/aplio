@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 
 import prisma from '@/lib/prisma';
 
-type BypassRole = 'admin' | 'applicant' | 'position-manager';
+export type BypassRole = 'admin' | 'applicant' | 'position-manager';
 
 const BYPASS_USERS: Record<
   BypassRole,
@@ -70,6 +70,7 @@ export async function loginAsBypassUser(role: BypassRole) {
   cookieStore.set('dev-bypass-user-id', user.id, {
     httpOnly: true,
     secure: true,
+    sameSite: 'lax',
     path: '/',
   });
 
