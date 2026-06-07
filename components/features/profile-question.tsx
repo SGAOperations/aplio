@@ -50,8 +50,7 @@ export function ProfileQuestion({
       {!isEditing &&
         (getValues('value').length === 0 ? (
           <p className="text-muted-foreground text-sm italic">No answer yet</p>
-        ) : question.type === 'multiple_choice' ||
-          question.type === 'single_choice' ? (
+        ) : question.type === 'multiple_choice' ? (
           <div className="flex flex-wrap gap-1.5">
             {getValues('value').map((v) => (
               <span
