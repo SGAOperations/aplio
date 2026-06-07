@@ -39,13 +39,15 @@
 
 #### Issue Labels
 
-Three labels track the state of Claude-handled issues. Update them with `gh issue edit XXX --repo SGAOperations/aplio`:
+These labels track the lifecycle of Claude-handled issues on the **issue**. Update with `gh issue edit XXX --repo SGAOperations/aplio`:
 
 - `claude` — add when starting work on any ticket (signals Claude is handling it)
-- `in progress` — add when a worktree/branch is created and implementation begins
-- `pr opened` — add when a PR is opened; remove `in progress` at the same time
+- `ready` — set by human to trigger the plan agent
+- `plan approved` — set by plan agent; triggers impl agent
+- `in progress` — set by impl agent when implementation begins
+- `pr opened` — set by impl agent when PR is opened; replaces `in progress`
 
-Example workflow:
+Example workflow (manual, outside pipeline):
 
 ```bash
 # Starting work
@@ -54,6 +56,14 @@ gh issue edit 42 --repo SGAOperations/aplio --add-label "claude,in progress"
 # Opening a PR
 gh issue edit 42 --repo SGAOperations/aplio --add-label "pr opened" --remove-label "in progress"
 ```
+
+#### PR Labels
+
+These labels track the review state on the **PR**. Update with `gh pr edit XXX --repo SGAOperations/aplio`:
+
+- `ready for review` — set by impl agent (first pass) or revise agent (after fixes); triggers review agent
+- `needs revision` — set by review agent when Critical or Medium issues are found; triggers revise agent
+- `approved` — set by review agent when only Low/Nit issues remain; signals ready to merge
 
 #### Sub-Issues
 
