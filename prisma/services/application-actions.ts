@@ -8,6 +8,7 @@ import type {
   PositionApplicationAnswer,
 } from '@/prisma/client';
 
+import { getCurrentUser } from '@/lib/auth/server';
 import prisma from '@/lib/prisma';
 import { type DraftApplication } from '@/lib/types';
 import { type ResponseType } from '@/lib/utils';
@@ -59,10 +60,18 @@ export async function createOrUpdateApplicationAnswer(params: {
   questionLabel: string;
   value: string[];
   isGlobal: boolean;
-  userId: string;
 }): Promise<GlobalApplicationAnswer | PositionApplicationAnswer> {
-  const { applicationId, questionId, questionLabel, value, isGlobal, userId } =
-    params;
+  const { applicationId, questionId, questionLabel, value, isGlobal } = params;
+
+  const currentUser = await getCurrentUser();
+
+  const application = await prisma.application.findUnique({
+    where: { id: applicationId },
+    select: { userId: true },
+  });
+
+  if (!application || application.userId !== currentUser.id)
+    throw new Error('Unauthorized');
 
   if (isGlobal)
     return prisma.globalApplicationAnswer.upsert({
@@ -72,14 +81,14 @@ export async function createOrUpdateApplicationAnswer(params: {
           globalQuestionId: questionId,
         },
       },
-      update: { value, updatedById: userId },
+      update: { value, updatedById: currentUser.id },
       create: {
         applicationId,
         globalQuestionId: questionId,
         questionLabel,
         value,
-        createdById: userId,
-        updatedById: userId,
+        createdById: currentUser.id,
+        updatedById: currentUser.id,
       },
     });
 
@@ -90,14 +99,14 @@ export async function createOrUpdateApplicationAnswer(params: {
         positionQuestionId: questionId,
       },
     },
-    update: { value, updatedById: userId },
+    update: { value, updatedById: currentUser.id },
     create: {
       applicationId,
       positionQuestionId: questionId,
       questionLabel,
       value,
-      createdById: userId,
-      updatedById: userId,
+      createdById: currentUser.id,
+      updatedById: currentUser.id,
     },
   });
 }

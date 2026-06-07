@@ -1,9 +1,9 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
-import { createDraftApplication } from '@/prisma/actions/applications';
-import { getPositionForApply } from '@/prisma/data/positions';
 import { getProfileData } from '@/prisma/data/profile';
+import { createDraftApplication } from '@/prisma/services/application-actions';
+import { getPositionForApply } from '@/prisma/services/positions';
 
 import { getCurrentUser } from '@/lib/auth/server';
 

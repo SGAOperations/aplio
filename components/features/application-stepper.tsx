@@ -7,10 +7,6 @@ import { type Control, Controller, useForm } from 'react-hook-form';
 
 import { CheckIcon } from 'lucide-react';
 
-import {
-  createOrUpdateApplicationAnswer,
-  submitApplication,
-} from '@/prisma/actions/applications';
 import type {
   GlobalAnswer,
   GlobalApplicationAnswer,
@@ -18,6 +14,10 @@ import type {
   PositionApplicationAnswer,
   PositionQuestion,
 } from '@/prisma/client';
+import {
+  createOrUpdateApplicationAnswer,
+  submitApplication,
+} from '@/prisma/services/application-actions';
 
 import { type DraftApplication } from '@/lib/types';
 import { isError } from '@/lib/utils';
@@ -27,12 +27,16 @@ import { Button } from '@/components/ui/button';
 
 type StepperFormValues = Record<string, string[]>;
 
+function toStringArray(v: unknown): string[] {
+  if (Array.isArray(v) && v.every((x) => typeof x === 'string')) return v;
+  return [];
+}
+
 interface QuestionListProps {
   applicationId: string;
   questions: (GlobalQuestion | PositionQuestion)[];
   control: Control<StepperFormValues>;
   isGlobal: boolean;
-  userId: string;
   readOnly?: boolean;
   profileAnswers?: GlobalAnswer[];
 }
@@ -77,7 +81,6 @@ function QuestionList({
   questions,
   control,
   isGlobal,
-  userId,
   readOnly,
   profileAnswers,
 }: QuestionListProps) {
@@ -90,10 +93,11 @@ function QuestionList({
     <div className="flex flex-col gap-4">
       {questions.map((question) => {
         if (readOnly) {
-          const displayValue =
-            (profileAnswers?.find(
+          const displayValue = toStringArray(
+            profileAnswers?.find(
               (a: GlobalAnswer) => a.globalQuestionId === question.id,
-            )?.value as string[] | undefined) ?? [];
+            )?.value,
+          );
           return (
             <ReadOnlyQuestionCard
               key={question.id}
@@ -130,7 +134,6 @@ function QuestionList({
                     questionLabel: question.label,
                     value,
                     isGlobal,
-                    userId,
                   });
                 }}
               />
@@ -171,20 +174,24 @@ export function ApplicationStepper({
   } = useForm<StepperFormValues>({
     defaultValues: Object.fromEntries([
       ...globalQuestions.map((q) => {
+        const appAnswer = application.globalAnswers.find(
+          (a: GlobalApplicationAnswer) => a.globalQuestionId === q.id,
+        );
+        const profileAnswer = globalAnswers.find(
+          (a: GlobalAnswer) => a.globalQuestionId === q.id,
+        );
         const value =
-          (application.globalAnswers.find(
-            (a: GlobalApplicationAnswer) => a.globalQuestionId === q.id,
-          )?.value as string[] | undefined) ??
-          (globalAnswers.find((a: GlobalAnswer) => a.globalQuestionId === q.id)
-            ?.value as string[] | undefined) ??
-          [];
+          toStringArray(appAnswer?.value).length > 0
+            ? toStringArray(appAnswer?.value)
+            : toStringArray(profileAnswer?.value);
         return [`g_${q.id}`, value];
       }),
       ...positionQuestions.map((q) => {
-        const value =
-          (application.positionAnswers.find(
+        const value = toStringArray(
+          application.positionAnswers.find(
             (a: PositionApplicationAnswer) => a.positionQuestionId === q.id,
-          )?.value as string[] | undefined) ?? [];
+          )?.value,
+        );
         return [`p_${q.id}`, value];
       }),
     ]),
@@ -261,7 +268,6 @@ export function ApplicationStepper({
             questions={globalQuestions}
             control={control}
             isGlobal={true}
-            userId={userId}
             readOnly={!isCustomizing}
             profileAnswers={globalAnswers}
           />
@@ -293,7 +299,6 @@ export function ApplicationStepper({
             questions={positionQuestions}
             control={control}
             isGlobal={false}
-            userId={userId}
           />
 
           {errors.root && (

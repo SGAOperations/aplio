@@ -34,7 +34,9 @@ export function ApplicationQuestion({
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
   const savedValueRef = useRef(JSON.stringify(field.value));
-  const options = question.options as string[];
+  const options = Array.isArray(question.options)
+    ? (question.options as string[])
+    : [];
 
   async function save(value: string[]) {
     const serialized = JSON.stringify(value);
