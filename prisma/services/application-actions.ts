@@ -113,10 +113,12 @@ export async function createOrUpdateApplicationAnswer(params: {
 
 export async function submitApplication(
   applicationId: string,
-  userId: string,
 ): Promise<ResponseType<Application>> {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { error: 'Not authenticated' };
+
   const application = await prisma.application.findFirst({
-    where: { id: applicationId, userId },
+    where: { id: applicationId, userId: currentUser.id },
     include: {
       positionAnswers: true,
       position: { include: { questions: { where: { deletedAt: null } } } },
@@ -139,6 +141,10 @@ export async function submitApplication(
 
   return prisma.application.update({
     where: { id: applicationId },
-    data: { status: 'applied', submittedAt: new Date(), updatedById: userId },
+    data: {
+      status: 'applied',
+      submittedAt: new Date(),
+      updatedById: currentUser.id,
+    },
   });
 }

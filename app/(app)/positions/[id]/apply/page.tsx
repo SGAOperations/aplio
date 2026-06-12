@@ -70,7 +70,6 @@ export default async function ApplyPage({
           globalQuestions={globalQuestions}
           globalAnswers={globalAnswers}
           positionQuestions={position.questions}
-          userId={user.id}
         />
       )}
     </div>

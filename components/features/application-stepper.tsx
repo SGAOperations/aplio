@@ -150,7 +150,6 @@ interface ApplicationStepperProps {
   globalQuestions: GlobalQuestion[];
   globalAnswers: GlobalAnswer[];
   positionQuestions: PositionQuestion[];
-  userId: string;
 }
 
 export function ApplicationStepper({
@@ -158,7 +157,6 @@ export function ApplicationStepper({
   globalQuestions,
   globalAnswers,
   positionQuestions,
-  userId,
 }: ApplicationStepperProps) {
   const router = useRouter();
   const [step, setStep] = useState<1 | 2>(1);
@@ -207,7 +205,7 @@ export function ApplicationStepper({
   }
 
   const onSubmit = handleSubmit(async () => {
-    const result = await submitApplication(application.id, userId);
+    const result = await submitApplication(application.id);
     if (isError(result)) setError('root', { message: result.error });
     else router.push('/applications');
   });

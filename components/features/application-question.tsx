@@ -35,7 +35,7 @@ export function ApplicationQuestion({
   const [saveError, setSaveError] = useState(false);
   const savedValueRef = useRef(JSON.stringify(field.value));
   const options = Array.isArray(question.options)
-    ? (question.options as string[])
+    ? question.options.filter((o): o is string => typeof o === 'string')
     : [];
 
   async function save(value: string[]) {
