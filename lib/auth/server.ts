@@ -21,13 +21,13 @@ export async function getCurrentUser() {
   }
 
   const { data: session } = await authServer.getSession();
-  if (!session?.user) redirect('/auth/login');
+  if (!session?.user) redirect('/login');
 
   const user = await prisma.user.findUnique({
     where: { neonAuthId: session.user.id },
   });
 
-  if (!user) redirect('/auth/login');
+  if (!user) redirect('/login');
 
   return user;
 }
