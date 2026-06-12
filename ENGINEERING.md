@@ -26,7 +26,7 @@ const applications = await prisma.application.findMany({
     submittedAt: true,
     applicant: { select: { id: true, name: true } },
   },
-  orderBy: { submittedAt: "desc" },
+  orderBy: { submittedAt: 'desc' },
 });
 ```
 
@@ -52,30 +52,32 @@ await prisma.$transaction(async (tx) => {
 - **Every server action authenticates.** First lines of every action: resolve the user and fail closed. Never trust IDs, roles, or ownership claims from the client.
 
 ```ts
-"use server";
+'use server';
 
-import { revalidatePath } from "next/cache";
-import { z } from "zod";
-import { getCurrentUser } from "@/lib/auth/server";
-import { prisma } from "@/lib/prisma";
+import { revalidatePath } from 'next/cache';
+
+import { z } from 'zod';
+
+import { getCurrentUser } from '@/lib/auth/server';
+import { prisma } from '@/lib/prisma';
 
 const withdrawSchema = z.object({ applicationId: z.string().cuid() });
 
 export async function withdrawApplication(input: unknown) {
   const user = await getCurrentUser();
-  if (!user) return { ok: false as const, error: "Not authenticated" };
+  if (!user) return { ok: false as const, error: 'Not authenticated' };
 
   const parsed = withdrawSchema.safeParse(input);
-  if (!parsed.success) return { ok: false as const, error: "Invalid input" };
+  if (!parsed.success) return { ok: false as const, error: 'Invalid input' };
 
   // Authorization: scope the write to the caller — no IDOR
   const result = await prisma.application.updateMany({
     where: { id: parsed.data.applicationId, applicantId: user.id },
     data: { status: ApplicationStatus.WITHDRAWN },
   });
-  if (result.count === 0) return { ok: false as const, error: "Not found" };
+  if (result.count === 0) return { ok: false as const, error: 'Not found' };
 
-  revalidatePath("/applications");
+  revalidatePath('/applications');
   return { ok: true as const };
 }
 ```

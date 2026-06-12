@@ -60,13 +60,13 @@ Agent({
 
 Stage → trigger mapping:
 
-| Trigger query result | Dispatch |
-| --- | --- |
-| Issue labeled `ready` | plan-agent (fresh plan) |
-| Issue labeled `plan changes requested` | plan-agent (revision) |
-| Issue labeled `plan approved` | impl-agent |
-| PR labeled `ready for review` | review-agent |
-| PR labeled `needs revision` | revise-agent — **after the cycle-cap check** |
+| Trigger query result                   | Dispatch                                     |
+| -------------------------------------- | -------------------------------------------- |
+| Issue labeled `ready`                  | plan-agent (fresh plan)                      |
+| Issue labeled `plan changes requested` | plan-agent (revision)                        |
+| Issue labeled `plan approved`          | impl-agent                                   |
+| PR labeled `ready for review`          | review-agent                                 |
+| PR labeled `needs revision`            | revise-agent — **after the cycle-cap check** |
 
 ### Cycle cap (before every revise dispatch)
 
