@@ -39,31 +39,27 @@
 
 #### Issue Labels
 
-These labels track the lifecycle of Claude-handled issues on the **issue**. Update with `gh issue edit XXX --repo SGAOperations/aplio`:
+Labels are normally managed by the `/pipeline` cockpit — manual `gh` label commands are for recovery only. `PIPELINE.md` is the authoritative pipeline doc.
 
-- `claude` — add when starting work on any ticket (signals Claude is handling it)
-- `ready` — set by human to trigger the plan agent
-- `plan approved` — set by plan agent; triggers impl agent
-- `in progress` — set by impl agent when implementation begins
-- `pr opened` — set by impl agent when PR is opened; replaces `in progress`
-
-Example workflow (manual, outside pipeline):
-
-```bash
-# Starting work
-gh issue edit 42 --repo SGAOperations/aplio --add-label "claude,in progress"
-
-# Opening a PR
-gh issue edit 42 --repo SGAOperations/aplio --add-label "pr opened" --remove-label "in progress"
-```
+- `claude` — cockpit at opt-in (Claude is handling this ticket)
+- `ready` — cockpit at opt-in; triggers the plan agent
+- `planning` — plan agent (in-flight)
+- `plan review` — plan agent; plan written, awaiting human approval in the cockpit
+- `plan changes requested` — cockpit after human feedback; triggers plan revision
+- `plan approved` — cockpit after human approval (or automatically with `auto plan`); triggers impl agent
+- `auto plan` — cockpit at opt-in; skips the plan-review gate for this ticket
+- `in progress` — impl agent (in-flight)
+- `pr opened` — impl agent when the PR is opened; replaces `in progress`
+- `blocked` — impl agent; needs a human decision (details in issue comment)
 
 #### PR Labels
 
-These labels track the review state on the **PR**. Update with `gh pr edit XXX --repo SGAOperations/aplio`:
-
-- `ready for review` — set by impl agent (first pass) or revise agent (after fixes); triggers review agent
-- `needs revision` — set by review agent when Critical or Medium issues are found; triggers revise agent
-- `approved` — set by review agent when only Low/Nit issues remain; signals ready to merge
+- `ready for review` — impl agent (first pass) or revise agent (after fixes); triggers review agent
+- `reviewing` — review agent (in-flight)
+- `needs revision` — review agent when Critical or Medium issues are found; triggers revise agent
+- `revising` — revise agent (in-flight)
+- `approved` — review agent when only Low/Nit issues remain; the human merges on GitHub
+- `needs human` — cockpit escalation (3 review cycles without convergence, or rebase conflict); pipeline stops touching the PR
 
 #### Sub-Issues
 
