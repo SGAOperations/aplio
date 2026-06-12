@@ -1,7 +1,7 @@
 ---
 name: impl-agent
 description: Pipeline Stage 2 — reads the approved plan from an issue and implements it. Dispatched by /pipeline (model: sonnet); manual usage: /impl-agent <issue-number>
-allowed-tools: Bash(gh issue view *) Bash(gh issue edit *) Bash(gh issue comment *) Bash(gh pr create *) Bash(gh pr edit *) Bash(git fetch *) Bash(git worktree *) Bash(git -C * add *) Bash(git -C * commit *) Bash(git -C * push *) Bash(git -C * status) Bash(git -C * diff *) Bash(git -C * log *) Bash(ln -s *) Bash(npm run prettier:check) Bash(npx prettier --write *) Bash(npm run eslint:check) Bash(npm run tsc:check)
+allowed-tools: Bash(gh issue view *) Bash(gh issue edit *) Bash(gh issue comment *) Bash(gh pr create *) Bash(gh pr edit *) Bash(git fetch *) Bash(git worktree *) Bash(git -C * add *) Bash(git -C * commit *) Bash(git -C * push *) Bash(git -C * status) Bash(git -C * diff *) Bash(git -C * log *) Bash(ln -s *) Bash(npx prisma generate) Bash(npm run prettier:check) Bash(npx prettier --write *) Bash(npm run eslint:check) Bash(npm run tsc:check)
 ---
 
 # Impl Agent — Stage 2
@@ -48,6 +48,14 @@ git fetch origin
 git worktree add .worktrees/<branch-name> -b <branch-name> origin/main
 ln -s ../../node_modules .worktrees/<branch-name>/node_modules
 ln -s ../../.env .worktrees/<branch-name>/.env
+```
+
+If you were dispatched as a background agent, run these against the main repository checkout (the cockpit's working directory) using absolute paths — never relative to your own starting directory, which is an isolated copy without `node_modules`.
+
+Then generate the Prisma client (it is gitignored, so fresh worktrees lack it and `tsc:check` fails without it):
+
+```bash
+npx prisma generate
 ```
 
 Run all subsequent git commands via `git -C .worktrees/<branch-name>` and all npm scripts with the worktree as the working directory.

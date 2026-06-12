@@ -82,6 +82,12 @@ ln -s ../../.env .worktrees/<headRefName>/.env
 git -C .worktrees/<headRefName> rebase origin/main
 ```
 
+If you were dispatched as a background agent, run these against the main repository checkout (the cockpit's working directory) using absolute paths — never relative to your own starting directory, which is an isolated copy without `node_modules`. In any fresh worktree, also generate the gitignored Prisma client before type-checking:
+
+```bash
+npx prisma generate
+```
+
 If the rebase conflicts: abort it (`git -C .worktrees/<headRefName> rebase --abort`), post a comment on the PR describing the conflict, label the PR `needs human`, and end with a final message in exactly this form:
 
 ```

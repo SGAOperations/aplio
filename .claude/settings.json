@@ -35,6 +35,7 @@
       "Bash(git -C * diff *)",
       "Bash(ln -s *)",
       "Bash(mkdir *)",
+      "Bash(npx prisma generate)",
       "Bash(npm run prettier:check)",
       "Bash(npx prettier --write *)",
       "Bash(npm run eslint:check)",

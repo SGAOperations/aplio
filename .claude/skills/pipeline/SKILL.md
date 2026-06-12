@@ -54,9 +54,11 @@ Agent({
   model: "sonnet",
   isolation: "worktree",
   run_in_background: true,
-  prompt: "Read .claude/skills/<plan|impl|review|revise>-agent/SKILL.md and execute it for #<n>, following its Pre-flight, Label swap, Work, and Handoff sections exactly. Read ENGINEERING.md before doing any planning or code work. Repo: SGAOperations/aplio."
+  prompt: "Read <repo-root>/.claude/skills/<plan|impl|review|revise>-agent/SKILL.md and execute it for #<n>, following its Pre-flight, Label swap, Work, and Handoff sections exactly. Read <repo-root>/ENGINEERING.md before doing any planning or code work. Repo: SGAOperations/aplio. The main repository checkout is <repo-root> — create and resume per-ticket worktrees under its .worktrees/ directory using absolute paths (git -C <repo-root> worktree add ...), never relative to your starting directory."
 })
 ```
+
+Replace every `<repo-root>` with the absolute path of **your own working directory** (the main checkout the cockpit session runs in) at dispatch time. This matters because dispatched agents start in their own isolated worktree (the `isolation: "worktree"` permission requirement), which contains neither `node_modules` nor untracked state — all real work happens in the main checkout's `.worktrees/`.
 
 Stage → trigger mapping:
 

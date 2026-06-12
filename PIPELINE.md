@@ -97,7 +97,10 @@ Every entry in `.claude/settings.json` → `permissions.allow`, what uses it, an
 | `Bash(ln -s *)`                                                                                                         | impl, revise                  | Symlink `node_modules`/`.env` into worktrees                      |
 | `Bash(mkdir *)`                                                                                                         | impl, revise                  | Worktree/scaffold directories                                     |
 | `Bash(npm run prettier:check)`, `Bash(npx prettier --write *)`, `Bash(npm run eslint:check)`, `Bash(npm run tsc:check)` | impl, revise                  | The three pre-push CI checks                                      |
+| `Bash(npx prisma generate)`                                                                                             | impl, revise                  | Fresh worktrees lack the gitignored Prisma client; tsc needs it   |
 | `additionalDirectories: .worktrees`                                                                                     | impl, revise                  | File write access inside per-ticket worktrees                     |
+
+Note: background agents start in an isolated worktree created from `main`, so they run with the permissions committed on `main` — permission changes take effect for dispatched agents only after merging.
 
 **Deliberately excluded:** `gh pr merge` (the human merge gate is absolute), `gh issue delete`, `gh repo *`. Force pushes: only `--force-with-lease` on feature branches after a rebase, never on `main` (covered by the push patterns above; the rule lives in the revise agent and global git conventions).
 
