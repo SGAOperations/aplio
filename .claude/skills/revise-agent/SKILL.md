@@ -1,23 +1,14 @@
 ---
 name: revise-agent
-description: Pipeline Stage 4 — reads the review comment on a PR labeled `needs revision` and implements fixes. Usage: /revise-agent <pr-or-issue-number>
-allowed-tools: Bash(gh issue view *) Bash(gh pr list *) Bash(gh pr view *) Bash(gh pr comment *) Bash(gh pr edit *) Bash(git fetch *) Bash(git checkout *) Bash(git add *) Bash(git commit *) Bash(git push *) Bash(npm run prettier:check) Bash(npx prettier --write *) Bash(npm run eslint:check) Bash(npm run tsc:check)
+description: Pipeline Stage 4 — reads the review comment on a PR labeled `needs revision` and implements fixes. Dispatched by /pipeline (model: sonnet); manual usage: /revise-agent <pr-or-issue-number>
+allowed-tools: Bash(gh issue view *) Bash(gh pr list *) Bash(gh pr view *) Bash(gh pr comment *) Bash(gh pr edit *) Bash(git fetch *) Bash(git worktree *) Bash(git -C * fetch *) Bash(git -C * reset *) Bash(git -C * rebase *) Bash(git -C * add *) Bash(git -C * commit *) Bash(git -C * push *) Bash(git -C * status) Bash(git -C * diff *) Bash(git -C * log *) Bash(ln -s *) Bash(npm run prettier:check) Bash(npx prettier --write *) Bash(npm run eslint:check) Bash(npm run tsc:check)
 ---
 
 # Revise Agent — Stage 4
 
 **Trigger:** PR labeled `needs revision`
 **Input:** `$ARGUMENTS` — a PR number or issue number
-
-Spawn a background sub-agent with the instructions below, then return immediately.
-
-```
-Agent({
-  description: "revise-agent for #$ARGUMENTS",
-  run_in_background: true,
-  prompt: "<paste the ## Work section below as the prompt>"
-})
-```
+**Model:** sonnet
 
 ## Pre-flight
 
@@ -43,15 +34,17 @@ If a PR is found, use its number as the PR number for all steps below. If no PR 
 
 ### Verify label
 
-Confirm the PR is labeled `needs revision`:
-
-```bash
-gh pr view <pr-number> --repo SGAOperations/aplio --json labels,title,headRefName
-```
-
-If the PR does not have the `needs revision` label, stop immediately and say:
+Confirm the PR is labeled `needs revision`. If not, stop immediately and say:
 
 > "PR #<pr-number> is not labeled `needs revision`. Current labels: [list them]. Nothing was changed."
+
+## Label swap (always first action after pre-flight)
+
+```bash
+gh pr edit <pr-number> --repo SGAOperations/aplio \
+  --remove-label "needs revision" \
+  --add-label "revising"
+```
 
 ## Work
 
@@ -61,9 +54,9 @@ If the PR does not have the `needs revision` label, stop immediately and say:
 gh pr view <pr-number> --repo SGAOperations/aplio --comments
 ```
 
-Find the most recent `## Code Review` comment. That is the review to address.
+Find the most recent `## Code Review` comment. That is the review to address. Also read `ENGINEERING.md` at the repo root — apply it when fixing.
 
-### 2. Derive the issue number and check out the branch
+### 2. Derive the issue number and resume the worktree
 
 If input was already an issue number, use it directly. Otherwise parse from the PR body (`Closes #XXX`):
 
@@ -71,14 +64,29 @@ If input was already an issue number, use it directly. Otherwise parse from the 
 gh pr view <pr-number> --repo SGAOperations/aplio --json body --jq '.body'
 ```
 
-Check out the branch:
+The branch is `<headRefName>`; its worktree lives at `.worktrees/<headRefName>`. If the worktree exists, sync it to the latest remote state (never assume it is up to date):
+
+```bash
+git -C .worktrees/<headRefName> fetch origin
+git -C .worktrees/<headRefName> reset --hard origin/<headRefName>
+git -C .worktrees/<headRefName> rebase origin/main
+```
+
+If the worktree does not exist, create it from the remote branch first:
 
 ```bash
 git fetch origin
-git checkout -b <headRefName> origin/<headRefName>
+git worktree add .worktrees/<headRefName> <headRefName>
+ln -s ../../node_modules .worktrees/<headRefName>/node_modules
+ln -s ../../.env .worktrees/<headRefName>/.env
+git -C .worktrees/<headRefName> rebase origin/main
 ```
 
-If the branch is already checked out locally, omit `-b origin/<headRefName>`. If a worktree already exists for this branch, work from there instead.
+If the rebase conflicts: abort it (`git -C .worktrees/<headRefName> rebase --abort`), post a comment on the PR describing the conflict, label the PR `needs human`, and end with a final message in exactly this form:
+
+```
+BLOCKED: rebase of <headRefName> onto origin/main conflicts in <files>; human decision needed.
+```
 
 ### 3. Apply fixes
 
@@ -95,6 +103,8 @@ Do not address anything outside the review comment — no scope creep.
 
 ### 4. Run CI checks
 
+From the worktree directory:
+
 ```bash
 npm run prettier:check   # fix with: npx prettier --write .
 npm run eslint:check     # fix underlying code — never add eslint-disable
@@ -106,15 +116,12 @@ Fix all failures before pushing.
 ### 5. Commit and push
 
 ```bash
-git add <changed files>
-git commit -m "$(cat <<EOF
-#<issue-number> address review feedback
-
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
-EOF
-)"
-git push origin <headRefName>
+git -C .worktrees/<headRefName> add <changed files>
+git -C .worktrees/<headRefName> commit -m "#<issue-number> address review feedback" -m "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+git -C .worktrees/<headRefName> push origin <headRefName>
 ```
+
+(Use `push --force-with-lease` only if the rebase rewrote already-pushed commits.)
 
 ### 6. Post summary comment
 
@@ -143,6 +150,6 @@ Omit any section with no entries.
 
 ```bash
 gh pr edit <pr-number> --repo SGAOperations/aplio \
-  --remove-label "needs revision" \
+  --remove-label "revising" \
   --add-label "ready for review"
 ```
