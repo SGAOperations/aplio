@@ -18,35 +18,36 @@ type GlobalAnswerWithQuestion = GlobalAnswer & {
 };
 
 export async function createDraftApplication(
-  userId: string,
   positionId: string,
 ): Promise<DraftApplication> {
+  const currentUser = await getCurrentUser();
+
   const existing = await prisma.application.findUnique({
-    where: { userId_positionId: { userId, positionId } },
+    where: { userId_positionId: { userId: currentUser.id, positionId } },
     include: { globalAnswers: true, positionAnswers: true },
   });
 
   if (existing) return existing;
 
   const globalAnswers = await prisma.globalAnswer.findMany({
-    where: { userId, deletedAt: null },
+    where: { userId: currentUser.id, deletedAt: null },
     include: { globalQuestion: true },
   });
 
   return prisma.application.create({
     data: {
-      userId,
+      userId: currentUser.id,
       positionId,
       status: 'draft',
-      createdById: userId,
-      updatedById: userId,
+      createdById: currentUser.id,
+      updatedById: currentUser.id,
       globalAnswers: {
         create: globalAnswers.map((answer: GlobalAnswerWithQuestion) => ({
           globalQuestionId: answer.globalQuestionId,
           questionLabel: answer.globalQuestion.label,
           value: answer.value,
-          createdById: userId,
-          updatedById: userId,
+          createdById: currentUser.id,
+          updatedById: currentUser.id,
         })),
       },
     },
@@ -60,7 +61,7 @@ export async function createOrUpdateApplicationAnswer(params: {
   questionLabel: string;
   value: string[];
   isGlobal: boolean;
-}): Promise<GlobalApplicationAnswer | PositionApplicationAnswer> {
+}): Promise<ResponseType<GlobalApplicationAnswer | PositionApplicationAnswer>> {
   const { applicationId, questionId, questionLabel, value, isGlobal } = params;
 
   const currentUser = await getCurrentUser();
@@ -71,7 +72,7 @@ export async function createOrUpdateApplicationAnswer(params: {
   });
 
   if (!application || application.userId !== currentUser.id)
-    throw new Error('Unauthorized');
+    return { error: 'Unauthorized' };
 
   if (isGlobal)
     return prisma.globalApplicationAnswer.upsert({
@@ -115,11 +116,11 @@ export async function submitApplication(
   applicationId: string,
 ): Promise<ResponseType<Application>> {
   const currentUser = await getCurrentUser();
-  if (!currentUser) return { error: 'Not authenticated' };
 
   const application = await prisma.application.findFirst({
     where: { id: applicationId, userId: currentUser.id },
     include: {
+      globalAnswers: true,
       positionAnswers: true,
       position: { include: { questions: { where: { deletedAt: null } } } },
     },
@@ -127,7 +128,23 @@ export async function submitApplication(
 
   if (!application) return { error: 'Unauthorized' };
 
-  const hasUnanswered = application.position.questions.some(
+  const requiredGlobalQuestions = await prisma.globalQuestion.findMany({
+    where: { required: true, deletedAt: null },
+  });
+
+  const hasUnansweredGlobal = requiredGlobalQuestions.some(
+    (q) =>
+      !application.globalAnswers.some(
+        (a) => a.globalQuestionId === q.id && (a.value as string[]).length > 0,
+      ),
+  );
+
+  if (hasUnansweredGlobal)
+    return {
+      error: 'Please answer all required profile questions before submitting.',
+    };
+
+  const hasUnansweredPosition = application.position.questions.some(
     (q) =>
       q.required &&
       !application.positionAnswers.some(
@@ -136,7 +153,7 @@ export async function submitApplication(
       ),
   );
 
-  if (hasUnanswered)
+  if (hasUnansweredPosition)
     return { error: 'Please answer all required questions before submitting.' };
 
   return prisma.application.update({

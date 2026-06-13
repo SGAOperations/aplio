@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { type Control, Controller, useForm } from 'react-hook-form';
+import { type Control, Controller, useForm, useWatch } from 'react-hook-form';
 
 import { CheckIcon } from 'lucide-react';
 
@@ -20,7 +20,7 @@ import {
 } from '@/prisma/services/application-actions';
 
 import { type DraftApplication } from '@/lib/types';
-import { isError } from '@/lib/utils';
+import { cn, isError } from '@/lib/utils';
 
 import { ApplicationQuestion } from '@/components/features/application-question';
 import { Button } from '@/components/ui/button';
@@ -39,6 +39,7 @@ interface QuestionListProps {
   isGlobal: boolean;
   readOnly?: boolean;
   profileAnswers?: GlobalAnswer[];
+  formValues?: StepperFormValues;
 }
 
 function ReadOnlyQuestionCard({
@@ -83,6 +84,7 @@ function QuestionList({
   isGlobal,
   readOnly,
   profileAnswers,
+  formValues,
 }: QuestionListProps) {
   if (questions.length === 0)
     return (
@@ -93,11 +95,13 @@ function QuestionList({
     <div className="flex flex-col gap-4">
       {questions.map((question) => {
         if (readOnly) {
-          const displayValue = toStringArray(
-            profileAnswers?.find(
-              (a: GlobalAnswer) => a.globalQuestionId === question.id,
-            )?.value,
-          );
+          const displayValue = formValues
+            ? toStringArray(formValues[`g_${question.id}`])
+            : toStringArray(
+                profileAnswers?.find(
+                  (a: GlobalAnswer) => a.globalQuestionId === question.id,
+                )?.value,
+              );
           return (
             <ReadOnlyQuestionCard
               key={question.id}
@@ -128,13 +132,14 @@ function QuestionList({
                 isDirty={fieldState.isDirty}
                 error={fieldState.error?.message}
                 onSave={async (value) => {
-                  await createOrUpdateApplicationAnswer({
+                  const result = await createOrUpdateApplicationAnswer({
                     applicationId,
                     questionId: question.id,
                     questionLabel: question.label,
                     value,
                     isGlobal,
                   });
+                  if (isError(result)) throw new Error(result.error);
                 }}
               />
             )}
@@ -204,6 +209,8 @@ export function ApplicationStepper({
     setStep(2);
   }
 
+  const watchedValues = useWatch({ control }) as StepperFormValues;
+
   const onSubmit = handleSubmit(async () => {
     const result = await submitApplication(application.id);
     if (isError(result)) setError('root', { message: result.error });
@@ -218,11 +225,12 @@ export function ApplicationStepper({
         </div>
         <div className="bg-border h-px flex-1" />
         <div
-          className={`flex size-7 items-center justify-center rounded-full text-sm font-medium ${
+          className={cn(
+            'flex size-7 items-center justify-center rounded-full text-sm font-medium',
             step === 2
               ? 'bg-primary text-primary-foreground'
-              : 'bg-muted text-muted-foreground'
-          }`}
+              : 'bg-muted text-muted-foreground',
+          )}
         >
           2
         </div>
@@ -268,6 +276,7 @@ export function ApplicationStepper({
             isGlobal={true}
             readOnly={!isCustomizing}
             profileAnswers={globalAnswers}
+            formValues={watchedValues}
           />
 
           {errors.root && (

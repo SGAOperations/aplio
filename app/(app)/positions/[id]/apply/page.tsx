@@ -36,9 +36,7 @@ export default async function ApplyPage({
       .filter((d) => d.question.required)
       .every((d) => d.answer !== null);
 
-  const application = profileComplete
-    ? await createDraftApplication(user.id, id)
-    : null;
+  const application = profileComplete ? await createDraftApplication(id) : null;
 
   return (
     <div className="mx-auto max-w-2xl">
