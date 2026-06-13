@@ -16,7 +16,7 @@ function bypassMiddleware(request: NextRequest): NextResponse {
 
 export default function middleware(request: NextRequest) {
   if (isBypassActive) return bypassMiddleware(request);
-  return neonAuthMiddleware({ loginUrl: '/auth/login' })(request);
+  return neonAuthMiddleware({ loginUrl: '/login' })(request);
 }
 
 export const config = {
