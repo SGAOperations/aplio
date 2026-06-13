@@ -4,7 +4,12 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-import { BriefcaseBusiness, FileText, Users } from 'lucide-react';
+import {
+  BriefcaseBusiness,
+  ClipboardList,
+  FileText,
+  Users,
+} from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
@@ -12,6 +17,7 @@ const navItems = [
   { href: '/positions', label: 'Positions', icon: BriefcaseBusiness },
   { href: '/applications', label: 'Applications', icon: FileText },
   { href: '/users', label: 'Users', icon: Users },
+  { href: '/global-questions', label: 'Global Questions', icon: ClipboardList },
 ];
 
 export function Sidebar() {
