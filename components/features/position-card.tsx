@@ -3,18 +3,38 @@
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Pencil } from 'lucide-react';
 
 import type { PositionWithQuestions } from '@/lib/types';
 
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
+const STATUS_LABELS: Record<string, string> = {
+  draft: 'Draft',
+  open: 'Open',
+  closed: 'Closed',
+};
+
+const STATUS_VARIANTS: Record<
+  string,
+  'default' | 'secondary' | 'destructive' | 'outline'
+> = {
+  draft: 'secondary',
+  open: 'default',
+  closed: 'outline',
+};
+
 interface PositionCardProps {
   position: PositionWithQuestions;
+  showAdminActions?: boolean;
 }
 
-export function PositionCard({ position }: PositionCardProps) {
+export function PositionCard({
+  position,
+  showAdminActions = false,
+}: PositionCardProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -26,7 +46,14 @@ export function PositionCard({ position }: PositionCardProps) {
           onClick={() => setOpen((prev) => !prev)}
           aria-expanded={open}
         >
-          <CardTitle className="text-lg">{position.title}</CardTitle>
+          <div className="flex items-center gap-3">
+            <CardTitle className="text-lg">{position.title}</CardTitle>
+            {showAdminActions && (
+              <Badge variant={STATUS_VARIANTS[position.status] ?? 'outline'}>
+                {STATUS_LABELS[position.status] ?? position.status}
+              </Badge>
+            )}
+          </div>
           {open ? (
             <ChevronUp className="text-muted-foreground size-5 shrink-0" />
           ) : (
@@ -54,10 +81,18 @@ export function PositionCard({ position }: PositionCardProps) {
             </div>
           )}
 
-          <div className="pt-2">
+          <div className="flex items-center gap-2 pt-2">
             <Button asChild>
               <Link href={`/positions/${position.id}/apply`}>Apply</Link>
             </Button>
+            {showAdminActions && (
+              <Button asChild variant="outline">
+                <Link href={`/positions/${position.id}/edit`}>
+                  <Pencil className="size-4" />
+                  Edit
+                </Link>
+              </Button>
+            )}
           </div>
         </CardContent>
       )}
