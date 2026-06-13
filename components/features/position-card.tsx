@@ -20,11 +20,7 @@ const STATUS_LABELS: Record<string, string> = {
 const STATUS_VARIANTS: Record<
   string,
   'default' | 'secondary' | 'destructive' | 'outline'
-> = {
-  draft: 'secondary',
-  open: 'default',
-  closed: 'outline',
-};
+> = { draft: 'secondary', open: 'default', closed: 'outline' };
 
 interface PositionCardProps {
   position: PositionWithQuestions;

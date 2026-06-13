@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
 
-import { getCurrentUser } from '@/lib/auth/server';
 import { getPositionForEdit } from '@/prisma/services/positions';
+
+import { getCurrentUser } from '@/lib/auth/server';
 
 import { PositionDetailsForm } from '@/components/features/position-details-form';
 import { PositionManagersSection } from '@/components/features/position-managers-section';
@@ -27,9 +28,7 @@ export default async function EditPositionPage({
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Edit Position
-        </h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Edit Position</h1>
         <p className="text-muted-foreground mt-1 text-sm">{position.title}</p>
       </div>
 

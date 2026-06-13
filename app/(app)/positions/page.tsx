@@ -1,8 +1,9 @@
-import { getCurrentUser } from '@/lib/auth/server';
 import { getPositions } from '@/prisma/services/positions';
 
-import { PositionCreateDialog } from '@/components/features/position-create-dialog';
+import { getCurrentUser } from '@/lib/auth/server';
+
 import { PositionCard } from '@/components/features/position-card';
+import { PositionCreateDialog } from '@/components/features/position-create-dialog';
 
 export default async function PositionsPage() {
   const user = await getCurrentUser();

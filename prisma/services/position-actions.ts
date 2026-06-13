@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+
 import { z } from 'zod/v4';
 
 import { getCurrentUser } from '@/lib/auth/server';
@@ -21,9 +22,7 @@ const updatePositionSchema = z.object({
   closesAt: z.string().optional(),
 });
 
-const deletePositionSchema = z.object({
-  id: z.string().min(1),
-});
+const deletePositionSchema = z.object({ id: z.string().min(1) });
 
 const addPositionManagerSchema = z.object({
   positionId: z.string().min(1),
@@ -126,10 +125,7 @@ export async function addPositionManager(
 
   await prisma.position.update({
     where: { id: positionId },
-    data: {
-      managers: { connect: { id: userId } },
-      updatedById: user.id,
-    },
+    data: { managers: { connect: { id: userId } }, updatedById: user.id },
   });
 
   revalidatePath(`/positions/${positionId}/edit`);
@@ -149,10 +145,7 @@ export async function removePositionManager(
 
   await prisma.position.update({
     where: { id: positionId },
-    data: {
-      managers: { disconnect: { id: userId } },
-      updatedById: user.id,
-    },
+    data: { managers: { disconnect: { id: userId } }, updatedById: user.id },
   });
 
   revalidatePath(`/positions/${positionId}/edit`);

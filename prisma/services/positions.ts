@@ -1,7 +1,8 @@
 import 'server-only';
 
-import prisma from '@/lib/prisma';
 import type { Position, PositionQuestion, User } from '@/prisma/client';
+
+import prisma from '@/lib/prisma';
 
 export type PositionWithQuestionsAndManagers = Position & {
   questions: PositionQuestion[];
@@ -10,7 +11,9 @@ export type PositionWithQuestionsAndManagers = Position & {
 
 export async function getPositions(includeAll = false) {
   return prisma.position.findMany({
-    where: includeAll ? { deletedAt: null } : { status: 'open', deletedAt: null },
+    where: includeAll
+      ? { deletedAt: null }
+      : { status: 'open', deletedAt: null },
     include: {
       questions: { where: { deletedAt: null }, orderBy: { order: 'asc' } },
     },

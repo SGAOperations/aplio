@@ -59,10 +59,7 @@ export function PositionManagersSection({
   function handleAdd(user: UserResult) {
     setAddingId(user.id);
     startTransition(async () => {
-      const result = await addPositionManager({
-        positionId,
-        userId: user.id,
-      });
+      const result = await addPositionManager({ positionId, userId: user.id });
 
       if (result.ok) {
         setManagers((prev) => [
@@ -170,7 +167,7 @@ export function PositionManagersSection({
                     type="button"
                     onClick={() => handleAdd(user)}
                     disabled={addingId === user.id}
-                    className="flex w-full items-center justify-between rounded px-3 py-2 text-left text-sm hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+                    className="hover:bg-accent flex w-full items-center justify-between rounded px-3 py-2 text-left text-sm disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <div>
                       <span className="font-medium">{user.displayName}</span>
