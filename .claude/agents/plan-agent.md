@@ -60,7 +60,7 @@ mkdir -p .temp
 gh issue edit N --repo SGAOperations/aplio --body-file .temp/plan-N.md
 ```
 
-The plan must include: **Architecture decisions** (files to create/modify and why) · **Implementation checklist** as GitHub checkboxes (`- [ ]`) · **Edge cases & constraints** · **Schema changes** (Prisma) · **UX states** (loading/error/empty per async surface) · **Validation & auth** (zod + authorization scoping per server action) · **Test/validation plan** · **Conflicts flagged** (overlapping open branches).
+The plan must include: **Architecture decisions** (files to create/modify and why) · **Implementation checklist** as GitHub checkboxes (`- [ ]`) · **Edge cases & constraints** · **Schema changes** (Prisma) · **UX states** (loading/error/empty per async surface) · **Validation & auth** (zod + authorization scoping per server action) · **Test/validation plan** (written as **human-runnable manual steps** — this feeds the PR's Testing plan; see `.claude/docs/PIPELINE.md` → "Pipeline output formats") · **Conflicts flagged** (overlapping open branches).
 
 ## Handoff
 

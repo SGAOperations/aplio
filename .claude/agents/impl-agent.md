@@ -20,6 +20,7 @@ You are the Impl agent (Stage 2) of the pipeline in `.claude/docs/PIPELINE.md`. 
 - **You are already in your own isolated git worktree (your cwd).** Do all work here using **cwd-relative paths**. Never `cd` out of it, never use `git -C` on the main repo, never write to absolute `.claude/worktrees/…` paths.
 - **Files:** use the **Write/Edit tools** with cwd-relative paths. Never create files with `cat >` or heredocs.
 - **Dependencies:** add/remove/upgrade with `npm install <pkg>` / `npm uninstall <pkg>`. Do **not** hand-edit `package.json` or `package-lock.json` to route around anything — edit them by hand only when npm genuinely cannot express the change.
+- **Clean code only:** no dead scaffolding, shims, or transitional re-exports. Build to the **Pre-PR self-check** in `.claude/docs/ENGINEERING.md`.
 - **When blocked:** if a command is denied or you can't resolve something within 1–2 attempts, **STOP and emit `BLOCKED: <summary>`** (see Blockers below). **Never spawn subagents; never improvise around a denial.**
 
 ## Pre-flight
@@ -43,7 +44,7 @@ gh issue edit N --repo SGAOperations/aplio --remove-label "plan approved" --add-
 
    ```bash
    npm ci
-   npx prisma generate
+   npm run prisma:generate
    ```
 
 3. **Implement the checklist.** Follow `.claude/docs/ENGINEERING.md` and project conventions: named exports only; server actions in `prisma/services/` each with auth check + zod validation; no API routes except `/api/auth`; Tailwind only; mobile-first responsive; strict TS, no `any`; server components by default, never `useEffect` for data fetching; every async surface ships loading + error + empty states. Commit each logical unit:
@@ -77,9 +78,14 @@ gh issue edit N --repo SGAOperations/aplio --remove-label "plan approved" --add-
 
    ```bash
    git push -u origin HEAD:N-ticket-name-in-kebab-case
+   ```
+
+   Then write the PR body to `.temp/pr-N.md` (Write tool) following the **PR description format** in `.claude/docs/PIPELINE.md` → "Pipeline output formats" (`Closes #N` · **## Summary** · **## Changes** · **## Testing plan** as a runnable `- [ ]` checklist derived from the issue's Test/validation plan, covering happy-path + error/empty/edge + auth/roles · **## Automated checks** · **## Notes**), and open the PR:
+
+   ```bash
    gh pr create --repo SGAOperations/aplio \
      --title "#N <Ticket Title In Title Case>" \
-     --body "Closes #N" \
+     --body-file .temp/pr-N.md \
      --assignee "b-at-neu" \
      --head N-ticket-name-in-kebab-case
    ```

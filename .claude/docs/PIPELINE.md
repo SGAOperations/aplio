@@ -19,7 +19,7 @@ Then talk to it: `work on #142` · `scope out a notifications feature` · `statu
 | --------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
 | 1. Describe     | "scope out X" — short conversation                                       | `/scope` creates the epic + sub-tickets, linked and dependency-ordered                                                          |
 | 2. Start        | "work on #N" + choose: review the plan, or auto-approve                  | `plan-agent` researches the codebase and writes a plan into the issue; its questions pop up in your terminal                    |
-| 3. Approve plan | Read the summary, approve — or give feedback (it revises and comes back) | `impl-agent` builds in an isolated worktree, runs CI, opens a PR; `review-agent`/`revise-agent` loop until clean (max 3 rounds) |
+| 3. Approve plan | Read the summary, approve — or give feedback (it revises and comes back) | `impl-agent` builds in an isolated worktree, runs CI, opens a PR; `review-agent`/`revise-agent` loop until clean (max 5 rounds) |
 | 4. Merge        | Click merge on GitHub                                                    | Issue closes automatically                                                                                                      |
 
 ### Bug fix
@@ -30,12 +30,12 @@ File the issue → in the cockpit: "work on #N, auto-approve the plan" → wait 
 
 - **Cockpit** (`/pipeline`, a skill) runs in the human's interactive session. It owns the conversation, the human gates (`AskUserQuestion`), and the wakeup schedule (`ScheduleWakeup`) — tools that only exist in a main session, not a subagent.
 - **Stage workers** are **subagents** in `.claude/agents/` (`plan-agent`, `impl-agent`, `review-agent`, `revise-agent`). Each carries its own `model`, tool scope, `permissionMode`, and (for the two that write code) `isolation: worktree` in its frontmatter. The cockpit dispatches by `subagent_type`; it sets nothing else at the call site.
-- **`impl-agent` and `revise-agent` get their own isolated git worktree** off `main` — a fresh checkout where they `npm ci` + `npx prisma generate`, do the work, and push a feature branch. No manual `git worktree`, symlinks, or `.env` are involved (the CI checks and Prisma generate need none).
+- **`impl-agent` and `revise-agent` get their own isolated git worktree** — a fresh checkout where they `npm ci` + `npm run prisma:generate`, do the work, and push a feature branch. impl branches from `main`; **revise rebases onto the PR's base branch** (`baseRefName`, not assumed `main`). No manual `git worktree`, symlinks, or `.env` are involved.
 - **`plan-agent` and `review-agent` are read-only on source** (`disallowedTools: Edit`); they only read code and write to GitHub via `gh`.
 
 ### Why background dispatch needs care
 
-Background subagents **auto-deny any tool call that would otherwise prompt** (they cannot show a permission dialog), so a too-tight allowlist makes them stall silently — and, worse, improvise harmful workarounds (hand-edited lockfiles, abandoned libraries). We therefore **allow broad dev-command categories** (`gh`/`git`/`npm`/`npx`) in `.claude/settings.json` and rely on the **`deny`** list for the few genuinely dangerous operations (deny beats allow at every scope). File edits are covered by each worker's `permissionMode: acceptEdits`. The worktree is a checkout of `main`, so it carries the committed `settings.json` — **permission changes take effect for dispatched agents only after they land on `main`.** Agents also run with **`disallowedTools: Agent`** (no nested subagents), a **`maxTurns`** backstop, and an explicit rule to **stop and emit `BLOCKED:` rather than improvise** when a command is denied.
+Background subagents **auto-deny any tool call that would otherwise prompt** (they cannot show a permission dialog), so a too-tight allowlist makes them stall silently — and, worse, improvise harmful workarounds (hand-edited lockfiles, abandoned libraries). We therefore **allow broad dev-command categories** (`gh`/`git`/`npm`) — with **`npx` scoped to `shadcn` only** (broad `npx` runs arbitrary packages, e.g. an interactive `npx vercel` login) — and use the **`deny`** list as the real safety surface for dangerous/interactive commands (merge, issue/repo delete, push-`main`, `npm publish`, `gh auth`, `npm login`/`adduser`, `vercel`). Deny beats allow at every scope. File edits are covered by each worker's `permissionMode: acceptEdits`. The worktree is a checkout of `main`, so it carries the committed `settings.json` — **permission changes take effect for dispatched agents only after they land on `main`.** Agents also run with **`disallowedTools: Agent`** (no nested subagents), a **`maxTurns`** backstop, and an explicit rule to **stop and emit `BLOCKED:` rather than improvise** when a command is denied.
 
 ### File-based GitHub I/O
 
@@ -69,7 +69,7 @@ Rule: **every stage agent's first action is swapping its trigger label for its i
 | `needs revision`   | `review-agent`                | trigger   | Dispatch `revise-agent` (subject to cycle cap)                  |
 | `revising`         | `revise-agent`                | in-flight | Fixes underway                                                  |
 | `approved`         | `review-agent`                | terminal  | Only Low/Nit findings; human merges on GitHub                   |
-| `needs human`      | Cockpit / `revise-agent`      | gate      | 3 cycles without convergence or rebase conflict; pipeline stops |
+| `needs human`      | Cockpit / `revise-agent`      | gate      | 5 cycles without convergence or rebase conflict; pipeline stops |
 
 ## Stages and models
 
@@ -93,16 +93,33 @@ The model is **broad allow + authoritative deny**: stage agents do real dev work
 | `Bash(gh *)`                                                      | all stages, cockpit | Issues/PRs/labels, the diff under review, CI status **and run logs** (`gh run view --log-failed`), `gh api` for version checks |
 | `Bash(git *)`                                                     | impl, revise        | All git **inside the agent's own worktree** (fetch/checkout/rebase/commit/push/worktree) — no `git -C` on main                 |
 | `Bash(npm *)`                                                     | impl, revise        | `npm ci`, plus `npm install`/`uninstall`/`view` for dependency tickets                                                         |
-| `Bash(npx *)`                                                     | impl, revise        | `npx prisma generate`, `npx prettier`, etc.                                                                                    |
+| `Bash(npx shadcn *)`                                              | impl, revise        | shadcn component CLI only; `npx` otherwise runs arbitrary packages — prettier/prisma/tsx go via `npm run`                      |
 | `WebFetch(domain:nextjs.org \| ui.shadcn.com \| code.claude.com)` | all stages          | Fetch current framework / Claude docs instead of stale recall                                                                  |
 
-File writes (source edits, `.temp/` payloads) are authorized by each worker's `permissionMode: acceptEdits`, not by `settings.json`.
+File writes: source edits via each worker's `permissionMode: acceptEdits`; `.temp/` scratch payloads via an explicit `Edit(.temp/**)` / `Write(.temp/**)` allow, so **every** component — including the no-worktree read-only agents and the cockpit — writes its `--body-file` payloads and **posts its own comments** without prompts.
 
-**Deny rules (`permissions.deny`) — the safety line:** `gh pr merge` (the human merge gate is absolute), `gh issue delete`, `gh repo delete`, pushes to `main` (`git push * main` / `git push origin main`), and `npm publish`. Deny beats allow at every scope, so these hold even with broad allows. _(Minor known gap: a `git push origin HEAD:main` refspec isn't caught by the `_ main`pattern — rely on the agent instruction + GitHub branch protection.)* Agents **may** edit CI workflow files and lockfiles (some tickets require it) but are instructed to use`npm`for dependencies and **not hand-edit`package.json`/`package-lock.json` as a workaround\*\*.
+**Deny rules (`permissions.deny`) — the safety surface:** `gh pr merge` (the human merge gate is absolute), `gh issue delete`, `gh repo delete`, `gh auth`, pushes to `main` (`git push * main` / `git push origin main`), `npm publish`, `npm login`, `npm adduser`, and `npx vercel` / `vercel` (interactive-auth footgun). Deny beats allow at every scope, so these hold even with broad allows. _(Minor known gap: a `git push origin HEAD:main` refspec isn't caught by the `_ main`pattern — rely on the agent instruction + GitHub branch protection.)* Agents **may** edit CI workflow files and lockfiles (some tickets require it) but are instructed to use`npm`for dependencies and **not hand-edit`package.json`/`package-lock.json` as a workaround\*\*.
+
+## Pipeline output formats
+
+Defined once here; the stage agents follow these exactly.
+
+### PR comments (review, revise, escalation; blockers go on the issue)
+
+- **Title keyword (no emoji):** `## Code Review` · `## Revision Summary` · `## Pipeline Escalation` (and `## Blocker` on issues). Keep the literal `Code Review` text — the cockpit's cycle-cap counts it.
+- **Provenance line** under the title: `_<stage> · PR #<pr> · against plan in #<issue>_`.
+- **Findings** carry a **stable ID** (`R<cycle>-<sev><n>`) and a **clickable permalink to the exact line(s)**: ``[`path/file.ts:42`](https://github.com/SGAOperations/aplio/blob/<headRefOid>/path/file.ts#L42)`` (range `#L42-L48`); get `<headRefOid>` from `gh pr view <pr> --json headRefOid`.
+- **Severity headers use colored circles:** `### 🔴 Critical` · `### 🟠 Medium` · `### 🟡 Low` · `### ⚪ Nit`. Only Critical/Medium block (review agent's rubric). Each finding ends with **`Suggested fix:`** (+ an alternative where useful).
+- **Later (delta) reviews** open with `### Resolved since last review` / `### Still open` (referencing prior IDs) before the new findings.
+- **Footer:** `_Posted by the agent pipeline._`
+
+### PR description (impl writes it via `gh pr create --body-file`)
+
+`Closes #N` · **## Summary** (what was built + approach) · **## Changes** (notable files/areas) · **## Testing plan** — reproducible **manual** steps as a `- [ ]` checklist a human runs before merge (setup → actions → expected results; happy-path + error/empty/edge + auth/roles; derived from the issue's Test/validation plan) · **## Automated checks** (prettier/eslint/tsc) · **## Notes** (schema/migrations, risks, follow-ups).
 
 ## Escalation
 
-- **Review ↔ revise non-convergence** — before each revise dispatch the cockpit counts `## Code Review` comments; at 3 with Critical/Medium still found it labels `needs human`, comments, and stops dispatching for it.
+- **Review ↔ revise non-convergence** — before each revise dispatch the cockpit counts `## Code Review` comments; at 5 with Critical/Medium still found it labels `needs human`, comments, and stops dispatching for it.
 - **Impl blocker** — `impl-agent` comments `## Blocker`, labels `blocked`, and reports `BLOCKED:`; the cockpit relays and resumes the same agent with the human's decision.
 - **Rebase conflict during revision** — `revise-agent` aborts the rebase, comments, labels `needs human`.
 - **Plan questions** — `plan-agent` never guesses: it returns `QUESTIONS FOR HUMAN:` and the cockpit relays, then resumes it with answers.
