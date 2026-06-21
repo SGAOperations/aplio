@@ -2,6 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 
+import { z } from 'zod';
+
 import type {
   Application,
   GlobalAnswer,
@@ -13,47 +15,71 @@ import type {
 import { getCurrentUser } from '@/lib/auth/server';
 import prisma from '@/lib/prisma';
 import { type DraftApplication } from '@/lib/types';
-import { type ResponseType } from '@/lib/utils';
+import { type ResponseType, toStringArray } from '@/lib/utils';
 
 type GlobalAnswerWithQuestion = GlobalAnswer & {
   globalQuestion: GlobalQuestion;
 };
+
+const createDraftApplicationSchema = z.object({
+  positionId: z.string().min(1),
+});
+
+const createOrUpdateApplicationAnswerSchema = z.object({
+  applicationId: z.string().min(1),
+  questionId: z.string().min(1),
+  questionLabel: z.string().min(1),
+  value: z.array(z.string()),
+  isGlobal: z.boolean(),
+});
+
+const submitApplicationSchema = z.object({ applicationId: z.string().min(1) });
 
 export async function createDraftApplication(
   positionId: string,
 ): Promise<DraftApplication> {
   const currentUser = await getCurrentUser();
 
-  const existing = await prisma.application.findUnique({
-    where: { userId_positionId: { userId: currentUser.id, positionId } },
-    include: { globalAnswers: true, positionAnswers: true },
-  });
+  const parsed = createDraftApplicationSchema.safeParse({ positionId });
+  if (!parsed.success) throw new Error('Invalid input');
 
-  if (existing) return existing;
-
-  const globalAnswers = await prisma.globalAnswer.findMany({
-    where: { userId: currentUser.id, deletedAt: null },
-    include: { globalQuestion: true },
-  });
-
-  return prisma.application.create({
-    data: {
-      userId: currentUser.id,
-      positionId,
-      status: 'draft',
-      createdById: currentUser.id,
-      updatedById: currentUser.id,
-      globalAnswers: {
-        create: globalAnswers.map((answer: GlobalAnswerWithQuestion) => ({
-          globalQuestionId: answer.globalQuestionId,
-          questionLabel: answer.globalQuestion.label,
-          value: answer.value,
-          createdById: currentUser.id,
-          updatedById: currentUser.id,
-        })),
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.application.findUnique({
+      where: {
+        userId_positionId: {
+          userId: currentUser.id,
+          positionId: parsed.data.positionId,
+        },
       },
-    },
-    include: { globalAnswers: true, positionAnswers: true },
+      include: { globalAnswers: true, positionAnswers: true },
+    });
+
+    if (existing) return existing;
+
+    const globalAnswers = await tx.globalAnswer.findMany({
+      where: { userId: currentUser.id, deletedAt: null },
+      include: { globalQuestion: true },
+    });
+
+    return tx.application.create({
+      data: {
+        userId: currentUser.id,
+        positionId: parsed.data.positionId,
+        status: 'draft',
+        createdById: currentUser.id,
+        updatedById: currentUser.id,
+        globalAnswers: {
+          create: globalAnswers.map((answer: GlobalAnswerWithQuestion) => ({
+            globalQuestionId: answer.globalQuestionId,
+            questionLabel: answer.globalQuestion.label,
+            value: answer.value,
+            createdById: currentUser.id,
+            updatedById: currentUser.id,
+          })),
+        },
+      },
+      include: { globalAnswers: true, positionAnswers: true },
+    });
   });
 }
 
@@ -64,13 +90,17 @@ export async function createOrUpdateApplicationAnswer(params: {
   value: string[];
   isGlobal: boolean;
 }): Promise<ResponseType<GlobalApplicationAnswer | PositionApplicationAnswer>> {
-  const { applicationId, questionId, questionLabel, value, isGlobal } = params;
-
   const currentUser = await getCurrentUser();
+
+  const parsed = createOrUpdateApplicationAnswerSchema.safeParse(params);
+  if (!parsed.success) return { error: 'Invalid input' };
+
+  const { applicationId, questionId, questionLabel, value, isGlobal } =
+    parsed.data;
 
   const application = await prisma.application.findUnique({
     where: { id: applicationId },
-    select: { userId: true },
+    select: { userId: true, positionId: true },
   });
 
   if (!application || application.userId !== currentUser.id)
@@ -94,7 +124,7 @@ export async function createOrUpdateApplicationAnswer(params: {
         updatedById: currentUser.id,
       },
     });
-    revalidatePath('/positions');
+    revalidatePath(`/positions/${application.positionId}/apply`);
     return result;
   }
 
@@ -115,7 +145,7 @@ export async function createOrUpdateApplicationAnswer(params: {
       updatedById: currentUser.id,
     },
   });
-  revalidatePath('/positions');
+  revalidatePath(`/positions/${application.positionId}/apply`);
   return result;
 }
 
@@ -124,8 +154,11 @@ export async function submitApplication(
 ): Promise<ResponseType<Application>> {
   const currentUser = await getCurrentUser();
 
+  const parsed = submitApplicationSchema.safeParse({ applicationId });
+  if (!parsed.success) return { error: 'Invalid input' };
+
   const application = await prisma.application.findUnique({
-    where: { id: applicationId },
+    where: { id: parsed.data.applicationId },
     include: {
       globalAnswers: true,
       positionAnswers: true,
@@ -143,7 +176,7 @@ export async function submitApplication(
   const hasUnansweredGlobal = requiredGlobalQuestions.some(
     (q) =>
       !application.globalAnswers.some(
-        (a) => a.globalQuestionId === q.id && (a.value as string[]).length > 0,
+        (a) => a.globalQuestionId === q.id && toStringArray(a.value).length > 0,
       ),
   );
 
@@ -157,7 +190,7 @@ export async function submitApplication(
       q.required &&
       !application.positionAnswers.some(
         (a) =>
-          a.positionQuestionId === q.id && (a.value as string[]).length > 0,
+          a.positionQuestionId === q.id && toStringArray(a.value).length > 0,
       ),
   );
 
@@ -165,7 +198,7 @@ export async function submitApplication(
     return { error: 'Please answer all required questions before submitting.' };
 
   const updated = await prisma.application.update({
-    where: { id: applicationId },
+    where: { id: parsed.data.applicationId },
     data: {
       status: 'applied',
       submittedAt: new Date(),

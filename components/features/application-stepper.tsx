@@ -20,17 +20,12 @@ import {
 } from '@/prisma/services/application-actions';
 
 import { type DraftApplication } from '@/lib/types';
-import { cn, isError } from '@/lib/utils';
+import { cn, isError, toStringArray } from '@/lib/utils';
 
 import { ApplicationQuestion } from '@/components/features/application-question';
 import { Button } from '@/components/ui/button';
 
 type StepperFormValues = Record<string, string[]>;
-
-function toStringArray(v: unknown): string[] {
-  if (Array.isArray(v) && v.every((x) => typeof x === 'string')) return v;
-  return [];
-}
 
 interface QuestionListProps {
   applicationId: string;
