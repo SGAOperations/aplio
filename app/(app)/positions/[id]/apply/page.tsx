@@ -6,6 +6,7 @@ import { createDraftApplication } from '@/prisma/services/application-actions';
 import { getPositionForApply } from '@/prisma/services/positions';
 
 import { getCurrentUser } from '@/lib/auth/server';
+import { isError } from '@/lib/utils';
 
 import { ApplicationStepper } from '@/components/features/application-stepper';
 import { Button } from '@/components/ui/button';
@@ -36,7 +37,11 @@ export default async function ApplyPage({
       .filter((d) => d.question.required)
       .every((d) => d.answer !== null);
 
-  const application = profileComplete ? await createDraftApplication(id) : null;
+  const applicationResult = profileComplete
+    ? await createDraftApplication(id)
+    : null;
+  const application =
+    applicationResult && !isError(applicationResult) ? applicationResult : null;
 
   return (
     <div className="mx-auto max-w-2xl">

@@ -37,11 +37,12 @@ const submitApplicationSchema = z.object({ applicationId: z.string().min(1) });
 
 export async function createDraftApplication(
   positionId: string,
-): Promise<DraftApplication> {
+): Promise<ResponseType<DraftApplication>> {
   const currentUser = await getCurrentUser();
+  if (!currentUser) return { error: 'Unauthorized' };
 
   const parsed = createDraftApplicationSchema.safeParse({ positionId });
-  if (!parsed.success) throw new Error('Invalid input');
+  if (!parsed.success) return { error: 'Invalid input' };
 
   return prisma.$transaction(async (tx) => {
     const existing = await tx.application.findUnique({

@@ -195,10 +195,8 @@ export function ApplicationStepper({
   });
 
   async function handleNext() {
-    if (isCustomizing) {
-      const valid = await trigger(globalQuestions.map((q) => `g_${q.id}`));
-      if (!valid) return;
-    }
+    const valid = await trigger(globalQuestions.map((q) => `g_${q.id}`));
+    if (!valid) return;
     clearErrors('root');
     setStep(2);
   }
@@ -213,12 +211,18 @@ export function ApplicationStepper({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center gap-2">
-        <div className="bg-primary text-primary-foreground flex size-7 items-center justify-center rounded-full text-sm font-medium">
+      <div role="list" className="flex items-center gap-2">
+        <div
+          role="listitem"
+          aria-current={step === 1 ? 'step' : undefined}
+          className="bg-primary text-primary-foreground flex size-7 items-center justify-center rounded-full text-sm font-medium"
+        >
           {step === 2 ? <CheckIcon className="size-4" /> : '1'}
         </div>
         <div className="bg-border h-px flex-1" />
         <div
+          role="listitem"
+          aria-current={step === 2 ? 'step' : undefined}
           className={cn(
             'flex size-7 items-center justify-center rounded-full text-sm font-medium',
             step === 2
@@ -253,7 +257,7 @@ export function ApplicationStepper({
           </div>
 
           {isCustomizing && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+            <div className="border-warning/40 bg-warning/10 text-warning-foreground rounded-lg border p-3 text-sm">
               These answers are saved for this application only. To update your
               answers permanently, visit your{' '}
               <Link href="/profile" className="font-medium underline">
