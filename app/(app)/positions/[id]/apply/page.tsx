@@ -6,7 +6,7 @@ import { createDraftApplication } from '@/prisma/services/application-actions';
 import { getPositionForApply } from '@/prisma/services/positions';
 
 import { getCurrentUser } from '@/lib/auth/server';
-import { isError } from '@/lib/utils';
+import { isError, toStringArray } from '@/lib/utils';
 
 import { ApplicationStepper } from '@/components/features/application-stepper';
 import { Button } from '@/components/ui/button';
@@ -32,11 +32,12 @@ export default async function ApplyPage({
     d.answer ? [d.answer] : [],
   );
 
+  // Gate must match submitApplication: requires non-empty value, not just a record existing.
   const profileComplete =
     profileData.length === 0 ||
     profileData
       .filter((d) => d.question.required)
-      .every((d) => d.answer !== null);
+      .every((d) => toStringArray(d.answer?.value).length > 0);
 
   const applicationResult = profileComplete
     ? await createDraftApplication(id)

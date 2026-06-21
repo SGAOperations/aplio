@@ -34,11 +34,12 @@ export function ProfileQuestion({
     const serialized = JSON.stringify(value);
     if (serialized === savedValueRef.current) return;
     try {
-      await updateGlobalAnswer(question.id, value);
+      const result = await updateGlobalAnswer(question.id, value);
+      if (!result.ok) throw new Error(result.error ?? 'Failed to save');
       savedValueRef.current = serialized;
       reset({ value });
     } catch {
-      // silent — autosave is best-effort
+      // silent — autosave is best-effort; savedValueRef is not advanced on failure so retries work
     }
   }
 
