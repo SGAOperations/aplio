@@ -38,5 +38,12 @@ next-env.d.ts
 # worktrees
 .worktrees/
 
+# agent scratch dir (gh --body-file payloads)
+.temp/
+
+# external skills installed via `npx skills` (skills-lock.json is committed; payload re-materialized with `npx skills install`)
+.agents/
+.claude/skills/shadcn
+
 # prisma
 prisma/client/

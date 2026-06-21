@@ -21,7 +21,7 @@ This is a conversation, not a form. Ask **one question at a time**, multiple cho
 - **Success criteria** — how a human verifies the feature works
 - **Decomposition** — independently shippable sub-tickets, each one PR-sized, ordered by dependency
 
-Read `ENGINEERING.md` and the relevant parts of the codebase as needed so the decomposition reflects how this app is actually built (server components, services in `prisma/services/`, etc.).
+Read `.claude/docs/ENGINEERING.md` and the relevant parts of the codebase as needed so the decomposition reflects how this app is actually built (server components, services in `prisma/services/`, etc.).
 
 ## 2. Present the breakdown — get approval before creating anything
 

@@ -17,32 +17,31 @@
       "Bash(gh api repos/SGAOperations/aplio/*)",
       "Bash(gh api graphql *)",
       "Bash(git fetch *)",
-      "Bash(git worktree *)",
       "Bash(git checkout *)",
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(git push *)",
-      "Bash(git -C * fetch *)",
-      "Bash(git -C * checkout *)",
-      "Bash(git -C * add *)",
-      "Bash(git -C * commit *)",
-      "Bash(git -C * push *)",
-      "Bash(git -C * reset *)",
-      "Bash(git -C * rebase *)",
-      "Bash(git -C * status)",
-      "Bash(git -C * branch *)",
-      "Bash(git -C * log *)",
-      "Bash(git -C * diff *)",
-      "Bash(ln -s *)",
-      "Bash(mkdir *)",
-      "Bash(npx prisma generate)",
+      "Bash(git rebase *)",
+      "Bash(git reset *)",
+      "Bash(git branch *)",
+      "Bash(npm ci)",
       "Bash(npm run prettier:check)",
+      "Bash(npm run prettier:fix)",
       "Bash(npx prettier --write *)",
       "Bash(npm run eslint:check)",
-      "Bash(npm run tsc:check)"
+      "Bash(npm run tsc:check)",
+      "Bash(npx prisma generate)",
+      "WebFetch(domain:nextjs.org)",
+      "WebFetch(domain:ui.shadcn.com)",
+      "WebFetch(domain:code.claude.com)"
     ],
-    "additionalDirectories": [
-      "/home/benedikt/Documents/Projects/aplio/.worktrees"
+    "deny": [
+      "Bash(gh pr merge *)",
+      "Bash(gh issue delete *)",
+      "Bash(gh repo delete *)",
+      "Bash(git push * main)",
+      "Bash(git push origin main)"
     ]
-  }
+  },
+  "env": { "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1" }
 }
