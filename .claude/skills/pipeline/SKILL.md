@@ -69,7 +69,7 @@ Stage → trigger mapping:
 gh pr view <pr-number> --repo SGAOperations/aplio --comments
 ```
 
-Count `## Code Review` occurrences. If **3 or more** reviews exist and the latest still produced Critical/Medium findings, escalate instead of dispatching: write the escalation note to `.temp/escalation-<pr>.md` (Write tool) and
+Count `## Code Review` occurrences. If **5 or more** reviews exist and the latest still produced Critical/Medium findings, escalate instead of dispatching: write the escalation note to `.temp/escalation-<pr>.md` (Write tool) and
 
 ```bash
 gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "needs revision" --add-label "needs human"

@@ -138,3 +138,14 @@ if (applications.length === 0)
 - **Naming follows the neighborhood.** Match the file's existing patterns for casing, ordering, and component structure before introducing anything new.
 - **Comments explain constraints, not code.** A comment states a non-obvious invariant or external requirement; it never narrates what the next line does.
 - **Leave it better, narrowly.** Fix problems in code you touch when they affect your change; do not refactor unrelated code in a feature PR.
+
+## 8. Pre-PR self-check (shared by impl, revise, and review)
+
+A scannable summary of the issues that recur in this codebase. **impl** builds to it, **revise** must not reintroduce these, and **review** uses it as its dimensions. Detail lives in the sections above.
+
+- **Server actions:** every action authenticates, parses input with zod, and scopes the write to the caller — no IDOR. (§3)
+- **Queries:** `select` only rendered fields; never expose internal IDs or other users' data to client components; no N+1; `$transaction` for multi-step writes. (§2)
+- **Async states:** every async surface ships loading, error, **and** empty; mutations give success **and** error feedback (no silent failure); `revalidatePath`/`revalidateTag` after writes. (§4)
+- **Components:** server-first; `'use client'` only on the smallest leaf; never `useEffect` for data fetching; **use shadcn/Radix primitives, not hand-rolled raw elements**; gate nav items by role where the route is role-gated. (§1, §5)
+- **Conventions:** named exports only (except Next.js route files); services in `prisma/services/`; no API routes except `/api/auth`; **design tokens, never hardcoded colors** (`DESIGN.md`); strict TS, no `any`. (§1, §7)
+- **Hygiene:** no dead scaffolding, shims, or transitional re-exports; schema changes ship with their migration and are called out in the PR.

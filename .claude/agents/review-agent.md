@@ -49,7 +49,7 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "ready for revi
    ```bash
    gh pr diff <pr-number> --repo SGAOperations/aplio
    gh pr checks <pr-number> --repo SGAOperations/aplio    # failing required checks are Critical
-   gh pr view <pr-number> --repo SGAOperations/aplio --json body,title,headRefName   # find "Closes #XXX"
+   gh pr view <pr-number> --repo SGAOperations/aplio --json body,title,headRefName,headRefOid   # "Closes #XXX"; headRefOid = SHA for line permalinks
    gh issue view <issue-number> --repo SGAOperations/aplio   # the original plan
    ```
 
@@ -64,34 +64,47 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "ready for revi
 
    Note: `gh pr checks` exposes status in the **`bucket`** field (pass/fail/pending) if you pass `--json name,bucket,link` — there is **no** `status`/`conclusion` field on `gh pr checks`. For a failing **Vercel** check, cite the check name + its link as Critical; do not try to read Vercel logs.
 
-2. **Review the diff.** For each finding note file, line, severity, and whether it was **introduced in this PR** or is **preexisting**. Dimensions: **CI** (any failing required check = Critical, cite the check name) · **Correctness** vs. every plan checklist item · **Security** (OWASP, auth + zod on every server action, authorization scoping / no IDOR, input validation, dev-only code env-gated) · **Engineering standards** (cite `.claude/docs/ENGINEERING.md` §) · **Conventions** (named exports, no API routes except `/api/auth`, services in `prisma/services/`, Tailwind only, mobile-first, no `useEffect` data fetching) · **Type safety** (no `any`, Prisma-generated types) · **Performance** (revalidation after mutations, N+1) · **Completeness** (loading/error/empty per async surface).
+2. **Review the diff.** Be **exhaustive on the first review** — cover the whole changed surface across every dimension below. **Later reviews are delta-scoped** (the PR already has prior `## Code Review` comments): verify each prior Critical/Medium is resolved and check only for **regressions the revision introduced** — do not hunt fresh marginal issues. A genuinely-missed Critical/Medium still blocks; a new marginal item is noted Low/follow-up.
 
-3. **Post the review (file-based).** Write the comment to `.temp/review-<pr>.md` (Write tool), then post it — this avoids shell-quoting failures with the markdown/backticks in findings:
+   For each finding record: a **stable ID** (`R<cycle>-<sev><n>`, e.g. `R1-M2`), the **exact line(s)**, severity, **introduced** vs **preexisting**, and a **suggested fix**.
+
+   **Severity rubric — apply strictly; only Critical/Medium block:**
+   - **Critical** — broken behavior, security hole, or a failing required CI check.
+   - **Medium** — a clear correctness / convention / `ENGINEERING.md` violation, or a missing _required_ state (loading/error/empty, auth, validation).
+   - **Low** — improvements, **performance tradeoffs, "consider…" suggestions** (these are **never** Medium), by-design choices.
+   - **Nit** — style / naming.
+
+   Dimensions (use the **Pre-PR self-check** in `.claude/docs/ENGINEERING.md` as the checklist): CI (failing required check = Critical) · correctness vs every plan checklist item · security (auth + zod on every action, authz scoping / no IDOR, dev-only code env-gated) · engineering standards (cite the §) · conventions (named exports, no API routes except `/api/auth`, services in `prisma/services/`, Tailwind/tokens, mobile-first, no `useEffect` fetching, shadcn primitives over raw elements, role-gated nav) · type safety (no `any`) · performance (revalidate after mutations, N+1) · completeness (all three async states + success/error feedback) · **no dead scaffolding/shims**.
+
+3. **Post the review (file-based).** Write the comment to `.temp/review-<pr>.md` (Write tool), then post it (avoids shell-quoting issues with markdown/backticks):
 
    ```bash
-   mkdir -p .temp
    gh pr comment <pr-number> --repo SGAOperations/aplio --body-file .temp/review-<pr>.md
    ```
 
-   Format (omit any empty severity section):
+   Follow the **PR-comment format** in `.claude/docs/PIPELINE.md` → "Pipeline output formats". Each finding is a clickable permalink to the exact line(s) built from `headRefOid`. Omit empty sections; include the status sections only on later (delta) reviews:
 
    ```
    ## Code Review
 
-   ### Critical
-   - `path/to/file.ts:42` — issue
+   _review-agent · PR #<pr> · reviewed against plan in #<issue>_
 
-   ### Medium
-   - `path/to/file.ts:88` — issue
+   ### Resolved since last review        <!-- later reviews only -->
+   - **R<prev>-<id>** — confirmed fixed
+   ### Still open                          <!-- later reviews only -->
+   - **R<prev>-<id>** [`path:line`](permalink) — still unaddressed
 
-   ### Low
-   - `path/to/file.ts:15` — issue
-
-   ### Nit
-   - `path/to/file.ts:7` — issue
+   ### 🔴 Critical
+   - **R<c>-C1** [`path/file.ts:42`](https://github.com/SGAOperations/aplio/blob/<headRefOid>/path/file.ts#L42) — problem (introduced). **Suggested fix:** concrete approach.
+   ### 🟠 Medium
+   - **R<c>-M1** [`path/file.ts:88`](permalink) — problem (introduced). **Suggested fix:** …
+   ### 🟡 Low
+   - **R<c>-L1** [`path/file.ts:15`](permalink) — problem. **Suggested fix:** …
+   ### ⚪ Nit
+   - **R<c>-N1** [`path/file.ts:7`](permalink) — note.
 
    ---
-   _Reviewed against plan in issue #XXX_
+   _Posted by the agent pipeline._
    ```
 
 ## Handoff
