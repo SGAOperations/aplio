@@ -1,5 +1,7 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
+
 import type {
   Application,
   GlobalAnswer,
@@ -74,8 +76,8 @@ export async function createOrUpdateApplicationAnswer(params: {
   if (!application || application.userId !== currentUser.id)
     return { error: 'Unauthorized' };
 
-  if (isGlobal)
-    return prisma.globalApplicationAnswer.upsert({
+  if (isGlobal) {
+    const result = await prisma.globalApplicationAnswer.upsert({
       where: {
         applicationId_globalQuestionId: {
           applicationId,
@@ -92,8 +94,11 @@ export async function createOrUpdateApplicationAnswer(params: {
         updatedById: currentUser.id,
       },
     });
+    revalidatePath('/positions');
+    return result;
+  }
 
-  return prisma.positionApplicationAnswer.upsert({
+  const result = await prisma.positionApplicationAnswer.upsert({
     where: {
       applicationId_positionQuestionId: {
         applicationId,
@@ -110,6 +115,8 @@ export async function createOrUpdateApplicationAnswer(params: {
       updatedById: currentUser.id,
     },
   });
+  revalidatePath('/positions');
+  return result;
 }
 
 export async function submitApplication(
@@ -117,8 +124,8 @@ export async function submitApplication(
 ): Promise<ResponseType<Application>> {
   const currentUser = await getCurrentUser();
 
-  const application = await prisma.application.findFirst({
-    where: { id: applicationId, userId: currentUser.id },
+  const application = await prisma.application.findUnique({
+    where: { id: applicationId },
     include: {
       globalAnswers: true,
       positionAnswers: true,
@@ -126,7 +133,8 @@ export async function submitApplication(
     },
   });
 
-  if (!application) return { error: 'Unauthorized' };
+  if (!application || application.userId !== currentUser.id)
+    return { error: 'Unauthorized' };
 
   const requiredGlobalQuestions = await prisma.globalQuestion.findMany({
     where: { required: true, deletedAt: null },
@@ -156,7 +164,7 @@ export async function submitApplication(
   if (hasUnansweredPosition)
     return { error: 'Please answer all required questions before submitting.' };
 
-  return prisma.application.update({
+  const updated = await prisma.application.update({
     where: { id: applicationId },
     data: {
       status: 'applied',
@@ -164,4 +172,7 @@ export async function submitApplication(
       updatedById: currentUser.id,
     },
   });
+  revalidatePath('/applications');
+  revalidatePath('/positions');
+  return updated;
 }

@@ -129,7 +129,6 @@ function QuestionList({
               <ApplicationQuestion
                 question={question}
                 field={field}
-                isDirty={fieldState.isDirty}
                 error={fieldState.error?.message}
                 onSave={async (value) => {
                   const result = await createOrUpdateApplicationAnswer({

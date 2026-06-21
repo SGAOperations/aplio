@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import { updateGlobalAnswer } from '@/prisma/actions/profile';
@@ -22,21 +23,28 @@ export function ProfileQuestion({
   userId,
   isEditing,
 }: ProfileQuestionProps) {
-  const { control, formState, getValues, reset } = useForm<{ value: string[] }>(
-    { defaultValues: { value: answer?.value ?? [] } },
-  );
+  const initialValue = (
+    Array.isArray(answer?.value) ? answer.value : []
+  ) as string[];
+  const { control, getValues, reset } = useForm<{ value: string[] }>({
+    defaultValues: { value: initialValue },
+  });
+  // Tracks the last saved serialized value to avoid redundant server calls.
+  const savedValueRef = useRef(JSON.stringify(initialValue));
 
   async function save(value: string[]) {
+    const serialized = JSON.stringify(value);
+    if (serialized === savedValueRef.current) return;
     try {
       await updateGlobalAnswer(userId, question.id, value);
+      savedValueRef.current = serialized;
       reset({ value });
     } catch {
       // silent — autosave is best-effort
     }
   }
 
-  async function handleBlur() {
-    if (!formState.isDirty) return;
+  function handleBlur() {
     save(getValues('value'));
   }
 

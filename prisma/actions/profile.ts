@@ -1,5 +1,7 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
+
 import type { GlobalAnswer } from '@/prisma/client';
 
 import prisma from '@/lib/prisma';
@@ -9,7 +11,7 @@ export async function updateGlobalAnswer(
   questionId: string,
   value: string[],
 ): Promise<GlobalAnswer> {
-  return prisma.globalAnswer.upsert({
+  const result = await prisma.globalAnswer.upsert({
     where: {
       userId_globalQuestionId: { userId, globalQuestionId: questionId },
     },
@@ -22,4 +24,6 @@ export async function updateGlobalAnswer(
       updatedById: userId,
     },
   });
+  revalidatePath('/profile');
+  return result;
 }

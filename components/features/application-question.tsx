@@ -9,7 +9,6 @@ import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 
 interface ApplicationQuestionProps {
@@ -19,7 +18,6 @@ interface ApplicationQuestionProps {
     onChange: (value: string[]) => void;
     onBlur: () => void;
   };
-  isDirty: boolean;
   error?: string;
   onSave: (value: string[]) => Promise<void>;
 }
@@ -27,7 +25,6 @@ interface ApplicationQuestionProps {
 export function ApplicationQuestion({
   question,
   field,
-  isDirty,
   error,
   onSave,
 }: ApplicationQuestionProps) {
@@ -53,9 +50,9 @@ export function ApplicationQuestion({
     }
   }
 
-  function handleBlur() {
+  async function handleBlur() {
     field.onBlur();
-    if (isDirty) save(field.value);
+    await save(field.value);
   }
 
   return (
@@ -94,23 +91,27 @@ export function ApplicationQuestion({
       )}
 
       {question.type === 'single_choice' && (
-        <RadioGroup
-          value={field.value[0] ?? ''}
-          onValueChange={(value) => {
-            field.onChange([value]);
-            save([value]);
-          }}
-        >
+        <div className="flex flex-col gap-2">
           {options.map((option) => (
             <Label
               key={option}
               className="flex cursor-pointer items-center gap-2 font-normal"
             >
-              <RadioGroupItem value={option} />
+              <input
+                type="radio"
+                name={question.id}
+                value={option}
+                checked={field.value[0] === option}
+                onChange={() => {
+                  field.onChange([option]);
+                  save([option]);
+                }}
+                className="accent-primary size-4"
+              />
               {option}
             </Label>
           ))}
-        </RadioGroup>
+        </div>
       )}
 
       {question.type === 'multiple_choice' && (
