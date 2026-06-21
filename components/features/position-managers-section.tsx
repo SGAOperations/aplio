@@ -5,12 +5,12 @@ import { useState, useTransition } from 'react';
 import { Loader2, UserMinus, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 
-import type { User } from '@/prisma/client';
 import {
   addPositionManager,
   removePositionManager,
   searchUsers,
 } from '@/prisma/services/position-actions';
+import type { PositionManager } from '@/prisma/services/positions';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,7 +24,7 @@ interface UserResult {
 
 interface PositionManagersSectionProps {
   positionId: string;
-  initialManagers: User[];
+  initialManagers: PositionManager[];
   isAdmin: boolean;
 }
 
@@ -33,7 +33,7 @@ export function PositionManagersSection({
   initialManagers,
   isAdmin,
 }: PositionManagersSectionProps) {
-  const [managers, setManagers] = useState(initialManagers);
+  const [managers, setManagers] = useState<PositionManager[]>(initialManagers);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<UserResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -64,19 +64,7 @@ export function PositionManagersSection({
       if (result.ok) {
         setManagers((prev) => [
           ...prev,
-          {
-            id: user.id,
-            name: user.displayName,
-            email: user.primaryEmail,
-            neonAuthId: '',
-            isAdmin: false,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            deletedAt: null,
-            createdById: null,
-            updatedById: null,
-            deletedById: null,
-          },
+          { id: user.id, name: user.displayName, email: user.primaryEmail },
         ]);
         setResults((prev) => prev.filter((u) => u.id !== user.id));
         setQuery('');

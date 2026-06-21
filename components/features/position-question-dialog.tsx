@@ -32,6 +32,11 @@ const QUESTION_TYPE_OPTIONS: { value: QuestionType; label: string }[] = [
 
 const CHOICE_TYPES: QuestionType[] = ['single_choice', 'multiple_choice'];
 
+interface OptionEntry {
+  key: string;
+  value: string;
+}
+
 interface PositionQuestionDialogProps {
   positionId: string;
   question?: PositionQuestion;
@@ -58,14 +63,19 @@ function QuestionForm({
     question?.type ?? 'short_answer',
   );
   const [required, setRequired] = useState(question?.required ?? true);
-  const [options, setOptions] = useState<string[]>(
-    question?.options?.length ? question.options : [''],
+  const [options, setOptions] = useState<OptionEntry[]>(
+    question?.options?.length
+      ? question.options.map((v: string) => ({
+          key: crypto.randomUUID(),
+          value: v,
+        }))
+      : [{ key: crypto.randomUUID(), value: '' }],
   );
 
   const isChoiceType = CHOICE_TYPES.includes(type);
 
   function addOption() {
-    setOptions((prev) => [...prev, '']);
+    setOptions((prev) => [...prev, { key: crypto.randomUUID(), value: '' }]);
   }
 
   function removeOption(index: number) {
@@ -73,20 +83,20 @@ function QuestionForm({
   }
 
   function updateOption(index: number, value: string) {
-    setOptions((prev) => prev.map((o, i) => (i === index ? value : o)));
+    setOptions((prev) =>
+      prev.map((o, i) => (i === index ? { ...o, value } : o)),
+    );
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const filteredOptions = isChoiceType
-      ? options.filter((o) => o.trim() !== '')
+      ? options.map((o) => o.value).filter((v) => v.trim() !== '')
       : [];
 
     startTransition(async () => {
-      let result;
-
       if (question) {
-        result = await updatePositionQuestion({
+        const result = await updatePositionQuestion({
           id: question.id,
           positionId,
           label,
@@ -94,36 +104,56 @@ function QuestionForm({
           required,
           options: filteredOptions,
         });
-      } else {
-        result = await createPositionQuestion({
-          positionId,
-          label,
-          type,
-          required,
-          options: filteredOptions,
-        });
-      }
-
-      if (result.ok) {
-        toast.success(question ? 'Question updated' : 'Question added');
+        if (!result.ok) {
+          toast.error(result.error);
+          return;
+        }
+        toast.success('Question updated');
         onClose();
         onSuccess({
-          id: question?.id ?? '',
+          id: question.id,
           positionId,
           label,
           type,
           required,
-          order: question?.order ?? 0,
+          order: question.order,
           options: filteredOptions,
-          createdAt: question?.createdAt ?? new Date(),
+          createdAt: question.createdAt,
           updatedAt: new Date(),
           deletedAt: null,
-          createdById: question?.createdById ?? '',
+          createdById: question.createdById,
           updatedById: '',
           deletedById: null,
         });
       } else {
-        toast.error(result.error);
+        const result = await createPositionQuestion({
+          positionId,
+          label,
+          type,
+          required,
+          options: filteredOptions,
+        });
+        if (!result.ok) {
+          toast.error(result.error);
+          return;
+        }
+        toast.success('Question added');
+        onClose();
+        onSuccess({
+          id: result.data.id,
+          positionId,
+          label,
+          type,
+          required,
+          order: result.data.order,
+          options: filteredOptions,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          deletedAt: null,
+          createdById: '',
+          updatedById: '',
+          deletedById: null,
+        });
       }
     });
   }
@@ -170,9 +200,9 @@ function QuestionForm({
         <div className="flex flex-col gap-2">
           <Label>Options</Label>
           {options.map((opt, index) => (
-            <div key={index} className="flex items-center gap-2">
+            <div key={opt.key} className="flex items-center gap-2">
               <Input
-                value={opt}
+                value={opt.value}
                 onChange={(e) => updateOption(index, e.target.value)}
                 placeholder={`Option ${index + 1}`}
                 disabled={isPending}

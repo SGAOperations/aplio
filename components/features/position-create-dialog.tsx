@@ -33,6 +33,8 @@ export function PositionCreateDialog() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<PositionStatus>('draft');
+  const [opensAt, setOpensAt] = useState('');
+  const [closesAt, setClosesAt] = useState('');
 
   function handleOpenChange(next: boolean) {
     if (!isPending) {
@@ -41,6 +43,8 @@ export function PositionCreateDialog() {
         setTitle('');
         setDescription('');
         setStatus('draft');
+        setOpensAt('');
+        setClosesAt('');
       }
     }
   }
@@ -48,13 +52,21 @@ export function PositionCreateDialog() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     startTransition(async () => {
-      const result = await createPosition({ title, description, status });
+      const result = await createPosition({
+        title,
+        description,
+        status,
+        opensAt: opensAt || undefined,
+        closesAt: closesAt || undefined,
+      });
       if (result.ok) {
         toast.success('Position created');
         setOpen(false);
         setTitle('');
         setDescription('');
         setStatus('draft');
+        setOpensAt('');
+        setClosesAt('');
       } else {
         toast.error(result.error);
       }
@@ -111,6 +123,26 @@ export function PositionCreateDialog() {
                 </option>
               ))}
             </select>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="create-opens-at">Opens at (optional)</Label>
+            <Input
+              id="create-opens-at"
+              type="date"
+              value={opensAt}
+              onChange={(e) => setOpensAt(e.target.value)}
+              disabled={isPending}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="create-closes-at">Closes at (optional)</Label>
+            <Input
+              id="create-closes-at"
+              type="date"
+              value={closesAt}
+              onChange={(e) => setClosesAt(e.target.value)}
+              disabled={isPending}
+            />
           </div>
           <Button type="submit" disabled={isPending} className="mt-2">
             {isPending && <Loader2 className="animate-spin" />}

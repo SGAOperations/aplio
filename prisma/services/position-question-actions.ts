@@ -53,7 +53,10 @@ async function checkAccess(
 
 export async function createPositionQuestion(
   input: unknown,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; data: { id: string; order: number } }
+  | { ok: false; error: string }
+> {
   const user = await getCurrentUser();
 
   const parsed = createPositionQuestionSchema.safeParse(input);
@@ -71,7 +74,7 @@ export async function createPositionQuestion(
 
   const order = (maxOrder._max.order ?? 0) + 1;
 
-  await prisma.positionQuestion.create({
+  const created = await prisma.positionQuestion.create({
     data: {
       positionId,
       label,
@@ -85,7 +88,7 @@ export async function createPositionQuestion(
   });
 
   revalidatePath(`/positions/${positionId}/edit`);
-  return { ok: true };
+  return { ok: true, data: { id: created.id, order: created.order } };
 }
 
 export async function updatePositionQuestion(
@@ -101,10 +104,13 @@ export async function updatePositionQuestion(
   const hasAccess = await checkAccess(positionId, user.id, user.isAdmin);
   if (!hasAccess) return { ok: false, error: 'Unauthorized' };
 
-  await prisma.positionQuestion.update({
-    where: { id },
+  // Scope the write to positionId to prevent IDOR across positions
+  const result = await prisma.positionQuestion.updateMany({
+    where: { id, positionId },
     data: { label, type, required, options, updatedById: user.id },
   });
+
+  if (result.count === 0) return { ok: false, error: 'Not found' };
 
   revalidatePath(`/positions/${positionId}/edit`);
   return { ok: true };
@@ -123,10 +129,13 @@ export async function deletePositionQuestion(
   const hasAccess = await checkAccess(positionId, user.id, user.isAdmin);
   if (!hasAccess) return { ok: false, error: 'Unauthorized' };
 
-  await prisma.positionQuestion.update({
-    where: { id },
+  // Scope the write to positionId to prevent IDOR across positions
+  const result = await prisma.positionQuestion.updateMany({
+    where: { id, positionId },
     data: { deletedAt: new Date(), deletedById: user.id },
   });
+
+  if (result.count === 0) return { ok: false, error: 'Not found' };
 
   revalidatePath(`/positions/${positionId}/edit`);
   return { ok: true };

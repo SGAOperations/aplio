@@ -78,9 +78,11 @@ export function PositionCard({
           )}
 
           <div className="flex items-center gap-2 pt-2">
-            <Button asChild>
-              <Link href={`/positions/${position.id}/apply`}>Apply</Link>
-            </Button>
+            {(!showAdminActions || position.status === 'open') && (
+              <Button asChild>
+                <Link href={`/positions/${position.id}/apply`}>Apply</Link>
+              </Button>
+            )}
             {showAdminActions && (
               <Button asChild variant="outline">
                 <Link href={`/positions/${position.id}/edit`}>

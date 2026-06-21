@@ -11,6 +11,8 @@ const createPositionSchema = z.object({
   title: z.string().min(1),
   description: z.string().optional().default(''),
   status: z.enum(['draft', 'open', 'closed']),
+  opensAt: z.string().optional(),
+  closesAt: z.string().optional(),
 });
 
 const updatePositionSchema = z.object({
@@ -43,13 +45,15 @@ export async function createPosition(
   const parsed = createPositionSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'Invalid input' };
 
-  const { title, description, status } = parsed.data;
+  const { title, description, status, opensAt, closesAt } = parsed.data;
 
   await prisma.position.create({
     data: {
       title,
       description,
       status,
+      opensAt: opensAt ? new Date(opensAt) : null,
+      closesAt: closesAt ? new Date(closesAt) : null,
       createdById: user.id,
       updatedById: user.id,
     },
@@ -106,7 +110,12 @@ export async function deletePosition(
   const parsed = deletePositionSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'Invalid input' };
 
-  await prisma.position.delete({ where: { id: parsed.data.id } });
+  const { id } = parsed.data;
+
+  await prisma.position.update({
+    where: { id },
+    data: { deletedAt: new Date(), deletedById: user.id },
+  });
 
   revalidatePath('/positions');
   return { ok: true };

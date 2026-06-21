@@ -1,12 +1,18 @@
 import 'server-only';
 
-import type { Position, PositionQuestion, User } from '@/prisma/client';
+import type { Position, PositionQuestion } from '@/prisma/client';
 
 import prisma from '@/lib/prisma';
 
+export type PositionManager = {
+  id: string;
+  name: string | null;
+  email: string;
+};
+
 export type PositionWithQuestionsAndManagers = Position & {
   questions: PositionQuestion[];
-  managers: User[];
+  managers: PositionManager[];
 };
 
 export async function getPositions(includeAll = false) {
@@ -28,7 +34,7 @@ export async function getPositionForEdit(
     where: { id, deletedAt: null },
     include: {
       questions: { where: { deletedAt: null }, orderBy: { order: 'asc' } },
-      managers: true,
+      managers: { select: { id: true, name: true, email: true } },
     },
   });
 }
