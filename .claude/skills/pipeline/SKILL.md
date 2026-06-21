@@ -1,7 +1,7 @@
 ---
 name: pipeline
 description: Interactive pipeline cockpit — polls GitHub labels, dispatches background stage subagents, relays their questions, and runs the human gates conversationally. Run the session on haiku. Usage: /pipeline
-allowed-tools: Bash(gh issue list *) Bash(gh issue view *) Bash(gh issue edit *) Bash(gh issue comment *) Bash(gh pr list *) Bash(gh pr view *) Bash(gh pr edit *) Bash(gh pr comment *) Bash(gh api graphql *) Write
+allowed-tools: Bash(gh issue list *) Bash(gh issue view *) Bash(gh issue edit *) Bash(gh issue comment *) Bash(gh pr list *) Bash(gh pr view *) Bash(gh pr edit *) Bash(gh pr comment *) Bash(gh api graphql *) Write TaskList TaskStop
 ---
 
 # Pipeline Cockpit
@@ -17,6 +17,7 @@ You are the orchestrator of the agent pipeline in `.claude/docs/PIPELINE.md`. Th
 - Never act on issues/PRs that lack a pipeline **trigger** label — opt-in is human-initiated.
 - Never dispatch for an item with an **in-flight** label (`planning`, `in progress`, `reviewing`, `revising`) — an agent owns it or a human paused it.
 - Every dispatch runs in the background (`run_in_background: true`). Worktree isolation, model, tool scope, and permission mode all come from the subagent definition in `.claude/agents/` — you do not set them at the call site.
+- **Respect the draining flag:** while draining (see Stop controls), dispatch nothing new and schedule no wakeup; only report state and relay completions.
 
 ## Tick procedure
 
@@ -37,7 +38,7 @@ gh pr list --repo SGAOperations/aplio --label "approved" --json number,title
 gh pr list --repo SGAOperations/aplio --label "needs human" --json number,title
 ```
 
-Then, in order: **(1)** handle human gates, **(2)** dispatch for every actionable trigger item (all Agent calls in one message), **(3)** schedule the next wakeup.
+Then, in order: **(1)** handle human gates, **(2)** **unless draining,** dispatch for every actionable trigger item (all Agent calls in one message), **(3)** schedule the next wakeup (**skip while draining**).
 
 ## Dispatching
 
@@ -120,9 +121,20 @@ Interpret intent, not literal syntax:
 - **"pause #N"** — remove the item's current trigger label; confirm what was removed.
 - **"resume #N" / "retry #N"** — re-apply the trigger label for where it stalled (issue stuck in `planning` → `ready`; PR stuck in `revising` → `needs revision`; etc.).
 
+## Stop controls
+
+A session-level **draining** flag gates dispatch. Interpret these intents:
+
+- **"drain" / "pause the pipeline" / "finish current, start nothing new"** — set draining = on. Stop dispatching new agents and **stop scheduling wakeups**; let in-flight agents finish and keep relaying their completions. Report what is still running (`TaskList`).
+- **"resume" / "start" / "unpause"** — set draining = off and run one tick immediately.
+- **"stop #N" / "cancel #N"** — stop a single item: remove its trigger label; if an agent is in flight for it, find that agent with `TaskList` and `TaskStop` it; then reset its in-flight label back to the trigger so it can be retried.
+- **"stop everything" / "halt"** — set draining = on, `TaskStop` every running stage agent (`TaskList`), and reset each one's in-flight label to its trigger. Report what was halted.
+
+While draining, a tick still reports gates/announcements and relays completions, but dispatches nothing and schedules no wakeup. Note: closing the cockpit session also halts all dispatch (it is the only dispatcher), but cuts off in-flight background agents — `retry #N` after restart.
+
 ## Pacing
 
-After each tick, schedule the next wakeup with ScheduleWakeup, prompt `/pipeline`:
+After each tick, schedule the next wakeup with ScheduleWakeup, prompt `/pipeline` (**not while draining**):
 
 - Any agent in flight or any item mid-pipeline → ~270 seconds.
 - Fully idle → ~1500 seconds.
