@@ -16,13 +16,13 @@ const createSchema = z
     label: z.string().min(1, 'Label is required'),
     type: z.enum(QUESTION_TYPE_VALUES),
     required: z.boolean(),
-    options: z.array(z.string()).optional(),
+    options: z.array(z.string()),
   })
   .superRefine((data, ctx) => {
     // Choice-type questions must have at least one option.
     if (
       CHOICE_TYPES.includes(data.type as (typeof CHOICE_TYPES)[number]) &&
-      (!data.options || data.options.length === 0)
+      data.options.length === 0
     ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -69,7 +69,7 @@ export async function createGlobalQuestion(
         label,
         type,
         required,
-        options: options ?? [],
+        options: options,
         order: maxOrder + 1,
         createdById: user.id,
         updatedById: user.id,
@@ -105,13 +105,7 @@ export async function updateGlobalQuestion(
 
   await prisma.globalQuestion.update({
     where: { id },
-    data: {
-      label,
-      type,
-      required,
-      options: options ?? [],
-      updatedById: user.id,
-    },
+    data: { label, type, required, options: options, updatedById: user.id },
   });
 
   revalidatePath('/global-questions');

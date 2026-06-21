@@ -207,7 +207,7 @@ export function GlobalQuestionDialog({
                 onCheckedChange={field.onChange}
               />
             </FormControl>
-            <FormLabel className="!mt-0">Required</FormLabel>
+            <FormLabel>Required</FormLabel>
             <FormMessage />
           </FormItem>
         )}
