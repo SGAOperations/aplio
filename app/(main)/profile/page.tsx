@@ -10,7 +10,7 @@ export default async function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <ProfileForm profileData={profileData} userId={user.id} />
+      <ProfileForm profileData={profileData} />
     </div>
   );
 }

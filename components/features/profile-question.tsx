@@ -13,14 +13,12 @@ import { Textarea } from '@/components/ui/textarea';
 interface ProfileQuestionProps {
   question: GlobalQuestion;
   answer: GlobalAnswer | null;
-  userId: string;
   isEditing: boolean;
 }
 
 export function ProfileQuestion({
   question,
   answer,
-  userId,
   isEditing,
 }: ProfileQuestionProps) {
   const initialValue = (
@@ -36,7 +34,7 @@ export function ProfileQuestion({
     const serialized = JSON.stringify(value);
     if (serialized === savedValueRef.current) return;
     try {
-      await updateGlobalAnswer(userId, question.id, value);
+      await updateGlobalAnswer(question.id, value);
       savedValueRef.current = serialized;
       reset({ value });
     } catch {
