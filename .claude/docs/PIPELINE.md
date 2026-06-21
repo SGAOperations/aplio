@@ -9,7 +9,7 @@ claude        # open a session (haiku recommended for the cockpit)
 /pipeline     # start the cockpit
 ```
 
-Then talk to it: `work on #142` · `scope out a notifications feature` · `status` · `pause #142` · `retry #142`.
+Then talk to it: `work on #142` · `scope out a notifications feature` · `status` · `pause #142` · `retry #142` · `drain` · `resume` · `stop #142`.
 
 ## The two flows
 
@@ -35,7 +35,7 @@ File the issue → in the cockpit: "work on #N, auto-approve the plan" → wait 
 
 ### Why background dispatch needs care
 
-Background subagents **auto-deny any tool call that would otherwise prompt** (they cannot show a permission dialog). So everything a worker needs must be pre-authorized: file edits via `permissionMode: acceptEdits` in the agent frontmatter, and every `gh`/`git`/`npm` command via `permissions.allow` in `.claude/settings.json`. The worktree is a checkout of `main`, so it carries the committed `settings.json` — **permission changes take effect for dispatched agents only after they land on `main`.**
+Background subagents **auto-deny any tool call that would otherwise prompt** (they cannot show a permission dialog), so a too-tight allowlist makes them stall silently — and, worse, improvise harmful workarounds (hand-edited lockfiles, abandoned libraries). We therefore **allow broad dev-command categories** (`gh`/`git`/`npm`/`npx`) in `.claude/settings.json` and rely on the **`deny`** list for the few genuinely dangerous operations (deny beats allow at every scope). File edits are covered by each worker's `permissionMode: acceptEdits`. The worktree is a checkout of `main`, so it carries the committed `settings.json` — **permission changes take effect for dispatched agents only after they land on `main`.** Agents also run with **`disallowedTools: Agent`** (no nested subagents), a **`maxTurns`** backstop, and an explicit rule to **stop and emit `BLOCKED:` rather than improvise** when a command is denied.
 
 ### File-based GitHub I/O
 
@@ -86,26 +86,19 @@ All four workers read `.claude/docs/ENGINEERING.md` before working; the review a
 
 ## Permission rationale
 
-Every entry in `.claude/settings.json`, what uses it, and why. **Any permission change must update this table.**
+The model is **broad allow + authoritative deny**: stage agents do real dev work (install packages, read CI logs, manage git in their worktree), so the allowlist grants broad categories and the `deny` list draws the safety line. **Any permission change must update this section.**
 
-| Permission                                                                                               | Used by                       | Why                                                                  |
-| -------------------------------------------------------------------------------------------------------- | ----------------------------- | -------------------------------------------------------------------- |
-| `Bash(gh issue view *)`                                                                                  | all stages                    | Read issue bodies (plans live there), labels, comments               |
-| `Bash(gh issue edit *)`                                                                                  | cockpit, plan, impl           | Label transitions; plan written into the issue body                  |
-| `Bash(gh issue comment *)`                                                                               | cockpit, plan, impl           | Blocker comments, plan feedback threads                              |
-| `Bash(gh issue create *)`                                                                                | scope                         | Create epics and sub-issues                                          |
-| `Bash(gh issue list *)`                                                                                  | cockpit                       | Tick queries over trigger/gate labels                                |
-| `Bash(gh pr list/view/diff/comment/edit/create/checks *)`                                                | cockpit, impl, review, revise | PR metadata, the diff under review, CI status, comments, labels      |
-| `Bash(gh label create *)`                                                                                | setup                         | Create/repair pipeline labels                                        |
-| `Bash(gh api repos/SGAOperations/aplio/*)`                                                               | scope                         | Sub-issue linking (REST, database ids) — scoped to this repo         |
-| `Bash(gh api graphql *)`                                                                                 | scope, cockpit                | Blocker relationships; blocked-by checks at opt-in                   |
-| `Bash(git fetch/checkout/add/commit/push/rebase/reset/branch *)`                                         | impl, revise                  | Work inside the agent's own isolated worktree (cwd — no `-C`)        |
-| `Bash(npm ci)`, `Bash(npx prisma generate)`                                                              | impl, revise                  | Fresh worktrees lack `node_modules` and the gitignored Prisma client |
-| `Bash(npm run prettier:check / prettier:fix / eslint:check / tsc:check)`, `Bash(npx prettier --write *)` | impl, revise                  | The pre-push CI checks                                               |
+| Allowed (`permissions.allow`)                                     | Used by             | Why                                                                                                                            |
+| ----------------------------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `Bash(gh *)`                                                      | all stages, cockpit | Issues/PRs/labels, the diff under review, CI status **and run logs** (`gh run view --log-failed`), `gh api` for version checks |
+| `Bash(git *)`                                                     | impl, revise        | All git **inside the agent's own worktree** (fetch/checkout/rebase/commit/push/worktree) — no `git -C` on main                 |
+| `Bash(npm *)`                                                     | impl, revise        | `npm ci`, plus `npm install`/`uninstall`/`view` for dependency tickets                                                         |
+| `Bash(npx *)`                                                     | impl, revise        | `npx prisma generate`, `npx prettier`, etc.                                                                                    |
+| `WebFetch(domain:nextjs.org \| ui.shadcn.com \| code.claude.com)` | all stages          | Fetch current framework / Claude docs instead of stale recall                                                                  |
 
 File writes (source edits, `.temp/` payloads) are authorized by each worker's `permissionMode: acceptEdits`, not by `settings.json`.
 
-**Deny rules (`permissions.deny`):** `gh pr merge` (the human merge gate is absolute), `gh issue delete`, `gh repo delete`, and pushes to `main`. Deny beats allow at every scope, so these hold even if an agent misbehaves. Feature-branch force pushes use `--force-with-lease` only (revise agent, after a rebase) and are covered by the `git push *` allow minus the `main` deny.
+**Deny rules (`permissions.deny`) — the safety line:** `gh pr merge` (the human merge gate is absolute), `gh issue delete`, `gh repo delete`, pushes to `main` (`git push * main` / `git push origin main`), and `npm publish`. Deny beats allow at every scope, so these hold even with broad allows. _(Minor known gap: a `git push origin HEAD:main` refspec isn't caught by the `_ main`pattern — rely on the agent instruction + GitHub branch protection.)* Agents **may** edit CI workflow files and lockfiles (some tickets require it) but are instructed to use`npm`for dependencies and **not hand-edit`package.json`/`package-lock.json` as a workaround\*\*.
 
 ## Escalation
 
@@ -113,6 +106,16 @@ File writes (source edits, `.temp/` payloads) are authorized by each worker's `p
 - **Impl blocker** — `impl-agent` comments `## Blocker`, labels `blocked`, and reports `BLOCKED:`; the cockpit relays and resumes the same agent with the human's decision.
 - **Rebase conflict during revision** — `revise-agent` aborts the rebase, comments, labels `needs human`.
 - **Plan questions** — `plan-agent` never guesses: it returns `QUESTIONS FOR HUMAN:` and the cockpit relays, then resumes it with answers.
+
+## Stopping & draining
+
+The pipeline runs autonomously once started; these cockpit commands are the clean off-switch:
+
+- **`drain` / `pause`** — finish in-flight work, start nothing new (stops dispatch **and** wakeups). **`resume`** restarts ticking.
+- **`stop #N`** — halt one item: drop its trigger label and `TaskStop` its in-flight agent, resetting the label so it can be retried.
+- **`stop` / `halt`** — drain + `TaskStop` all running agents + reset their labels.
+
+Closing the cockpit session also halts dispatch (it is the only dispatcher) but cuts off in-flight agents mid-run — prefer `drain` for a graceful stop.
 
 ## Recovery runbook
 
@@ -123,6 +126,8 @@ File writes (source edits, `.temp/` payloads) are authorized by each worker's `p
 | A stage misbehaved and you want to run it by hand                                                 | —                                                     | @-mention the subagent (`@agent-impl-agent implement #N`) or run `claude --agent impl-agent`                               |
 | Cockpit session closed                                                                            | All state is in labels                                | Start `/pipeline` again; it resumes from the labels. `retry #N` anything parked in an in-flight label                      |
 | Labels manually changed on GitHub                                                                 | Fine — labels are the source of truth                 | The next tick acts on whatever the labels say                                                                              |
+| Stale/locked worktrees under `.claude/worktrees/`                                                 | Agents cut off mid-run leave locked worktrees         | From the main checkout: `git worktree list`, then `git worktree remove --force <path>` and `git worktree prune`            |
+| An agent stopped with `BLOCKED:` or hit `maxTurns`                                                | Clean stop by design (not a crash)                    | Resolve the blocker (or widen scope/permissions), then `retry #N`                                                          |
 
 ## Reading current state without the cockpit
 
