@@ -5,6 +5,7 @@ import { getPositionForEdit } from '@/prisma/services/positions';
 import { getCurrentUser } from '@/lib/auth/server';
 
 import { PositionDetailsForm } from '@/components/features/position-details-form';
+import { PositionEditTabs } from '@/components/features/position-edit-tabs';
 import { PositionManagersSection } from '@/components/features/position-managers-section';
 import { PositionQuestionsSection } from '@/components/features/position-questions-section';
 
@@ -30,15 +31,14 @@ export default async function EditPositionPage({
   if (!user.isAdmin && !isManager) redirect(`/positions/${id}`);
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="mx-auto flex max-w-2xl flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Edit Position</h1>
-        <p className="text-muted-foreground mt-1 text-sm">{position.title}</p>
+        <h1 className="text-3xl font-bold tracking-tight">{position.title}</h1>
+        <p className="text-muted-foreground mt-1 text-sm">Edit position</p>
       </div>
 
-      <div className="flex flex-col gap-8">
-        <section className="flex flex-col gap-4">
-          <h2 className="text-lg font-medium">Details</h2>
+      <PositionEditTabs
+        detailsContent={
           <PositionDetailsForm
             position={{
               id: position.id,
@@ -49,27 +49,23 @@ export default async function EditPositionPage({
               closesAt: position.closesAt?.toISOString() ?? null,
             }}
           />
-        </section>
-
-        <section className="flex flex-col gap-4">
-          <h2 className="text-lg font-medium">Application Questions</h2>
+        }
+        questionsContent={
           <PositionQuestionsSection
             positionId={position.id}
             initialQuestions={position.questions}
           />
-        </section>
-
-        {user.isAdmin && (
-          <section className="flex flex-col gap-4">
-            <h2 className="text-lg font-medium">Managers</h2>
+        }
+        managersContent={
+          user.isAdmin ? (
             <PositionManagersSection
               positionId={position.id}
               initialManagers={position.managers}
               isAdmin={user.isAdmin}
             />
-          </section>
-        )}
-      </div>
+          ) : null
+        }
+      />
     </div>
   );
 }

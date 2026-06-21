@@ -40,7 +40,7 @@ const removePositionManagerSchema = z.object({
 
 export async function createPosition(
   input: unknown,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<{ ok: true; data: { id: string } } | { ok: false; error: string }> {
   const user = await getCurrentUser();
   if (!user.isAdmin) return { ok: false, error: 'Unauthorized' };
 
@@ -49,7 +49,7 @@ export async function createPosition(
 
   const { title, description, status, opensAt, closesAt } = parsed.data;
 
-  await prisma.position.create({
+  const position = await prisma.position.create({
     data: {
       title,
       description,
@@ -59,10 +59,11 @@ export async function createPosition(
       createdById: user.id,
       updatedById: user.id,
     },
+    select: { id: true },
   });
 
   revalidatePath('/positions');
-  return { ok: true };
+  return { ok: true, data: { id: position.id } };
 }
 
 export async function updatePosition(

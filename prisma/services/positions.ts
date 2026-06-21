@@ -1,6 +1,6 @@
 import 'server-only';
 
-import type { Position, PositionStatus, QuestionType } from '@/prisma/client';
+import type { PositionStatus, QuestionType } from '@/prisma/client';
 
 import prisma from '@/lib/prisma';
 
@@ -23,7 +23,15 @@ export type PositionQuestionForEdit = {
   order: number;
 };
 
-export type PositionWithQuestionsAndManagers = Position & {
+// Only the six position fields consumed on the edit page; audit columns are
+// excluded so they are never serialized across the server/client boundary.
+export type PositionForEdit = {
+  id: string;
+  title: string;
+  description: string;
+  status: PositionStatus;
+  opensAt: Date | null;
+  closesAt: Date | null;
   questions: PositionQuestionForEdit[];
   managers: PositionManager[];
 };
@@ -59,10 +67,16 @@ export async function getPositions(includeAll = false) {
 
 export async function getPositionForEdit(
   id: string,
-): Promise<PositionWithQuestionsAndManagers | null> {
+): Promise<PositionForEdit | null> {
   return prisma.position.findFirst({
     where: { id, deletedAt: null },
-    include: {
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      status: true,
+      opensAt: true,
+      closesAt: true,
       questions: {
         where: { deletedAt: null },
         orderBy: { order: 'asc' },

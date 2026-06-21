@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from 'react';
 
+import { useRouter } from 'next/navigation';
+
 import { Loader2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -27,6 +29,7 @@ const STATUS_OPTIONS: { value: PositionStatus; label: string }[] = [
 ];
 
 export function PositionCreateDialog() {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -61,12 +64,7 @@ export function PositionCreateDialog() {
       });
       if (result.ok) {
         toast.success('Position created');
-        setOpen(false);
-        setTitle('');
-        setDescription('');
-        setStatus('draft');
-        setOpensAt('');
-        setClosesAt('');
+        router.push(`/positions/${result.data.id}/edit`);
       } else {
         toast.error(result.error);
       }

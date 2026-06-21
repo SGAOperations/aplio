@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
 
 import { Loader2, UserMinus, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
@@ -15,6 +15,8 @@ import type { PositionManager } from '@/prisma/services/positions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 interface UserResult {
   id: string;
@@ -40,20 +42,27 @@ export function PositionManagersSection({
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [addingId, setAddingId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  // Ref holds the debounce timer so typing does not trigger a search per keystroke.
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function handleSearch(value: string) {
+  function handleQueryChange(value: string) {
     setQuery(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!value.trim()) {
       setResults([]);
+      setIsSearching(false);
       return;
     }
-
+    // Show the spinner immediately so the user knows their input was registered.
     setIsSearching(true);
-    startTransition(async () => {
-      const users = await searchUsers({ query: value });
-      setResults(users.filter((u) => !managers.some((m) => m.id === u.id)));
-      setIsSearching(false);
-    });
+    debounceRef.current = setTimeout(() => {
+      startTransition(async () => {
+        const users = await searchUsers({ query: value });
+        // managers captured by closure is the latest value at search time.
+        setResults(users.filter((u) => !managers.some((m) => m.id === u.id)));
+        setIsSearching(false);
+      });
+    }, SEARCH_DEBOUNCE_MS);
   }
 
   function handleAdd(user: UserResult) {
@@ -66,7 +75,7 @@ export function PositionManagersSection({
           ...prev,
           { id: user.id, name: user.displayName, email: user.primaryEmail },
         ]);
-        setResults((prev) => prev.filter((u) => u.id !== user.id));
+        setResults([]);
         setQuery('');
         toast.success('Manager added');
       } else {
@@ -137,16 +146,18 @@ export function PositionManagersSection({
       {isAdmin && (
         <div className="flex flex-col gap-2">
           <Label htmlFor="manager-search">Add Manager</Label>
-          <Input
-            id="manager-search"
-            value={query}
-            onChange={(e) => handleSearch(e.target.value)}
-            placeholder="Search by name or email"
-            disabled={isSearching}
-          />
-          {isSearching && (
-            <p className="text-muted-foreground text-sm">Searching...</p>
-          )}
+          <div className="relative">
+            <Input
+              id="manager-search"
+              value={query}
+              onChange={(e) => handleQueryChange(e.target.value)}
+              placeholder="Search by name or email"
+              autoComplete="off"
+            />
+            {isSearching && (
+              <Loader2 className="text-muted-foreground absolute top-2 right-2.5 size-4 animate-spin" />
+            )}
+          </div>
           {results.length > 0 && (
             <ul className="flex flex-col gap-1 rounded-md border p-1">
               {results.map((user) => (
