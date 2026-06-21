@@ -10,7 +10,7 @@ import { getCurrentUser } from '@/lib/auth/server';
 import prisma from '@/lib/prisma';
 
 const updateGlobalAnswerSchema = z.object({
-  questionId: z.string().cuid(),
+  questionId: z.string().min(1),
   value: z.array(z.string()),
 });
 
