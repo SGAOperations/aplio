@@ -14,8 +14,6 @@ export async function getGlobalQuestions() {
       options: true,
       createdAt: true,
       updatedAt: true,
-      createdById: true,
-      updatedById: true,
     },
     orderBy: { order: 'asc' },
   });

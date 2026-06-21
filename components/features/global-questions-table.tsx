@@ -36,6 +36,7 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
       toast.error(result.error);
       return;
     }
+    toast.success('Question deleted');
     setDeletingId(null);
   }
 

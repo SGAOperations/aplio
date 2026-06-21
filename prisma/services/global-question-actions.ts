@@ -9,12 +9,28 @@ import prisma from '@/lib/prisma';
 
 import { QUESTION_TYPE_VALUES } from './global-question-constants';
 
-const createSchema = z.object({
-  label: z.string().min(1, 'Label is required'),
-  type: z.enum(QUESTION_TYPE_VALUES),
-  required: z.boolean(),
-  options: z.array(z.string()).optional(),
-});
+const CHOICE_TYPES = ['single_choice', 'multiple_choice'] as const;
+
+const createSchema = z
+  .object({
+    label: z.string().min(1, 'Label is required'),
+    type: z.enum(QUESTION_TYPE_VALUES),
+    required: z.boolean(),
+    options: z.array(z.string()).optional(),
+  })
+  .superRefine((data, ctx) => {
+    // Choice-type questions must have at least one option.
+    if (
+      CHOICE_TYPES.includes(data.type as (typeof CHOICE_TYPES)[number]) &&
+      (!data.options || data.options.length === 0)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['options'],
+        message: 'At least one option is required for choice questions',
+      });
+    }
+  });
 
 const updateSchema = createSchema.extend({
   id: z.string().min(1, 'ID is required'),

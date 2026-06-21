@@ -10,7 +10,5 @@ export type GlobalQuestionListItem = Prisma.GlobalQuestionGetPayload<{
     options: true;
     createdAt: true;
     updatedAt: true;
-    createdById: true;
-    updatedById: true;
   };
 }>;

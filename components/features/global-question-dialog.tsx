@@ -36,12 +36,26 @@ import {
 const CHOICE_TYPES = ['single_choice', 'multiple_choice'] as const;
 type ChoiceType = (typeof CHOICE_TYPES)[number];
 
-const questionSchema = z.object({
-  label: z.string().min(1, 'Label is required'),
-  type: z.enum(QUESTION_TYPE_VALUES),
-  required: z.boolean(),
-  options: z.array(z.string()),
-});
+const questionSchema = z
+  .object({
+    label: z.string().min(1, 'Label is required'),
+    type: z.enum(QUESTION_TYPE_VALUES),
+    required: z.boolean(),
+    options: z.array(z.string()),
+  })
+  .superRefine((data, ctx) => {
+    // Choice-type questions must have at least one option.
+    if (
+      CHOICE_TYPES.includes(data.type as ChoiceType) &&
+      data.options.length === 0
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['options'],
+        message: 'At least one option is required for choice questions',
+      });
+    }
+  });
 
 type QuestionFormValues = z.infer<typeof questionSchema>;
 
