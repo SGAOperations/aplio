@@ -38,6 +38,11 @@ const updateSchema = createSchema.extend({
 
 const deleteSchema = z.object({ id: z.string().min(1, 'ID is required') });
 
+const reorderSchema = z.object({
+  id: z.string().min(1, 'ID is required'),
+  direction: z.enum(['up', 'down']),
+});
+
 type ActionResult = { ok: true } | { ok: false; error: string };
 
 export async function createGlobalQuestion(
@@ -133,6 +138,51 @@ export async function deleteGlobalQuestion(
   await prisma.globalQuestion.update({
     where: { id },
     data: { deletedAt: new Date(), deletedById: user.id },
+  });
+
+  revalidatePath('/global-questions');
+  revalidatePath('/profile');
+  return { ok: true };
+}
+
+export async function reorderGlobalQuestion(
+  input: unknown,
+): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  if (!user.isAdmin) return { ok: false, error: 'Forbidden' };
+
+  const parsed = reorderSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'Invalid input' };
+
+  const { id, direction } = parsed.data;
+
+  // Swap the order values of the target question and its neighbour in a
+  // transaction to keep order values consistent under concurrent moves.
+  await prisma.$transaction(async (tx) => {
+    const target = await tx.globalQuestion.findFirst({
+      where: { id, deletedAt: null },
+      select: { id: true, order: true },
+    });
+    if (!target) return;
+
+    const neighbour = await tx.globalQuestion.findFirst({
+      where: {
+        deletedAt: null,
+        order: direction === 'up' ? { lt: target.order } : { gt: target.order },
+      },
+      select: { id: true, order: true },
+      orderBy: { order: direction === 'up' ? 'desc' : 'asc' },
+    });
+    if (!neighbour) return;
+
+    await tx.globalQuestion.update({
+      where: { id: target.id },
+      data: { order: neighbour.order, updatedById: user.id },
+    });
+    await tx.globalQuestion.update({
+      where: { id: neighbour.id },
+      data: { order: target.order, updatedById: user.id },
+    });
   });
 
   revalidatePath('/global-questions');

@@ -54,10 +54,18 @@ function FormDialog<
   const form = useForm({ resolver: zodResolver(schema), defaultValues });
   const isSubmitting = form.formState.isSubmitting;
 
+  // Reset to the current defaultValues each time the dialog opens so that
+  // re-opening an edit dialog after a save reflects the latest saved state.
+  React.useEffect(() => {
+    if (open) form.reset(defaultValues);
+    // defaultValues identity changes per render; we only want to react to open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   async function handleSubmit(data: TOutput) {
     const success = await onSubmit(data);
     if (success) {
-      form.reset();
+      form.reset(defaultValues);
       setOpen(false);
     }
   }
