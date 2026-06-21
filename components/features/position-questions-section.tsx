@@ -5,13 +5,15 @@ import { useState, useTransition } from 'react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-import type { PositionQuestion } from '@/prisma/client';
 import { deletePositionQuestion } from '@/prisma/services/position-question-actions';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 
-import { PositionQuestionDialog } from './position-question-dialog';
+import {
+  PositionQuestionDialog,
+  type RenderedQuestion,
+} from './position-question-dialog';
 
 const QUESTION_TYPE_LABELS: Record<string, string> = {
   short_answer: 'Short Answer',
@@ -22,7 +24,7 @@ const QUESTION_TYPE_LABELS: Record<string, string> = {
 
 interface PositionQuestionsSectionProps {
   positionId: string;
-  initialQuestions: PositionQuestion[];
+  initialQuestions: RenderedQuestion[];
 }
 
 export function PositionQuestionsSection({
@@ -33,7 +35,7 @@ export function PositionQuestionsSection({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
-  function handleQuestionSaved(updated: PositionQuestion) {
+  function handleQuestionSaved(updated: RenderedQuestion) {
     setQuestions((prev) => {
       const exists = prev.find((q) => q.id === updated.id);
       if (exists) return prev.map((q) => (q.id === updated.id ? updated : q));
@@ -73,8 +75,8 @@ export function PositionQuestionsSection({
             </p>
             {question.options.length > 0 && (
               <ul className="text-muted-foreground mt-1 list-inside list-disc text-xs">
-                {question.options.map((opt, i) => (
-                  <li key={i}>{opt}</li>
+                {question.options.map((opt) => (
+                  <li key={opt}>{opt}</li>
                 ))}
               </ul>
             )}

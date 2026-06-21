@@ -50,7 +50,7 @@ export function PositionManagersSection({
 
     setIsSearching(true);
     startTransition(async () => {
-      const users = await searchUsers(value);
+      const users = await searchUsers({ query: value });
       setResults(users.filter((u) => !managers.some((m) => m.id === u.id)));
       setIsSearching(false);
     });

@@ -20,8 +20,25 @@ export async function getPositions(includeAll = false) {
     where: includeAll
       ? { deletedAt: null }
       : { status: 'open', deletedAt: null },
-    include: {
-      questions: { where: { deletedAt: null }, orderBy: { order: 'asc' } },
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      description: true,
+      opensAt: true,
+      closesAt: true,
+      questions: {
+        where: { deletedAt: null },
+        orderBy: { order: 'asc' },
+        select: {
+          id: true,
+          label: true,
+          type: true,
+          required: true,
+          options: true,
+          order: true,
+        },
+      },
     },
     orderBy: { title: 'asc' },
   });

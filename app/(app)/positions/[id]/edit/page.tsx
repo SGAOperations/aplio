@@ -18,10 +18,14 @@ export default async function EditPositionPage({
   const { id } = await params;
   const user = await getCurrentUser();
 
+  // Fetch position after confirming user is authenticated; access check below verifies
+  // admin or manager status before the page renders.
   const position = await getPositionForEdit(id);
 
   if (!position) redirect('/positions');
 
+  // Access check: admins always have access; managers are confirmed after the DB fetch
+  // because the manager list is part of the position record.
   const isManager = position.managers.some((m) => m.id === user.id);
   if (!user.isAdmin && !isManager) redirect(`/positions/${id}`);
 

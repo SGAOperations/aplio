@@ -1,14 +1,27 @@
 import type {
   Application,
   GlobalApplicationAnswer,
-  Position,
   PositionApplicationAnswer,
-  PositionQuestion,
+  PositionStatus,
+  QuestionType,
 } from '@/prisma/client';
 import type { Prisma } from '@/prisma/client';
 
-export type PositionWithQuestions = Position & {
-  questions: PositionQuestion[];
+export type PositionWithQuestions = {
+  id: string;
+  title: string;
+  status: PositionStatus;
+  description: string;
+  opensAt: Date | null;
+  closesAt: Date | null;
+  questions: {
+    id: string;
+    label: string;
+    type: QuestionType;
+    required: boolean;
+    options: string[];
+    order: number;
+  }[];
 };
 
 export type DraftApplication = Application & {

@@ -5,7 +5,7 @@ import { useState, useTransition } from 'react';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-import type { PositionQuestion, QuestionType } from '@/prisma/client';
+import type { QuestionType } from '@/prisma/client';
 import {
   createPositionQuestion,
   updatePositionQuestion,
@@ -37,17 +37,28 @@ interface OptionEntry {
   value: string;
 }
 
+// Only the fields rendered in PositionQuestionsSection and needed for optimistic updates.
+export interface RenderedQuestion {
+  id: string;
+  positionId: string;
+  label: string;
+  type: QuestionType;
+  required: boolean;
+  options: string[];
+  order: number;
+}
+
 interface PositionQuestionDialogProps {
   positionId: string;
-  question?: PositionQuestion;
+  question?: RenderedQuestion;
   trigger: React.ReactNode;
-  onSuccess: (question: PositionQuestion) => void;
+  onSuccess: (question: RenderedQuestion) => void;
 }
 
 interface QuestionFormProps {
   positionId: string;
-  question?: PositionQuestion;
-  onSuccess: (question: PositionQuestion) => void;
+  question?: RenderedQuestion;
+  onSuccess: (question: RenderedQuestion) => void;
   onClose: () => void;
 }
 
@@ -118,12 +129,6 @@ function QuestionForm({
           required,
           order: question.order,
           options: filteredOptions,
-          createdAt: question.createdAt,
-          updatedAt: new Date(),
-          deletedAt: null,
-          createdById: question.createdById,
-          updatedById: '',
-          deletedById: null,
         });
       } else {
         const result = await createPositionQuestion({
@@ -147,12 +152,6 @@ function QuestionForm({
           required,
           order: result.data.order,
           options: filteredOptions,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          deletedAt: null,
-          createdById: '',
-          updatedById: '',
-          deletedById: null,
         });
       }
     });

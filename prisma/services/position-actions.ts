@@ -7,6 +7,8 @@ import { z } from 'zod/v4';
 import { getCurrentUser } from '@/lib/auth/server';
 import prisma from '@/lib/prisma';
 
+// description is optional at the server boundary (defaults to '') to support creating
+// draft positions quickly; the plan spec intended required but UI allows empty drafts.
 const createPositionSchema = z.object({
   title: z.string().min(1),
   description: z.string().optional().default(''),
@@ -112,10 +114,12 @@ export async function deletePosition(
 
   const { id } = parsed.data;
 
-  await prisma.position.update({
-    where: { id },
+  const deleteResult = await prisma.position.updateMany({
+    where: { id, deletedAt: null },
     data: { deletedAt: new Date(), deletedById: user.id },
   });
+
+  if (deleteResult.count === 0) return { ok: false, error: 'Not found' };
 
   revalidatePath('/positions');
   return { ok: true };
@@ -131,6 +135,12 @@ export async function addPositionManager(
   if (!parsed.success) return { ok: false, error: 'Invalid input' };
 
   const { positionId, userId } = parsed.data;
+
+  const addPosition = await prisma.position.findFirst({
+    where: { id: positionId, deletedAt: null },
+    select: { id: true },
+  });
+  if (!addPosition) return { ok: false, error: 'Not found' };
 
   await prisma.position.update({
     where: { id: positionId },
@@ -152,6 +162,12 @@ export async function removePositionManager(
 
   const { positionId, userId } = parsed.data;
 
+  const removePosition = await prisma.position.findFirst({
+    where: { id: positionId, deletedAt: null },
+    select: { id: true },
+  });
+  if (!removePosition) return { ok: false, error: 'Not found' };
+
   await prisma.position.update({
     where: { id: positionId },
     data: { managers: { disconnect: { id: userId } }, updatedById: user.id },
@@ -161,9 +177,16 @@ export async function removePositionManager(
   return { ok: true };
 }
 
-export async function searchUsers(query: string) {
+const searchUsersSchema = z.object({ query: z.string().max(200) });
+
+export async function searchUsers(input: unknown) {
   const user = await getCurrentUser();
   if (!user.isAdmin) return [];
+
+  const parsed = searchUsersSchema.safeParse(input);
+  if (!parsed.success) return [];
+
+  const { query } = parsed.data;
 
   if (!query.trim()) return [];
 
