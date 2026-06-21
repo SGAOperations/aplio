@@ -1,22 +1,22 @@
 ---
 name: pipeline
-description: Interactive pipeline cockpit — polls GitHub labels, dispatches background stage agents, relays their questions, and runs the human gates conversationally. Run the session on haiku. Usage: /pipeline
-allowed-tools: Bash(gh issue list *) Bash(gh issue view *) Bash(gh issue edit *) Bash(gh issue comment *) Bash(gh pr list *) Bash(gh pr view *) Bash(gh pr edit *) Bash(gh pr comment *) Bash(gh api graphql *)
+description: Interactive pipeline cockpit — polls GitHub labels, dispatches background stage subagents, relays their questions, and runs the human gates conversationally. Run the session on haiku. Usage: /pipeline
+allowed-tools: Bash(gh issue list *) Bash(gh issue view *) Bash(gh issue edit *) Bash(gh issue comment *) Bash(gh pr list *) Bash(gh pr view *) Bash(gh pr edit *) Bash(gh pr comment *) Bash(gh api graphql *) Write
 ---
 
 # Pipeline Cockpit
 
-You are the orchestrator of the agent pipeline documented in `PIPELINE.md`. The human talks to you in plain language; GitHub labels are the durable state machine; background agents do the work. You apply every label — the human never has to run `gh` commands.
+You are the orchestrator of the agent pipeline in `.claude/docs/PIPELINE.md`. The human talks to you in plain language; GitHub labels are the durable state machine; **background subagents** do the work. You apply every label — the human never runs `gh` commands.
 
 **Model:** run this session on haiku — ticks are mechanical (queries, label swaps, dispatch, relaying).
 
 ## Safety rails (absolute)
 
-- **NEVER merge a PR or run any merge/close command.** The human merges on GitHub. `gh pr merge` is deliberately not permitted.
+- **NEVER merge or close a PR.** The human merges on GitHub. `gh pr merge` is denied in `settings.json`.
 - Never touch PRs labeled `approved` or `needs human` beyond announcing them.
-- Never act on issues that lack a pipeline trigger label — opt-in is always human-initiated.
-- Never dispatch for an item that has an in-flight label (`planning`, `in progress`, `reviewing`, `revising`) — absence of a trigger label means an agent owns it or a human paused it.
-- Every background dispatch MUST set `isolation: "worktree"` and an explicit `model`. Without worktree isolation, background agents cannot write files on this machine.
+- Never act on issues/PRs that lack a pipeline **trigger** label — opt-in is human-initiated.
+- Never dispatch for an item with an **in-flight** label (`planning`, `in progress`, `reviewing`, `revising`) — an agent owns it or a human paused it.
+- Every dispatch runs in the background (`run_in_background: true`). Worktree isolation, model, tool scope, and permission mode all come from the subagent definition in `.claude/agents/` — you do not set them at the call site.
 
 ## Tick procedure
 
@@ -37,38 +37,30 @@ gh pr list --repo SGAOperations/aplio --label "approved" --json number,title
 gh pr list --repo SGAOperations/aplio --label "needs human" --json number,title
 ```
 
-Then, in order:
-
-1. Handle human gates (plan reviews, blockers, approved-PR announcements) — see below.
-2. Dispatch agents for every actionable trigger item, all Agent calls in a single message.
-3. Schedule the next wakeup.
+Then, in order: **(1)** handle human gates, **(2)** dispatch for every actionable trigger item (all Agent calls in one message), **(3)** schedule the next wakeup.
 
 ## Dispatching
 
-One background agent per actionable item:
+One background subagent per actionable item. The `subagent_type` **is** the stage; everything else is in the agent definition:
 
 ```
 Agent({
   description: "<stage> #<n>",
-  subagent_type: "general-purpose",
-  model: "sonnet",
-  isolation: "worktree",
+  subagent_type: "<plan-agent|impl-agent|review-agent|revise-agent>",
   run_in_background: true,
-  prompt: "Read <repo-root>/.claude/skills/<plan|impl|review|revise>-agent/SKILL.md and execute it for #<n>, following its Pre-flight, Label swap, Work, and Handoff sections exactly. Read <repo-root>/ENGINEERING.md before doing any planning or code work. Repo: SGAOperations/aplio. The main repository checkout is <repo-root> — create and resume per-ticket worktrees under its .worktrees/ directory using absolute paths (git -C <repo-root> worktree add ...), never relative to your starting directory."
+  prompt: "Run your pipeline stage for #<n> in repo SGAOperations/aplio. Follow your Pre-flight, Label swap, Work, and Handoff steps exactly."
 })
 ```
 
-Replace every `<repo-root>` with the absolute path of **your own working directory** (the main checkout the cockpit session runs in) at dispatch time. This matters because dispatched agents start in their own isolated worktree (the `isolation: "worktree"` permission requirement), which contains neither `node_modules` nor untracked state — all real work happens in the main checkout's `.worktrees/`.
-
 Stage → trigger mapping:
 
-| Trigger query result                   | Dispatch                                     |
+| Trigger query result                   | subagent_type                                |
 | -------------------------------------- | -------------------------------------------- |
-| Issue labeled `ready`                  | plan-agent (fresh plan)                      |
-| Issue labeled `plan changes requested` | plan-agent (revision)                        |
-| Issue labeled `plan approved`          | impl-agent                                   |
-| PR labeled `ready for review`          | review-agent                                 |
-| PR labeled `needs revision`            | revise-agent — **after the cycle-cap check** |
+| Issue labeled `ready`                  | `plan-agent` (fresh plan)                    |
+| Issue labeled `plan changes requested` | `plan-agent` (revision)                      |
+| Issue labeled `plan approved`          | `impl-agent`                                 |
+| PR labeled `ready for review`          | `review-agent`                               |
+| PR labeled `needs revision`            | `revise-agent` — **after the cycle-cap check** |
 
 ### Cycle cap (before every revise dispatch)
 
@@ -76,16 +68,14 @@ Stage → trigger mapping:
 gh pr view <pr-number> --repo SGAOperations/aplio --comments
 ```
 
-Count occurrences of `## Code Review`. If **3 or more** reviews exist and the latest still produced Critical/Medium findings:
+Count `## Code Review` occurrences. If **3 or more** reviews exist and the latest still produced Critical/Medium findings, escalate instead of dispatching: write the escalation note to `.pipeline-tmp/escalation-<pr>.md` (Write tool) and
 
 ```bash
 gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "needs revision" --add-label "needs human"
-gh pr comment <pr-number> --repo SGAOperations/aplio --body "## Pipeline escalation
-
-Three review cycles completed without convergence. Pipeline has stopped dispatching for this PR — human review needed."
+gh pr comment <pr-number> --repo SGAOperations/aplio --body-file .pipeline-tmp/escalation-<pr>.md
 ```
 
-Notify the human instead of dispatching.
+then notify the human.
 
 ## Human gates
 
@@ -93,48 +83,52 @@ Notify the human instead of dispatching.
 
 For each issue labeled `plan review`:
 
-- **Without `auto plan`:** summarize the plan from the issue body in a few sentences, then ask the human (AskUserQuestion): **Approve** / **Request changes** / **Discuss**.
-  - Approve → `gh issue edit <n> --remove-label "plan review" --add-label "plan approved"` (impl dispatches this tick).
-  - Request changes → post the human's feedback verbatim as an issue comment, then `--remove-label "plan review" --add-label "plan changes requested"`.
+- **Without `auto plan`:** summarize the plan from the issue body in a few sentences, then ask (AskUserQuestion): **Approve** / **Request changes** / **Discuss**.
+  - Approve → `gh issue edit <n> --repo SGAOperations/aplio --remove-label "plan review" --add-label "plan approved"` (impl dispatches this tick).
+  - Request changes → write the human's feedback to `.pipeline-tmp/feedback-<n>.md`, `gh issue comment <n> --repo SGAOperations/aplio --body-file .pipeline-tmp/feedback-<n>.md`, then `--remove-label "plan review" --add-label "plan changes requested"`.
   - Discuss → converse; finish with one of the two transitions above.
-- **With `auto plan`:** swap `plan review` → `plan approved` immediately, no interaction, and dispatch impl in the same tick.
+- **With `auto plan`:** swap `plan review` → `plan approved` immediately, no interaction, and dispatch impl this tick.
 
 ### Approved PRs
 
-Announce each newly `approved` PR once with a one-line summary and its URL: the human merges on GitHub. Track in-session which PRs you have announced; re-announce only if asked for status.
+Announce each newly `approved` PR once with a one-line summary and its URL; the human merges on GitHub. Track which you have announced in-session; re-announce only on request.
 
 ### Agent questions and blockers (relay loop)
 
-When a background agent completes, read its final message:
+When a background subagent completes, read its final message:
 
-- Starts with `QUESTIONS FOR HUMAN:` → present the questions, collect answers, and **resume that same agent** by sending the answers back to it via SendMessage (use the agent's ID/name from the completion notice). Do not dispatch a fresh agent while one is resumable.
-- Starts with `BLOCKED:` → present the blocker and the decision needed; relay the human's decision back to the same agent via SendMessage so it resumes where it stopped.
-- Anything else → treat as a completed stage; the labels it set drive the next tick.
+- `QUESTIONS FOR HUMAN:` → present the questions, collect answers, and **resume that same agent** by sending the answers back via SendMessage (use the agent ID/name from the completion notice). Do not dispatch a fresh agent while one is resumable.
+- `BLOCKED:` → present the blocker and the decision needed; relay the human's decision back to the same agent via SendMessage.
+- Anything else → a completed stage; the labels it set drive the next tick.
 
 ## Conversational commands
 
-Interpret plain language; these are intents, not literal syntax:
+Interpret intent, not literal syntax:
 
-- **"work on #N"** — opt-in. Ask (AskUserQuestion): plan gate **Interactive** (you review the plan) or **Auto-approve** (straight to implementation after planning)? Then:
+- **"work on #N"** — opt-in. Ask (AskUserQuestion): plan gate **Interactive** or **Auto-approve**? Then:
   ```bash
-  gh issue edit <n> --repo SGAOperations/aplio --add-label "claude,ready"          # interactive
-  gh issue edit <n> --repo SGAOperations/aplio --add-label "claude,ready,auto plan" # auto-approve
+  gh issue edit <n> --repo SGAOperations/aplio --add-label "claude,ready"            # interactive
+  gh issue edit <n> --repo SGAOperations/aplio --add-label "claude,ready,auto plan"  # auto-approve
   ```
-  Before labeling, check for unmerged blockers and warn if any:
+  First warn if any blockers are unmerged:
   ```bash
   gh api graphql -f query='query { repository(owner: "SGAOperations", name: "aplio") { issue(number: <n>) { blockedBy(first: 10) { nodes { number title state } } } } }'
   ```
-  Dispatch the plan agent in the same tick.
-- **"scope out X" / "break down X"** — invoke the `scope` skill (Stage 0). Note: scoping deserves a stronger model than haiku; suggest the human run `/scope` in their main session if depth matters.
-- **"status"** — one table from the tick queries: each in-flight item with its stage, each item waiting on the human, each announced PR awaiting merge.
-- **"pause #N"** — remove the item's current trigger label (issue or PR); confirm what was removed so it can be restored.
-- **"resume #N" / "retry #N"** — re-apply the appropriate trigger label for where the item stalled (e.g. an issue stuck in `planning` whose agent died → swap back to `ready`; a PR stuck in `revising` → swap back to `needs revision`).
+  Dispatch the plan agent the same tick.
+- **"scope out X" / "break down X"** — Stage 0 deserves a stronger model than haiku; suggest the human run `/scope` in their main session.
+- **"status"** — one table from the tick queries: each in-flight item + stage, each item waiting on the human, each announced PR awaiting merge.
+- **"pause #N"** — remove the item's current trigger label; confirm what was removed.
+- **"resume #N" / "retry #N"** — re-apply the trigger label for where it stalled (issue stuck in `planning` → `ready`; PR stuck in `revising` → `needs revision`; etc.).
 
 ## Pacing
 
 After each tick, schedule the next wakeup with ScheduleWakeup, prompt `/pipeline`:
 
 - Any agent in flight or any item mid-pipeline → ~270 seconds.
-- Fully idle (nothing in flight, nothing actionable) → ~1500 seconds.
+- Fully idle → ~1500 seconds.
 
-Background-agent completions wake this session automatically — the scheduled wakeup is the fallback that catches human-applied label changes and stalled work. On every wakeup, run the tick procedure again.
+Background-agent completions wake this session automatically; the scheduled wakeup is the fallback that catches human-applied label changes and stalled work. On every wakeup, run the tick procedure again.
+
+## Manual / recovery
+
+Each stage is also runnable by hand without the cockpit — @-mention the subagent (e.g. `@agent-impl-agent implement #142`) or run a whole session as it via `claude --agent impl-agent`. All durable state is in labels, so `retry #N` (or re-applying the trigger label on GitHub) recovers any stalled item.
