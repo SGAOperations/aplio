@@ -54,13 +54,19 @@ function FormDialog<
   const form = useForm({ resolver: zodResolver(schema), defaultValues });
   const isSubmitting = form.formState.isSubmitting;
 
+  // Keep a ref in sync with the latest defaultValues on every render so the
+  // effect below can read the current value without listing the unstable object
+  // identity as a dependency.
+  const defaultValuesRef = React.useRef(defaultValues);
+  React.useEffect(() => {
+    defaultValuesRef.current = defaultValues;
+  });
+
   // Reset to the current defaultValues each time the dialog opens so that
   // re-opening an edit dialog after a save reflects the latest saved state.
   React.useEffect(() => {
-    if (open) form.reset(defaultValues);
-    // defaultValues identity changes per render; we only want to react to open.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+    if (open) form.reset(defaultValuesRef.current);
+  }, [open, form]);
 
   async function handleSubmit(data: TOutput) {
     const success = await onSubmit(data);

@@ -158,6 +158,7 @@ export async function reorderGlobalQuestion(
 
   // Swap the order values of the target question and its neighbour in a
   // transaction to keep order values consistent under concurrent moves.
+  let swapped = false;
   await prisma.$transaction(async (tx) => {
     const target = await tx.globalQuestion.findFirst({
       where: { id, deletedAt: null },
@@ -183,7 +184,10 @@ export async function reorderGlobalQuestion(
       where: { id: neighbour.id },
       data: { order: target.order, updatedById: user.id },
     });
+    swapped = true;
   });
+
+  if (!swapped) return { ok: false, error: 'Not found' };
 
   revalidatePath('/global-questions');
   revalidatePath('/profile');
