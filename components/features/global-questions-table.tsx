@@ -2,8 +2,11 @@
 
 import { useState } from 'react';
 
-import { deleteGlobalQuestion } from '@/prisma/actions/global-question-actions';
-import type { GlobalQuestion } from '@/prisma/client';
+import { toast } from 'sonner';
+
+import { deleteGlobalQuestion } from '@/prisma/services/global-question-actions';
+import { QUESTION_TYPE_LABELS } from '@/prisma/services/global-question-constants';
+import type { GlobalQuestionListItem } from '@/prisma/services/global-question-types';
 
 import { GlobalQuestionDialog } from '@/components/features/global-question-dialog';
 import { Button } from '@/components/ui/button';
@@ -16,15 +19,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
-const TYPE_LABELS: Record<GlobalQuestion['type'], string> = {
-  short_answer: 'Short Answer',
-  long_answer: 'Long Answer',
-  single_choice: 'Single Choice',
-  multiple_choice: 'Multiple Choice',
-};
-
 interface GlobalQuestionsTableProps {
-  questions: GlobalQuestion[];
+  questions: GlobalQuestionListItem[];
 }
 
 export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
@@ -34,8 +30,12 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
   async function handleDelete() {
     if (!deletingId) return;
     setIsDeleting(true);
-    await deleteGlobalQuestion({ id: deletingId });
+    const result = await deleteGlobalQuestion({ id: deletingId });
     setIsDeleting(false);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
     setDeletingId(null);
   }
 
@@ -66,7 +66,7 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
                 <td className="px-4 py-3">{question.order}</td>
                 <td className="px-4 py-3 font-medium">{question.label}</td>
                 <td className="text-muted-foreground px-4 py-3">
-                  {TYPE_LABELS[question.type]}
+                  {QUESTION_TYPE_LABELS[question.type]}
                 </td>
                 <td className="px-4 py-3">
                   {question.required ? 'Yes' : 'No'}

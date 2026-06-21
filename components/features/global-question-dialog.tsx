@@ -8,9 +8,14 @@ import { z } from 'zod/v4';
 import {
   createGlobalQuestion,
   updateGlobalQuestion,
-} from '@/prisma/actions/global-question-actions';
-import type { GlobalQuestion } from '@/prisma/client';
+} from '@/prisma/services/global-question-actions';
+import {
+  QUESTION_TYPE_LABELS,
+  QUESTION_TYPE_VALUES,
+} from '@/prisma/services/global-question-constants';
+import type { GlobalQuestionListItem } from '@/prisma/services/global-question-types';
 
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   FormControl,
   FormField,
@@ -20,32 +25,25 @@ import {
 } from '@/components/ui/form';
 import { FormDialog } from '@/components/ui/form-dialog';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
-const questionTypeValues = [
-  'short_answer',
-  'long_answer',
-  'single_choice',
-  'multiple_choice',
-] as const;
+const CHOICE_TYPES = ['single_choice', 'multiple_choice'] as const;
+type ChoiceType = (typeof CHOICE_TYPES)[number];
 
 const questionSchema = z.object({
   label: z.string().min(1, 'Label is required'),
-  type: z.enum(questionTypeValues),
+  type: z.enum(QUESTION_TYPE_VALUES),
   required: z.boolean(),
   options: z.array(z.string()),
 });
 
 type QuestionFormValues = z.infer<typeof questionSchema>;
-
-const TYPE_LABELS: Record<(typeof questionTypeValues)[number], string> = {
-  short_answer: 'Short Answer',
-  long_answer: 'Long Answer',
-  single_choice: 'Single Choice',
-  multiple_choice: 'Multiple Choice',
-};
-
-const CHOICE_TYPES = ['single_choice', 'multiple_choice'] as const;
-type ChoiceType = (typeof CHOICE_TYPES)[number];
 
 function OptionsField() {
   const { control, setValue, getValues } = useFormContext<QuestionFormValues>();
@@ -116,14 +114,14 @@ function OptionsField() {
 
 interface GlobalQuestionDialogProps {
   trigger: ReactNode;
-  question?: GlobalQuestion;
+  question?: GlobalQuestionListItem;
 }
 
 export function GlobalQuestionDialog({
   trigger,
   question,
 }: GlobalQuestionDialogProps) {
-  const isEditing = !!question;
+  const isEditing = question !== undefined;
 
   const defaultValues: QuestionFormValues = {
     label: question?.label ?? '',
@@ -166,18 +164,20 @@ export function GlobalQuestionDialog({
         render={({ field }) => (
           <FormItem>
             <FormLabel>Type</FormLabel>
-            <FormControl>
-              <select
-                {...field}
-                className="border-input bg-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm focus-visible:ring-1 focus-visible:outline-none"
-              >
-                {questionTypeValues.map((t) => (
-                  <option key={t} value={t}>
-                    {TYPE_LABELS[t]}
-                  </option>
+            <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a type" />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {QUESTION_TYPE_VALUES.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {QUESTION_TYPE_LABELS[t]}
+                  </SelectItem>
                 ))}
-              </select>
-            </FormControl>
+              </SelectContent>
+            </Select>
             <FormMessage />
           </FormItem>
         )}
@@ -188,12 +188,9 @@ export function GlobalQuestionDialog({
         render={({ field }) => (
           <FormItem className="flex flex-row items-center gap-3">
             <FormControl>
-              <input
-                type="checkbox"
-                id={field.name}
+              <Checkbox
                 checked={field.value as boolean}
-                onChange={field.onChange}
-                className="size-4"
+                onCheckedChange={field.onChange}
               />
             </FormControl>
             <FormLabel className="!mt-0">Required</FormLabel>

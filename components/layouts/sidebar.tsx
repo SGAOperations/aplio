@@ -13,15 +13,23 @@ import {
 
 import { cn } from '@/lib/utils';
 
-const navItems = [
+const baseNavItems = [
   { href: '/positions', label: 'Positions', icon: BriefcaseBusiness },
   { href: '/applications', label: 'Applications', icon: FileText },
   { href: '/users', label: 'Users', icon: Users },
+];
+
+const adminNavItems = [
   { href: '/global-questions', label: 'Global Questions', icon: ClipboardList },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  isAdmin: boolean;
+}
+
+export function Sidebar({ isAdmin }: SidebarProps) {
   const pathname = usePathname();
+  const navItems = isAdmin ? [...baseNavItems, ...adminNavItems] : baseNavItems;
 
   return (
     <aside className="bg-sidebar border-sidebar-border hidden h-full w-56 shrink-0 flex-col border-r md:flex">
