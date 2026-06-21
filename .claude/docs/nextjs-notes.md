@@ -9,6 +9,7 @@ Current-behavior reference so agents don't code from stale training data. This r
 `next.config.ts` does **not** set `cacheComponents: true`, so the **previous caching model applies — not Cache Components / PPR.** Do not write `use cache`, `cacheLife`, or `cacheTag` here; those belong to Cache Components, which is not enabled.
 
 What that means in practice:
+
 - Data is fetched in **server components** via Prisma service functions (`prisma/services/`). Reading request data (`cookies()`, `headers()`, `searchParams`) opts a route into **dynamic (request-time) rendering** — expected for authed, per-user pages.
 - After a mutation, refresh caches explicitly with **`revalidatePath(path)`** or **`revalidateTag(tag)`** from the server action. This is the canonical pattern; always revalidate after a write.
 - Reference (previous model): https://nextjs.org/docs/app/guides/caching-without-cache-components and https://nextjs.org/docs/app/getting-started/revalidating

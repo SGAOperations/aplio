@@ -24,7 +24,9 @@ Generate a mutation as a Server Action in `prisma/services/`, meeting `.claude/d
    import { getCurrentUser } from '@/lib/auth/server';
    import { prisma } from '@/lib/prisma';
 
-   const inputSchema = z.object({ id: z.string().cuid() /* …whitelisted fields */ });
+   const inputSchema = z.object({
+     id: z.string().cuid() /* …whitelisted fields */,
+   });
 
    export async function doThing(input: unknown) {
      const user = await getCurrentUser();
@@ -36,7 +38,9 @@ Generate a mutation as a Server Action in `prisma/services/`, meeting `.claude/d
      // Authorization: scope to the caller — never trust client-supplied ownership
      const result = await prisma.model.updateMany({
        where: { id: parsed.data.id, ownerId: user.id },
-       data: { /* explicit, parsed fields only */ },
+       data: {
+         /* explicit, parsed fields only */
+       },
      });
      if (result.count === 0) return { ok: false as const, error: 'Not found' };
 

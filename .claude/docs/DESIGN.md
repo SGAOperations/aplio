@@ -14,23 +14,23 @@ Clean, neutral, content-first administrative UI. Near-white/near-black neutral s
 
 Use the Tailwind utility that maps to each variable (e.g. `bg-background`, `text-muted-foreground`, `border-border`, `ring-ring`). Pair each background with its `-foreground`.
 
-| Token (utility)                    | Role                                                        |
-| ---------------------------------- | ----------------------------------------------------------- |
-| `background` / `foreground`        | Page base surface and primary text                          |
-| `card` / `card-foreground`         | Cards, raised panels                                        |
-| `popover` / `popover-foreground`   | Popovers, dropdowns, menus                                  |
-| `primary` / `primary-foreground`   | Brand red — primary buttons, key emphasis, active states    |
-| `secondary` / `secondary-foreground` | Low-emphasis buttons / chips                              |
-| `accent` / `accent-foreground`     | Hover/active fills on neutral controls                      |
-| `muted` / `muted-foreground`       | Subtle backgrounds; secondary/help text (`muted-foreground`) |
-| `destructive`                      | Errors, destructive actions (red, higher chroma)            |
-| `border` / `input` / `ring`        | Borders, input borders, focus rings                         |
+| Token (utility)                                  | Role                                                                                  |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| `background` / `foreground`                      | Page base surface and primary text                                                    |
+| `card` / `card-foreground`                       | Cards, raised panels                                                                  |
+| `popover` / `popover-foreground`                 | Popovers, dropdowns, menus                                                            |
+| `primary` / `primary-foreground`                 | Brand red — primary buttons, key emphasis, active states                              |
+| `secondary` / `secondary-foreground`             | Low-emphasis buttons / chips                                                          |
+| `accent` / `accent-foreground`                   | Hover/active fills on neutral controls                                                |
+| `muted` / `muted-foreground`                     | Subtle backgrounds; secondary/help text (`muted-foreground`)                          |
+| `destructive`                                    | Errors, destructive actions (red, higher chroma)                                      |
+| `border` / `input` / `ring`                      | Borders, input borders, focus rings                                                   |
 | `success` / `warning` / `info` (+ `-foreground`) | **Project-specific** status colors — use these for status, never raw green/amber/blue |
-| `sidebar*`                         | Sidebar surface, text, primary, accent, border, ring        |
-| `nav-hover`                        | Hover fill for nav items                                    |
-| `header-bg` / `header-border`      | App header surface and divider                              |
-| `icon-secondary` / `icon-tertiary` | Secondary/tertiary icon tints (lucide)                      |
-| `chart-1`…`chart-5`                | Data-viz series (in order)                                  |
+| `sidebar*`                                       | Sidebar surface, text, primary, accent, border, ring                                  |
+| `nav-hover`                                      | Hover fill for nav items                                                              |
+| `header-bg` / `header-border`                    | App header surface and divider                                                        |
+| `icon-secondary` / `icon-tertiary`               | Secondary/tertiary icon tints (lucide)                                                |
+| `chart-1`…`chart-5`                              | Data-viz series (in order)                                                            |
 
 Status mapping: success = positive/complete, warning = needs attention, info = neutral notice, destructive = error/danger. Don't invent new status colors.
 
@@ -55,11 +55,11 @@ Status mapping: success = positive/complete, warning = needs attention, info = n
 
 ## 6. Do / Don't
 
-- ✅ `className="bg-card text-card-foreground border-border rounded-lg"`  ❌ `style={{ background: '#fff' }}` / `bg-[#fff]` / `rounded-[12px]`
-- ✅ `text-muted-foreground` for secondary text  ❌ `text-gray-500`
-- ✅ `text-success` / `bg-warning`  ❌ `text-green-600` / `bg-amber-500`
-- ✅ icons via `lucide-react`  ❌ inline SVG paths for standard icons
-- ✅ verify both themes  ❌ values that only work in light mode
+- ✅ `className="bg-card text-card-foreground border-border rounded-lg"` ❌ `style={{ background: '#fff' }}` / `bg-[#fff]` / `rounded-[12px]`
+- ✅ `text-muted-foreground` for secondary text ❌ `text-gray-500`
+- ✅ `text-success` / `bg-warning` ❌ `text-green-600` / `bg-amber-500`
+- ✅ icons via `lucide-react` ❌ inline SVG paths for standard icons
+- ✅ verify both themes ❌ values that only work in light mode
 
 ## 7. Responsive
 

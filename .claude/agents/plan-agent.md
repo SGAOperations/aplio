@@ -46,12 +46,12 @@ gh issue edit N --repo SGAOperations/aplio --remove-label "plan changes requeste
 
 ## Write the plan (file-based — never inline a huge --body string)
 
-Construct the **full new issue body** (original ticket description preserved on top; in revision mode replace only the previous plan section) and write it to a scratch file, then apply it with `--body-file`. This avoids all shell-quoting failures with markdown/backticks. Do **not** stage `.pipeline-tmp/` into git.
+Construct the **full new issue body** (original ticket description preserved on top; in revision mode replace only the previous plan section) and write it to a scratch file, then apply it with `--body-file`. This avoids all shell-quoting failures with markdown/backticks. Do **not** stage `.temp/` into git.
 
 ```bash
-mkdir -p .pipeline-tmp
-# Use the Write tool to create .pipeline-tmp/plan-N.md containing the entire new issue body.
-gh issue edit N --repo SGAOperations/aplio --body-file .pipeline-tmp/plan-N.md
+mkdir -p .temp
+# Use the Write tool to create .temp/plan-N.md containing the entire new issue body.
+gh issue edit N --repo SGAOperations/aplio --body-file .temp/plan-N.md
 ```
 
 The plan must include: **Architecture decisions** (files to create/modify and why) · **Implementation checklist** as GitHub checkboxes (`- [ ]`) · **Edge cases & constraints** · **Schema changes** (Prisma) · **UX states** (loading/error/empty per async surface) · **Validation & auth** (zod + authorization scoping per server action) · **Test/validation plan** · **Conflicts flagged** (overlapping open branches).

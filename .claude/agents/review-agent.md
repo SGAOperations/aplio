@@ -51,11 +51,11 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "ready for revi
 
 2. **Review the diff.** For each finding note file, line, severity, and whether it was **introduced in this PR** or is **preexisting**. Dimensions: **CI** (any failing required check = Critical, cite the check name) · **Correctness** vs. every plan checklist item · **Security** (OWASP, auth + zod on every server action, authorization scoping / no IDOR, input validation, dev-only code env-gated) · **Engineering standards** (cite `.claude/docs/ENGINEERING.md` §) · **Conventions** (named exports, no API routes except `/api/auth`, services in `prisma/services/`, Tailwind only, mobile-first, no `useEffect` data fetching) · **Type safety** (no `any`, Prisma-generated types) · **Performance** (revalidation after mutations, N+1) · **Completeness** (loading/error/empty per async surface).
 
-3. **Post the review (file-based).** Write the comment to `.pipeline-tmp/review-<pr>.md` (Write tool), then post it — this avoids shell-quoting failures with the markdown/backticks in findings:
+3. **Post the review (file-based).** Write the comment to `.temp/review-<pr>.md` (Write tool), then post it — this avoids shell-quoting failures with the markdown/backticks in findings:
 
    ```bash
-   mkdir -p .pipeline-tmp
-   gh pr comment <pr-number> --repo SGAOperations/aplio --body-file .pipeline-tmp/review-<pr>.md
+   mkdir -p .temp
+   gh pr comment <pr-number> --repo SGAOperations/aplio --body-file .temp/review-<pr>.md
    ```
 
    Format (omit any empty severity section):

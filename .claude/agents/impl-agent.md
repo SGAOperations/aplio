@@ -44,13 +44,13 @@ gh issue edit N --repo SGAOperations/aplio --remove-label "plan approved" --add-
    git commit -m "#N <imperative lowercase summary>" -m "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
    ```
 
-   Never stage `.pipeline-tmp/`.
+   Never stage `.temp/`.
 
-4. **Blockers — report back, stay resumable.** If something the plan didn't cover blocks you and you can't resolve it within the plan's intent: write the blocker text to `.pipeline-tmp/blocker-N.md` (Write tool), then
+4. **Blockers — report back, stay resumable.** If something the plan didn't cover blocks you and you can't resolve it within the plan's intent: write the blocker text to `.temp/blocker-N.md` (Write tool), then
 
    ```bash
-   mkdir -p .pipeline-tmp
-   gh issue comment N --repo SGAOperations/aplio --body-file .pipeline-tmp/blocker-N.md
+   mkdir -p .temp
+   gh issue comment N --repo SGAOperations/aplio --body-file .temp/blocker-N.md
    gh issue edit N --repo SGAOperations/aplio --remove-label "in progress" --add-label "blocked"
    ```
 

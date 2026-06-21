@@ -15,12 +15,12 @@ Then talk to it: `work on #142` · `scope out a notifications feature` · `statu
 
 ### Major feature
 
-| Step            | You (in the cockpit)                                                     | Behind the scenes                                                                                                                       |
-| --------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
-| 1. Describe     | "scope out X" — short conversation                                       | `/scope` creates the epic + sub-tickets, linked and dependency-ordered                                                                  |
-| 2. Start        | "work on #N" + choose: review the plan, or auto-approve                  | `plan-agent` researches the codebase and writes a plan into the issue; its questions pop up in your terminal                            |
-| 3. Approve plan | Read the summary, approve — or give feedback (it revises and comes back) | `impl-agent` builds in an isolated worktree, runs CI, opens a PR; `review-agent`/`revise-agent` loop until clean (max 3 rounds)         |
-| 4. Merge        | Click merge on GitHub                                                    | Issue closes automatically                                                                                                              |
+| Step            | You (in the cockpit)                                                     | Behind the scenes                                                                                                               |
+| --------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Describe     | "scope out X" — short conversation                                       | `/scope` creates the epic + sub-tickets, linked and dependency-ordered                                                          |
+| 2. Start        | "work on #N" + choose: review the plan, or auto-approve                  | `plan-agent` researches the codebase and writes a plan into the issue; its questions pop up in your terminal                    |
+| 3. Approve plan | Read the summary, approve — or give feedback (it revises and comes back) | `impl-agent` builds in an isolated worktree, runs CI, opens a PR; `review-agent`/`revise-agent` loop until clean (max 3 rounds) |
+| 4. Merge        | Click merge on GitHub                                                    | Issue closes automatically                                                                                                      |
 
 ### Bug fix
 
@@ -39,7 +39,7 @@ Background subagents **auto-deny any tool call that would otherwise prompt** (th
 
 ### File-based GitHub I/O
 
-Agents never pass large markdown (plans, reviews, comments) as an inline `--body "..."` argument — shell quoting of backticks/code-fences fails cross-platform. They write the payload to `.pipeline-tmp/` (gitignored) and use `gh ... --body-file`. The same applies to the cockpit's escalation comments.
+Agents never pass large markdown (plans, reviews, comments) as an inline `--body "..."` argument — shell quoting of backticks/code-fences fails cross-platform. They write the payload to `.temp/` (gitignored) and use `gh ... --body-file`. The same applies to the cockpit's escalation comments.
 
 ## Label lifecycle
 
@@ -62,14 +62,14 @@ Rule: **every stage agent's first action is swapping its trigger label for its i
 
 ### PR labels
 
-| Label              | Set by                      | Type      | Meaning                                                         |
-| ------------------ | --------------------------- | --------- | --------------------------------------------------------------- |
+| Label              | Set by                        | Type      | Meaning                                                         |
+| ------------------ | ----------------------------- | --------- | --------------------------------------------------------------- |
 | `ready for review` | `impl-agent` / `revise-agent` | trigger   | Dispatch `review-agent`                                         |
-| `reviewing`        | `review-agent`              | in-flight | Review underway                                                 |
-| `needs revision`   | `review-agent`              | trigger   | Dispatch `revise-agent` (subject to cycle cap)                  |
-| `revising`         | `revise-agent`              | in-flight | Fixes underway                                                  |
-| `approved`         | `review-agent`              | terminal  | Only Low/Nit findings; human merges on GitHub                   |
-| `needs human`      | Cockpit / `revise-agent`    | gate      | 3 cycles without convergence or rebase conflict; pipeline stops |
+| `reviewing`        | `review-agent`                | in-flight | Review underway                                                 |
+| `needs revision`   | `review-agent`                | trigger   | Dispatch `revise-agent` (subject to cycle cap)                  |
+| `revising`         | `revise-agent`                | in-flight | Fixes underway                                                  |
+| `approved`         | `review-agent`                | terminal  | Only Low/Nit findings; human merges on GitHub                   |
+| `needs human`      | Cockpit / `revise-agent`      | gate      | 3 cycles without convergence or rebase conflict; pipeline stops |
 
 ## Stages and models
 
@@ -88,22 +88,22 @@ All four workers read `.claude/docs/ENGINEERING.md` before working; the review a
 
 Every entry in `.claude/settings.json`, what uses it, and why. **Any permission change must update this table.**
 
-| Permission                                                                        | Used by                       | Why                                                          |
-| --------------------------------------------------------------------------------- | ----------------------------- | ------------------------------------------------------------ |
-| `Bash(gh issue view *)`                                                           | all stages                    | Read issue bodies (plans live there), labels, comments       |
-| `Bash(gh issue edit *)`                                                           | cockpit, plan, impl           | Label transitions; plan written into the issue body          |
-| `Bash(gh issue comment *)`                                                        | cockpit, plan, impl           | Blocker comments, plan feedback threads                      |
-| `Bash(gh issue create *)`                                                         | scope                         | Create epics and sub-issues                                  |
-| `Bash(gh issue list *)`                                                           | cockpit                       | Tick queries over trigger/gate labels                        |
-| `Bash(gh pr list/view/diff/comment/edit/create/checks *)`                         | cockpit, impl, review, revise | PR metadata, the diff under review, CI status, comments, labels |
-| `Bash(gh label create *)`                                                         | setup                         | Create/repair pipeline labels                                |
-| `Bash(gh api repos/SGAOperations/aplio/*)`                                        | scope                         | Sub-issue linking (REST, database ids) — scoped to this repo |
-| `Bash(gh api graphql *)`                                                          | scope, cockpit                | Blocker relationships; blocked-by checks at opt-in           |
-| `Bash(git fetch/checkout/add/commit/push/rebase/reset/branch *)`                  | impl, revise                  | Work inside the agent's own isolated worktree (cwd — no `-C`) |
-| `Bash(npm ci)`, `Bash(npx prisma generate)`                                       | impl, revise                  | Fresh worktrees lack `node_modules` and the gitignored Prisma client |
-| `Bash(npm run prettier:check / prettier:fix / eslint:check / tsc:check)`, `Bash(npx prettier --write *)` | impl, revise | The pre-push CI checks                                       |
+| Permission                                                                                               | Used by                       | Why                                                                  |
+| -------------------------------------------------------------------------------------------------------- | ----------------------------- | -------------------------------------------------------------------- |
+| `Bash(gh issue view *)`                                                                                  | all stages                    | Read issue bodies (plans live there), labels, comments               |
+| `Bash(gh issue edit *)`                                                                                  | cockpit, plan, impl           | Label transitions; plan written into the issue body                  |
+| `Bash(gh issue comment *)`                                                                               | cockpit, plan, impl           | Blocker comments, plan feedback threads                              |
+| `Bash(gh issue create *)`                                                                                | scope                         | Create epics and sub-issues                                          |
+| `Bash(gh issue list *)`                                                                                  | cockpit                       | Tick queries over trigger/gate labels                                |
+| `Bash(gh pr list/view/diff/comment/edit/create/checks *)`                                                | cockpit, impl, review, revise | PR metadata, the diff under review, CI status, comments, labels      |
+| `Bash(gh label create *)`                                                                                | setup                         | Create/repair pipeline labels                                        |
+| `Bash(gh api repos/SGAOperations/aplio/*)`                                                               | scope                         | Sub-issue linking (REST, database ids) — scoped to this repo         |
+| `Bash(gh api graphql *)`                                                                                 | scope, cockpit                | Blocker relationships; blocked-by checks at opt-in                   |
+| `Bash(git fetch/checkout/add/commit/push/rebase/reset/branch *)`                                         | impl, revise                  | Work inside the agent's own isolated worktree (cwd — no `-C`)        |
+| `Bash(npm ci)`, `Bash(npx prisma generate)`                                                              | impl, revise                  | Fresh worktrees lack `node_modules` and the gitignored Prisma client |
+| `Bash(npm run prettier:check / prettier:fix / eslint:check / tsc:check)`, `Bash(npx prettier --write *)` | impl, revise                  | The pre-push CI checks                                               |
 
-File writes (source edits, `.pipeline-tmp/` payloads) are authorized by each worker's `permissionMode: acceptEdits`, not by `settings.json`.
+File writes (source edits, `.temp/` payloads) are authorized by each worker's `permissionMode: acceptEdits`, not by `settings.json`.
 
 **Deny rules (`permissions.deny`):** `gh pr merge` (the human merge gate is absolute), `gh issue delete`, `gh repo delete`, and pushes to `main`. Deny beats allow at every scope, so these hold even if an agent misbehaves. Feature-branch force pushes use `--force-with-lease` only (revise agent, after a rebase) and are covered by the `git push *` allow minus the `main` deny.
 
@@ -116,13 +116,13 @@ File writes (source edits, `.pipeline-tmp/` payloads) are authorized by each wor
 
 ## Recovery runbook
 
-| Symptom                                                                                           | Cause                                                 | Fix                                                                                                                          |
-| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Issue stuck in `planning` / `in progress`, PR stuck in `reviewing` / `revising`, no agent running | Agent crashed or session closed mid-flight            | `retry #N` in the cockpit — or re-apply the trigger label (`ready`, `plan approved`, `ready for review`, `needs revision`)   |
-| Nothing dispatches for an item                                                                    | It has no trigger label (paused, in-flight, or gated) | `status` shows where it is; `resume #N` re-applies the right trigger                                                         |
-| A stage misbehaved and you want to run it by hand                                                 | —                                                     | @-mention the subagent (`@agent-impl-agent implement #N`) or run `claude --agent impl-agent`                                |
-| Cockpit session closed                                                                            | All state is in labels                                | Start `/pipeline` again; it resumes from the labels. `retry #N` anything parked in an in-flight label                       |
-| Labels manually changed on GitHub                                                                 | Fine — labels are the source of truth                 | The next tick acts on whatever the labels say                                                                               |
+| Symptom                                                                                           | Cause                                                 | Fix                                                                                                                        |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Issue stuck in `planning` / `in progress`, PR stuck in `reviewing` / `revising`, no agent running | Agent crashed or session closed mid-flight            | `retry #N` in the cockpit — or re-apply the trigger label (`ready`, `plan approved`, `ready for review`, `needs revision`) |
+| Nothing dispatches for an item                                                                    | It has no trigger label (paused, in-flight, or gated) | `status` shows where it is; `resume #N` re-applies the right trigger                                                       |
+| A stage misbehaved and you want to run it by hand                                                 | —                                                     | @-mention the subagent (`@agent-impl-agent implement #N`) or run `claude --agent impl-agent`                               |
+| Cockpit session closed                                                                            | All state is in labels                                | Start `/pipeline` again; it resumes from the labels. `retry #N` anything parked in an in-flight label                      |
+| Labels manually changed on GitHub                                                                 | Fine — labels are the source of truth                 | The next tick acts on whatever the labels say                                                                              |
 
 ## Reading current state without the cockpit
 

@@ -45,7 +45,7 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "needs revision
    npx prisma generate
    ```
 
-   If the rebase conflicts: `git rebase --abort`, write the conflict description to `.pipeline-tmp/conflict-<pr>.md`, `gh pr comment <pr-number> --repo SGAOperations/aplio --body-file .pipeline-tmp/conflict-<pr>.md`, `gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "revising" --add-label "needs human"`, and end with: `BLOCKED: rebase of <branch> onto origin/main conflicts in <files>; human decision needed.`
+   If the rebase conflicts: `git rebase --abort`, write the conflict description to `.temp/conflict-<pr>.md`, `gh pr comment <pr-number> --repo SGAOperations/aplio --body-file .temp/conflict-<pr>.md`, `gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "revising" --add-label "needs human"`, and end with: `BLOCKED: rebase of <branch> onto origin/main conflicts in <files>; human decision needed.`
 
 3. **Apply fixes** per the review's decision table. Fix all Critical/Medium **introduced in this PR**; fix Low/Nit unless genuinely not an issue (explain skips). **Preexisting** findings of any severity: do not fix — note them as suggested future tickets in the summary. No scope creep beyond the review comment.
 
@@ -65,7 +65,7 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "needs revision
    git push origin <branch>            # add --force-with-lease only if the rebase rewrote pushed commits
    ```
 
-6. **Post the summary (file-based).** Write to `.pipeline-tmp/revision-<pr>.md` (Write tool), then `gh pr comment <pr-number> --repo SGAOperations/aplio --body-file .pipeline-tmp/revision-<pr>.md`. Format (omit empty sections):
+6. **Post the summary (file-based).** Write to `.temp/revision-<pr>.md` (Write tool), then `gh pr comment <pr-number> --repo SGAOperations/aplio --body-file .temp/revision-<pr>.md`. Format (omit empty sections):
 
    ```
    ## Revision Summary

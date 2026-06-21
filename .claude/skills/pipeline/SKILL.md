@@ -54,12 +54,12 @@ Agent({
 
 Stage → trigger mapping:
 
-| Trigger query result                   | subagent_type                                |
-| -------------------------------------- | -------------------------------------------- |
-| Issue labeled `ready`                  | `plan-agent` (fresh plan)                    |
-| Issue labeled `plan changes requested` | `plan-agent` (revision)                      |
-| Issue labeled `plan approved`          | `impl-agent`                                 |
-| PR labeled `ready for review`          | `review-agent`                               |
+| Trigger query result                   | subagent_type                                  |
+| -------------------------------------- | ---------------------------------------------- |
+| Issue labeled `ready`                  | `plan-agent` (fresh plan)                      |
+| Issue labeled `plan changes requested` | `plan-agent` (revision)                        |
+| Issue labeled `plan approved`          | `impl-agent`                                   |
+| PR labeled `ready for review`          | `review-agent`                                 |
 | PR labeled `needs revision`            | `revise-agent` — **after the cycle-cap check** |
 
 ### Cycle cap (before every revise dispatch)
@@ -68,11 +68,11 @@ Stage → trigger mapping:
 gh pr view <pr-number> --repo SGAOperations/aplio --comments
 ```
 
-Count `## Code Review` occurrences. If **3 or more** reviews exist and the latest still produced Critical/Medium findings, escalate instead of dispatching: write the escalation note to `.pipeline-tmp/escalation-<pr>.md` (Write tool) and
+Count `## Code Review` occurrences. If **3 or more** reviews exist and the latest still produced Critical/Medium findings, escalate instead of dispatching: write the escalation note to `.temp/escalation-<pr>.md` (Write tool) and
 
 ```bash
 gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "needs revision" --add-label "needs human"
-gh pr comment <pr-number> --repo SGAOperations/aplio --body-file .pipeline-tmp/escalation-<pr>.md
+gh pr comment <pr-number> --repo SGAOperations/aplio --body-file .temp/escalation-<pr>.md
 ```
 
 then notify the human.
@@ -85,7 +85,7 @@ For each issue labeled `plan review`:
 
 - **Without `auto plan`:** summarize the plan from the issue body in a few sentences, then ask (AskUserQuestion): **Approve** / **Request changes** / **Discuss**.
   - Approve → `gh issue edit <n> --repo SGAOperations/aplio --remove-label "plan review" --add-label "plan approved"` (impl dispatches this tick).
-  - Request changes → write the human's feedback to `.pipeline-tmp/feedback-<n>.md`, `gh issue comment <n> --repo SGAOperations/aplio --body-file .pipeline-tmp/feedback-<n>.md`, then `--remove-label "plan review" --add-label "plan changes requested"`.
+  - Request changes → write the human's feedback to `.temp/feedback-<n>.md`, `gh issue comment <n> --repo SGAOperations/aplio --body-file .temp/feedback-<n>.md`, then `--remove-label "plan review" --add-label "plan changes requested"`.
   - Discuss → converse; finish with one of the two transitions above.
 - **With `auto plan`:** swap `plan review` → `plan approved` immediately, no interaction, and dispatch impl this tick.
 

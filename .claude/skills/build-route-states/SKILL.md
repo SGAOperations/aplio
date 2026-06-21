@@ -24,11 +24,18 @@ Every async surface ships **all three** states (`.claude/docs/ENGINEERING.md` §
 
    ```tsx
    'use client';
-   export default function Error({ reset }: { error: Error; reset: () => void }) {
+   export default function Error({
+     reset,
+   }: {
+     error: Error;
+     reset: () => void;
+   }) {
      return (
-       <div className="text-card-foreground rounded-lg border border-border p-6">
+       <div className="text-card-foreground border-border rounded-lg border p-6">
          <p className="text-sm">Something went wrong loading this page.</p>
-         <button onClick={reset} className="mt-2 text-sm text-primary">Try again</button>
+         <button onClick={reset} className="text-primary mt-2 text-sm">
+           Try again
+         </button>
        </div>
      );
    }
@@ -40,7 +47,12 @@ Every async surface ships **all three** states (`.claude/docs/ENGINEERING.md` §
 
    ```tsx
    if (items.length === 0)
-     return <EmptyState title="No applications yet" description="Applications appear here once submitted." />;
+     return (
+       <EmptyState
+         title="No applications yet"
+         description="Applications appear here once submitted."
+       />
+     );
    ```
 
 5. **Skeleton fidelity** — the skeleton mirrors the real layout's spacing and shape (reuse the same container classes). Use `text-muted-foreground` / `bg-muted` for placeholders.

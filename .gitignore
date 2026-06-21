@@ -38,8 +38,8 @@ next-env.d.ts
 # worktrees
 .worktrees/
 
-# pipeline agent scratch (gh --body-file payloads)
-.pipeline-tmp/
+# agent scratch dir (gh --body-file payloads)
+.temp/
 
 # external skills installed via `npx skills` (skills-lock.json is committed; payload re-materialized with `npx skills install`)
 .agents/
