@@ -7,14 +7,16 @@ Stack context: Next.js App Router, Prisma, Tailwind CSS 4, shadcn/ui, Stack Auth
 ## 1. Architecture
 
 - **Server-first.** Every component is a server component until it provably needs interactivity, hooks, or browser APIs. Push `'use client'` to the smallest leaf possible — a page with one interactive button is a server page importing a small client component, not a client page.
-- **Data flows one way.** Server components fetch via service functions in `prisma/services/`; mutations go through server actions in `prisma/services/`; client components receive data as props. No fetching in client components, no `useEffect` synchronization, no API routes (except `/api/auth`).
+- **Data flows one way.** Server components fetch via **data-fetching functions in `prisma/data/`**; mutations go through **server actions in `prisma/actions/`**; client components receive data as props. No fetching in client components, no API routes (except `/api/auth`).
+- **Avoid `useEffect`.** In this server-first codebase almost every `useEffect` is a mistake — data fetching, deriving state from props, or syncing state all have better homes (server components, values computed during render, event handlers, `key` to reset state, `nuqs` for URL state). **An empty-deps `useEffect(() => {…}, [])` is essentially never correct here** — it almost always hides fetching/initialization that belongs server-side, so treat it as a near-automatic review finding. Use `useEffect` **only** to synchronize with a genuinely external system (a non-React widget, a subscription, a DOM measurement) when there is no alternative, and justify it with a comment.
 - **Composition over prop-drilling.** If a prop passes through more than two layers untouched, restructure: pass `children`, split the component, or fetch closer to where the data is used (server components make this cheap).
-- **Co-location.** Route-specific components live next to their route; anything used twice moves to `components/`. Service functions are grouped by domain (`application-actions.ts`, not `actions.ts`).
+- **Co-location & layering.** Route-specific components live next to their route; anything used twice moves to `components/`. **Server actions live in `prisma/actions/`, data-fetching queries in `prisma/data/`**, grouped by domain (`applications.ts`, never a catch-all `actions.ts`). **Shared types and constants are global — `lib/types.ts` and `lib/constants.ts` — not per-service files.**
+- **Abstract repetition, with judgment.** Logic, UI, types, constants, or zod schemas duplicated across **2+ places** get extracted to a single cohesive, intention-named home (`components/`, `lib/`, `prisma/{actions,data}/`). Don't abstract a single use or force unrelated cases into one helper (no premature/over-abstraction). Prefer composition and small focused units.
 - **Small files, one responsibility.** A component file that needs scrolling to understand is two components. A service file mixing unrelated domains is two service files.
 
 ## 2. Data & Integrity
 
-- **Select only what you render.** Default to `select`/`include` with explicit fields on every Prisma query touching user-facing lists. Never ship full rows to the client when three fields are rendered.
+- **Select what you render — but prefer reusing shared types.** Default to `select`/`include` with explicit fields. **However, prefer reusing an existing/abstracted query type even if it pulls slightly more data than a given view strictly needs** — a little over-fetch is worth one reused type over many near-identical bespoke ones (see §1 abstraction). **Hard limit:** this never overrides the server/client boundary (§3) — never widen a `select` to include sensitive, internal, or other-users' fields that reach a **client** component.
 - **No N+1.** Fetch relations with `include`/nested `select` in one query, never by mapping over results and querying per item.
 
 ```ts
@@ -65,27 +67,27 @@ const withdrawSchema = z.object({ applicationId: z.string().cuid() });
 
 export async function withdrawApplication(input: unknown) {
   const user = await getCurrentUser();
-  if (!user) return { ok: false as const, error: 'Not authenticated' };
+  if (!user) throw new Error('Unauthenticated'); // unexpected from the UI → generic message (§4)
 
   const parsed = withdrawSchema.safeParse(input);
-  if (!parsed.success) return { ok: false as const, error: 'Invalid input' };
+  if (!parsed.success) return { error: 'Invalid input' }; // user-facing → toast
 
   // Authorization: scope the write to the caller — no IDOR
   const result = await prisma.application.updateMany({
     where: { id: parsed.data.applicationId, applicantId: user.id },
     data: { status: ApplicationStatus.WITHDRAWN },
   });
-  if (result.count === 0) return { ok: false as const, error: 'Not found' };
+  if (result.count === 0) throw new Error('Application not found for caller'); // shouldn't be reachable from the UI
 
   revalidatePath('/applications');
-  return { ok: true as const };
+  // success: return nothing (or the updated record if the caller needs it)
 }
 ```
 
 - **Authorization ≠ authentication.** Being logged in is not permission. Every query/mutation is scoped to what the caller may see or change (`where: { ..., applicantId: user.id }` or an explicit role check). Watch for IDOR: any action taking an ID must verify the caller's right to that specific record.
 - **No mass assignment.** Never spread client input into `data:`. Build the `data` object explicitly from parsed, whitelisted fields.
 - **Server/client boundary.** No secrets, tokens, internal IDs beyond necessity, or other-users' data in props passed to client components. Anything serialized to the client is public to that user.
-- **Dev-only code is env-gated.** Anything like `prisma/services/dev-bypass.ts` must be impossible to trigger in production (explicit `NODE_ENV`/env-flag guard).
+- **Dev-only code is env-gated.** Anything like `prisma/actions/dev-bypass.ts` must be impossible to trigger in production (explicit `NODE_ENV`/env-flag guard).
 - **No raw SQL with interpolation.** Use Prisma query builders; if `$queryRaw` is unavoidable, use tagged-template parameters only.
 
 ## 4. UX Completeness
@@ -93,7 +95,8 @@ export async function withdrawApplication(input: unknown) {
 Every async surface ships **all three states** — loading, error, empty. A feature without them is incomplete, not minimal.
 
 - **Loading:** wrap slow server-component subtrees in `<Suspense>` with a skeleton that matches the final layout (no layout shift on resolve). Route-level `loading.tsx` for whole-page fetches.
-- **Error:** route segments with data fetching get an `error.tsx` boundary with a retry affordance. Server actions return typed `{ ok, error }` results that the form surfaces inline — never a silent failure or an unhandled throw rendered as a blank screen.
+- **Error:** use **one global error boundary** — `app/global-error.tsx` (root shell) plus a single route-group `error.tsx` with a retry affordance — **not** a per-page `error.tsx` in every route folder. The boundary is only for **unexpected render / data-fetch errors**; expected errors never reach it.
+- **Action results & feedback.** A server action either **succeeds** (returns nothing, or the relevant created/updated record) or returns **`{ error: 'message' }`** for a **user-facing** condition — **never `{ ok }`**. If something unexpected happens, **throw** (don't return a message that shouldn't be shown). **Every action gives toast feedback** (`sonner`): a success toast; a _specific_ error toast for a returned `{ error }`; a _generic_ error toast when the action **throws during an interaction**; a render-time throw hits the global boundary instead. Never leak internals.
 - **Empty:** zero-item lists render a designed empty state (icon, one-line explanation, primary action), not a blank container.
 
 ```tsx
@@ -143,9 +146,11 @@ if (applications.length === 0)
 
 A scannable summary of the issues that recur in this codebase. **impl** builds to it, **revise** must not reintroduce these, and **review** uses it as its dimensions. Detail lives in the sections above.
 
-- **Server actions:** every action authenticates, parses input with zod, and scopes the write to the caller — no IDOR. (§3)
-- **Queries:** `select` only rendered fields; never expose internal IDs or other users' data to client components; no N+1; `$transaction` for multi-step writes. (§2)
-- **Async states:** every async surface ships loading, error, **and** empty; mutations give success **and** error feedback (no silent failure); `revalidatePath`/`revalidateTag` after writes. (§4)
-- **Components:** server-first; `'use client'` only on the smallest leaf; never `useEffect` for data fetching; **use shadcn/Radix primitives, not hand-rolled raw elements**; gate nav items by role where the route is role-gated. (§1, §5)
-- **Conventions:** named exports only (except Next.js route files); services in `prisma/services/`; no API routes except `/api/auth`; **design tokens, never hardcoded colors** (`DESIGN.md`); strict TS, no `any`. (§1, §7)
-- **Hygiene:** no dead scaffolding, shims, or transitional re-exports; schema changes ship with their migration and are called out in the PR.
+- **Server actions:** authenticate, zod-parse input, scope writes to the caller (no IDOR). **Return `void`/relevant data on success, `{ error }` for user-facing failures, `throw` for unexpected ones — never `{ ok }`.** (§3, §4)
+- **Feedback:** **every action shows a toast** (`sonner`) — success, specific error for `{ error }`, generic on an unexpected throw; `revalidatePath`/`revalidateTag` after writes. (§4)
+- **Errors:** **one global boundary** (`global-error.tsx` + a single route-group `error.tsx`), **never per-page `error.tsx`**; expected errors are toasts, not the boundary. (§4)
+- **Queries:** `select` what's rendered but **reuse shared `lib` types** (slight over-fetch OK; never sensitive/internal/other-users' fields to a client); no N+1; `$transaction` for multi-step writes. (§2)
+- **Async states:** every async surface ships loading + empty (plus the error model above). (§4)
+- **Components:** server-first; `'use client'` only on the smallest leaf; **no `useEffect` (empty-deps especially)**; **shadcn/Radix primitives, not hand-rolled raw elements**; role-gate nav where the route is role-gated. (§1, §5)
+- **Structure & conventions:** server actions in `prisma/actions/`, queries in `prisma/data/`; **shared types/constants in `lib/types.ts`/`lib/constants.ts`** (not per-service); abstract repetition sensibly (no over-abstraction); named exports only (except route files); no API routes except `/api/auth`; **design tokens, never hardcoded colors**; strict TS, no `any`. (§1, §7)
+- **Hygiene:** no dead scaffolding/shims/transitional re-exports; schema changes ship with their migration. (§1)

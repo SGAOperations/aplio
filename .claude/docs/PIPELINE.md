@@ -73,14 +73,14 @@ Rule: **every stage agent's first action is swapping its trigger label for its i
 
 ## Stages and models
 
-| Stage        | Definition                       | Model                                     | Why                                                     |
-| ------------ | -------------------------------- | ----------------------------------------- | ------------------------------------------------------- |
-| Cockpit      | `.claude/skills/pipeline/`       | haiku (session)                           | Mechanical: queries, label swaps, dispatch, relaying    |
-| 0. Scope     | `.claude/skills/scope/`          | inherits session (opus/fable recommended) | Highest-leverage thinking; human is in the conversation |
-| 1. Plan      | `.claude/agents/plan-agent.md`   | sonnet                                    | Research + writing; plan quality amplifies downstream   |
-| 2. Implement | `.claude/agents/impl-agent.md`   | sonnet                                    | Bulk of code volume; cost/quality sweet spot            |
-| 3. Review    | `.claude/agents/review-agent.md` | sonnet                                    | Must catch real issues reliably                         |
-| 4. Revise    | `.claude/agents/revise-agent.md` | sonnet                                    | Targeted fixes from a structured list                   |
+| Stage        | Definition                       | Model                                     | Why                                                                  |
+| ------------ | -------------------------------- | ----------------------------------------- | -------------------------------------------------------------------- |
+| Cockpit      | `.claude/skills/pipeline/`       | haiku (session)                           | Mechanical: queries, label swaps, dispatch, relaying                 |
+| 0. Scope     | `.claude/skills/scope/`          | inherits session (opus/fable recommended) | Highest-leverage thinking; human is in the conversation              |
+| 1. Plan      | `.claude/agents/plan-agent.md`   | **opus**                                  | Design-rich planning (UX/product spec); quality amplifies downstream |
+| 2. Implement | `.claude/agents/impl-agent.md`   | sonnet                                    | Bulk of code volume; cost/quality sweet spot                         |
+| 3. Review    | `.claude/agents/review-agent.md` | sonnet                                    | Must catch real issues reliably                                      |
+| 4. Revise    | `.claude/agents/revise-agent.md` | sonnet                                    | Targeted fixes from a structured list                                |
 
 All four workers read `.claude/docs/ENGINEERING.md` before working; the review agent treats it as a review dimension.
 
@@ -104,9 +104,11 @@ File writes: source edits via each worker's `permissionMode: acceptEdits`; `.tem
 
 Defined once here; the stage agents follow these exactly.
 
-### PR comments (review, revise, escalation; blockers go on the issue)
+### PR comments & reviews (review, revise, escalation; blockers on the issue)
 
-- **Title keyword (no emoji):** `## Code Review` · `## Revision Summary` · `## Pipeline Escalation` (and `## Blocker` on issues). Keep the literal `Code Review` text — the cockpit's cycle-cap counts it.
+The **code review is a real GitHub PR review** (`gh api …/pulls/<pr>/reviews --input`) — a summary body **plus inline line comments** on changed lines — not a plain comment. **Event:** `COMMENT` when the reviewer is the PR author (common case — same account; GitHub forbids `REQUEST_CHANGES`/`APPROVE` on your own PR), else `REQUEST_CHANGES` (Critical/Medium) or `APPROVE`. The pipeline **label** is the real control signal regardless. Revision summaries, escalations, and blockers use `gh … --body-file`.
+
+- **Title (no emoji, cycle-numbered):** `## Code Review — Cycle <n>` · `## Revision Summary — Cycle <n>` · `## Pipeline Escalation` (and `## Blocker` on issues). `<n>` = prior review count + 1. Keep the literal `Code Review` text — the cockpit's cycle-cap counts it.
 - **Provenance line** under the title: `_<stage> · PR #<pr> · against plan in #<issue>_`.
 - **Findings** carry a **stable ID** (`R<cycle>-<sev><n>`) and a **clickable permalink to the exact line(s)**: ``[`path/file.ts:42`](https://github.com/SGAOperations/aplio/blob/<headRefOid>/path/file.ts#L42)`` (range `#L42-L48`); get `<headRefOid>` from `gh pr view <pr> --json headRefOid`.
 - **Severity headers use colored circles:** `### 🔴 Critical` · `### 🟠 Medium` · `### 🟡 Low` · `### ⚪ Nit`. Only Critical/Medium block (review agent's rubric). Each finding ends with **`Suggested fix:`** (+ an alternative where useful).

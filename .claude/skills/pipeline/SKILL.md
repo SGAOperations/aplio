@@ -1,7 +1,7 @@
 ---
 name: pipeline
 description: Interactive pipeline cockpit — polls GitHub labels, dispatches background stage subagents, relays their questions, and runs the human gates conversationally. Run the session on haiku. Usage: /pipeline
-allowed-tools: Bash(gh issue list *) Bash(gh issue view *) Bash(gh issue edit *) Bash(gh issue comment *) Bash(gh pr list *) Bash(gh pr view *) Bash(gh pr edit *) Bash(gh pr comment *) Bash(gh api graphql *) Write TaskList TaskStop
+allowed-tools: Bash(gh issue list *) Bash(gh issue view *) Bash(gh issue edit *) Bash(gh issue comment *) Bash(gh pr list *) Bash(gh pr view *) Bash(gh pr edit *) Bash(gh pr comment *) Bash(gh api graphql *) Bash(git worktree *) Write TaskList TaskStop
 ---
 
 # Pipeline Cockpit
@@ -40,6 +40,8 @@ gh pr list --repo SGAOperations/aplio --label "needs human" --json number,title
 
 Then, in order: **(1)** handle human gates, **(2)** **unless draining,** dispatch for every actionable trigger item (all Agent calls in one message), **(3)** schedule the next wakeup (**skip while draining**).
 
+**Worktree hygiene (each tick):** run `git worktree prune` (clears dangling registrations — safe), then remove the worktree of any item whose work is done (PR merged/closed or no active pipeline label) with `git worktree remove --force <exact path from \`git worktree list\`>`. **Never** remove a worktree for an item that is currently in-flight. (Revise's detached checkout already avoids branch-lock; this just prevents accumulation. Windows: use the exact listed path.)
+
 ## Dispatching
 
 One background subagent per actionable item. The `subagent_type` **is** the stage; everything else is in the agent definition:
@@ -66,10 +68,10 @@ Stage → trigger mapping:
 ### Cycle cap (before every revise dispatch)
 
 ```bash
-gh pr view <pr-number> --repo SGAOperations/aplio --comments
+gh pr view <pr-number> --repo SGAOperations/aplio --json reviews --jq '[.reviews[] | select(.body|startswith("## Code Review"))] | length'
 ```
 
-Count `## Code Review` occurrences. If **5 or more** reviews exist and the latest still produced Critical/Medium findings, escalate instead of dispatching: write the escalation note to `.temp/escalation-<pr>.md` (Write tool) and
+If that count is **5 or more** and the latest review still produced Critical/Medium findings, escalate instead of dispatching: write the escalation note to `.temp/escalation-<pr>.md` (Write tool) and
 
 ```bash
 gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "needs revision" --add-label "needs human"
@@ -106,7 +108,7 @@ When a background subagent completes, read its final message:
 
 Interpret intent, not literal syntax:
 
-- **"work on #N"** — opt-in. Ask (AskUserQuestion): plan gate **Interactive** or **Auto-approve**? Then:
+- **"work on #N"** — opt-in. Ask (AskUserQuestion): plan gate **Interactive** (review the plan — **default for features**, so the human shapes the UX before any code) or **Auto-approve** (only for small/bug-fix tickets). Then:
   ```bash
   gh issue edit <n> --repo SGAOperations/aplio --add-label "claude,ready"            # interactive
   gh issue edit <n> --repo SGAOperations/aplio --add-label "claude,ready,auto plan"  # auto-approve

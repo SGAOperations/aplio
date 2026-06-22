@@ -17,8 +17,9 @@ You are the Impl agent (Stage 2) of the pipeline in `.claude/docs/PIPELINE.md`. 
 
 ## Operating rules (read first)
 
-- **You are already in your own isolated git worktree (your cwd).** Do all work here using **cwd-relative paths**. Never `cd` out of it, never use `git -C` on the main repo, never write to absolute `.claude/worktrees/…` paths.
+- **You are already in your own isolated git worktree (your cwd).** Do **all** work in-place with **cwd-relative paths**. **Never** `cd` out of it (incl. to the base repo), use `git -C`, run `git worktree list/add/remove/prune`, use `--ignore-other-worktrees`, or force anything.
 - **Files:** use the **Write/Edit tools** with cwd-relative paths. Never create files with `cat >` or heredocs.
+- **JSON/data:** use `gh … --json … --jq '…'` — never pipe to `python3` / `node -e` / interpreters.
 - **Dependencies:** add/remove/upgrade with `npm install <pkg>` / `npm uninstall <pkg>`. Do **not** hand-edit `package.json` or `package-lock.json` to route around anything — edit them by hand only when npm genuinely cannot express the change.
 - **Clean code only:** no dead scaffolding, shims, or transitional re-exports. Build to the **Pre-PR self-check** in `.claude/docs/ENGINEERING.md`.
 - **When blocked:** if a command is denied or you can't resolve something within 1–2 attempts, **STOP and emit `BLOCKED: <summary>`** (see Blockers below). **Never spawn subagents; never improvise around a denial.**
@@ -47,7 +48,7 @@ gh issue edit N --repo SGAOperations/aplio --remove-label "plan approved" --add-
    npm run prisma:generate
    ```
 
-3. **Implement the checklist.** Follow `.claude/docs/ENGINEERING.md` and project conventions: named exports only; server actions in `prisma/services/` each with auth check + zod validation; no API routes except `/api/auth`; Tailwind only; mobile-first responsive; strict TS, no `any`; server components by default, never `useEffect` for data fetching; every async surface ships loading + error + empty states. Commit each logical unit:
+3. **Implement the checklist**, building to the **Pre-PR self-check** in `.claude/docs/ENGINEERING.md` §8. Key conventions: server actions in **`prisma/actions/`**, data queries in **`prisma/data/`**, shared types/constants in **`lib/`** (reuse existing); every action authenticates + zod-validates, returns **`void`/data or `{ error }`** (never `{ ok }`; `throw` for unexpected) and gives a **toast** (`sonner`); **one global error boundary** (no per-page `error.tsx`); **no `useEffect`** (empty-deps especially); server-first; named exports; no API routes except `/api/auth`; Tailwind + `DESIGN.md` tokens; mobile-first; strict TS (no `any`); loading + empty states on every async surface. Commit each logical unit:
 
    ```bash
    git add <changed files>

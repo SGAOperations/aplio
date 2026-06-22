@@ -1,6 +1,6 @@
 ---
 name: build-route-states
-description: Add the three required async states — loading, error, and empty — to a Next.js App Router route or data-driven component, per .claude/docs/ENGINEERING.md §4. Use when a route fetches data and is missing loading.tsx, error.tsx, a Suspense skeleton, or a designed empty state.
+description: Add loading, error, and empty handling to a Next.js App Router route — loading.tsx/Suspense skeletons, a designed empty state, and error handling via the GLOBAL boundary + toasts (no per-page error.tsx), per .claude/docs/ENGINEERING.md §4.
 allowed-tools: Read, Grep, Glob, Edit, Write
 ---
 
@@ -20,28 +20,9 @@ Every async surface ships **all three** states (`.claude/docs/ENGINEERING.md` §
    </Suspense>
    ```
 
-3. **Error** — add `error.tsx` (a client component) for the segment, with a retry affordance via `reset()`:
-
-   ```tsx
-   'use client';
-   export default function Error({
-     reset,
-   }: {
-     error: Error;
-     reset: () => void;
-   }) {
-     return (
-       <div className="text-card-foreground border-border rounded-lg border p-6">
-         <p className="text-sm">Something went wrong loading this page.</p>
-         <button onClick={reset} className="text-primary mt-2 text-sm">
-           Try again
-         </button>
-       </div>
-     );
-   }
-   ```
-
-   Server actions return typed `{ ok, error }` — surface those inline in forms; never render an unhandled throw as a blank screen.
+3. **Error — do NOT add a per-page `error.tsx`.** Errors are handled centrally (`.claude/docs/ENGINEERING.md` §4):
+   - **Unexpected render/data-fetch errors** → the **global** boundary (`app/global-error.tsx` + a single route-group `error.tsx`). Create those only if missing — never one per route.
+   - **Expected errors** (server-action failures) → surfaced as **toasts** (`sonner`): an action returns `{ error: 'message' }` (user-facing → specific toast) or **throws** (unexpected → generic toast). Never `{ ok }`, never a silent failure.
 
 4. **Empty** — zero-item lists render a designed empty state (icon + one-line explanation + primary action), not a blank container:
 
