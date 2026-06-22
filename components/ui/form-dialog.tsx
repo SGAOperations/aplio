@@ -54,21 +54,6 @@ function FormDialog<
   const form = useForm({ resolver: zodResolver(schema), defaultValues });
   const isSubmitting = form.formState.isSubmitting;
 
-  // Keep a ref in sync with the latest defaultValues so the effect below can
-  // read the current value without listing the unstable object identity as a
-  // dependency. useLayoutEffect (not useEffect) avoids a render-phase write
-  // while still running synchronously before the browser paints.
-  const defaultValuesRef = React.useRef(defaultValues);
-  React.useLayoutEffect(() => {
-    defaultValuesRef.current = defaultValues;
-  });
-
-  // Reset to the current defaultValues each time the dialog opens so that
-  // re-opening an edit dialog after a save reflects the latest saved state.
-  React.useEffect(() => {
-    if (open) form.reset(defaultValuesRef.current);
-  }, [open, form]);
-
   async function handleSubmit(data: TOutput) {
     const success = await onSubmit(data);
     if (success) {
@@ -78,7 +63,13 @@ function FormDialog<
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (v) form.reset(defaultValues);
+      }}
+    >
       <DialogTrigger asChild>{trigger}</DialogTrigger>
 
       <DialogContent>
