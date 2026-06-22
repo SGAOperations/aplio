@@ -23,3 +23,11 @@ export function toStringArray(v: unknown): string[] {
   if (Array.isArray(v) && v.every((x) => typeof x === 'string')) return v;
   return [];
 }
+
+export function formatDate(date: Date): string {
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date);
+}

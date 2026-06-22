@@ -4,24 +4,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-import {
-  BriefcaseBusiness,
-  ClipboardList,
-  FileText,
-  Users,
-} from 'lucide-react';
-
 import { cn } from '@/lib/utils';
 
-const baseNavItems = [
-  { href: '/positions', label: 'Positions', icon: BriefcaseBusiness },
-  { href: '/applications', label: 'Applications', icon: FileText },
-  { href: '/users', label: 'Users', icon: Users },
-];
-
-const adminNavItems = [
-  { href: '/global-questions', label: 'Global Questions', icon: ClipboardList },
-];
+import { adminNavItems, baseNavItems } from '@/components/layouts/nav-items';
 
 interface SidebarProps {
   isAdmin: boolean;
