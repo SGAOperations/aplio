@@ -8,8 +8,10 @@ import type { GlobalAnswer, GlobalQuestion } from '@/prisma/client';
 
 import { isError } from '@/lib/utils';
 
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 
 interface ProfileQuestionProps {
@@ -108,50 +110,58 @@ export function ProfileQuestion({
 
             if (question.type === 'single_choice')
               return (
-                <div className="flex flex-col gap-2">
-                  {question.options.map((option: string) => (
-                    <Label
+                <RadioGroup
+                  value={field.value[0] ?? ''}
+                  onValueChange={(v) => {
+                    field.onChange([v]);
+                    save([v]);
+                  }}
+                >
+                  {question.options.map((option: string, i: number) => (
+                    <div
                       key={option}
-                      className="flex cursor-pointer items-center gap-2 font-normal"
+                      className="flex cursor-pointer items-center gap-2 py-1"
                     >
-                      <input
-                        type="radio"
-                        name={question.id}
+                      <RadioGroupItem
                         value={option}
-                        checked={field.value[0] === option}
-                        onChange={() => {
-                          field.onChange([option]);
-                          save([option]);
-                        }}
-                        className="accent-primary size-4"
+                        id={`${question.id}-${i}`}
                       />
-                      {option}
-                    </Label>
+                      <Label
+                        htmlFor={`${question.id}-${i}`}
+                        className="cursor-pointer text-sm font-normal"
+                      >
+                        {option}
+                      </Label>
+                    </div>
                   ))}
-                </div>
+                </RadioGroup>
               );
 
             return (
               <div className="flex flex-col gap-2">
-                {question.options.map((option: string) => (
-                  <Label
+                {question.options.map((option: string, i: number) => (
+                  <div
                     key={option}
-                    className="flex cursor-pointer items-center gap-2 font-normal"
+                    className="flex cursor-pointer items-center gap-2 py-1"
                   >
-                    <input
-                      type="checkbox"
+                    <Checkbox
+                      id={`${question.id}-${i}`}
                       checked={field.value.includes(option)}
-                      onChange={() => {
+                      onCheckedChange={() => {
                         const next = field.value.includes(option)
                           ? field.value.filter((v) => v !== option)
                           : [...field.value, option];
                         field.onChange(next);
                         save(next);
                       }}
-                      className="accent-primary size-4"
                     />
-                    {option}
-                  </Label>
+                    <Label
+                      htmlFor={`${question.id}-${i}`}
+                      className="cursor-pointer text-sm font-normal"
+                    >
+                      {option}
+                    </Label>
+                  </div>
                 ))}
               </div>
             );
