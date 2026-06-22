@@ -21,8 +21,8 @@ Schema changes are high-risk; this runs only when you invoke it. Follow `.claude
 
    Inspect the generated SQL under `prisma/migrations/` for accidental data loss (drops, non-nullable columns without defaults on populated tables).
 
-4. **Regenerate the client:** `npx prisma generate`.
-5. **Update the service layer** in `prisma/services/` — new queries `select` only needed fields, fetch relations with `include`/nested `select` (no N+1), multi-step writes in `prisma.$transaction`. Use Prisma-generated types, not hand-written duplicates.
+4. **Regenerate the client:** `npm run prisma:generate`.
+5. **Update the data/action layer** — queries in `prisma/data/`, server actions in `prisma/actions/` (reuse shared `lib/` types): `select` needed fields, fetch relations with `include`/nested `select` (no N+1), multi-step writes in `prisma.$transaction`. Use Prisma-generated types, not hand-written duplicates.
 6. **Verify** — `npm run tsc:check`.
 
 > Migrations are committed with the feature. Call out the schema change explicitly in the PR/plan.

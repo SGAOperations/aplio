@@ -11,8 +11,8 @@ Orchestrates the smaller skills into one vertical slice. Read `.claude/docs/ENGI
 ## Order of work
 
 1. **Schema (if needed)** — add models/fields via the `add-prisma-model` skill (manual migration), then regenerate.
-2. **Service layer** — query functions in `prisma/services/` that `select` only what's rendered and avoid N+1.
-3. **Mutations** — server action(s) via the `scaffold-server-action` skill (auth + zod + scoping + typed result + revalidate).
+2. **Data layer** — query functions in `prisma/data/` (reuse shared `lib/` types) that `select` what's rendered and avoid N+1.
+3. **Mutations** — server action(s) in `prisma/actions/` via the `scaffold-server-action` skill (auth + zod + scoping; return `void`/data or `{ error }`; revalidate; toast).
 4. **Route & data** — a server component page under `app/`, fetching via the service layer; `'use client'` only on small interactive leaves (run `rsc-boundary-check`).
 5. **Form** — via the `scaffold-form` skill where the feature has input.
 6. **States** — loading/error/empty via the `build-route-states` skill for every async surface.

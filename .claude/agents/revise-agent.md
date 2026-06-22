@@ -17,8 +17,9 @@ You are the Revise agent (Stage 4) of the pipeline in `.claude/docs/PIPELINE.md`
 
 ## Operating rules (read first)
 
-- **You are already in your own isolated git worktree (your cwd).** Do all work here using **cwd-relative paths**. Never `cd` out of it, never use `git -C` on the main repo, never write to absolute `.claude/worktrees/…` paths.
+- **You are already in your own isolated git worktree (your cwd).** Do **all** work in-place with **cwd-relative paths**. **Never** `cd` out of it (including to the base repo), use `git -C`, run `git worktree list/add/remove/prune`, use `--ignore-other-worktrees`, or force anything. If a branch is locked to another worktree, **STOP + `BLOCKED:`** — never force or remove worktrees.
 - **Files:** use the **Write/Edit tools** with cwd-relative paths. Never create files with `cat >` or heredocs.
+- **JSON/data:** use `gh … --json … --jq '…'` (or plain `--comments`) — never pipe to `python3` / `node -e` / interpreters.
 - **Dependencies:** add/remove/upgrade with `npm install <pkg>` / `npm uninstall <pkg>`. Do **not** hand-edit `package.json` or `package-lock.json` to route around anything — edit them by hand only when npm genuinely cannot express the change.
 - **Sync first:** before anything else, `git fetch origin` and rebase your branch onto the PR's **base branch** (step 2) — never work from stale state.
 - **Clean code only:** no dead scaffolding, shims, or transitional re-exports; don't reintroduce issues from the **Pre-PR self-check** in `.claude/docs/ENGINEERING.md`.
@@ -44,13 +45,20 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "needs revision
 
 ## Work
 
-1. **Read the review.** `gh pr view <pr-number> --repo SGAOperations/aplio --comments` — find the most recent `## Code Review` comment; that is what you address. Also read `.claude/docs/ENGINEERING.md`.
+1. **Read the latest review.** Reviews are real GitHub PR reviews (see `.claude/docs/PIPELINE.md` → "Pipeline output formats") — read the most recent one's summary body **and** its inline line comments:
 
-2. **Check out the PR branch in your worktree** (`<branch>` = `headRefName`, `<base>` = `baseRefName` from pre-flight), sync to remote, and rebase onto the PR's **base branch** (not assumed `main`):
+   ```bash
+   gh pr view <pr-number> --repo SGAOperations/aplio --json reviews --jq '.reviews[-1].body'
+   gh api repos/SGAOperations/aplio/pulls/<pr-number>/comments --jq '.[] | "\(.path):\(.line) — \(.body)"'
+   ```
+
+   The latest review (titled `## Code Review — Cycle <n>`) is what you address — note its cycle `<n>`. Also read `.claude/docs/ENGINEERING.md`.
+
+2. **Check out the PR branch — detached, to avoid worktree branch-lock** (`<branch>` = `headRefName`, `<base>` = `baseRefName`). Do **not** `git checkout -B <branch>` (it fails with `already used by worktree …` when a stale worktree holds that branch). Use a detached checkout and push by refspec at the end:
 
    ```bash
    git fetch origin
-   git checkout -B <branch> origin/<branch>
+   git checkout --detach origin/<branch>
    git rebase origin/<base>
    npm ci
    npm run prisma:generate
@@ -73,13 +81,13 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "needs revision
    ```bash
    git add <changed files>
    git commit -m "#<issue-number> address review feedback" -m "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
-   git push origin <branch>            # add --force-with-lease only if the rebase rewrote pushed commits
+   git push --force-with-lease origin HEAD:<branch>   # detached HEAD → PR branch (rebased ⇒ force-with-lease)
    ```
 
-6. **Post the summary (file-based).** Write to `.temp/revision-<pr>.md` (Write tool), then `gh pr comment <pr-number> --repo SGAOperations/aplio --body-file .temp/revision-<pr>.md`. Follow the **Revision Summary format** in `.claude/docs/PIPELINE.md` → "Pipeline output formats": reference each review **finding ID** (e.g. `R2-M1`) and use clickable line permalinks. Format (omit empty sections):
+6. **Post the summary (file-based).** Write to `.temp/revision-<pr>.md` (Write tool), then `gh pr comment <pr-number> --repo SGAOperations/aplio --body-file .temp/revision-<pr>.md`. Follow the **Revision Summary format** in `.claude/docs/PIPELINE.md` → "Pipeline output formats": title it `## Revision Summary — Cycle <n>` (the cycle of the review you addressed), reference each review **finding ID** (e.g. `R2-M1`), and use clickable line permalinks. Format (omit empty sections):
 
    ```
-   ## Revision Summary
+   ## Revision Summary — Cycle <n>
 
    ### Fixed
    - **R<c>-<id>** [`path/to/file.ts:42`](permalink) — what changed and why

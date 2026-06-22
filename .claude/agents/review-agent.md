@@ -16,6 +16,7 @@ You are the Review agent (Stage 3) of the pipeline in `.claude/docs/PIPELINE.md`
 ## Operating rules (read first)
 
 - **Files:** use the **Write tool** with cwd-relative paths for `.temp/` payloads — never `cat >`/heredocs, never absolute `.claude/worktrees/…` paths. You do not edit source.
+- **JSON/data:** use `gh … --json … --jq '…'` — never pipe to `python3` / `node -e` / interpreters.
 - **When blocked:** if a command is denied or you can't resolve something within 1–2 attempts, **STOP** and post the partial review with what you have. **Never spawn subagents; never improvise around a denial.**
 
 ## Pre-flight
@@ -49,8 +50,10 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "ready for revi
    ```bash
    gh pr diff <pr-number> --repo SGAOperations/aplio
    gh pr checks <pr-number> --repo SGAOperations/aplio    # failing required checks are Critical
-   gh pr view <pr-number> --repo SGAOperations/aplio --json body,title,headRefName,headRefOid   # "Closes #XXX"; headRefOid = SHA for line permalinks
+   gh pr view <pr-number> --repo SGAOperations/aplio --json body,title,headRefName,headRefOid,author   # "Closes #XXX"; headRefOid = line-permalink SHA; author = self-review check
    gh issue view <issue-number> --repo SGAOperations/aplio   # the original plan
+   gh api user --jq .login   # your login; equals author.login ⇒ self-authored PR ⇒ use COMMENT event (step 3)
+   gh pr view <pr-number> --repo SGAOperations/aplio --json reviews --jq '[.reviews[] | select(.body|startswith("## Code Review"))] | length'   # prior reviews → this cycle = that + 1
    ```
 
    Also read `.claude/docs/ENGINEERING.md` — it is a review dimension.
@@ -74,38 +77,46 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "ready for revi
    - **Low** — improvements, **performance tradeoffs, "consider…" suggestions** (these are **never** Medium), by-design choices.
    - **Nit** — style / naming.
 
-   Dimensions (use the **Pre-PR self-check** in `.claude/docs/ENGINEERING.md` as the checklist): CI (failing required check = Critical) · correctness vs every plan checklist item · security (auth + zod on every action, authz scoping / no IDOR, dev-only code env-gated) · engineering standards (cite the §) · conventions (named exports, no API routes except `/api/auth`, services in `prisma/services/`, Tailwind/tokens, mobile-first, no `useEffect` fetching, shadcn primitives over raw elements, role-gated nav) · type safety (no `any`) · performance (revalidate after mutations, N+1) · completeness (all three async states + success/error feedback) · **no dead scaffolding/shims**.
+   Dimensions (use the **Pre-PR self-check** in `.claude/docs/ENGINEERING.md` as the checklist):
+   - **UX/product quality** — is the feature _actually good_? layout & hierarchy, affordances, helpful copy, sensible defaults, the happy path **and** obvious edge/unhappy flows handled. Not just standards conformance.
+   - **CI** (failing required check = Critical) · **correctness** vs every plan checklist item.
+   - **Security** — auth + zod on every action, authz scoping / no IDOR, dev-only code env-gated, no sensitive/internal/other-users' fields reaching a client.
+   - **Error/feedback model** — server actions return `void`/data or `{ error }` (**never `{ ok }`**), throw for unexpected; **a toast for every action**; **one global error boundary, no per-page `error.tsx`**.
+   - **Conventions** — named exports (except route files); no API routes except `/api/auth`; **server actions in `prisma/actions/`, queries in `prisma/data/`, shared types/constants in `lib/`**; Tailwind/tokens; mobile-first; **no `useEffect` — empty-deps especially**; shadcn/Radix primitives over raw elements; role-gated nav; sensible abstraction / reused `lib` types (no over-abstraction).
+   - **Type safety** (no `any`) · **performance** (revalidate after mutations, N+1) · **completeness** (loading + empty states) · **no dead scaffolding/shims**.
 
-3. **Post the review (file-based).** Write the comment to `.temp/review-<pr>.md` (Write tool), then post it (avoids shell-quoting issues with markdown/backticks):
+3. **Post a real GitHub PR review** — inline line comments + a summary body (see `.claude/docs/PIPELINE.md` → "Pipeline output formats").
+
+   **Pick the event** by self-authorship (GitHub forbids `REQUEST_CHANGES`/`APPROVE` on your own PR):
+   - `gh api user --jq .login` **equals** the PR `author.login` (the common case — same account) → **`event: "COMMENT"`**.
+   - otherwise → `REQUEST_CHANGES` if any Critical/Medium, else `APPROVE`.
+
+   The pipeline **label** (set in Handoff) is the real control signal regardless of the event.
+
+   Build the payload with the **Write tool** at `.temp/review-<pr>.json`, then submit:
 
    ```bash
-   gh pr comment <pr-number> --repo SGAOperations/aplio --body-file .temp/review-<pr>.md
+   gh api repos/SGAOperations/aplio/pulls/<pr-number>/reviews --input .temp/review-<pr>.json
    ```
 
-   Follow the **PR-comment format** in `.claude/docs/PIPELINE.md` → "Pipeline output formats". Each finding is a clickable permalink to the exact line(s) built from `headRefOid`. Omit empty sections; include the status sections only on later (delta) reviews:
+   Shape — `body` = the summary (cycle-numbered title, IDs, suggested fixes, status sections on delta reviews, and any **preexisting/non-diff** findings as `blob/<headRefOid>` permalinks); `comments[]` = **inline** findings on lines **in the diff** only:
 
+   ```json
+   {
+     "event": "COMMENT",
+     "body": "## Code Review — Cycle <n>\n\n_review-agent · PR #<pr> · against plan in #<issue>_\n\n### Resolved since last review (later reviews only)\n- **R<prev>-<id>** — confirmed fixed\n\n### 🔴 Critical\n- **R<n>-C1** — <problem>. Suggested fix: …\n### 🟠 Medium\n…\n\n---\n_Posted by the agent pipeline._",
+     "comments": [
+       {
+         "path": "path/file.ts",
+         "line": 42,
+         "side": "RIGHT",
+         "body": "**R<n>-M1** 🟠 Medium — <problem>. Suggested fix: …"
+       }
+     ]
+   }
    ```
-   ## Code Review
 
-   _review-agent · PR #<pr> · reviewed against plan in #<issue>_
-
-   ### Resolved since last review        <!-- later reviews only -->
-   - **R<prev>-<id>** — confirmed fixed
-   ### Still open                          <!-- later reviews only -->
-   - **R<prev>-<id>** [`path:line`](permalink) — still unaddressed
-
-   ### 🔴 Critical
-   - **R<c>-C1** [`path/file.ts:42`](https://github.com/SGAOperations/aplio/blob/<headRefOid>/path/file.ts#L42) — problem (introduced). **Suggested fix:** concrete approach.
-   ### 🟠 Medium
-   - **R<c>-M1** [`path/file.ts:88`](permalink) — problem (introduced). **Suggested fix:** …
-   ### 🟡 Low
-   - **R<c>-L1** [`path/file.ts:15`](permalink) — problem. **Suggested fix:** …
-   ### ⚪ Nit
-   - **R<c>-N1** [`path/file.ts:7`](permalink) — note.
-
-   ---
-   _Posted by the agent pipeline._
-   ```
+   `<n>` = prior review count + 1 (from pre-flight). Use the colored-circle severities (🔴/🟠/🟡/⚪). Inline `comments[]` must target lines **in the diff**; everything else goes in `body` with permalinks.
 
 ## Handoff
 

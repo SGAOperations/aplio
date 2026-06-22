@@ -14,11 +14,12 @@ Next.js 16 (App Router, React 19) · Prisma 7 · Tailwind CSS 4 · shadcn/ui (Ra
 ## Architecture (the load-bearing rules — `.claude/docs/ENGINEERING.md` has the full bar)
 
 - **IMPORTANT: never create API routes** (`app/api/`). The only permitted route is `app/api/auth/[...path]/route.ts` (required by Neon Auth).
-- **Mutations are Server Actions** in `prisma/services/`, each with `'use server'`, an auth check, and zod validation, returning a typed `{ ok, error }` result.
-- **Data fetching is server-side** — server components call service functions in `prisma/services/`. **NEVER fetch data or sync state with `useEffect`.** Prisma never runs in a client component.
+- **Mutations are Server Actions** in `prisma/actions/`, each with `'use server'`, an auth check, and zod validation. They return **`void` / the relevant data on success, `{ error }` for a user-facing failure, and `throw` for unexpected ones — never `{ ok }`** (`.claude/docs/ENGINEERING.md` §4).
+- **Data fetching is server-side** — server components call data-fetching functions in `prisma/data/`; Prisma never runs in a client component. **Avoid `useEffect`** — almost every use is a mistake here, and an empty-deps `useEffect` is essentially never right.
 - **Default to server components**; add `'use client'` only for interactivity/hooks/browser APIs, on the smallest leaf possible.
-- **Every async surface ships loading, error, and empty states** (see `.claude/docs/ENGINEERING.md` §4).
+- **Every async surface ships loading + empty states**; errors use **one global boundary + toasts** (never per-page `error.tsx`); **every action gives a toast** (`sonner`) — see `.claude/docs/ENGINEERING.md` §4.
 - Components live in `components/` (`ui/` shadcn, `forms/`, `layouts/`, `features/`); route-specific components co-locate with their route.
+- **Shared types/constants live in `lib/` (`lib/types.ts`, `lib/constants.ts`) — reuse them** (a little over-fetch to reuse a type is fine; never expose sensitive/internal fields to a client). Abstract repetition sensibly; avoid over-abstraction.
 
 ## Code Style
 
@@ -27,7 +28,7 @@ Next.js 16 (App Router, React 19) · Prisma 7 · Tailwind CSS 4 · shadcn/ui (Ra
 - Tailwind only — avoid custom CSS. **Mobile-first**: base styles target mobile, add `md:`/`lg:` upward; sidebars collapse to a Sheet/drawer on small screens; no fixed pixel widths that break narrow viewports.
 - `async`/`await` over promise chains. Single-line loops/conditionals: no curly braces.
 - Comments explain non-obvious constraints, never narrate the next line.
-- `revalidatePath`/`revalidateTag` after every mutation.
+- `revalidatePath`/`revalidateTag` after every mutation; **toast feedback (`sonner`) on every action**.
 
 ## Commits, Branches, PRs
 
@@ -53,7 +54,7 @@ Never push with known failures. Use `npx prisma` (never `node_modules/.bin/prism
 ## Worktrees & local dev
 
 - Pipeline agents get their own isolated worktree automatically (`isolation: worktree`) — they handle setup; see `.claude/docs/PIPELINE.md`. Do not script worktree creation for them.
-- For manual local work in a worktree, install deps with `npm ci` (then `npx prisma generate`). **Do not `ln -s node_modules` — symlinks fall back to copies on Windows here.** Sync before resuming: `git fetch origin && git rebase origin/main`.
+- For manual local work in a worktree, install deps with `npm ci` (then `npm run prisma:generate`). **Do not `ln -s node_modules` — symlinks fall back to copies on Windows here.** Sync before resuming: `git fetch origin && git rebase origin/main`.
 
 ## Design Specs
 
