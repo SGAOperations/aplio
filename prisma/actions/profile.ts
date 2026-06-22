@@ -8,6 +8,7 @@ import type { GlobalAnswer } from '@/prisma/client';
 
 import { getCurrentUser } from '@/lib/auth/server';
 import prisma from '@/lib/prisma';
+import { type ResponseType } from '@/lib/utils';
 
 const updateGlobalAnswerSchema = z.object({
   questionId: z.string().min(1),
@@ -17,12 +18,12 @@ const updateGlobalAnswerSchema = z.object({
 export async function updateGlobalAnswer(
   questionId: string,
   value: string[],
-): Promise<{ ok: true; data: GlobalAnswer } | { ok: false; error: string }> {
+): Promise<ResponseType<GlobalAnswer>> {
   const user = await getCurrentUser();
-  if (!user) return { ok: false, error: 'Not authenticated' };
+  if (!user) return { error: 'Not authenticated' };
 
   const parsed = updateGlobalAnswerSchema.safeParse({ questionId, value });
-  if (!parsed.success) return { ok: false, error: 'Invalid input' };
+  if (!parsed.success) return { error: 'Invalid input' };
 
   const result = await prisma.globalAnswer.upsert({
     where: {
@@ -41,5 +42,5 @@ export async function updateGlobalAnswer(
     },
   });
   revalidatePath('/profile');
-  return { ok: true, data: result };
+  return result;
 }

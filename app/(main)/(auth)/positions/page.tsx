@@ -1,4 +1,4 @@
-import { getOpenPositions } from '@/prisma/services/positions';
+import { getOpenPositions } from '@/prisma/data/positions';
 
 import { PositionCard } from '@/components/features/position-card';
 

@@ -1,9 +1,9 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
+import { createDraftApplication } from '@/prisma/actions/applications';
+import { getPositionForApply } from '@/prisma/data/positions';
 import { getProfileData } from '@/prisma/data/profile';
-import { createDraftApplication } from '@/prisma/services/application-actions';
-import { getPositionForApply } from '@/prisma/services/positions';
 
 import { getCurrentUser } from '@/lib/auth/server';
 import { isError, toStringArray } from '@/lib/utils';
@@ -42,6 +42,13 @@ export default async function ApplyPage({
   const applicationResult = profileComplete
     ? await createDraftApplication(id)
     : null;
+
+  // If the profile is complete but the action returned an error, it is an
+  // unexpected failure — surface it via the error boundary instead of showing
+  // the misleading "complete your profile" gate.
+  if (profileComplete && applicationResult && isError(applicationResult))
+    throw new Error(applicationResult.error);
+
   const application =
     applicationResult && !isError(applicationResult) ? applicationResult : null;
 

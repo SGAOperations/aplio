@@ -2,6 +2,8 @@
 
 import { useRef, useState } from 'react';
 
+import { toast } from 'sonner';
+
 import type { GlobalQuestion, PositionQuestion } from '@/prisma/client';
 
 import { cn } from '@/lib/utils';
@@ -45,6 +47,7 @@ export function ApplicationQuestion({
       savedValueRef.current = serialized;
     } catch {
       setSaveError(true);
+      toast.error('Failed to save answer');
     } finally {
       setIsSaving(false);
     }

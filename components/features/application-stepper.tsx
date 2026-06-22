@@ -6,7 +6,12 @@ import { useState } from 'react';
 import { type Control, Controller, useForm, useWatch } from 'react-hook-form';
 
 import { CheckIcon } from 'lucide-react';
+import { toast } from 'sonner';
 
+import {
+  createOrUpdateApplicationAnswer,
+  submitApplication,
+} from '@/prisma/actions/applications';
 import type {
   GlobalAnswer,
   GlobalApplicationAnswer,
@@ -14,10 +19,6 @@ import type {
   PositionApplicationAnswer,
   PositionQuestion,
 } from '@/prisma/client';
-import {
-  createOrUpdateApplicationAnswer,
-  submitApplication,
-} from '@/prisma/services/application-actions';
 
 import { type DraftApplication } from '@/lib/types';
 import { cn, isError, toStringArray } from '@/lib/utils';
@@ -205,8 +206,13 @@ export function ApplicationStepper({
 
   const onSubmit = handleSubmit(async () => {
     const result = await submitApplication(application.id);
-    if (isError(result)) setError('root', { message: result.error });
-    else router.push('/applications');
+    if (isError(result)) {
+      setError('root', { message: result.error });
+      toast.error(result.error);
+    } else {
+      toast.success('Application submitted');
+      router.push('/applications');
+    }
   });
 
   return (

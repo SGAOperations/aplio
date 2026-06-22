@@ -6,6 +6,8 @@ import { Controller, useForm } from 'react-hook-form';
 import { updateGlobalAnswer } from '@/prisma/actions/profile';
 import type { GlobalAnswer, GlobalQuestion } from '@/prisma/client';
 
+import { isError } from '@/lib/utils';
+
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -35,7 +37,7 @@ export function ProfileQuestion({
     if (serialized === savedValueRef.current) return;
     try {
       const result = await updateGlobalAnswer(question.id, value);
-      if (!result.ok) throw new Error(result.error ?? 'Failed to save');
+      if (isError(result)) throw new Error(result.error);
       savedValueRef.current = serialized;
       reset({ value });
     } catch {

@@ -16,7 +16,7 @@ export async function getOpenPositions(): Promise<PositionWithQuestions[]> {
 export async function getPositionForApply(
   id: string,
 ): Promise<PositionWithQuestions | null> {
-  return prisma.position.findFirst({
+  return prisma.position.findUnique({
     where: { id, status: 'open', deletedAt: null },
     include: {
       questions: { where: { deletedAt: null }, orderBy: { order: 'asc' } },
