@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 
 import { toast } from 'sonner';
 
-import type { GlobalQuestion, PositionQuestion } from '@/prisma/client';
+import type { QuestionType } from '@/prisma/client';
 
 import { cn } from '@/lib/utils';
 
@@ -13,8 +13,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 
+type QuestionShape = {
+  id: string;
+  label: string;
+  type: QuestionType;
+  required: boolean;
+  options: string[];
+};
+
 interface ApplicationQuestionProps {
-  question: GlobalQuestion | PositionQuestion;
+  question: QuestionShape;
   field: {
     value: string[];
     onChange: (value: string[]) => void;

@@ -34,11 +34,30 @@ export async function getPositions(
   });
 }
 
-export async function getPositionForApply(id: string) {
+export async function getPositionForApply(
+  id: string,
+): Promise<PositionWithQuestions | null> {
   return prisma.position.findUnique({
     where: { id, status: 'open', deletedAt: null },
-    include: {
-      questions: { where: { deletedAt: null }, orderBy: { order: 'asc' } },
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      description: true,
+      opensAt: true,
+      closesAt: true,
+      questions: {
+        where: { deletedAt: null },
+        orderBy: { order: 'asc' },
+        select: {
+          id: true,
+          label: true,
+          type: true,
+          required: true,
+          options: true,
+          order: true,
+        },
+      },
     },
   });
 }
