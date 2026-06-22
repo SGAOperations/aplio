@@ -68,7 +68,7 @@ export function PositionCreateDialog() {
         toast.error(result.error);
       } else {
         toast.success('Position created');
-        router.push(`/positions/${(result as { id: string }).id}/edit`);
+        router.push(`/positions/${result.id}/edit`);
       }
     });
   }

@@ -3,17 +3,9 @@ import 'server-only';
 import prisma from '@/lib/prisma';
 import { type PositionForEdit, type PositionWithQuestions } from '@/lib/types';
 
-export async function getOpenPositions(): Promise<PositionWithQuestions[]> {
-  return prisma.position.findMany({
-    where: { status: 'open', deletedAt: null },
-    include: {
-      questions: { where: { deletedAt: null }, orderBy: { order: 'asc' } },
-    },
-    orderBy: { title: 'asc' },
-  });
-}
-
-export async function getPositions(includeAll = false): Promise<PositionWithQuestions[]> {
+export async function getPositions(
+  includeAll = false,
+): Promise<PositionWithQuestions[]> {
   return prisma.position.findMany({
     where: includeAll
       ? { deletedAt: null }
@@ -42,9 +34,7 @@ export async function getPositions(includeAll = false): Promise<PositionWithQues
   });
 }
 
-export async function getPositionForApply(
-  id: string,
-): Promise<PositionWithQuestions | null> {
+export async function getPositionForApply(id: string) {
   return prisma.position.findUnique({
     where: { id, status: 'open', deletedAt: null },
     include: {

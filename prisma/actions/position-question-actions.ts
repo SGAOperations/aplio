@@ -64,24 +64,26 @@ export async function createPositionQuestion(
   const hasAccess = await checkAccess(positionId, user.id, user.isAdmin);
   if (!hasAccess) return { error: 'Unauthorized' };
 
-  const maxOrder = await prisma.positionQuestion.aggregate({
-    where: { positionId, deletedAt: null },
-    _max: { order: true },
-  });
+  const created = await prisma.$transaction(async (tx) => {
+    const maxOrder = await tx.positionQuestion.aggregate({
+      where: { positionId, deletedAt: null },
+      _max: { order: true },
+    });
 
-  const order = (maxOrder._max.order ?? 0) + 1;
+    const order = (maxOrder._max.order ?? 0) + 1;
 
-  const created = await prisma.positionQuestion.create({
-    data: {
-      positionId,
-      label,
-      type,
-      required,
-      order,
-      options,
-      createdById: user.id,
-      updatedById: user.id,
-    },
+    return tx.positionQuestion.create({
+      data: {
+        positionId,
+        label,
+        type,
+        required,
+        order,
+        options,
+        createdById: user.id,
+        updatedById: user.id,
+      },
+    });
   });
 
   revalidatePath(`/positions/${positionId}/edit`);
