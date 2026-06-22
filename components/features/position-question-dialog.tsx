@@ -13,13 +13,6 @@ import {
 
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -43,21 +36,14 @@ export interface RenderedQuestion {
   order: number;
 }
 
-interface PositionQuestionDialogProps {
-  positionId: string;
-  question?: RenderedQuestion;
-  trigger: React.ReactNode;
-  onSuccess: (question: RenderedQuestion) => void;
-}
-
-interface QuestionFormProps {
+export interface QuestionFormProps {
   positionId: string;
   question?: RenderedQuestion;
   onSuccess: (question: RenderedQuestion) => void;
   onClose: () => void;
 }
 
-function QuestionForm({
+export function QuestionForm({
   positionId,
   question,
   onSuccess,
@@ -222,41 +208,20 @@ function QuestionForm({
           />
         </div>
       )}
-      <Button type="submit" disabled={isPending} className="mt-2">
-        {isPending && <Loader2 className="animate-spin" />}
-        {question ? 'Save Changes' : 'Add Question'}
-      </Button>
+      <div className="flex gap-2">
+        <Button type="submit" disabled={isPending}>
+          {isPending && <Loader2 className="animate-spin" />}
+          {question ? 'Save Changes' : 'Add Question'}
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          disabled={isPending}
+          onClick={onClose}
+        >
+          Cancel
+        </Button>
+      </div>
     </form>
-  );
-}
-
-export function PositionQuestionDialog({
-  positionId,
-  question,
-  trigger,
-  onSuccess,
-}: PositionQuestionDialogProps) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            {question ? 'Edit Question' : 'Add Question'}
-          </DialogTitle>
-        </DialogHeader>
-        {open && (
-          <QuestionForm
-            key={question?.id ?? 'new'}
-            positionId={positionId}
-            question={question}
-            onSuccess={onSuccess}
-            onClose={() => setOpen(false)}
-          />
-        )}
-      </DialogContent>
-    </Dialog>
   );
 }

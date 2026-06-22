@@ -17,11 +17,17 @@ export function PositionEditTabs({
 }: PositionEditTabsProps) {
   return (
     <Tabs defaultValue="details">
-      <TabsList>
-        <TabsTrigger value="details">Details</TabsTrigger>
-        <TabsTrigger value="questions">Questions</TabsTrigger>
+      <TabsList className="w-full">
+        <TabsTrigger value="details" className="flex-1">
+          Details
+        </TabsTrigger>
+        <TabsTrigger value="questions" className="flex-1">
+          Questions
+        </TabsTrigger>
         {managersContent && (
-          <TabsTrigger value="managers">Managers</TabsTrigger>
+          <TabsTrigger value="managers" className="flex-1">
+            Managers
+          </TabsTrigger>
         )}
       </TabsList>
 
