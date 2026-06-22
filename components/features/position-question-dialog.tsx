@@ -5,23 +5,25 @@ import { useRef, useState, useTransition } from 'react';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-import type { QuestionType } from '@/prisma/client';
 import {
   createPositionQuestion,
   updatePositionQuestion,
-} from '@/prisma/services/position-question-actions';
+} from '@/prisma/actions/position-question-actions';
+import type { QuestionType } from '@/prisma/client';
+
+import { QUESTION_TYPE_OPTIONS } from '@/lib/constants';
 
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-
-const QUESTION_TYPE_OPTIONS: { value: QuestionType; label: string }[] = [
-  { value: 'short_answer', label: 'Short Answer' },
-  { value: 'long_answer', label: 'Long Answer' },
-  { value: 'single_choice', label: 'Single Choice' },
-  { value: 'multiple_choice', label: 'Multiple Choice' },
-];
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const CHOICE_TYPES: QuestionType[] = ['single_choice', 'multiple_choice'];
 
@@ -85,7 +87,7 @@ export function QuestionForm({
           required,
           options: filteredOptions,
         });
-        if (!result.ok) {
+        if (result && 'error' in result) {
           toast.error(result.error);
           return;
         }
@@ -108,19 +110,19 @@ export function QuestionForm({
           required,
           options: filteredOptions,
         });
-        if (!result.ok) {
+        if (result && 'error' in result) {
           toast.error(result.error);
           return;
         }
         toast.success('Question added');
         onClose();
         onSuccess({
-          id: result.data.id,
+          id: (result as { id: string; order: number }).id,
           positionId,
           label,
           type,
           required,
-          order: result.data.order,
+          order: (result as { id: string; order: number }).order,
           options: filteredOptions,
         });
       }
@@ -142,24 +144,26 @@ export function QuestionForm({
       </div>
       <div className="grid gap-2">
         <Label htmlFor="q-type">Type</Label>
-        <select
-          id="q-type"
+        <Select
           value={type}
-          onChange={(e) => {
-            setType(e.target.value as QuestionType);
+          onValueChange={(v) => {
+            setType(v as QuestionType);
             // Clear options when switching away from a choice type
-            if (!CHOICE_TYPES.includes(e.target.value as QuestionType))
-              setOptions([]);
+            if (!CHOICE_TYPES.includes(v as QuestionType)) setOptions([]);
           }}
           disabled={isPending}
-          className="border-input bg-background placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {QUESTION_TYPE_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger id="q-type">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {QUESTION_TYPE_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <div className="flex items-center gap-2">
         <Checkbox

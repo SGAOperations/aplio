@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 
-import { getPositionForEdit } from '@/prisma/services/positions';
+import { getPositionForEdit } from '@/prisma/data/positions';
 
 import { getCurrentUser } from '@/lib/auth/server';
 

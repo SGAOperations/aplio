@@ -5,24 +5,12 @@ import { useState } from 'react';
 
 import { ChevronDown, ChevronUp, Pencil } from 'lucide-react';
 
-import type { PositionStatus } from '@/prisma/client';
-
+import { STATUS_LABELS, STATUS_VARIANTS } from '@/lib/constants';
 import type { PositionWithQuestions } from '@/lib/types';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-
-const STATUS_LABELS: Record<PositionStatus, string> = {
-  draft: 'Draft',
-  open: 'Open',
-  closed: 'Closed',
-};
-
-const STATUS_VARIANTS: Record<
-  PositionStatus,
-  'default' | 'secondary' | 'destructive' | 'outline'
-> = { draft: 'secondary', open: 'default', closed: 'outline' };
 
 interface PositionCardProps {
   position: PositionWithQuestions;

@@ -1,4 +1,4 @@
-import { getPositions } from '@/prisma/services/positions';
+import { getPositions } from '@/prisma/data/positions';
 
 import { getCurrentUser } from '@/lib/auth/server';
 

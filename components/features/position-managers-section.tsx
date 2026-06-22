@@ -9,8 +9,9 @@ import {
   addPositionManager,
   removePositionManager,
   searchUsers,
-} from '@/prisma/services/position-actions';
-import type { PositionManager } from '@/prisma/services/positions';
+} from '@/prisma/actions/position-actions';
+
+import type { PositionManager } from '@/lib/types';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -70,7 +71,9 @@ export function PositionManagersSection({
     startTransition(async () => {
       const result = await addPositionManager({ positionId, userId: user.id });
 
-      if (result.ok) {
+      if (result && 'error' in result) {
+        toast.error(result.error);
+      } else {
         setManagers((prev) => [
           ...prev,
           { id: user.id, name: user.displayName, email: user.primaryEmail },
@@ -78,8 +81,6 @@ export function PositionManagersSection({
         setResults([]);
         setQuery('');
         toast.success('Manager added');
-      } else {
-        toast.error(result.error);
       }
       setAddingId(null);
     });
@@ -90,11 +91,11 @@ export function PositionManagersSection({
     startTransition(async () => {
       const result = await removePositionManager({ positionId, userId });
 
-      if (result.ok) {
+      if (result && 'error' in result) {
+        toast.error(result.error);
+      } else {
         setManagers((prev) => prev.filter((m) => m.id !== userId));
         toast.success('Manager removed');
-      } else {
-        toast.error(result.error);
       }
       setRemovingId(null);
     });

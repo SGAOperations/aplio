@@ -6,8 +6,10 @@ import { useState, useTransition } from 'react';
 import { Loader2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { createPosition } from '@/prisma/actions/position-actions';
 import type { PositionStatus } from '@/prisma/client';
-import { createPosition } from '@/prisma/services/position-actions';
+
+import { STATUS_OPTIONS } from '@/lib/constants';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -19,13 +21,14 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-
-const STATUS_OPTIONS: { value: PositionStatus; label: string }[] = [
-  { value: 'draft', label: 'Draft' },
-  { value: 'open', label: 'Open' },
-  { value: 'closed', label: 'Closed' },
-];
 
 export function PositionCreateDialog() {
   const router = useRouter();
@@ -61,11 +64,11 @@ export function PositionCreateDialog() {
         opensAt: opensAt || undefined,
         closesAt: closesAt || undefined,
       });
-      if (result.ok) {
-        toast.success('Position created');
-        router.push(`/positions/${result.data.id}/edit`);
-      } else {
+      if (result && 'error' in result) {
         toast.error(result.error);
+      } else {
+        toast.success('Position created');
+        router.push(`/positions/${(result as { id: string }).id}/edit`);
       }
     });
   }
@@ -107,25 +110,28 @@ export function PositionCreateDialog() {
           </div>
           <div className="grid gap-2">
             <Label htmlFor="create-status">Status</Label>
-            <select
-              id="create-status"
+            <Select
               value={status}
-              onChange={(e) => setStatus(e.target.value as PositionStatus)}
+              onValueChange={(v) => setStatus(v as PositionStatus)}
               disabled={isPending}
-              className="border-input bg-background placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger id="create-status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="create-opens-at">Opens at (optional)</Label>
             <Input
               id="create-opens-at"
-              type="date"
+              type="datetime-local"
               value={opensAt}
               onChange={(e) => setOpensAt(e.target.value)}
               disabled={isPending}
@@ -135,7 +141,7 @@ export function PositionCreateDialog() {
             <Label htmlFor="create-closes-at">Closes at (optional)</Label>
             <Input
               id="create-closes-at"
-              type="date"
+              type="datetime-local"
               value={closesAt}
               onChange={(e) => setClosesAt(e.target.value)}
               disabled={isPending}

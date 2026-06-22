@@ -5,7 +5,9 @@ import { useState, useTransition } from 'react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { deletePositionQuestion } from '@/prisma/services/position-question-actions';
+import { deletePositionQuestion } from '@/prisma/actions/position-question-actions';
+
+import { QUESTION_TYPE_LABELS } from '@/lib/constants';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -14,13 +16,6 @@ import {
   QuestionForm,
   type RenderedQuestion,
 } from './position-question-dialog';
-
-const QUESTION_TYPE_LABELS: Record<string, string> = {
-  short_answer: 'Short Answer',
-  long_answer: 'Long Answer',
-  single_choice: 'Single Choice',
-  multiple_choice: 'Multiple Choice',
-};
 
 interface PositionQuestionsSectionProps {
   positionId: string;
@@ -51,11 +46,11 @@ export function PositionQuestionsSection({
     setDeletingId(id);
     startTransition(async () => {
       const result = await deletePositionQuestion({ id, positionId });
-      if (result.ok) {
+      if (result && 'error' in result) {
+        toast.error(result.error);
+      } else {
         setQuestions((prev) => prev.filter((q) => q.id !== id));
         toast.success('Question deleted');
-      } else {
-        toast.error(result.error);
       }
       setDeletingId(null);
     });

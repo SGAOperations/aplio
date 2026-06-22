@@ -5,12 +5,21 @@ import { useTransition } from 'react';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { updatePosition } from '@/prisma/actions/position-actions';
 import type { PositionStatus } from '@/prisma/client';
-import { updatePosition } from '@/prisma/services/position-actions';
+
+import { STATUS_OPTIONS } from '@/lib/constants';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 
 interface PositionDetailsFormProps {
@@ -23,12 +32,6 @@ interface PositionDetailsFormProps {
     closesAt: string | null;
   };
 }
-
-const STATUS_OPTIONS: { value: PositionStatus; label: string }[] = [
-  { value: 'draft', label: 'Draft' },
-  { value: 'open', label: 'Open' },
-  { value: 'closed', label: 'Closed' },
-];
 
 export function PositionDetailsForm({ position }: PositionDetailsFormProps) {
   const [isPending, startTransition] = useTransition();
@@ -52,10 +55,10 @@ export function PositionDetailsForm({ position }: PositionDetailsFormProps) {
         closesAt: closesAt || undefined,
       });
 
-      if (result.ok) {
-        toast.success('Position updated');
-      } else {
+      if (result && 'error' in result) {
         toast.error(result.error);
+      } else {
+        toast.success('Position updated');
       }
     });
   }
@@ -89,19 +92,22 @@ export function PositionDetailsForm({ position }: PositionDetailsFormProps) {
       </div>
       <div className="grid gap-2">
         <Label htmlFor="status">Status</Label>
-        <select
-          id="status"
-          name="status"
+        <Select
           defaultValue={position.status}
+          name="status"
           disabled={isPending}
-          className="border-input bg-background placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {STATUS_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger id="status">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {STATUS_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <div className="grid gap-2 sm:grid-cols-2">
         <div className="grid gap-2">

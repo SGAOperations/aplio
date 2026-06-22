@@ -40,12 +40,12 @@ const removePositionManagerSchema = z.object({
 
 export async function createPosition(
   input: unknown,
-): Promise<{ ok: true; data: { id: string } } | { ok: false; error: string }> {
+): Promise<{ id: string } | { error: string }> {
   const user = await getCurrentUser();
-  if (!user.isAdmin) return { ok: false, error: 'Unauthorized' };
+  if (!user.isAdmin) return { error: 'Unauthorized' };
 
   const parsed = createPositionSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: 'Invalid input' };
+  if (!parsed.success) return { error: 'Invalid input' };
 
   const { title, description, status, opensAt, closesAt } = parsed.data;
 
@@ -63,16 +63,16 @@ export async function createPosition(
   });
 
   revalidatePath('/positions');
-  return { ok: true, data: { id: position.id } };
+  return { id: position.id };
 }
 
 export async function updatePosition(
   input: unknown,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<void | { error: string }> {
   const user = await getCurrentUser();
 
   const parsed = updatePositionSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: 'Invalid input' };
+  if (!parsed.success) return { error: 'Invalid input' };
 
   const { id, title, description, status, opensAt, closesAt } = parsed.data;
 
@@ -81,10 +81,10 @@ export async function updatePosition(
     include: { managers: { where: { id: user.id } } },
   });
 
-  if (!position) return { ok: false, error: 'Position not found' };
+  if (!position) return { error: 'Position not found' };
 
   const isManager = position.managers.length > 0;
-  if (!user.isAdmin && !isManager) return { ok: false, error: 'Unauthorized' };
+  if (!user.isAdmin && !isManager) return { error: 'Unauthorized' };
 
   await prisma.position.update({
     where: { id },
@@ -101,17 +101,16 @@ export async function updatePosition(
   revalidatePath('/positions');
   revalidatePath(`/positions/${id}`);
   revalidatePath(`/positions/${id}/edit`);
-  return { ok: true };
 }
 
 export async function deletePosition(
   input: unknown,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<void | { error: string }> {
   const user = await getCurrentUser();
-  if (!user.isAdmin) return { ok: false, error: 'Unauthorized' };
+  if (!user.isAdmin) return { error: 'Unauthorized' };
 
   const parsed = deletePositionSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: 'Invalid input' };
+  if (!parsed.success) return { error: 'Invalid input' };
 
   const { id } = parsed.data;
 
@@ -120,20 +119,19 @@ export async function deletePosition(
     data: { deletedAt: new Date(), deletedById: user.id },
   });
 
-  if (deleteResult.count === 0) return { ok: false, error: 'Not found' };
+  if (deleteResult.count === 0) return { error: 'Not found' };
 
   revalidatePath('/positions');
-  return { ok: true };
 }
 
 export async function addPositionManager(
   input: unknown,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<void | { error: string }> {
   const user = await getCurrentUser();
-  if (!user.isAdmin) return { ok: false, error: 'Unauthorized' };
+  if (!user.isAdmin) return { error: 'Unauthorized' };
 
   const parsed = addPositionManagerSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: 'Invalid input' };
+  if (!parsed.success) return { error: 'Invalid input' };
 
   const { positionId, userId } = parsed.data;
 
@@ -141,7 +139,7 @@ export async function addPositionManager(
     where: { id: positionId, deletedAt: null },
     select: { id: true },
   });
-  if (!addPosition) return { ok: false, error: 'Not found' };
+  if (!addPosition) return { error: 'Not found' };
 
   await prisma.position.update({
     where: { id: positionId },
@@ -149,17 +147,16 @@ export async function addPositionManager(
   });
 
   revalidatePath(`/positions/${positionId}/edit`);
-  return { ok: true };
 }
 
 export async function removePositionManager(
   input: unknown,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<void | { error: string }> {
   const user = await getCurrentUser();
-  if (!user.isAdmin) return { ok: false, error: 'Unauthorized' };
+  if (!user.isAdmin) return { error: 'Unauthorized' };
 
   const parsed = removePositionManagerSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: 'Invalid input' };
+  if (!parsed.success) return { error: 'Invalid input' };
 
   const { positionId, userId } = parsed.data;
 
@@ -167,7 +164,7 @@ export async function removePositionManager(
     where: { id: positionId, deletedAt: null },
     select: { id: true },
   });
-  if (!removePosition) return { ok: false, error: 'Not found' };
+  if (!removePosition) return { error: 'Not found' };
 
   await prisma.position.update({
     where: { id: positionId },
@@ -175,7 +172,6 @@ export async function removePositionManager(
   });
 
   revalidatePath(`/positions/${positionId}/edit`);
-  return { ok: true };
 }
 
 const searchUsersSchema = z.object({ query: z.string().max(200) });
