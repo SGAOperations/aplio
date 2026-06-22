@@ -5,22 +5,37 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 
-import { BriefcaseBusiness, FileText, Menu, Users } from 'lucide-react';
+import {
+  BriefcaseBusiness,
+  ClipboardList,
+  FileText,
+  Menu,
+  Users,
+} from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 
-const navItems = [
+const baseNavItems = [
   { href: '/positions', label: 'Positions', icon: BriefcaseBusiness },
   { href: '/applications', label: 'Applications', icon: FileText },
   { href: '/users', label: 'Users', icon: Users },
 ];
 
-export function MobileNav() {
+const adminNavItems = [
+  { href: '/global-questions', label: 'Global Questions', icon: ClipboardList },
+];
+
+interface MobileNavProps {
+  isAdmin: boolean;
+}
+
+export function MobileNav({ isAdmin }: MobileNavProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const navItems = isAdmin ? [...baseNavItems, ...adminNavItems] : baseNavItems;
 
   return (
     <header className="bg-sidebar border-sidebar-border flex h-14 items-center border-b px-4 md:hidden">

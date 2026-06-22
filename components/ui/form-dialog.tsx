@@ -57,13 +57,19 @@ function FormDialog<
   async function handleSubmit(data: TOutput) {
     const success = await onSubmit(data);
     if (success) {
-      form.reset();
+      form.reset(defaultValues);
       setOpen(false);
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (v) form.reset(defaultValues);
+      }}
+    >
       <DialogTrigger asChild>{trigger}</DialogTrigger>
 
       <DialogContent>
