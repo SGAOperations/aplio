@@ -8,34 +8,36 @@ import { getCurrentUser } from '@/lib/auth/server';
 import { CHOICE_TYPES, baseQuestionSchema } from '@/lib/constants';
 import prisma from '@/lib/prisma';
 
-const createSchema = baseQuestionSchema.superRefine((data, ctx) => {
+function validateOptions(
+  data: { type: string; options: string[] },
+  ctx: z.RefinementCtx,
+) {
+  const isChoice = CHOICE_TYPES.includes(
+    data.type as (typeof CHOICE_TYPES)[number],
+  );
   // Choice-type questions must have at least one option.
-  if (
-    CHOICE_TYPES.includes(data.type as (typeof CHOICE_TYPES)[number]) &&
-    data.options.length === 0
-  ) {
+  if (isChoice && data.options.length === 0) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['options'],
       message: 'At least one option is required for choice questions',
     });
   }
-});
+  // Non-choice questions must not carry options — prevents orphaned data (R3-M1).
+  if (!isChoice && data.options.length > 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['options'],
+      message: 'Options are not allowed for this question type',
+    });
+  }
+}
+
+const createSchema = baseQuestionSchema.superRefine(validateOptions);
 
 const updateSchema = baseQuestionSchema
   .extend({ id: z.string().min(1, 'ID is required') })
-  .superRefine((data, ctx) => {
-    if (
-      CHOICE_TYPES.includes(data.type as (typeof CHOICE_TYPES)[number]) &&
-      data.options.length === 0
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['options'],
-        message: 'At least one option is required for choice questions',
-      });
-    }
-  });
+  .superRefine(validateOptions);
 
 const deleteSchema = z.object({ id: z.string().min(1, 'ID is required') });
 

@@ -40,20 +40,65 @@ import {
 type ChoiceType = (typeof CHOICE_TYPES)[number];
 
 const questionSchema = baseQuestionSchema.superRefine((data, ctx) => {
+  const isChoice = CHOICE_TYPES.includes(data.type as ChoiceType);
   // Choice-type questions must have at least one option.
-  if (
-    CHOICE_TYPES.includes(data.type as ChoiceType) &&
-    data.options.length === 0
-  ) {
+  if (isChoice && data.options.length === 0) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['options'],
       message: 'At least one option is required for choice questions',
     });
   }
+  // Non-choice questions must not carry options — prevents orphaned data (R3-M1).
+  if (!isChoice && data.options.length > 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['options'],
+      message: 'Options are not allowed for this question type',
+    });
+  }
 });
 
 type QuestionFormValues = z.infer<typeof questionSchema>;
+
+function TypeField() {
+  const { control, setValue } = useFormContext<QuestionFormValues>();
+  return (
+    <FormField
+      control={control}
+      name="type"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Type</FormLabel>
+          <Select
+            onValueChange={(v) => {
+              field.onChange(v);
+              // Clear stale options when switching to a non-choice type so they
+              // are not persisted to the DB (R3-M1).
+              if (!CHOICE_TYPES.includes(v as ChoiceType))
+                setValue('options', []);
+            }}
+            value={field.value}
+          >
+            <FormControl>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a type" />
+              </SelectTrigger>
+            </FormControl>
+            <SelectContent>
+              {QUESTION_TYPE_VALUES.map((t) => (
+                <SelectItem key={t} value={t}>
+                  {QUESTION_TYPE_LABELS[t]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+}
 
 function OptionsField() {
   const { control, setValue, getValues } = useFormContext<QuestionFormValues>();
@@ -174,29 +219,7 @@ export function GlobalQuestionDialog({
         )}
       />
 
-      <FormField
-        name="type"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Type</FormLabel>
-            <Select onValueChange={field.onChange} value={field.value}>
-              <FormControl>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a type" />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {QUESTION_TYPE_VALUES.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {QUESTION_TYPE_LABELS[t]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      <TypeField />
 
       <FormField
         name="required"
