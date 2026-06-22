@@ -5,9 +5,8 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod/v4';
 
 import { getCurrentUser } from '@/lib/auth/server';
+import { CHOICE_TYPES, baseQuestionSchema } from '@/lib/constants';
 import prisma from '@/lib/prisma';
-
-import { CHOICE_TYPES, baseQuestionSchema } from './global-question-constants';
 
 const createSchema = baseQuestionSchema.superRefine((data, ctx) => {
   // Choice-type questions must have at least one option.
@@ -40,11 +39,6 @@ const updateSchema = baseQuestionSchema
 
 const deleteSchema = z.object({ id: z.string().min(1, 'ID is required') });
 
-const reorderSchema = z.object({
-  id: z.string().min(1, 'ID is required'),
-  direction: z.enum(['up', 'down']),
-});
-
 type ActionError = { error: string };
 
 export async function createGlobalQuestion(
@@ -73,7 +67,7 @@ export async function createGlobalQuestion(
         label,
         type,
         required,
-        options: options,
+        options,
         order: maxOrder + 1,
         createdById: user.id,
         updatedById: user.id,
@@ -82,6 +76,7 @@ export async function createGlobalQuestion(
   });
 
   revalidatePath('/global-questions');
+  // /profile will consume global questions once the profile route is built (#TODO).
   revalidatePath('/profile');
 }
 
@@ -105,10 +100,11 @@ export async function updateGlobalQuestion(
 
   await prisma.globalQuestion.update({
     where: { id },
-    data: { label, type, required, options: options, updatedById: user.id },
+    data: { label, type, required, options, updatedById: user.id },
   });
 
   revalidatePath('/global-questions');
+  // /profile will consume global questions once the profile route is built (#TODO).
   revalidatePath('/profile');
 }
 
@@ -135,53 +131,6 @@ export async function deleteGlobalQuestion(
   });
 
   revalidatePath('/global-questions');
-  revalidatePath('/profile');
-}
-
-export async function reorderGlobalQuestion(
-  input: unknown,
-): Promise<ActionError | void> {
-  const user = await getCurrentUser();
-  if (!user.isAdmin) return { error: 'Forbidden' };
-
-  const parsed = reorderSchema.safeParse(input);
-  if (!parsed.success) return { error: 'Invalid input' };
-
-  const { id, direction } = parsed.data;
-
-  // Swap the order values of the target question and its neighbour in a
-  // transaction to keep order values consistent under concurrent moves.
-  let swapped = false;
-  await prisma.$transaction(async (tx) => {
-    const target = await tx.globalQuestion.findFirst({
-      where: { id, deletedAt: null },
-      select: { id: true, order: true },
-    });
-    if (!target) return;
-
-    const neighbour = await tx.globalQuestion.findFirst({
-      where: {
-        deletedAt: null,
-        order: direction === 'up' ? { lt: target.order } : { gt: target.order },
-      },
-      select: { id: true, order: true },
-      orderBy: { order: direction === 'up' ? 'desc' : 'asc' },
-    });
-    if (!neighbour) return;
-
-    await tx.globalQuestion.update({
-      where: { id: target.id },
-      data: { order: neighbour.order, updatedById: user.id },
-    });
-    await tx.globalQuestion.update({
-      where: { id: neighbour.id },
-      data: { order: target.order, updatedById: user.id },
-    });
-    swapped = true;
-  });
-
-  if (!swapped) return { error: 'Not found' };
-
-  revalidatePath('/global-questions');
+  // /profile will consume global questions once the profile route is built (#TODO).
   revalidatePath('/profile');
 }

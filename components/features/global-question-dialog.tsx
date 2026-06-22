@@ -9,14 +9,15 @@ import { z } from 'zod/v4';
 import {
   createGlobalQuestion,
   updateGlobalQuestion,
-} from '@/prisma/services/global-question-actions';
+} from '@/prisma/actions/global-questions';
+
 import {
   CHOICE_TYPES,
   QUESTION_TYPE_LABELS,
   QUESTION_TYPE_VALUES,
   baseQuestionSchema,
-} from '@/prisma/services/global-question-constants';
-import type { GlobalQuestionListItem } from '@/prisma/services/global-question-types';
+} from '@/lib/constants';
+import type { GlobalQuestionListItem } from '@/lib/types';
 
 import { Checkbox } from '@/components/ui/checkbox';
 import {

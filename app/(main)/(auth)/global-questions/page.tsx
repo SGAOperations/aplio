@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 
-import { getGlobalQuestions } from '@/prisma/services/global-questions';
+import { getGlobalQuestions } from '@/prisma/data/global-questions';
 
 import { getCurrentUser } from '@/lib/auth/server';
 

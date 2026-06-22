@@ -2,15 +2,12 @@
 
 import { useState } from 'react';
 
-import { ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
 
-import {
-  deleteGlobalQuestion,
-  reorderGlobalQuestion,
-} from '@/prisma/services/global-question-actions';
-import { QUESTION_TYPE_LABELS } from '@/prisma/services/global-question-constants';
-import type { GlobalQuestionListItem } from '@/prisma/services/global-question-types';
+import { deleteGlobalQuestion } from '@/prisma/actions/global-questions';
+
+import { QUESTION_TYPE_LABELS } from '@/lib/constants';
+import type { GlobalQuestionListItem } from '@/lib/types';
 
 import { GlobalQuestionDialog } from '@/components/features/global-question-dialog';
 import { Button } from '@/components/ui/button';
@@ -30,7 +27,6 @@ interface GlobalQuestionsTableProps {
 export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [movingId, setMovingId] = useState<string | null>(null);
 
   async function handleDelete() {
     if (!deletingId) return;
@@ -43,13 +39,6 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
     }
     toast.success('Question deleted');
     setDeletingId(null);
-  }
-
-  async function handleMove(id: string, direction: 'up' | 'down') {
-    setMovingId(id);
-    const result = await reorderGlobalQuestion({ id, direction });
-    setMovingId(null);
-    if (result?.error) toast.error(result.error);
   }
 
   if (questions.length === 0)
@@ -75,36 +64,9 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
             </tr>
           </thead>
           <tbody className="divide-y">
-            {questions.map((question, index) => (
+            {questions.map((question) => (
               <tr key={question.id} className="hover:bg-muted/30">
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-1">
-                    <span className="w-6 text-center">{question.order}</span>
-                    <div className="flex flex-col">
-                      <button
-                        type="button"
-                        aria-label="Move up"
-                        disabled={index === 0 || movingId === question.id}
-                        onClick={() => handleMove(question.id, 'up')}
-                        className="hover:text-foreground text-muted-foreground disabled:opacity-30"
-                      >
-                        <ChevronUp className="h-3 w-3" />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label="Move down"
-                        disabled={
-                          index === questions.length - 1 ||
-                          movingId === question.id
-                        }
-                        onClick={() => handleMove(question.id, 'down')}
-                        className="hover:text-foreground text-muted-foreground disabled:opacity-30"
-                      >
-                        <ChevronDown className="h-3 w-3" />
-                      </button>
-                    </div>
-                  </div>
-                </td>
+                <td className="px-4 py-3">{question.order}</td>
                 <td className="px-4 py-3 font-medium">{question.label}</td>
                 <td className="text-muted-foreground px-4 py-3">
                   {QUESTION_TYPE_LABELS[question.type]}

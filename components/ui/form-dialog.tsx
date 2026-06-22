@@ -54,11 +54,12 @@ function FormDialog<
   const form = useForm({ resolver: zodResolver(schema), defaultValues });
   const isSubmitting = form.formState.isSubmitting;
 
-  // Keep a ref in sync with the latest defaultValues on every render so the
-  // effect below can read the current value without listing the unstable object
-  // identity as a dependency.
+  // Keep a ref in sync with the latest defaultValues so the effect below can
+  // read the current value without listing the unstable object identity as a
+  // dependency. useLayoutEffect (not useEffect) avoids a render-phase write
+  // while still running synchronously before the browser paints.
   const defaultValuesRef = React.useRef(defaultValues);
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     defaultValuesRef.current = defaultValues;
   });
 
