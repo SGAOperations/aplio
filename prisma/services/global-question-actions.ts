@@ -7,19 +7,25 @@ import { z } from 'zod/v4';
 import { getCurrentUser } from '@/lib/auth/server';
 import prisma from '@/lib/prisma';
 
-import { QUESTION_TYPE_VALUES } from './global-question-constants';
+import { CHOICE_TYPES, baseQuestionSchema } from './global-question-constants';
 
-const CHOICE_TYPES = ['single_choice', 'multiple_choice'] as const;
+const createSchema = baseQuestionSchema.superRefine((data, ctx) => {
+  // Choice-type questions must have at least one option.
+  if (
+    CHOICE_TYPES.includes(data.type as (typeof CHOICE_TYPES)[number]) &&
+    data.options.length === 0
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['options'],
+      message: 'At least one option is required for choice questions',
+    });
+  }
+});
 
-const createSchema = z
-  .object({
-    label: z.string().min(1, 'Label is required'),
-    type: z.enum(QUESTION_TYPE_VALUES),
-    required: z.boolean(),
-    options: z.array(z.string()),
-  })
+const updateSchema = baseQuestionSchema
+  .extend({ id: z.string().min(1, 'ID is required') })
   .superRefine((data, ctx) => {
-    // Choice-type questions must have at least one option.
     if (
       CHOICE_TYPES.includes(data.type as (typeof CHOICE_TYPES)[number]) &&
       data.options.length === 0
@@ -32,10 +38,6 @@ const createSchema = z
     }
   });
 
-const updateSchema = createSchema.extend({
-  id: z.string().min(1, 'ID is required'),
-});
-
 const deleteSchema = z.object({ id: z.string().min(1, 'ID is required') });
 
 const reorderSchema = z.object({
@@ -43,20 +45,17 @@ const reorderSchema = z.object({
   direction: z.enum(['up', 'down']),
 });
 
-type ActionResult = { ok: true } | { ok: false; error: string };
+type ActionError = { error: string };
 
 export async function createGlobalQuestion(
   input: unknown,
-): Promise<ActionResult> {
+): Promise<ActionError | void> {
   const user = await getCurrentUser();
-  if (!user.isAdmin) return { ok: false, error: 'Forbidden' };
+  if (!user.isAdmin) return { error: 'Forbidden' };
 
   const parsed = createSchema.safeParse(input);
   if (!parsed.success)
-    return {
-      ok: false,
-      error: parsed.error.issues[0]?.message ?? 'Invalid input',
-    };
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid input' };
 
   const { label, type, required, options } = parsed.data;
 
@@ -84,21 +83,17 @@ export async function createGlobalQuestion(
 
   revalidatePath('/global-questions');
   revalidatePath('/profile');
-  return { ok: true };
 }
 
 export async function updateGlobalQuestion(
   input: unknown,
-): Promise<ActionResult> {
+): Promise<ActionError | void> {
   const user = await getCurrentUser();
-  if (!user.isAdmin) return { ok: false, error: 'Forbidden' };
+  if (!user.isAdmin) return { error: 'Forbidden' };
 
   const parsed = updateSchema.safeParse(input);
   if (!parsed.success)
-    return {
-      ok: false,
-      error: parsed.error.issues[0]?.message ?? 'Invalid input',
-    };
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid input' };
 
   const { id, label, type, required, options } = parsed.data;
 
@@ -106,7 +101,7 @@ export async function updateGlobalQuestion(
     where: { id, deletedAt: null },
     select: { id: true },
   });
-  if (!question) return { ok: false, error: 'Not found' };
+  if (!question) return { error: 'Not found' };
 
   await prisma.globalQuestion.update({
     where: { id },
@@ -115,17 +110,16 @@ export async function updateGlobalQuestion(
 
   revalidatePath('/global-questions');
   revalidatePath('/profile');
-  return { ok: true };
 }
 
 export async function deleteGlobalQuestion(
   input: unknown,
-): Promise<ActionResult> {
+): Promise<ActionError | void> {
   const user = await getCurrentUser();
-  if (!user.isAdmin) return { ok: false, error: 'Forbidden' };
+  if (!user.isAdmin) return { error: 'Forbidden' };
 
   const parsed = deleteSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: 'Invalid input' };
+  if (!parsed.success) return { error: 'Invalid input' };
 
   const { id } = parsed.data;
 
@@ -133,7 +127,7 @@ export async function deleteGlobalQuestion(
     where: { id, deletedAt: null },
     select: { id: true },
   });
-  if (!question) return { ok: false, error: 'Not found' };
+  if (!question) return { error: 'Not found' };
 
   await prisma.globalQuestion.update({
     where: { id },
@@ -142,17 +136,16 @@ export async function deleteGlobalQuestion(
 
   revalidatePath('/global-questions');
   revalidatePath('/profile');
-  return { ok: true };
 }
 
 export async function reorderGlobalQuestion(
   input: unknown,
-): Promise<ActionResult> {
+): Promise<ActionError | void> {
   const user = await getCurrentUser();
-  if (!user.isAdmin) return { ok: false, error: 'Forbidden' };
+  if (!user.isAdmin) return { error: 'Forbidden' };
 
   const parsed = reorderSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: 'Invalid input' };
+  if (!parsed.success) return { error: 'Invalid input' };
 
   const { id, direction } = parsed.data;
 
@@ -187,9 +180,8 @@ export async function reorderGlobalQuestion(
     swapped = true;
   });
 
-  if (!swapped) return { ok: false, error: 'Not found' };
+  if (!swapped) return { error: 'Not found' };
 
   revalidatePath('/global-questions');
   revalidatePath('/profile');
-  return { ok: true };
 }

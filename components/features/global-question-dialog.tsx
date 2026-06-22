@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 
+import { toast } from 'sonner';
 import { z } from 'zod/v4';
 
 import {
@@ -10,8 +11,10 @@ import {
   updateGlobalQuestion,
 } from '@/prisma/services/global-question-actions';
 import {
+  CHOICE_TYPES,
   QUESTION_TYPE_LABELS,
   QUESTION_TYPE_VALUES,
+  baseQuestionSchema,
 } from '@/prisma/services/global-question-constants';
 import type { GlobalQuestionListItem } from '@/prisma/services/global-question-types';
 
@@ -33,29 +36,21 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-const CHOICE_TYPES = ['single_choice', 'multiple_choice'] as const;
 type ChoiceType = (typeof CHOICE_TYPES)[number];
 
-const questionSchema = z
-  .object({
-    label: z.string().min(1, 'Label is required'),
-    type: z.enum(QUESTION_TYPE_VALUES),
-    required: z.boolean(),
-    options: z.array(z.string()),
-  })
-  .superRefine((data, ctx) => {
-    // Choice-type questions must have at least one option.
-    if (
-      CHOICE_TYPES.includes(data.type as ChoiceType) &&
-      data.options.length === 0
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['options'],
-        message: 'At least one option is required for choice questions',
-      });
-    }
-  });
+const questionSchema = baseQuestionSchema.superRefine((data, ctx) => {
+  // Choice-type questions must have at least one option.
+  if (
+    CHOICE_TYPES.includes(data.type as ChoiceType) &&
+    data.options.length === 0
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['options'],
+      message: 'At least one option is required for choice questions',
+    });
+  }
+});
 
 type QuestionFormValues = z.infer<typeof questionSchema>;
 
@@ -148,7 +143,12 @@ export function GlobalQuestionDialog({
     const result = isEditing
       ? await updateGlobalQuestion({ ...data, id: question.id })
       : await createGlobalQuestion(data);
-    return result.ok;
+    if (result?.error) {
+      toast.error(result.error);
+      return false;
+    }
+    toast.success(isEditing ? 'Question updated' : 'Question created');
+    return true;
   }
 
   return (

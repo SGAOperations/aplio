@@ -37,7 +37,7 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
     setIsDeleting(true);
     const result = await deleteGlobalQuestion({ id: deletingId });
     setIsDeleting(false);
-    if (!result.ok) {
+    if (result?.error) {
       toast.error(result.error);
       return;
     }
@@ -49,7 +49,7 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
     setMovingId(id);
     const result = await reorderGlobalQuestion({ id, direction });
     setMovingId(null);
-    if (!result.ok) toast.error(result.error);
+    if (result?.error) toast.error(result.error);
   }
 
   if (questions.length === 0)
