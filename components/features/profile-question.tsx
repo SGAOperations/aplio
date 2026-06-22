@@ -1,9 +1,12 @@
 'use client';
 
+import { useRef } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import { updateGlobalAnswer } from '@/prisma/actions/profile';
 import type { GlobalAnswer, GlobalQuestion } from '@/prisma/client';
+
+import { isError } from '@/lib/utils';
 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,31 +15,37 @@ import { Textarea } from '@/components/ui/textarea';
 interface ProfileQuestionProps {
   question: GlobalQuestion;
   answer: GlobalAnswer | null;
-  userId: string;
   isEditing: boolean;
 }
 
 export function ProfileQuestion({
   question,
   answer,
-  userId,
   isEditing,
 }: ProfileQuestionProps) {
-  const { control, formState, getValues, reset } = useForm<{ value: string[] }>(
-    { defaultValues: { value: answer?.value ?? [] } },
-  );
+  const initialValue = (
+    Array.isArray(answer?.value) ? answer.value : []
+  ) as string[];
+  const { control, getValues, reset } = useForm<{ value: string[] }>({
+    defaultValues: { value: initialValue },
+  });
+  // Tracks the last saved serialized value to avoid redundant server calls.
+  const savedValueRef = useRef(JSON.stringify(initialValue));
 
   async function save(value: string[]) {
+    const serialized = JSON.stringify(value);
+    if (serialized === savedValueRef.current) return;
     try {
-      await updateGlobalAnswer(userId, question.id, value);
+      const result = await updateGlobalAnswer(question.id, value);
+      if (isError(result)) throw new Error(result.error);
+      savedValueRef.current = serialized;
       reset({ value });
     } catch {
-      // silent — autosave is best-effort
+      // silent — autosave is best-effort; savedValueRef is not advanced on failure so retries work
     }
   }
 
-  async function handleBlur() {
-    if (!formState.isDirty) return;
+  function handleBlur() {
     save(getValues('value'));
   }
 

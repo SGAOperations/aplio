@@ -9,10 +9,9 @@ import { Button } from '@/components/ui/button';
 
 interface ProfileFormProps {
   profileData: { question: GlobalQuestion; answer: GlobalAnswer | null }[];
-  userId: string;
 }
 
-export function ProfileForm({ profileData, userId }: ProfileFormProps) {
+export function ProfileForm({ profileData }: ProfileFormProps) {
   const [isEditing, setIsEditing] = useState(false);
 
   return (
@@ -33,7 +32,6 @@ export function ProfileForm({ profileData, userId }: ProfileFormProps) {
             key={question.id}
             question={question}
             answer={answer}
-            userId={userId}
             isEditing={isEditing}
           />
         ))}

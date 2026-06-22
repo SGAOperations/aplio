@@ -18,3 +18,8 @@ export function isError<T>(result: ResponseType<T>): result is ErrorType {
     'error' in result
   );
 }
+
+export function toStringArray(v: unknown): string[] {
+  if (Array.isArray(v) && v.every((x) => typeof x === 'string')) return v;
+  return [];
+}

@@ -1,5 +1,9 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
+
+import { z } from 'zod';
+
 import type {
   Application,
   GlobalAnswer,
@@ -8,45 +12,75 @@ import type {
   PositionApplicationAnswer,
 } from '@/prisma/client';
 
+import { getCurrentUser } from '@/lib/auth/server';
 import prisma from '@/lib/prisma';
-import { type ResponseType } from '@/lib/utils';
+import { type DraftApplication } from '@/lib/types';
+import { type ResponseType, toStringArray } from '@/lib/utils';
 
 type GlobalAnswerWithQuestion = GlobalAnswer & {
   globalQuestion: GlobalQuestion;
 };
 
+const createDraftApplicationSchema = z.object({
+  positionId: z.string().min(1),
+});
+
+const createOrUpdateApplicationAnswerSchema = z.object({
+  applicationId: z.string().min(1),
+  questionId: z.string().min(1),
+  questionLabel: z.string().min(1),
+  value: z.array(z.string()),
+  isGlobal: z.boolean(),
+});
+
+const submitApplicationSchema = z.object({ applicationId: z.string().min(1) });
+
 export async function createDraftApplication(
-  userId: string,
   positionId: string,
-): Promise<Application> {
-  const existing = await prisma.application.findUnique({
-    where: { userId_positionId: { userId, positionId } },
-  });
+): Promise<ResponseType<DraftApplication>> {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { error: 'Unauthorized' };
 
-  if (existing) return existing;
+  const parsed = createDraftApplicationSchema.safeParse({ positionId });
+  if (!parsed.success) return { error: 'Invalid input' };
 
-  const globalAnswers = await prisma.globalAnswer.findMany({
-    where: { userId, deletedAt: null },
-    include: { globalQuestion: true },
-  });
-
-  return prisma.application.create({
-    data: {
-      userId,
-      positionId,
-      status: 'draft',
-      createdById: userId,
-      updatedById: userId,
-      globalAnswers: {
-        create: globalAnswers.map((answer: GlobalAnswerWithQuestion) => ({
-          globalQuestionId: answer.globalQuestionId,
-          questionLabel: answer.globalQuestion.label,
-          value: answer.value,
-          createdById: userId,
-          updatedById: userId,
-        })),
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.application.findUnique({
+      where: {
+        userId_positionId: {
+          userId: currentUser.id,
+          positionId: parsed.data.positionId,
+        },
       },
-    },
+      include: { globalAnswers: true, positionAnswers: true },
+    });
+
+    if (existing) return existing;
+
+    const globalAnswers = await tx.globalAnswer.findMany({
+      where: { userId: currentUser.id, deletedAt: null },
+      include: { globalQuestion: true },
+    });
+
+    return tx.application.create({
+      data: {
+        userId: currentUser.id,
+        positionId: parsed.data.positionId,
+        status: 'draft',
+        createdById: currentUser.id,
+        updatedById: currentUser.id,
+        globalAnswers: {
+          create: globalAnswers.map((answer: GlobalAnswerWithQuestion) => ({
+            globalQuestionId: answer.globalQuestionId,
+            questionLabel: answer.globalQuestion.label,
+            value: answer.value,
+            createdById: currentUser.id,
+            updatedById: currentUser.id,
+          })),
+        },
+      },
+      include: { globalAnswers: true, positionAnswers: true },
+    });
   });
 }
 
@@ -56,68 +90,125 @@ export async function createOrUpdateApplicationAnswer(params: {
   questionLabel: string;
   value: string[];
   isGlobal: boolean;
-  userId: string;
-}): Promise<GlobalApplicationAnswer | PositionApplicationAnswer> {
-  const { applicationId, questionId, questionLabel, value, isGlobal, userId } =
-    params;
+}): Promise<ResponseType<GlobalApplicationAnswer | PositionApplicationAnswer>> {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { error: 'Unauthorized' };
+
+  const parsed = createOrUpdateApplicationAnswerSchema.safeParse(params);
+  if (!parsed.success) return { error: 'Invalid input' };
+
+  const { applicationId, questionId, questionLabel, value, isGlobal } =
+    parsed.data;
+
+  const application = await prisma.application.findUnique({
+    where: { id: applicationId },
+    select: { userId: true, positionId: true },
+  });
+
+  if (!application || application.userId !== currentUser.id)
+    return { error: 'Unauthorized' };
 
   if (isGlobal) {
-    const existing = await prisma.globalApplicationAnswer.findFirst({
-      where: { applicationId, globalQuestionId: questionId },
-    });
-
-    if (existing)
-      return prisma.globalApplicationAnswer.update({
-        where: { id: existing.id },
-        data: { value, updatedById: userId },
-      });
-
-    return prisma.globalApplicationAnswer.create({
-      data: {
+    const result = await prisma.globalApplicationAnswer.upsert({
+      where: {
+        applicationId_globalQuestionId: {
+          applicationId,
+          globalQuestionId: questionId,
+        },
+      },
+      update: { value, updatedById: currentUser.id },
+      create: {
         applicationId,
         globalQuestionId: questionId,
         questionLabel,
         value,
-        createdById: userId,
-        updatedById: userId,
+        createdById: currentUser.id,
+        updatedById: currentUser.id,
       },
     });
+    revalidatePath(`/positions/${application.positionId}/apply`);
+    return result;
   }
 
-  const existing = await prisma.positionApplicationAnswer.findFirst({
-    where: { applicationId, positionQuestionId: questionId },
-  });
-
-  if (existing)
-    return prisma.positionApplicationAnswer.update({
-      where: { id: existing.id },
-      data: { value, updatedById: userId },
-    });
-
-  return prisma.positionApplicationAnswer.create({
-    data: {
+  const result = await prisma.positionApplicationAnswer.upsert({
+    where: {
+      applicationId_positionQuestionId: {
+        applicationId,
+        positionQuestionId: questionId,
+      },
+    },
+    update: { value, updatedById: currentUser.id },
+    create: {
       applicationId,
       positionQuestionId: questionId,
       questionLabel,
       value,
-      createdById: userId,
-      updatedById: userId,
+      createdById: currentUser.id,
+      updatedById: currentUser.id,
     },
   });
+  revalidatePath(`/positions/${application.positionId}/apply`);
+  return result;
 }
 
 export async function submitApplication(
   applicationId: string,
-  userId: string,
 ): Promise<ResponseType<Application>> {
-  const application = await prisma.application.findFirst({
-    where: { id: applicationId, userId },
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { error: 'Unauthorized' };
+
+  const parsed = submitApplicationSchema.safeParse({ applicationId });
+  if (!parsed.success) return { error: 'Invalid input' };
+
+  const application = await prisma.application.findUnique({
+    where: { id: parsed.data.applicationId },
+    include: {
+      globalAnswers: true,
+      positionAnswers: true,
+      position: { include: { questions: { where: { deletedAt: null } } } },
+    },
   });
 
-  if (!application) return { error: 'Unauthorized' };
+  if (!application || application.userId !== currentUser.id)
+    return { error: 'Unauthorized' };
 
-  return prisma.application.update({
-    where: { id: applicationId },
-    data: { status: 'applied', submittedAt: new Date(), updatedById: userId },
+  const requiredGlobalQuestions = await prisma.globalQuestion.findMany({
+    where: { required: true, deletedAt: null },
   });
+
+  const hasUnansweredGlobal = requiredGlobalQuestions.some(
+    (q) =>
+      !application.globalAnswers.some(
+        (a) => a.globalQuestionId === q.id && toStringArray(a.value).length > 0,
+      ),
+  );
+
+  if (hasUnansweredGlobal)
+    return {
+      error: 'Please answer all required profile questions before submitting.',
+    };
+
+  const hasUnansweredPosition = application.position.questions.some(
+    (q) =>
+      q.required &&
+      !application.positionAnswers.some(
+        (a) =>
+          a.positionQuestionId === q.id && toStringArray(a.value).length > 0,
+      ),
+  );
+
+  if (hasUnansweredPosition)
+    return { error: 'Please answer all required questions before submitting.' };
+
+  const updated = await prisma.application.update({
+    where: { id: parsed.data.applicationId },
+    data: {
+      status: 'applied',
+      submittedAt: new Date(),
+      updatedById: currentUser.id,
+    },
+  });
+  revalidatePath('/applications');
+  revalidatePath('/positions');
+  return updated;
 }
