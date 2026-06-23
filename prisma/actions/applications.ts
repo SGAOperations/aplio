@@ -13,7 +13,7 @@ import type {
 } from '@/prisma/client';
 
 import { getCurrentUser } from '@/lib/auth/server';
-import { MANAGEABLE_APPLICATION_STATUSES } from '@/lib/constants';
+import { APPLICATION_STATUS_VALUES } from '@/lib/constants';
 import prisma from '@/lib/prisma';
 import { type DraftApplication } from '@/lib/types';
 import { type ResponseType, toStringArray } from '@/lib/utils';
@@ -214,52 +214,69 @@ export async function submitApplication(
   return updated;
 }
 
+// Reviewer-selectable statuses exclude 'draft' — a reviewer cannot push an
+// application back to draft; that state is applicant-owned.
+type ReviewerStatus = Exclude<
+  (typeof APPLICATION_STATUS_VALUES)[number],
+  'draft'
+>;
+// Written as a literal tuple so z.enum() infers the correct union without an
+// unsafe `as` cast — adding a new status to APPLICATION_STATUS_VALUES will
+// surface a compile error here if it is not also listed.
+const reviewerStatuses = [
+  'applied',
+  'reached_out',
+  'interview_scheduled',
+  'reviewing',
+  'accepted',
+  'rejected',
+] as const satisfies [ReviewerStatus, ...ReviewerStatus[]];
+
 const updateApplicationStatusSchema = z.object({
   applicationId: z.string().min(1),
-  status: z.enum(MANAGEABLE_APPLICATION_STATUSES),
+  status: z.enum(reviewerStatuses),
 });
 
-// Throw-only: every failure here is unexpected/impossible from a correctly-gated UI.
-// The applications page redirects unauthenticated and wrong-role users before
-// the dropdown renders, so unauthenticated calls and wrong-role calls are impossible
-// from the real UI. Forged inputs, stale ids, and DB faults all throw.
-export async function updateApplicationStatus(input: unknown): Promise<void> {
-  // getCurrentUser redirects unauthenticated callers — never returns null.
-  const currentUser = await getCurrentUser();
+export async function updateApplicationStatus(
+  input: unknown,
+): Promise<void | { error: string }> {
+  const user = await getCurrentUser();
 
-  // Impossible from a correct UI — a failure here means malformed/forged input → throw.
   const parsed = updateApplicationStatusSchema.safeParse(input);
-  if (!parsed.success) throw new Error('Invalid updateApplicationStatus input');
+  if (!parsed.success) return { error: 'Invalid input' };
+
   const { applicationId, status } = parsed.data;
 
-  // Authorization (no IDOR): scope the lookup to the application with manager filter
-  // scoped to the caller so a non-admin non-manager cannot reach this record.
-  const application = await prisma.application.findFirst({
-    where: { id: applicationId, deletedAt: null, status: { not: 'draft' } },
-    select: {
-      id: true,
-      positionId: true,
-      position: {
-        select: {
-          managers: { where: { id: currentUser.id }, select: { id: true } },
-        },
-      },
-    },
-  });
-  // Impossible from a correct UI: the list only renders submitted applications
-  // of an accessible position — a miss means a forged/stale id → throw.
-  if (!application) throw new Error('Application not found');
+  // Authorization folded into the query — same pattern as getApplicationForReview.
+  // Returns null for non-existent, soft-deleted, or unauthorized callers.
+  const where = user.isAdmin
+    ? { id: applicationId, deletedAt: null }
+    : {
+        id: applicationId,
+        deletedAt: null,
+        position: { managers: { some: { id: user.id } } },
+      };
 
-  // Wrong role is impossible from the UI (the page redirects such users before
-  // the dropdown renders) → throw, not { error }.
-  const isManager = application.position.managers.length > 0;
-  if (!currentUser.isAdmin && !isManager)
-    throw new Error('Not authorized to manage this application');
+  const application = await prisma.application.findFirst({
+    where,
+    select: { id: true, status: true, positionId: true },
+  });
+
+  // Null here means non-existent, soft-deleted, or the caller has no right to
+  // this application ID — an IDOR-style miss that should not be reachable from
+  // the UI, so we throw rather than returning a user-facing error.
+  if (!application) throw new Error('Application not found or not authorized');
+
+  // Prevent updating a draft that has not been submitted yet.
+  if (application.status === 'draft')
+    return { error: 'This application has not been submitted yet.' };
 
   await prisma.application.update({
     where: { id: applicationId },
-    data: { status, updatedById: currentUser.id },
+    data: { status, updatedById: user.id },
   });
 
+  revalidatePath(`/applications/${applicationId}`);
+  revalidatePath('/applications');
   revalidatePath(`/positions/${application.positionId}/applications`);
 }

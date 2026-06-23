@@ -34,18 +34,6 @@ export const baseQuestionSchema = z.object({
   options: z.array(z.string()),
 });
 
-// The post-submission statuses a manager/admin may set. Excludes 'draft'
-// (in-progress, applicant-private) — shared by the dropdown options and the
-// updateApplicationStatus zod enum so the two never drift.
-export const MANAGEABLE_APPLICATION_STATUSES = [
-  'applied',
-  'reached_out',
-  'interview_scheduled',
-  'reviewing',
-  'accepted',
-  'rejected',
-] as const;
-
 // Human-readable labels for each application status.
 // Keyed on the generated ApplicationStatus enum for build-time exhaustiveness.
 export const APPLICATION_STATUS_LABELS: Record<
@@ -74,6 +62,28 @@ export const APPLICATION_STATUS_BADGE_VARIANT: Record<
   accepted: 'success',
   rejected: 'destructive',
 };
+
+// Tuple of all ApplicationStatus values — shared between zod enum (action) and
+// the Select options (control) so both stay in sync with the DB enum.
+export const APPLICATION_STATUS_VALUES = [
+  'draft',
+  'applied',
+  'reached_out',
+  'interview_scheduled',
+  'reviewing',
+  'accepted',
+  'rejected',
+] as const satisfies $Enums.ApplicationStatus[];
+
+// Select options for the status dropdown — one entry per APPLICATION_STATUS_LABELS entry,
+// mirroring STATUS_OPTIONS for positions.
+export const APPLICATION_STATUS_OPTIONS: {
+  value: $Enums.ApplicationStatus;
+  label: string;
+}[] = APPLICATION_STATUS_VALUES.map((value) => ({
+  value,
+  label: APPLICATION_STATUS_LABELS[value],
+}));
 
 export const STATUS_OPTIONS: { value: PositionStatus; label: string }[] = [
   { value: 'draft', label: 'Draft' },
