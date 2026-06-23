@@ -62,14 +62,14 @@ Rule: **every stage agent's first action is swapping its trigger label for its i
 
 ### PR labels
 
-| Label              | Set by                        | Type      | Meaning                                                         |
-| ------------------ | ----------------------------- | --------- | --------------------------------------------------------------- |
-| `ready for review` | `impl-agent` / `revise-agent` | trigger   | Dispatch `review-agent`                                         |
-| `reviewing`        | `review-agent`                | in-flight | Review underway                                                 |
-| `needs revision`   | `review-agent`                | trigger   | Dispatch `revise-agent` (subject to cycle cap)                  |
-| `revising`         | `revise-agent`                | in-flight | Fixes underway                                                  |
-| `approved`         | `review-agent`                | terminal  | Only Low/Nit findings; human merges on GitHub                   |
-| `needs human`      | Cockpit / `revise-agent`      | gate      | 5 cycles without convergence or rebase conflict; pipeline stops |
+| Label              | Set by                        | Type      | Meaning                                                                                   |
+| ------------------ | ----------------------------- | --------- | ----------------------------------------------------------------------------------------- |
+| `ready for review` | `impl-agent` / `revise-agent` | trigger   | Dispatch `review-agent`                                                                   |
+| `reviewing`        | `review-agent`                | in-flight | Review underway                                                                           |
+| `needs revision`   | `review-agent`                | trigger   | Dispatch `revise-agent` (subject to cycle cap)                                            |
+| `revising`         | `revise-agent`                | in-flight | Fixes underway                                                                            |
+| `approved`         | `review-agent`                | terminal  | Findings are at/under the current cycle's bar (escalating, below); human merges on GitHub |
+| `needs human`      | Cockpit / `revise-agent`      | gate      | 5 cycles without convergence or rebase conflict; pipeline stops                           |
 
 ## Stages and models
 
@@ -111,9 +111,10 @@ The **code review is a real GitHub PR review** (`gh api …/pulls/<pr>/reviews -
 - **Title (no emoji, cycle-numbered):** `## Code Review — Cycle <n>` · `## Revision Summary — Cycle <n>` · `## Pipeline Escalation` (and `## Blocker` on issues). `<n>` = prior review count + 1. Keep the literal `Code Review` text — the cockpit's cycle-cap counts it.
 - **Provenance line** under the title: `_<stage> · PR #<pr> · against plan in #<issue>_`.
 - **Findings** carry a **stable ID** (`R<cycle>-<sev><n>`) and a **clickable permalink to the exact line(s)**: ``[`path/file.ts:42`](https://github.com/SGAOperations/aplio/blob/<headRefOid>/path/file.ts#L42)`` (range `#L42-L48`); get `<headRefOid>` from `gh pr view <pr> --json headRefOid`.
-- **Severity headers use colored circles:** `### 🔴 Critical` · `### 🟠 Medium` · `### 🟡 Low` · `### ⚪ Nit`. Only Critical/Medium block (review agent's rubric). Each finding ends with **`Suggested fix:`** (+ an alternative where useful).
+- **Severity headers use colored circles:** `### 🔴 Critical` · `### 🟠 Medium` · `### 🟡 Low` · `### ⚪ Nit`. Each finding ends with **`Suggested fix:`** (+ an alternative where useful).
+- **Escalating bar — what blocks rises with the review cycle** (so the first pass polishes everything and later passes converge): **cycle 1** any finding (incl. Nit) → `needs revision`; **cycle 2** Low+ blocks (Nit doesn't); **cycle 3+** Critical/Medium only. A nit introduced during a revision can't re-trigger at cycle ≥2. The cockpit cycle-cap (5 with Critical/Medium still open → `needs human`) is unchanged.
 - **Later (delta) reviews** open with `### Resolved since last review` / `### Still open` (referencing prior IDs) before the new findings.
-- **Inline-comment anchoring:** a `comments[]` entry is only accepted on a line **in the diff** — map it from `gh pr diff` hunk headers (added/context → `side:"RIGHT"`, new-version line number; deletions → `side:"LEFT"`, old-version line number). Findings off the diff go in the body as permalinks. If the reviews API still 422s ("Line could not be resolved"), **resubmit with `comments:[]`** (body only) so a review always lands.
+- **Inline-comment anchoring:** a `comments[]` entry is only accepted on a line **in the diff** — map it from `gh pr diff` hunk headers (added/context → `side:"RIGHT"`, new-version line number; deletions → `side:"LEFT"`, old-version line number). Findings off the diff go in the body as permalinks. If the reviews API still 422s ("Line could not be resolved"), **resubmit with `comments:[]`** (body only) so a review always lands. **Inline comments are NEW actionable findings only** — resolution/status ("resolved", "fixed", "still open") goes in the body's status sections, never as an inline comment.
 - **Thread resolution (revise):** after pushing fixes, revise replies `Fixed in <sha> (R<c>-<id>)` to each addressed inline-comment thread and resolves it via GraphQL (`addPullRequestReviewThreadReply` + `resolveReviewThread`), matching threads to findings by ID; genuinely-skipped threads stay open. Keeps unresolved conversations from blocking merge.
 - **Footer:** `_Posted by the agent pipeline._`
 
