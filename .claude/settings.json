@@ -5,6 +5,8 @@
       "Bash(git *)",
       "Bash(npm *)",
       "Bash(npx shadcn *)",
+      "Bash(npx shadcn@latest *)",
+      "Bash(npx shadcn@* *)",
       "Edit(.temp/**)",
       "Write(.temp/**)",
       "WebFetch(domain:nextjs.org)",

@@ -38,9 +38,17 @@ gh pr list --repo SGAOperations/aplio --label "approved" --json number,title
 gh pr list --repo SGAOperations/aplio --label "needs human" --json number,title
 ```
 
-Then, in order: **(1)** handle human gates, **(2)** **unless draining,** dispatch for every actionable trigger item (all Agent calls in one message), **(3)** schedule the next wakeup (**skip while draining**).
+Then, in order: **(1)** reconcile merged PRs (below), **(2)** handle human gates, **(3)** **unless draining,** dispatch for every actionable trigger item (all Agent calls in one message), **(4)** schedule the next wakeup (**skip while draining**).
 
-**Worktree hygiene (each tick):** run `git worktree prune` (clears dangling registrations — safe), then remove the worktree of any item whose work is done (PR merged/closed or no active pipeline label) with `git worktree remove --force <exact path from \`git worktree list\`>`. **Never** remove a worktree for an item that is currently in-flight. (Revise's detached checkout already avoids branch-lock; this just prevents accumulation. Windows: use the exact listed path.)
+**Merged-PR reconciliation (each tick):** the `approved` query above is open-only, so a merged PR silently drops out of it — never trust in-session memory for "awaiting merge." Diff the set of PRs you have **announced as approved** against the live `approved` result; for each announced PR no longer present, confirm and announce it **once**:
+
+```bash
+gh pr view <n> --repo SGAOperations/aplio --json state,mergedAt,closed --jq '{state,mergedAt,closed}'
+```
+
+If `state` is `MERGED` (or `closed`), announce "PR #<n> merged ✅ — dropped from tracking" once, **remove it from your announced-awaiting-merge set**, and clean up its worktree (hygiene below). This keeps `status` truthful without the human telling you.
+
+**Worktree hygiene (each tick):** run `git worktree prune` (clears registrations whose dir is already gone — safe). Then, for any item whose work is done (PR merged/closed or no active pipeline label) **and** whose path **appears in `git worktree list`**, remove it with `git worktree remove --force <exact path from \`git worktree list\`>`. **Only ever pass a path that `git worktree list`shows** — an orphan dir (no`.git`, not listed) is not a worktree and will error. **Never** remove a worktree for an in-flight item. On Windows, `git worktree remove`often fails with`Invalid argument`once`node_modules`exists, and orphan dirs accumulate that neither`remove`nor`prune` can clear — **do not claim "prune will fix it next tick" (it won't)**: report the failure and tell the human to run **`/worktree-clean`\*\* (the manual sweep skill) to reclaim the space.
 
 ## Dispatching
 
@@ -94,7 +102,7 @@ For each issue labeled `plan review`:
 
 ### Approved PRs
 
-Announce each newly `approved` PR once with a one-line summary and its URL; the human merges on GitHub. Track which you have announced in-session; re-announce only on request.
+Announce each newly `approved` PR once with a one-line summary and its URL; the human merges on GitHub. Track which you have announced in-session; re-announce only on request. **When one is merged, the next tick's merged-PR reconciliation drops it from tracking and announces the merge** — never keep listing a merged PR as awaiting merge.
 
 ### Agent questions and blockers (relay loop)
 
@@ -119,7 +127,7 @@ Interpret intent, not literal syntax:
   ```
   Dispatch the plan agent the same tick.
 - **"scope out X" / "break down X"** — Stage 0 deserves a stronger model than haiku; suggest the human run `/scope` in their main session.
-- **"status"** — one table from the tick queries: each in-flight item + stage, each item waiting on the human, each announced PR awaiting merge.
+- **"status"** — re-run the tick queries **live** and build the table from them (never from session memory): each in-flight item + stage, each item waiting on the human, and each PR currently labeled `approved` (the live `gh pr list --label approved` result — a merged PR has already dropped out, so it must not appear).
 - **"pause #N"** — remove the item's current trigger label; confirm what was removed.
 - **"resume #N" / "retry #N"** — re-apply the trigger label for where it stalled (issue stuck in `planning` → `ready`; PR stuck in `revising` → `needs revision`; etc.).
 

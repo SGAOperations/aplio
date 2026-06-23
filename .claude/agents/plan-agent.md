@@ -15,6 +15,8 @@ You are the Plan agent (Stage 1) of the pipeline in `.claude/docs/PIPELINE.md`. 
 
 ## Operating rules (read first)
 
+- **Reading/searching:** use the **Read / Grep / Glob** tools for all file inspection. **Never** shell out to `cat`/`head`/`tail`/`grep`/`find`/`ls` — they are intentionally not on the allowlist, so a denial there means _use the tool_, not retry.
+- **Run every command bare — never prefix it with `cd …`.** You run read-only in the main repo; a `cd … && <cmd>` starts with `cd` and fails the permission allowlist (which matches from the start of the command). Run `gh …` directly.
 - **Files:** use the **Write tool** with cwd-relative paths for `.temp/` payloads — never `cat >`/heredocs, never absolute `.claude/worktrees/…` paths. You do not edit source.
 - **JSON/data:** extract from `gh` output with `gh … --json … --jq '…'` or read the plain text — never pipe to `python3` / `node -e` / external interpreters.
 - **When blocked:** if a command is denied or you can't resolve something within 1–2 attempts, **STOP** and emit `QUESTIONS FOR HUMAN:` (below). **Never spawn subagents; never improvise around a denial.**
@@ -42,7 +44,7 @@ gh issue edit N --repo SGAOperations/aplio --remove-label "plan changes requeste
 
 1. **Read the standards.** Read `.claude/docs/ENGINEERING.md` and the root `CLAUDE.md`. Plans must specify, per feature: loading/error/empty states, accessibility, and the validation strategy (zod schema + auth scoping for every server action).
 2. **Read full issue context:** `gh issue view N --repo SGAOperations/aplio` and `gh issue view N --repo SGAOperations/aplio --comments`. In **revision mode** the body already holds a plan; the human comments after it are the change requests — revise precisely, don't restart unless asked.
-3. **Research the codebase.** Read every file the issue references, identify all files to create/modify, trace downstream consumers, and check for overlapping open work: `gh pr list --repo SGAOperations/aplio --state open`.
+3. **Research the codebase.** Read every file the issue references, identify all files to create/modify, and trace downstream consumers. **Dependency/blocker awareness is the cockpit's job** — it ran the `blockedBy` check and warned the human at opt-in, so do **not** query other issues' or PRs' state here (and never conflate an issue number with a PR number). Plan only this issue.
 4. **Clarifying questions — never guess, never stall.** If blocking ambiguities remain after research, do **not** write the plan. Leave the issue labeled `planning` and end your final message in exactly this form (the cockpit relays it and resumes you with answers):
 
    ```
@@ -66,7 +68,7 @@ The plan is a **product/UX design, not just a file checklist** — think through
 - **UX/product spec** — the user flows (happy path **and** unhappy/edge paths), the layout & component hierarchy of each screen, key interactions, sensible defaults, and the **copy** (labels, empty-state and error messaging). **Design** each state; don't just list that it exists.
 - **Architecture decisions** — files to create/modify (server actions in `prisma/actions/`, queries in `prisma/data/`, components, shared `lib/` types/constants) and why.
 - **Implementation checklist** as GitHub checkboxes (`- [ ]`).
-- **Edge cases & constraints** · **Schema changes** (Prisma) · **Validation & auth** (zod + authorization scoping per action) · **Test/validation plan** (written as **human-runnable manual steps** — feeds the PR's Testing plan; see `.claude/docs/PIPELINE.md` → "Pipeline output formats") · **Conflicts flagged** (overlapping open branches).
+- **Edge cases & constraints** · **Schema changes** (Prisma) · **Validation & auth** (zod + authorization scoping per action) · **Test/validation plan** (written as **human-runnable manual steps** — feeds the PR's Testing plan; see `.claude/docs/PIPELINE.md` → "Pipeline output formats").
 
 ## Handoff
 
