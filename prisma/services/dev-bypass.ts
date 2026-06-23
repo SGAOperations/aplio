@@ -76,3 +76,14 @@ export async function loginAsBypassUser(role: BypassRole) {
 
   redirect('/positions');
 }
+
+// Clears the bypass session cookie and returns the caller to the picker.
+// Hard no-op in production — the cookie and this action are dev-only (ENGINEERING §3).
+export async function logoutBypassUser() {
+  if (process.env.VERCEL_ENV === 'production') return;
+
+  const cookieStore = await cookies();
+  cookieStore.delete('dev-bypass-user-id');
+
+  redirect('/login/bypass');
+}

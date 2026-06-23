@@ -7,6 +7,14 @@ import prisma from '@/lib/prisma';
 
 export const authServer = createAuthServer();
 
+// Resolve a real Neon Auth session to a database user.
+// Returns null when no valid session exists.
+async function resolveRealUser() {
+  const { data: session } = await authServer.getSession();
+  if (!session?.user) return null;
+  return prisma.user.findUnique({ where: { neonAuthId: session.user.id } });
+}
+
 // React.cache deduplicates calls within a single server render pass,
 // avoiding a redundant DB round-trip when layout and page both call getCurrentUser().
 export const getCurrentUser = cache(async function getCurrentUser() {
@@ -14,23 +22,22 @@ export const getCurrentUser = cache(async function getCurrentUser() {
     const cookieStore = await cookies();
     const bypassUserId = cookieStore.get('dev-bypass-user-id')?.value;
 
-    if (!bypassUserId) redirect('/login/bypass');
+    if (bypassUserId) {
+      const user = await prisma.user.findUnique({
+        where: { id: bypassUserId },
+      });
+      // Valid bypass session — use it.
+      if (user) return user;
+      // Stale/invalid bypass cookie — fall through to real auth rather than dead-ending.
+    }
 
-    const user = await prisma.user.findUnique({ where: { id: bypassUserId } });
+    const realUser = await resolveRealUser();
+    if (realUser) return realUser;
 
-    if (!user) redirect('/login/bypass');
-
-    return user;
+    redirect('/login/bypass');
   }
 
-  const { data: session } = await authServer.getSession();
-  if (!session?.user) redirect('/login');
-
-  const user = await prisma.user.findUnique({
-    where: { neonAuthId: session.user.id },
-  });
-
-  if (!user) redirect('/login');
-
-  return user;
+  const realUser = await resolveRealUser();
+  if (realUser) return realUser;
+  redirect('/login');
 });

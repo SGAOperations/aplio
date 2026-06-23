@@ -149,3 +149,13 @@ export type ApplicationForReview = Prisma.ApplicationGetPayload<{
     };
   };
 }>;
+
+// Identity shape passed to nav components so sidebar and mobile nav agree
+// on what to display in the user menu.
+export interface NavIdentity {
+  email: string;
+  roleLabel: string;
+  // true only for bypass sessions on non-production environments;
+  // gates the Log out control which is bypass-only (real-auth sign-out is out of scope).
+  isBypass: boolean;
+}

@@ -1,6 +1,8 @@
+import { cookies } from 'next/headers';
 import type { ReactNode } from 'react';
 
 import { getCurrentUser } from '@/lib/auth/server';
+import type { NavIdentity } from '@/lib/types';
 
 import { MobileNav } from '@/components/layouts/mobile-nav';
 import { Sidebar } from '@/components/layouts/sidebar';
@@ -8,11 +10,21 @@ import { Sidebar } from '@/components/layouts/sidebar';
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const user = await getCurrentUser();
 
+  const roleLabel = user.isAdmin ? 'Admin' : 'User';
+
+  // isBypass is true only when a bypass cookie is present on a non-prod environment.
+  // It gates the Log out control in the user menu (real-auth sign-out is out of scope).
+  const isBypass =
+    process.env.VERCEL_ENV !== 'production' &&
+    Boolean((await cookies()).get('dev-bypass-user-id')?.value);
+
+  const identity: NavIdentity = { email: user.email, roleLabel, isBypass };
+
   return (
     <div className="flex h-dvh w-full overflow-hidden">
-      <Sidebar isAdmin={user.isAdmin} />
+      <Sidebar isAdmin={user.isAdmin} identity={identity} />
       <div className="flex flex-1 flex-col overflow-hidden">
-        <MobileNav isAdmin={user.isAdmin} />
+        <MobileNav isAdmin={user.isAdmin} identity={identity} />
         <main className="flex flex-1 flex-col overflow-y-auto">
           <div className="flex-1 p-6">{children}</div>
         </main>
