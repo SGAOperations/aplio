@@ -5,28 +5,13 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 
-import {
-  BriefcaseBusiness,
-  ClipboardList,
-  FileText,
-  Menu,
-  Users,
-} from 'lucide-react';
+import { Menu } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
+import { adminNavItems, baseNavItems } from '@/components/layouts/nav-items';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
-
-const baseNavItems = [
-  { href: '/positions', label: 'Positions', icon: BriefcaseBusiness },
-  { href: '/applications', label: 'Applications', icon: FileText },
-  { href: '/users', label: 'Users', icon: Users },
-];
-
-const adminNavItems = [
-  { href: '/global-questions', label: 'Global Questions', icon: ClipboardList },
-];
 
 interface MobileNavProps {
   isAdmin: boolean;

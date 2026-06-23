@@ -28,3 +28,15 @@ export type GlobalQuestionListItem = Prisma.GlobalQuestionGetPayload<{
     updatedAt: true;
   };
 }>;
+
+// Shared type for application list rows — reused by the full table and the dashboard widget.
+export type MyApplicationListItem = Prisma.ApplicationGetPayload<{
+  select: {
+    id: true;
+    status: true;
+    submittedAt: true;
+    updatedAt: true;
+    positionId: true;
+    position: { select: { id: true; title: true } };
+  };
+}>;

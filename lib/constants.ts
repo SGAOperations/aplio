@@ -1,5 +1,9 @@
 import { z } from 'zod/v4';
 
+import { $Enums } from '@/prisma/client';
+
+import type { BadgeVariant } from '@/components/ui/badge';
+
 export const QUESTION_TYPE_VALUES = [
   'short_answer',
   'long_answer',
@@ -28,3 +32,32 @@ export const baseQuestionSchema = z.object({
   required: z.boolean(),
   options: z.array(z.string()),
 });
+
+// Human-readable labels for each application status.
+// Keyed on the generated ApplicationStatus enum for build-time exhaustiveness.
+export const APPLICATION_STATUS_LABELS: Record<
+  $Enums.ApplicationStatus,
+  string
+> = {
+  draft: 'Draft',
+  applied: 'Applied',
+  reached_out: 'Reached out',
+  interview_scheduled: 'Interview scheduled',
+  reviewing: 'Reviewing',
+  accepted: 'Accepted',
+  rejected: 'Rejected',
+};
+
+// Badge variant for each application status, using design-system tokens.
+export const APPLICATION_STATUS_BADGE_VARIANT: Record<
+  $Enums.ApplicationStatus,
+  BadgeVariant
+> = {
+  draft: 'secondary',
+  applied: 'info',
+  reached_out: 'info',
+  interview_scheduled: 'info',
+  reviewing: 'warning',
+  accepted: 'success',
+  rejected: 'destructive',
+};
