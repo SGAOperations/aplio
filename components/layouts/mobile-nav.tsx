@@ -10,7 +10,11 @@ import { Menu } from 'lucide-react';
 import type { NavIdentity } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
-import { adminNavItems, baseNavItems } from '@/components/layouts/nav-items';
+import {
+  adminOnlyNavItems,
+  baseNavItems,
+  reviewerNavItems,
+} from '@/components/layouts/nav-items';
 import { UserMenu } from '@/components/layouts/user-menu';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
@@ -18,12 +22,17 @@ import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 interface MobileNavProps {
   isAdmin: boolean;
   identity: NavIdentity;
+  canReviewApplications: boolean;
 }
 
-export function MobileNav({ isAdmin, identity }: MobileNavProps) {
+export function MobileNav({ isAdmin, identity, canReviewApplications }: MobileNavProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const navItems = isAdmin ? [...baseNavItems, ...adminNavItems] : baseNavItems;
+  const navItems = [
+    ...baseNavItems,
+    ...(canReviewApplications ? reviewerNavItems : []),
+    ...(isAdmin ? adminOnlyNavItems : []),
+  ];
 
   return (
     <header className="bg-sidebar border-sidebar-border flex h-14 items-center border-b px-4 md:hidden">

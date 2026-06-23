@@ -13,8 +13,13 @@ export const baseNavItems = [
   { href: '/my-applications', label: 'My Applications', icon: Inbox },
 ];
 
-export const adminNavItems = [
+// Shown to admins AND managers — anyone who can review applications.
+export const reviewerNavItems = [
   { href: '/applications', label: 'Applications', icon: FileText },
+];
+
+// Shown to admins only — Users and Global Questions are admin-only.
+export const adminOnlyNavItems = [
   { href: '/users', label: 'Users', icon: Users },
   { href: '/global-questions', label: 'Global Questions', icon: ClipboardList },
 ];

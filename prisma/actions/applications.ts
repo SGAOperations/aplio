@@ -13,7 +13,7 @@ import type {
 } from '@/prisma/client';
 
 import { getCurrentUser } from '@/lib/auth/server';
-import { APPLICATION_STATUS_VALUES } from '@/lib/constants';
+import { REVIEWER_APPLICATION_STATUSES } from '@/lib/constants';
 import prisma from '@/lib/prisma';
 import { type DraftApplication } from '@/lib/types';
 import {
@@ -246,27 +246,9 @@ export async function submitApplication(
   return updated;
 }
 
-// Reviewer-selectable statuses exclude 'draft' — a reviewer cannot push an
-// application back to draft; that state is applicant-owned.
-type ReviewerStatus = Exclude<
-  (typeof APPLICATION_STATUS_VALUES)[number],
-  'draft'
->;
-// Written as a literal tuple so z.enum() infers the correct union without an
-// unsafe `as` cast — adding a new status to APPLICATION_STATUS_VALUES will
-// surface a compile error here if it is not also listed.
-const reviewerStatuses = [
-  'applied',
-  'reached_out',
-  'interview_scheduled',
-  'reviewing',
-  'accepted',
-  'rejected',
-] as const satisfies [ReviewerStatus, ...ReviewerStatus[]];
-
 const updateApplicationStatusSchema = z.object({
   applicationId: z.string().min(1),
-  status: z.enum(reviewerStatuses),
+  status: z.enum(REVIEWER_APPLICATION_STATUSES),
 });
 
 export async function updateApplicationStatus(
@@ -311,4 +293,56 @@ export async function updateApplicationStatus(
   revalidatePath(`/applications/${applicationId}`);
   revalidatePath('/applications');
   revalidatePath(`/positions/${application.positionId}/applications`);
+}
+
+const updateApplicationStatusesSchema = z.object({
+  applicationIds: z.array(z.string().min(1)).min(1).max(100),
+  status: z.enum(REVIEWER_APPLICATION_STATUSES),
+});
+
+// Bulk status update for the /applications hub. Returns { updated: number } on
+// success so the client can toast the real count. Returns { error } for
+// user-facing failures (invalid input, no-op race). Throws for unexpected errors.
+// Authorization is folded into the scoped findMany — no IDOR.
+export async function updateApplicationStatuses(
+  input: unknown,
+): Promise<{ updated: number } | { error: string }> {
+  const user = await getCurrentUser();
+
+  const parsed = updateApplicationStatusesSchema.safeParse(input);
+  if (!parsed.success) return { error: 'Invalid input' };
+
+  const { applicationIds, status } = parsed.data;
+
+  // Authorize: scoped where clause means forged/deleted/out-of-scope ids are
+  // silently excluded — the caller can only update records they may see.
+  const where = user.isAdmin
+    ? {
+        id: { in: applicationIds },
+        deletedAt: null,
+        status: { not: 'draft' as const },
+      }
+    : {
+        id: { in: applicationIds },
+        deletedAt: null,
+        status: { not: 'draft' as const },
+        position: { managers: { some: { id: user.id } } },
+      };
+
+  const authorized = await prisma.application.findMany({
+    where,
+    select: { id: true },
+  });
+
+  if (authorized.length === 0)
+    return { error: 'No applications were updated.' };
+
+  const result = await prisma.application.updateMany({
+    where: { id: { in: authorized.map((a) => a.id) } },
+    data: { status, updatedById: user.id },
+  });
+
+  revalidatePath('/applications');
+
+  return { updated: result.count };
 }

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 import { getCurrentUser, getIsBypass } from '@/lib/auth/server';
+import prisma from '@/lib/prisma';
 import type { NavIdentity } from '@/lib/types';
 
 import { MobileNav } from '@/components/layouts/mobile-nav';
@@ -19,11 +20,25 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     isBypass,
   };
 
+  const canReviewApplications =
+    user.isAdmin ||
+    (await prisma.position.count({
+      where: { managers: { some: { id: user.id } }, deletedAt: null },
+    })) > 0;
+
   return (
     <div className="flex h-dvh w-full overflow-hidden">
-      <Sidebar isAdmin={user.isAdmin} identity={identity} />
+      <Sidebar
+        isAdmin={user.isAdmin}
+        identity={identity}
+        canReviewApplications={canReviewApplications}
+      />
       <div className="flex flex-1 flex-col overflow-hidden">
-        <MobileNav isAdmin={user.isAdmin} identity={identity} />
+        <MobileNav
+          isAdmin={user.isAdmin}
+          identity={identity}
+          canReviewApplications={canReviewApplications}
+        />
         <main className="flex flex-1 flex-col overflow-y-auto">
           <div className="flex-1 p-6">{children}</div>
         </main>

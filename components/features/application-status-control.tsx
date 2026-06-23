@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { updateApplicationStatus } from '@/prisma/actions/applications';
 import { type $Enums } from '@/prisma/client';
 
-import { APPLICATION_STATUS_OPTIONS } from '@/lib/constants';
+import { REVIEWER_APPLICATION_STATUS_OPTIONS } from '@/lib/constants';
 
 import { Label } from '@/components/ui/label';
 import {
@@ -32,10 +32,8 @@ export function ApplicationStatusControl({
 
   const isDraft = currentStatus === 'draft';
 
-  // Reviewer-selectable options exclude 'draft'.
-  const options = APPLICATION_STATUS_OPTIONS.filter(
-    (opt) => opt.value !== 'draft',
-  );
+  // Reviewer-selectable options — 'draft' is already excluded from this constant.
+  const options = REVIEWER_APPLICATION_STATUS_OPTIONS;
 
   function handleValueChange(value: string) {
     startTransition(async () => {

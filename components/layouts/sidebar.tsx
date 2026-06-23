@@ -7,17 +7,26 @@ import { usePathname } from 'next/navigation';
 import type { NavIdentity } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
-import { adminNavItems, baseNavItems } from '@/components/layouts/nav-items';
+import {
+  adminOnlyNavItems,
+  baseNavItems,
+  reviewerNavItems,
+} from '@/components/layouts/nav-items';
 import { UserMenu } from '@/components/layouts/user-menu';
 
 interface SidebarProps {
   isAdmin: boolean;
   identity: NavIdentity;
+  canReviewApplications: boolean;
 }
 
-export function Sidebar({ isAdmin, identity }: SidebarProps) {
+export function Sidebar({ isAdmin, identity, canReviewApplications }: SidebarProps) {
   const pathname = usePathname();
-  const navItems = isAdmin ? [...baseNavItems, ...adminNavItems] : baseNavItems;
+  const navItems = [
+    ...baseNavItems,
+    ...(canReviewApplications ? reviewerNavItems : []),
+    ...(isAdmin ? adminOnlyNavItems : []),
+  ];
 
   return (
     <aside className="bg-sidebar border-sidebar-border hidden h-full w-56 shrink-0 flex-col border-r md:flex">
