@@ -4,15 +4,18 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
+import type { NavIdentity } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 import { adminNavItems, baseNavItems } from '@/components/layouts/nav-items';
+import { UserMenu } from '@/components/layouts/user-menu';
 
 interface SidebarProps {
   isAdmin: boolean;
+  identity: NavIdentity;
 }
 
-export function Sidebar({ isAdmin }: SidebarProps) {
+export function Sidebar({ isAdmin, identity }: SidebarProps) {
   const pathname = usePathname();
   const navItems = isAdmin ? [...baseNavItems, ...adminNavItems] : baseNavItems;
 
@@ -43,6 +46,10 @@ export function Sidebar({ isAdmin }: SidebarProps) {
           );
         })}
       </nav>
+
+      <div className="border-sidebar-border mt-auto border-t p-2">
+        <UserMenu identity={identity} />
+      </div>
     </aside>
   );
 }

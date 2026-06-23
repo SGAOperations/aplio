@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 import { loginAsBypassUser } from '@/prisma/services/dev-bypass';
 
 import { Button } from '@/components/ui/button';
@@ -28,6 +30,14 @@ export default function BypassLoginPage() {
               Position Manager
             </Button>
           </form>
+        </div>
+        <div className="border-border flex flex-col items-center gap-2 border-t pt-4">
+          <p className="text-muted-foreground text-xs">
+            Or sign in with a real account to test production-style auth.
+          </p>
+          <Button variant="ghost" className="w-full" asChild>
+            <Link href="/login">Sign in with real auth</Link>
+          </Button>
         </div>
       </div>
     </div>

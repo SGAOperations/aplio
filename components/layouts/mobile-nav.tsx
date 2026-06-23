@@ -7,17 +7,20 @@ import { useState } from 'react';
 
 import { Menu } from 'lucide-react';
 
+import type { NavIdentity } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 import { adminNavItems, baseNavItems } from '@/components/layouts/nav-items';
+import { UserMenu } from '@/components/layouts/user-menu';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 
 interface MobileNavProps {
   isAdmin: boolean;
+  identity: NavIdentity;
 }
 
-export function MobileNav({ isAdmin }: MobileNavProps) {
+export function MobileNav({ isAdmin, identity }: MobileNavProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const navItems = isAdmin ? [...baseNavItems, ...adminNavItems] : baseNavItems;
@@ -39,7 +42,7 @@ export function MobileNav({ isAdmin }: MobileNavProps) {
           >
             <Menu className="size-5" />
           </Button>
-          <SheetContent side="left">
+          <SheetContent side="left" className="flex flex-col p-0">
             <div className="border-sidebar-border flex h-14 items-center border-b px-4">
               <SheetTitle asChild>
                 <Link
@@ -80,6 +83,10 @@ export function MobileNav({ isAdmin }: MobileNavProps) {
                 );
               })}
             </nav>
+
+            <div className="border-sidebar-border mt-auto border-t p-2">
+              <UserMenu identity={identity} />
+            </div>
           </SheetContent>
         </Sheet>
       </div>
