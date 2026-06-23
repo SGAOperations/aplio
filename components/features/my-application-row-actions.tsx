@@ -148,7 +148,7 @@ export function MyApplicationRowActions({
     );
   }
 
-  // Active statuses (applied, reached_out, interview_scheduled, reviewing, accepted, rejected)
+  // Non-draft, non-withdrawn statuses (applied, reached_out, interview_scheduled, reviewing, accepted, rejected)
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
