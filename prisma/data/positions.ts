@@ -62,6 +62,17 @@ export async function getPositionForApply(
   });
 }
 
+// Minimal fetch for the applications page access check: avoids over-fetching
+// the full edit payload when only the title and manager list are needed.
+export async function getPositionAccess(
+  id: string,
+): Promise<{ id: string; title: string; managers: { id: string }[] } | null> {
+  return prisma.position.findFirst({
+    where: { id, deletedAt: null },
+    select: { id: true, title: true, managers: { select: { id: true } } },
+  });
+}
+
 export async function getPositionForEdit(
   id: string,
 ): Promise<PositionForEdit | null> {

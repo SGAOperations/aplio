@@ -3,7 +3,10 @@ import 'server-only';
 import { $Enums } from '@/prisma/client';
 
 import prisma from '@/lib/prisma';
-import { type MyApplicationListItem } from '@/lib/types';
+import {
+  type MyApplicationListItem,
+  type PositionApplicationListItem,
+} from '@/lib/types';
 
 const applicationSelect = {
   id: true,
@@ -33,6 +36,23 @@ export async function getRecentMyApplications(
     select: applicationSelect,
     orderBy: { updatedAt: 'desc' },
     take,
+  });
+}
+
+const positionApplicationSelect = {
+  id: true,
+  status: true,
+  submittedAt: true,
+  user: { select: { id: true, name: true, email: true } },
+} as const;
+
+export async function getPositionApplications(
+  positionId: string,
+): Promise<PositionApplicationListItem[]> {
+  return prisma.application.findMany({
+    where: { positionId, deletedAt: null, status: { not: 'draft' } },
+    select: positionApplicationSelect,
+    orderBy: { submittedAt: 'desc' },
   });
 }
 

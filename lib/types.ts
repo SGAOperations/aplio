@@ -85,3 +85,13 @@ export type MyApplicationListItem = Prisma.ApplicationGetPayload<{
     position: { select: { id: true; title: true } };
   };
 }>;
+
+// Shared type for manager-facing position applications table rows.
+export type PositionApplicationListItem = Prisma.ApplicationGetPayload<{
+  select: {
+    id: true;
+    status: true;
+    submittedAt: true;
+    user: { select: { id: true; name: true; email: true } };
+  };
+}>;

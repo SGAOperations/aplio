@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { ChevronDown, ChevronUp, Pencil } from 'lucide-react';
+import { ChevronDown, ChevronUp, Inbox, Pencil } from 'lucide-react';
 
 import { STATUS_LABELS, STATUS_VARIANTS } from '@/lib/constants';
 import type { PositionWithQuestions } from '@/lib/types';
@@ -74,12 +74,20 @@ export function PositionCard({
               </Button>
             )}
             {showAdminActions && (
-              <Button asChild variant="outline">
-                <Link href={`/positions/${position.id}/edit`}>
-                  <Pencil className="size-4" />
-                  Edit
-                </Link>
-              </Button>
+              <>
+                <Button asChild variant="outline">
+                  <Link href={`/positions/${position.id}/edit`}>
+                    <Pencil className="size-4" />
+                    Edit
+                  </Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href={`/positions/${position.id}/applications`}>
+                    <Inbox className="size-4" />
+                    Applications
+                  </Link>
+                </Button>
+              </>
             )}
           </div>
         </CardContent>
