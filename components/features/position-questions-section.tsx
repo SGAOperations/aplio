@@ -78,7 +78,7 @@ export function PositionQuestionsSection({
               />
             </Card>
           ) : (
-            <Card className="flex items-center gap-3 p-4">
+            <Card className="flex flex-row items-center gap-3 p-4">
               <div className="flex-1">
                 <p className="text-sm font-medium">{question.label}</p>
                 <p className="text-muted-foreground text-xs">
