@@ -21,6 +21,7 @@ enum ApplicationStatus {
   reviewing
   accepted
   rejected
+  withdrawn
 }
 
 enum QuestionType {
