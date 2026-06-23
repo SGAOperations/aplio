@@ -32,9 +32,7 @@ const createDraftApplicationSchema = z.object({
 });
 
 // Shared schema for actions that take a single application ID.
-const applicationIdSchema = z.object({
-  applicationId: z.string().min(1),
-});
+const applicationIdSchema = z.object({ applicationId: z.string().min(1) });
 
 const createOrUpdateApplicationAnswerSchema = z.object({
   applicationId: z.string().min(1),
@@ -439,7 +437,9 @@ export async function deleteDraftApplication(
 
     if (!app) return { error: 'This draft can no longer be deleted.' };
 
-    await tx.globalApplicationAnswer.deleteMany({ where: { applicationId: id } });
+    await tx.globalApplicationAnswer.deleteMany({
+      where: { applicationId: id },
+    });
     await tx.positionApplicationAnswer.deleteMany({
       where: { applicationId: id },
     });

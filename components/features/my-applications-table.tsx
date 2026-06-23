@@ -5,6 +5,7 @@ import { FileText } from 'lucide-react';
 import { type MyApplicationListItem } from '@/lib/types';
 import { formatDate } from '@/lib/utils';
 
+import { MyApplicationRowActions } from '@/components/features/my-application-row-actions';
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -76,15 +77,20 @@ export function MyApplicationsTable({
                   {app.status === 'draft' ? '—' : formatDate(app.submittedAt)}
                 </TableCell>
                 <TableCell>
-                  {app.status === 'draft' ? (
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href={`/positions/${app.positionId}/apply`}>
-                        Continue
-                      </Link>
-                    </Button>
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {app.status === 'draft' && (
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={`/positions/${app.positionId}/apply`}>
+                          Continue
+                        </Link>
+                      </Button>
+                    )}
+                    <MyApplicationRowActions
+                      applicationId={app.id}
+                      status={app.status}
+                      positionTitle={app.position.title}
+                    />
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -109,13 +115,20 @@ export function MyApplicationsTable({
               <span className="text-muted-foreground text-sm">
                 {app.status === 'draft' ? 'Draft' : formatDate(app.submittedAt)}
               </span>
-              {app.status === 'draft' && (
-                <Button variant="outline" size="sm" asChild>
-                  <Link href={`/positions/${app.positionId}/apply`}>
-                    Continue
-                  </Link>
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                {app.status === 'draft' && (
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`/positions/${app.positionId}/apply`}>
+                      Continue
+                    </Link>
+                  </Button>
+                )}
+                <MyApplicationRowActions
+                  applicationId={app.id}
+                  status={app.status}
+                  positionTitle={app.position.title}
+                />
+              </div>
             </div>
           </div>
         ))}
