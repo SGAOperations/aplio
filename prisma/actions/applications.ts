@@ -16,7 +16,11 @@ import { getCurrentUser } from '@/lib/auth/server';
 import { APPLICATION_STATUS_VALUES } from '@/lib/constants';
 import prisma from '@/lib/prisma';
 import { type DraftApplication } from '@/lib/types';
-import { type ResponseType, toStringArray } from '@/lib/utils';
+import {
+  type ResponseType,
+  isAcceptingApplications,
+  toStringArray,
+} from '@/lib/utils';
 
 type GlobalAnswerWithQuestion = GlobalAnswer & {
   globalQuestion: GlobalQuestion;
@@ -45,6 +49,9 @@ export async function createDraftApplication(
   const parsed = createDraftApplicationSchema.safeParse({ positionId });
   if (!parsed.success) return { error: 'Invalid input' };
 
+  // Use a single consistent `now` for both the transaction and any window checks.
+  const now = new Date();
+
   return prisma.$transaction(async (tx) => {
     const existing = await tx.application.findUnique({
       where: {
@@ -56,7 +63,20 @@ export async function createDraftApplication(
       include: { globalAnswers: true, positionAnswers: true },
     });
 
+    // Return an existing draft even if the window has since closed — the applicant
+    // can still see their in-progress work; submitApplication will block the submit.
     if (existing) return existing;
+
+    // Authoritative window gate: verify the position exists and is currently accepting
+    // before creating a new draft. Reads server-trusted DB fields — no IDOR surface.
+    const position = await tx.position.findUnique({
+      where: { id: parsed.data.positionId, deletedAt: null },
+      select: { status: true, opensAt: true, closesAt: true },
+    });
+
+    if (!position) return { error: 'This position is no longer available.' };
+    if (!isAcceptingApplications(position, now))
+      return { error: 'This position is no longer accepting applications.' };
 
     const globalAnswers = await tx.globalAnswer.findMany({
       where: { userId: currentUser.id, deletedAt: null },
@@ -166,12 +186,24 @@ export async function submitApplication(
     include: {
       globalAnswers: true,
       positionAnswers: true,
-      position: { include: { questions: { where: { deletedAt: null } } } },
+      position: {
+        select: {
+          status: true,
+          opensAt: true,
+          closesAt: true,
+          questions: { where: { deletedAt: null } },
+        },
+      },
     },
   });
 
   if (!application || application.userId !== currentUser.id)
     return { error: 'Unauthorized' };
+
+  // Window re-check: a window can close while a draft is open. Checked before
+  // required-answer validation so a closed window gives the clearest message.
+  if (!isAcceptingApplications(application.position))
+    return { error: 'This position is no longer accepting applications.' };
 
   const requiredGlobalQuestions = await prisma.globalQuestion.findMany({
     where: { required: true, deletedAt: null },

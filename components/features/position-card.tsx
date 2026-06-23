@@ -7,6 +7,7 @@ import { ChevronDown, ChevronUp, Inbox, Pencil } from 'lucide-react';
 
 import { STATUS_LABELS, STATUS_VARIANTS } from '@/lib/constants';
 import type { PositionWithQuestions } from '@/lib/types';
+import { formatDate, getPositionAvailability } from '@/lib/utils';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,10 @@ export function PositionCard({
   showAdminActions = false,
 }: PositionCardProps) {
   const [open, setOpen] = useState(false);
+
+  // Derive availability once per render so copy and button logic stay in sync.
+  const availability = getPositionAvailability(position);
+  const isAccepting = availability === 'accepting';
 
   return (
     <Card className="gap-0 p-0">
@@ -68,13 +73,13 @@ export function PositionCard({
           )}
 
           <div className="flex items-center gap-2 pt-2">
-            {(!showAdminActions || position.status === 'open') && (
-              <Button asChild>
-                <Link href={`/positions/${position.id}/apply`}>Apply</Link>
-              </Button>
-            )}
-            {showAdminActions && (
+            {showAdminActions ? (
               <>
+                {position.status === 'open' && (
+                  <Button asChild>
+                    <Link href={`/positions/${position.id}/apply`}>Apply</Link>
+                  </Button>
+                )}
                 <Button asChild variant="outline">
                   <Link href={`/positions/${position.id}/edit`}>
                     <Pencil className="size-4" />
@@ -87,6 +92,31 @@ export function PositionCard({
                     Applications
                   </Link>
                 </Button>
+              </>
+            ) : (
+              <>
+                {isAccepting && (
+                  <>
+                    <Button asChild>
+                      <Link href={`/positions/${position.id}/apply`}>
+                        Apply
+                      </Link>
+                    </Button>
+                    {position.closesAt && (
+                      <span className="text-muted-foreground text-sm">
+                        Closes {formatDate(position.closesAt)}
+                      </span>
+                    )}
+                  </>
+                )}
+                {availability === 'upcoming' && position.opensAt && (
+                  <Badge variant="secondary">
+                    Opens {formatDate(position.opensAt)}
+                  </Badge>
+                )}
+                {availability === 'closed_by_date' && (
+                  <Badge variant="outline">Closed</Badge>
+                )}
               </>
             )}
           </div>

@@ -6,6 +6,7 @@ import {
   type PositionForEdit,
   type PositionWithQuestions,
 } from '@/lib/types';
+import { isAcceptingApplications } from '@/lib/utils';
 
 export async function getPositions(
   includeAll = false,
@@ -41,7 +42,7 @@ export async function getPositions(
 export async function getPositionForApply(
   id: string,
 ): Promise<PositionWithQuestions | null> {
-  return prisma.position.findUnique({
+  const position = await prisma.position.findUnique({
     where: { id, status: 'open', deletedAt: null },
     select: {
       id: true,
@@ -64,6 +65,11 @@ export async function getPositionForApply(
       },
     },
   });
+
+  // Gate: return null for positions outside their date window so the apply route
+  // redirects to /positions (which shows the effective state on the card).
+  if (!position || !isAcceptingApplications(position)) return null;
+  return position;
 }
 
 // Minimal fetch for the applications page access check: avoids over-fetching
