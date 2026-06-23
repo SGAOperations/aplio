@@ -74,7 +74,7 @@ export async function OpenPositionsWidget() {
                       <span className="text-muted-foreground shrink-0 text-xs">
                         {availability === 'upcoming' && position.opensAt
                           ? `Opens ${formatDate(position.opensAt)}`
-                          : 'Closed'}
+                          : /* closed_by_date or unavailable (unreachable via getPositions(false)) */ 'Closed'}
                       </span>
                     )}
                   </div>

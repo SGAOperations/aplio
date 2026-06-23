@@ -1,7 +1,7 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-import type { PositionStatus } from '@/prisma/client';
+import type { PositionAvailability, PositionWindow } from '@/lib/types';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -34,22 +34,6 @@ export function formatDate(date: Date): string {
   }).format(date);
 }
 
-// Minimal structural type for the position-window helper. Satisfied by
-// PositionWithQuestions, PositionForEdit, and raw Prisma rows — no conversion needed.
-export type PositionWindow = {
-  status: PositionStatus;
-  opensAt: Date | null;
-  closesAt: Date | null;
-};
-
-// Applicant-facing availability states derived from status + date window.
-// 'unavailable' covers draft/closed positions (status is the master switch).
-export type PositionAvailability =
-  | 'accepting'
-  | 'upcoming'
-  | 'closed_by_date'
-  | 'unavailable';
-
 /**
  * Derives the applicant-facing availability of a position.
  *
@@ -72,10 +56,15 @@ export function getPositionAvailability(
   if (position.opensAt !== null && now < position.opensAt) return 'upcoming';
 
   if (position.closesAt !== null) {
-    // End-of-day for closesAt: advance to the next calendar day and subtract 1ms.
-    const endOfCloseDay = new Date(position.closesAt);
-    endOfCloseDay.setDate(endOfCloseDay.getDate() + 1);
-    endOfCloseDay.setMilliseconds(endOfCloseDay.getMilliseconds() - 1);
+    // End-of-day for closesAt: UTC-explicit to stay timezone-proof on any host.
+    // Advance to the next UTC calendar day and subtract 1ms → 23:59:59.999 UTC.
+    const endOfCloseDay = new Date(
+      Date.UTC(
+        position.closesAt.getUTCFullYear(),
+        position.closesAt.getUTCMonth(),
+        position.closesAt.getUTCDate() + 1,
+      ) - 1,
+    );
     if (now > endOfCloseDay) return 'closed_by_date';
   }
 
