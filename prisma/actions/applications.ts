@@ -220,9 +220,17 @@ type ReviewerStatus = Exclude<
   (typeof APPLICATION_STATUS_VALUES)[number],
   'draft'
 >;
-const reviewerStatuses = APPLICATION_STATUS_VALUES.filter(
-  (s): s is ReviewerStatus => s !== 'draft',
-) as [ReviewerStatus, ...ReviewerStatus[]];
+// Written as a literal tuple so z.enum() infers the correct union without an
+// unsafe `as` cast — adding a new status to APPLICATION_STATUS_VALUES will
+// surface a compile error here if it is not also listed.
+const reviewerStatuses = [
+  'applied',
+  'reached_out',
+  'interview_scheduled',
+  'reviewing',
+  'accepted',
+  'rejected',
+] as const satisfies [ReviewerStatus, ...ReviewerStatus[]];
 
 const updateApplicationStatusSchema = z.object({
   applicationId: z.string().min(1),
@@ -251,10 +259,13 @@ export async function updateApplicationStatus(
 
   const application = await prisma.application.findFirst({
     where,
-    select: { id: true, status: true },
+    select: { id: true, status: true, positionId: true },
   });
 
-  if (!application) return { error: 'Application not found' };
+  // Null here means non-existent, soft-deleted, or the caller has no right to
+  // this application ID — an IDOR-style miss that should not be reachable from
+  // the UI, so we throw rather than returning a user-facing error.
+  if (!application) throw new Error('Application not found or not authorized');
 
   // Prevent updating a draft that has not been submitted yet.
   if (application.status === 'draft')
@@ -267,4 +278,5 @@ export async function updateApplicationStatus(
 
   revalidatePath(`/applications/${applicationId}`);
   revalidatePath('/applications');
+  revalidatePath(`/positions/${application.positionId}/applications`);
 }
