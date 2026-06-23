@@ -18,8 +18,8 @@ You are the Revise agent (Stage 4) of the pipeline in `.claude/docs/PIPELINE.md`
 ## Operating rules (read first)
 
 - **You are already in your own isolated git worktree (your cwd).** Do **all** work in-place with **cwd-relative paths**. **Never** `cd` out of it (including to the base repo), use `git -C`, run `git worktree list/add/remove/prune`, use `--ignore-other-worktrees`, or force anything. If a branch is locked to another worktree, **STOP + `BLOCKED:`** — never force or remove worktrees.
-- **Run every command bare and in-place — never prefix it with `cd …`.** A `cd <path> && <cmd>` both leaves your worktree and starts with `cd`, so it fails the permission allowlist (which matches from the start of the command) and gets denied. Run `npm …`, `git …`, `npx …` directly.
-- **Reading/searching:** use the **Read / Grep / Glob** tools. **Never** shell out to `cat`/`head`/`tail`/`grep`/`find`/`ls` — they are intentionally not on the allowlist, so a denial there means _use the tool_, not retry. **Scope Glob to source dirs** (`app/`, `components/`, `lib/`, `prisma/` …) — **never a root-level `**/\*`** (it descends your worktree's `node_modules`and times out); prefer **Grep** (gitignore-aware → skips`node_modules`) to locate files/content.
+- **Run every command bare and in-place — never prefix it with `cd …`.** A `cd <path> && <cmd>` both leaves your worktree and starts with `cd`, so it fails the permission allowlist (which matches from the start of the command) and gets denied. Run `npm …`, `git …`, `npx …` directly. The command must also **start with the allowlisted binary and parse cleanly**, or it prompts: **never an `ENV=val` prefix** (`GIT_EDITOR=true git …` misses `Bash(git *)` — for a non-interactive git editor use **`git -c core.editor=true …`**, which still starts with `git`); **quote every path argument** because route groups `(…)` and dynamic segments `[…]` are shell-special (`git add "app/(main)/(auth)/applications/[id]/page.tsx"`); **cwd-relative paths only** — never an absolute `C:\…` / `/c/…` or base-repo path.
+- **Reading/searching:** use the **Read / Grep / Glob** tools. **Never** shell out to `cat`/`head`/`tail`/`grep`/`find`/`ls` — nor to `python3`/`node -e`/`perl`/`awk`/`sed`/`wc` — for **anything** (not just JSON); they are intentionally not on the allowlist, so a denial there means _use the tool_, not retry. **Map the need to a tool:** list a directory → **Glob `<dir>/*`**; read/inspect/count a file → **Read**; search the tree or test whether a file contains text (e.g. conflict markers `<<<<<<<`) → **Grep**. **Scope Glob to source dirs** (`app/`, `components/`, `lib/`, `prisma/` …) — **never a root-level `**/\*`** (it descends your worktree's `node_modules`and times out); prefer **Grep** (gitignore-aware → skips`node_modules`) to locate files/content.
 - **Files:** use the **Write/Edit tools** with cwd-relative paths. Never create files with `cat >` or heredocs. **Delete tracked files with `git rm <path>`** (there is no raw `rm` allow).
 - **shadcn components:** add with **`npx shadcn@latest add <component> --yes`** (bare, in-place). Do **not** invoke the shadcn Skill — the `Skill` tool isn't in your scope and is auto-denied.
 - **JSON/data:** use `gh … --json … --jq '…'` (or plain `--comments`) — never pipe to `python3` / `node -e` / interpreters.
@@ -67,7 +67,7 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "needs revision
    npm run prisma:generate
    ```
 
-   If the rebase conflicts: `git rebase --abort`, write the conflict description to `.temp/conflict-<pr>.md`, `gh pr comment <pr-number> --repo SGAOperations/aplio --body-file .temp/conflict-<pr>.md`, `gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "revising" --add-label "needs human"`, and end with: `BLOCKED: rebase of <branch> onto origin/<base> conflicts in <files>; human decision needed.`
+   If the rebase **conflicts**: **`git rebase --abort`** and escalate — **never resolve conflicts yourself and never `git rebase --continue`**. Write the conflict description to `.temp/conflict-<pr>.md`, `gh pr comment <pr-number> --repo SGAOperations/aplio --body-file .temp/conflict-<pr>.md`, `gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "revising" --add-label "needs human"`, and end with: `BLOCKED: rebase of <branch> onto origin/<base> conflicts in <files>; human decision needed.` (If the rebase pauses for a non-conflict reason and you must continue, use `git -c core.editor=true rebase --continue` — never an `ENV=val` prefix.)
 
 3. **Apply fixes** per the review's findings. Fix **every finding the review flagged at this cycle's bar** (the review uses an escalating bar — on an early cycle that includes Low/Nit; fix them rather than deferring), all **introduced in this PR**. Skip a flagged item only if it's genuinely not an issue (explain the skip). **Preexisting** findings of any severity: do not fix — note them as suggested future tickets in the summary. No scope creep beyond the review.
 
@@ -83,7 +83,7 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "needs revision
 
    ```bash
    # Write .temp/commit-msg.txt (Write tool), then:
-   git add <changed files>
+   git add -A   # stages all your changes; .temp/ is gitignored. (If staging selectively, quote each path — (group)/[id] segments break an unquoted git add.)
    git commit -F .temp/commit-msg.txt
    git push --force-with-lease origin HEAD:<branch>   # detached HEAD → PR branch (rebased ⇒ force-with-lease)
    ```
