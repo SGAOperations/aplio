@@ -14,7 +14,7 @@ Next.js 16 (App Router, React 19) · Prisma 7 · Tailwind CSS 4 · shadcn/ui (Ra
 ## Architecture (the load-bearing rules — `.claude/docs/ENGINEERING.md` has the full bar)
 
 - **IMPORTANT: never create API routes** (`app/api/`). The only permitted route is `app/api/auth/[...path]/route.ts` (required by Neon Auth).
-- **Mutations are Server Actions** in `prisma/actions/`, each with `'use server'`, an auth check, and zod validation. They return **`void` / the relevant data on success, `{ error }` for a user-facing failure, and `throw` for unexpected ones — never `{ ok }`** (`.claude/docs/ENGINEERING.md` §4).
+- **Mutations are Server Actions** in `prisma/actions/`, each with `'use server'`, an auth check, and zod validation. They return **`void` / the relevant data on success, `{ error }` for a user-facing failure, and `throw` for unexpected ones — never `{ ok }`** (`.claude/docs/ENGINEERING.md` §4). Decision test: _would you show this exact sentence to the user, and can they act on it?_ **yes → `{ error }`, no → throw**.
 - **Data fetching is server-side** — server components call data-fetching functions in `prisma/data/`; Prisma never runs in a client component. **Avoid `useEffect`** — almost every use is a mistake here, and an empty-deps `useEffect` is essentially never right.
 - **Default to server components**; add `'use client'` only for interactivity/hooks/browser APIs, on the smallest leaf possible.
 - **Every async surface ships loading + empty states**; errors use **one global boundary + toasts** (never per-page `error.tsx`); **every action gives a toast** (`sonner`) — see `.claude/docs/ENGINEERING.md` §4.
