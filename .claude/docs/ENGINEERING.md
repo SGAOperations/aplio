@@ -97,6 +97,12 @@ Every async surface ships **all three states** — loading, error, empty. A feat
 - **Loading:** wrap slow server-component subtrees in `<Suspense>` with a skeleton that matches the final layout (no layout shift on resolve). Route-level `loading.tsx` for whole-page fetches.
 - **Error:** use **one global error boundary** — `app/global-error.tsx` (root shell) plus a single route-group `error.tsx` with a retry affordance — **not** a per-page `error.tsx` in every route folder. The boundary is only for **unexpected render / data-fetch errors**; expected errors never reach it.
 - **Action results & feedback.** A server action either **succeeds** (returns nothing, or the relevant created/updated record) or returns **`{ error: 'message' }`** for a **user-facing** condition — **never `{ ok }`**. If something unexpected happens, **throw** (don't return a message that shouldn't be shown). **Every action gives toast feedback** (`sonner`): a success toast; a _specific_ error toast for a returned `{ error }`; a _generic_ error toast when the action **throws during an interaction**; a render-time throw hits the global boundary instead. Never leak internals.
+
+  **Throw vs. return `{ error }` — the decision test:** _"Would you show this exact sentence to the end user, and can they act on it?"_ **Yes → `return { error: '…' }`. No → `throw`.**
+  - **Return `{ error }`** — expected, user-actionable failures with safe copy: business-rule violations the user can resolve — e.g. `'Email already registered'`, `'This position is closed'`, `'You've already applied'`, `'Cycle is locked'`. (zod **field** errors usually surface inline on the form via the resolver, not as a returned `{ error }`.)
+  - **`throw`** — unexpected / internal / not user-actionable: a failed auth or authorization check (shouldn't happen behind a gated UI), a record that _should_ exist but doesn't, DB / network / third-party failures, an unreachable `default:`/invariant, or anything whose message would leak internals. → generic toast (during an action) or global boundary (during render/data-fetch).
+  - **Gray area — "not found":** reachable normally (a stale link to a deleted item) → `return { error: 'No longer available' }`; not reachable for this caller (an IDOR-style miss) → **throw**.
+
 - **Empty:** zero-item lists render a designed empty state (icon, one-line explanation, primary action), not a blank container.
 
 ```tsx
@@ -146,7 +152,7 @@ if (applications.length === 0)
 
 A scannable summary of the issues that recur in this codebase. **impl** builds to it, **revise** must not reintroduce these, and **review** uses it as its dimensions. Detail lives in the sections above.
 
-- **Server actions:** authenticate, zod-parse input, scope writes to the caller (no IDOR). **Return `void`/relevant data on success, `{ error }` for user-facing failures, `throw` for unexpected ones — never `{ ok }`.** (§3, §4)
+- **Server actions:** authenticate, zod-parse input, scope writes to the caller (no IDOR). **Return `void`/relevant data on success, `{ error }` for user-facing failures, `throw` for unexpected ones — never `{ ok }`.** Decision test: _would you show this exact sentence to the user, and can they act on it?_ yes → `{ error }`, no → throw. (§3, §4)
 - **Feedback:** **every action shows a toast** (`sonner`) — success, specific error for `{ error }`, generic on an unexpected throw; `revalidatePath`/`revalidateTag` after writes. (§4)
 - **Errors:** **one global boundary** (`global-error.tsx` + a single route-group `error.tsx`), **never per-page `error.tsx`**; expected errors are toasts, not the boundary. (§4)
 - **Queries:** `select` what's rendered but **reuse shared `lib` types** (slight over-fetch OK; never sensitive/internal/other-users' fields to a client); no N+1; `$transaction` for multi-step writes. (§2)

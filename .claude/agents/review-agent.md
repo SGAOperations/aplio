@@ -69,11 +69,11 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "ready for revi
 
    Note: `gh pr checks` exposes status in the **`bucket`** field (pass/fail/pending) if you pass `--json name,bucket,link` — there is **no** `status`/`conclusion` field on `gh pr checks`. For a failing **Vercel** check, cite the check name + its link as Critical; do not try to read Vercel logs.
 
-2. **Review the diff.** Be **exhaustive on the first review** — cover the whole changed surface across every dimension below. **Later reviews are delta-scoped** (the PR already has prior `## Code Review` comments): verify each prior Critical/Medium is resolved and check only for **regressions the revision introduced** — do not hunt fresh marginal issues. A genuinely-missed Critical/Medium still blocks; a new marginal item is noted Low/follow-up.
+2. **Review the diff.** Be **exhaustive on the first review** — cover the whole changed surface across every dimension below. **Later reviews are delta-scoped** (the PR already has prior `## Code Review` comments): verify each prior finding that blocked is resolved and check only for **regressions the revision introduced** — do not hunt fresh marginal issues. A genuinely-missed Critical/Medium still blocks; a new marginal item is noted Low/follow-up.
 
    For each finding record: a **stable ID** (`R<cycle>-<sev><n>`, e.g. `R1-M2`), the **exact line(s)**, severity, **introduced** vs **preexisting**, and a **suggested fix**.
 
-   **Severity rubric — apply strictly; only Critical/Medium block:**
+   **Severity rubric — assign strictly; what _blocks_ rises with the cycle (the escalating bar, see Handoff):**
    - **Critical** — broken behavior, security hole, or a failing required CI check.
    - **Medium** — a clear correctness / convention / `ENGINEERING.md` violation, or a missing _required_ state (loading/error/empty, auth, validation).
    - **Low** — improvements, **performance tradeoffs, "consider…" suggestions** (these are **never** Medium), by-design choices.
@@ -83,7 +83,7 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "ready for revi
    - **UX/product quality** — is the feature _actually good_? layout & hierarchy, affordances, helpful copy, sensible defaults, the happy path **and** obvious edge/unhappy flows handled. Not just standards conformance.
    - **CI** (failing required check = Critical) · **correctness** vs every plan checklist item.
    - **Security** — auth + zod on every action, authz scoping / no IDOR, dev-only code env-gated, no sensitive/internal/other-users' fields reaching a client.
-   - **Error/feedback model** — server actions return `void`/data or `{ error }` (**never `{ ok }`**), throw for unexpected; **a toast for every action**; **one global error boundary, no per-page `error.tsx`**.
+   - **Error/feedback model** — server actions return `void`/data or `{ error }` (**never `{ ok }`**), throw for unexpected; **a toast for every action**; **one global error boundary, no per-page `error.tsx`**. Apply the §4 decision test: a returned `{ error }` must be a sentence you'd show the user and they can act on; auth/authorization, should-exist-missing, DB/internal failures must **throw** (a returned internal message is a finding) — and check it against the plan's per-action error model.
    - **Conventions** — named exports (except route files); no API routes except `/api/auth`; **server actions in `prisma/actions/`, queries in `prisma/data/`, shared types/constants in `lib/`**; Tailwind/tokens; mobile-first; **no `useEffect` — empty-deps especially**; shadcn/Radix primitives over raw elements; role-gated nav; sensible abstraction / reused `lib` types (no over-abstraction).
    - **Type safety** (no `any`) · **performance** (revalidate after mutations, N+1) · **completeness** (loading + empty states) · **no dead scaffolding/shims**.
 
@@ -99,6 +99,7 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "ready for revi
    - **Added / unchanged-context lines** (diff prefix `+` or ` `) → `"side": "RIGHT"`, `"line"` = the line number in the file's **new** version.
    - **Deleted lines** (diff prefix `-`) → `"side": "LEFT"`, `"line"` = the line number in the file's **old** version.
    - A finding **not** on any such line (unchanged code outside the diff, a whole-file/architectural point) is **not** inline — put it in `body` with a `blob/<headRefOid>` permalink. Do not guess a line number; only emit `comments[]` for lines you mapped from a hunk.
+   - **Inline `comments[]` are NEW actionable findings only.** Never post resolution/status ("resolved", "fixed", "still open", "confirmed") as an inline comment — that belongs **only** in the `body`'s `### Resolved since last review` / `### Still open` sections. (A fixed finding is acknowledged by _resolving its thread_, per revise-agent — not by a new inline comment.)
 
    Build the payload with the **Write tool** at `.temp/review-<pr>.json`, then submit:
 
@@ -127,11 +128,21 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "ready for revi
 
    `<n>` = prior review count + 1 (from pre-flight). Use the colored-circle severities (🔴/🟠/🟡/⚪). Inline `comments[]` must target lines **in the diff**; everything else goes in `body` with permalinks.
 
-## Handoff
+## Handoff — escalating bar
+
+The threshold that triggers a revision **rises with the cycle `<n>`** (from pre-flight), so the first pass polishes everything and later passes only block on real issues (a nit introduced during a revision can't re-trigger). Pick the verdict by the lowest severity present:
+
+| Cycle  | `needs revision` if the review has…       | otherwise                          |
+| ------ | ----------------------------------------- | ---------------------------------- |
+| **1**  | **any** finding (Critical/Medium/Low/Nit) | clean (zero findings) → `approved` |
+| **2**  | Critical / Medium / **Low**               | only Nit (or clean) → `approved`   |
+| **3+** | Critical / Medium                         | Low/Nit (or clean) → `approved`    |
+
+The **cycle cap is unchanged**: the cockpit escalates to `needs human` at 5 cycles with Critical/Medium still open.
 
 ```bash
-# Critical or Medium findings exist:
+# Findings at/above this cycle's bar (table above) → revise:
 gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "reviewing" --add-label "needs revision"
-# Only Low/Nit (or none):
+# At/under the bar (or clean) → approve:
 gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "reviewing" --add-label "approved"
 ```
