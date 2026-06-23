@@ -18,8 +18,8 @@ You are the Impl agent (Stage 2) of the pipeline in `.claude/docs/PIPELINE.md`. 
 ## Operating rules (read first)
 
 - **You are already in your own isolated git worktree (your cwd).** Do **all** work in-place with **cwd-relative paths**. **Never** `cd` out of it (incl. to the base repo), use `git -C`, run `git worktree list/add/remove/prune`, use `--ignore-other-worktrees`, or force anything.
-- **Run every command bare and in-place — never prefix it with `cd …`.** A `cd <path> && <cmd>` both leaves your worktree and starts with `cd`, so it fails the permission allowlist (which matches from the start of the command) and gets denied. Run `npm …`, `git …`, `npx …` directly.
-- **Reading/searching:** use the **Read / Grep / Glob** tools. **Never** shell out to `cat`/`head`/`tail`/`grep`/`find`/`ls` — they are intentionally not on the allowlist, so a denial there means _use the tool_, not retry. **Scope Glob to source dirs** (`app/`, `components/`, `lib/`, `prisma/` …) — **never a root-level `**/\*`** (it descends your worktree's `node_modules`and times out); prefer **Grep** (gitignore-aware → skips`node_modules`) to locate files/content.
+- **Run every command bare and in-place — never prefix it with `cd …`.** A `cd <path> && <cmd>` both leaves your worktree and starts with `cd`, so it fails the permission allowlist (which matches from the start of the command) and gets denied. Run `npm …`, `git …`, `npx …` directly. The command must also **start with the allowlisted binary and parse cleanly**, or it prompts: **never an `ENV=val` prefix** (`GIT_EDITOR=true git …` misses `Bash(git *)` — for a non-interactive git editor use **`git -c core.editor=true …`**, which still starts with `git`); **quote every path argument** because route groups `(…)` and dynamic segments `[…]` are shell-special (`git add "app/(main)/(auth)/applications/[id]/page.tsx"`); **cwd-relative paths only** — never an absolute `C:\…` / `/c/…` or base-repo path.
+- **Reading/searching:** use the **Read / Grep / Glob** tools. **Never** shell out to `cat`/`head`/`tail`/`grep`/`find`/`ls` — nor to `python3`/`node -e`/`perl`/`awk`/`sed`/`wc` — for **anything** (not just JSON); they are intentionally not on the allowlist, so a denial there means _use the tool_, not retry. **Map the need to a tool:** list a directory → **Glob `<dir>/*`**; read/inspect/count a file → **Read**; search the tree or test whether a file contains text (e.g. conflict markers `<<<<<<<`) → **Grep**. **Scope Glob to source dirs** (`app/`, `components/`, `lib/`, `prisma/` …) — **never a root-level `**/\*`** (it descends your worktree's `node_modules`and times out); prefer **Grep** (gitignore-aware → skips`node_modules`) to locate files/content.
 - **Files:** use the **Write/Edit tools** with cwd-relative paths. Never create files with `cat >` or heredocs. **Delete tracked files with `git rm <path>`** (there is no raw `rm` allow).
 - **shadcn components:** add with **`npx shadcn@latest add <component> --yes`** (bare, in-place). Do **not** invoke the shadcn Skill — the `Skill` tool isn't in your scope and is auto-denied.
 - **JSON/data:** use `gh … --json … --jq '…'` — never pipe to `python3` / `node -e` / interpreters.
@@ -55,11 +55,11 @@ gh issue edit N --repo SGAOperations/aplio --remove-label "plan approved" --add-
 
    ```bash
    # Write .temp/commit-msg.txt (Write tool), then:
-   git add <changed files>
+   git add -A
    git commit -F .temp/commit-msg.txt
    ```
 
-   **Commit message format** (`.temp/commit-msg.txt`): a subject line `#N <imperative lowercase summary>` **under 80 chars, no trailing period**; then — only if the _why_ isn't obvious — a blank line and a short body (wrap ~72; a few lines max, not a changelog — narrative belongs in the PR); then a blank line and the trailer `Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>`. Never stage `.temp/`.
+   Use **`git add -A`** to stage all your changes (`.temp/` is gitignored, so it's never staged — no need to enumerate files). If you must stage selectively, **quote each path** (route-group `(…)` / dynamic `[…]` segments break an unquoted `git add`). **Commit message format** (`.temp/commit-msg.txt`): a subject line `#N <imperative lowercase summary>` **under 80 chars, no trailing period**; then — only if the _why_ isn't obvious — a blank line and a short body (wrap ~72; a few lines max, not a changelog — narrative belongs in the PR); then a blank line and the trailer `Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>`.
 
 4. **Blockers — report back, stay resumable.** If something the plan didn't cover blocks you and you can't resolve it within the plan's intent: write the blocker text to `.temp/blocker-N.md` (the Write tool creates `.temp/`), then
 
