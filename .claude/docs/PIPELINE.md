@@ -41,6 +41,17 @@ Background subagents **auto-deny any tool call that would otherwise prompt** (th
 
 Agents never pass large markdown (plans, reviews, comments) as an inline `--body "..."` argument — shell quoting of backticks/code-fences fails cross-platform. They write the payload to `.temp/` (gitignored) and use `gh ... --body-file`. The same applies to the cockpit's escalation comments.
 
+### Command form (why the allowlist sometimes "doesn't work")
+
+A Bash command only matches the `permissions.allow` list if it **starts with an allowlisted binary AND parses cleanly** — otherwise it falls through to a prompt (which a background agent auto-denies). So agents must:
+
+- **No prefixes** — never `cd … && …` and never an `ENV=val cmd` assignment; both move the start token off the binary (`GIT_EDITOR=true git …` misses `Bash(git *)`). For a non-interactive git editor use `git -c core.editor=true …`.
+- **Quote every path argument** — Next.js route groups `(…)` and dynamic segments `[…]` are shell-special and break parsing; `git add -A` avoids enumerating them.
+- **cwd-relative paths**, forward slashes — never an absolute `C:\…` / `/c/…` or base-repo path.
+- **Inspect via the Read/Grep/Glob tools**, never `cat`/`ls`/`grep`/`python3`/`wc` (not on the allowlist by design; the tool is the route).
+
+This is enforced in each agent's "Operating rules"; it's documented here so the rationale isn't re-debugged.
+
 ## Label lifecycle
 
 Rule: **every stage agent's first action is swapping its trigger label for its in-flight label.** Absence of a trigger label means the cockpit skips the item — a tick can never double-dispatch. A crashed agent leaves the item parked in an in-flight label; recovery = re-apply the trigger label (`retry #N`).
