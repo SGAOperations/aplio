@@ -54,9 +54,7 @@ export default async function ApplicationDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>
-            <h2 className="text-base font-semibold">Status</h2>
-          </CardTitle>
+          <CardTitle className="text-base font-semibold">Status</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <ApplicationStatusBadge status={application.status} />
@@ -69,8 +67,8 @@ export default async function ApplicationDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>
-            <h2 className="text-base font-semibold">Profile answers</h2>
+          <CardTitle className="text-base font-semibold">
+            Profile answers
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -83,8 +81,8 @@ export default async function ApplicationDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>
-            <h2 className="text-base font-semibold">Position answers</h2>
+          <CardTitle className="text-base font-semibold">
+            Position answers
           </CardTitle>
           <CardDescription>{application.position.title}</CardDescription>
         </CardHeader>

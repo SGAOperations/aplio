@@ -34,18 +34,6 @@ export const baseQuestionSchema = z.object({
   options: z.array(z.string()),
 });
 
-// The post-submission statuses a manager/admin may set. Excludes 'draft'
-// (in-progress, applicant-private) — shared by the dropdown options and the
-// updateApplicationStatus zod enum so the two never drift.
-export const MANAGEABLE_APPLICATION_STATUSES = [
-  'applied',
-  'reached_out',
-  'interview_scheduled',
-  'reviewing',
-  'accepted',
-  'rejected',
-] as const;
-
 // Human-readable labels for each application status.
 // Keyed on the generated ApplicationStatus enum for build-time exhaustiveness.
 export const APPLICATION_STATUS_LABELS: Record<

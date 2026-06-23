@@ -216,7 +216,10 @@ export async function submitApplication(
 
 // Reviewer-selectable statuses exclude 'draft' — a reviewer cannot push an
 // application back to draft; that state is applicant-owned.
-type ReviewerStatus = Exclude<(typeof APPLICATION_STATUS_VALUES)[number], 'draft'>;
+type ReviewerStatus = Exclude<
+  (typeof APPLICATION_STATUS_VALUES)[number],
+  'draft'
+>;
 const reviewerStatuses = APPLICATION_STATUS_VALUES.filter(
   (s): s is ReviewerStatus => s !== 'draft',
 ) as [ReviewerStatus, ...ReviewerStatus[]];

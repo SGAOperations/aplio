@@ -3,7 +3,7 @@ import { Inbox } from 'lucide-react';
 import { type PositionApplicationListItem } from '@/lib/types';
 import { formatDate } from '@/lib/utils';
 
-import { ApplicationStatusSelect } from '@/components/features/application-status-select';
+import { ApplicationStatusControl } from '@/components/features/application-status-control';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Table,
@@ -66,10 +66,9 @@ export function PositionApplicationsTable({
                     {formatDate(app.submittedAt)}
                   </TableCell>
                   <TableCell>
-                    <ApplicationStatusSelect
+                    <ApplicationStatusControl
                       applicationId={app.id}
                       currentStatus={app.status}
-                      applicantName={displayName}
                     />
                   </TableCell>
                 </TableRow>
@@ -96,10 +95,9 @@ export function PositionApplicationsTable({
               <span className="text-muted-foreground text-sm">
                 {formatDate(app.submittedAt)}
               </span>
-              <ApplicationStatusSelect
+              <ApplicationStatusControl
                 applicationId={app.id}
                 currentStatus={app.status}
-                applicantName={displayName}
               />
             </div>
           );

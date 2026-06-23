@@ -39,14 +39,18 @@ export function ApplicationStatusControl({
 
   function handleValueChange(value: string) {
     startTransition(async () => {
-      const result = await updateApplicationStatus({
-        applicationId,
-        status: value,
-      });
-      if (result && 'error' in result) {
-        toast.error(result.error);
-      } else {
-        toast.success('Status updated');
+      try {
+        const result = await updateApplicationStatus({
+          applicationId,
+          status: value,
+        });
+        if (result && 'error' in result) {
+          toast.error(result.error);
+        } else {
+          toast.success('Status updated');
+        }
+      } catch {
+        toast.error('Something went wrong. Please try again.');
       }
     });
   }
