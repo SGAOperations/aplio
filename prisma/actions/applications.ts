@@ -13,6 +13,7 @@ import type {
 } from '@/prisma/client';
 
 import { getCurrentUser } from '@/lib/auth/server';
+import { MANAGEABLE_APPLICATION_STATUSES } from '@/lib/constants';
 import prisma from '@/lib/prisma';
 import { type DraftApplication } from '@/lib/types';
 import { type ResponseType, toStringArray } from '@/lib/utils';
@@ -211,4 +212,54 @@ export async function submitApplication(
   revalidatePath('/applications');
   revalidatePath('/positions');
   return updated;
+}
+
+const updateApplicationStatusSchema = z.object({
+  applicationId: z.string().min(1),
+  status: z.enum(MANAGEABLE_APPLICATION_STATUSES),
+});
+
+// Throw-only: every failure here is unexpected/impossible from a correctly-gated UI.
+// The applications page redirects unauthenticated and wrong-role users before
+// the dropdown renders, so unauthenticated calls and wrong-role calls are impossible
+// from the real UI. Forged inputs, stale ids, and DB faults all throw.
+export async function updateApplicationStatus(input: unknown): Promise<void> {
+  // getCurrentUser redirects unauthenticated callers — never returns null.
+  const currentUser = await getCurrentUser();
+
+  // Impossible from a correct UI — a failure here means malformed/forged input → throw.
+  const parsed = updateApplicationStatusSchema.safeParse(input);
+  if (!parsed.success) throw new Error('Invalid updateApplicationStatus input');
+  const { applicationId, status } = parsed.data;
+
+  // Authorization (no IDOR): scope the lookup to the application with manager filter
+  // scoped to the caller so a non-admin non-manager cannot reach this record.
+  const application = await prisma.application.findFirst({
+    where: { id: applicationId, deletedAt: null, status: { not: 'draft' } },
+    select: {
+      id: true,
+      positionId: true,
+      position: {
+        select: {
+          managers: { where: { id: currentUser.id }, select: { id: true } },
+        },
+      },
+    },
+  });
+  // Impossible from a correct UI: the list only renders submitted applications
+  // of an accessible position — a miss means a forged/stale id → throw.
+  if (!application) throw new Error('Application not found');
+
+  // Wrong role is impossible from the UI (the page redirects such users before
+  // the dropdown renders) → throw, not { error }.
+  const isManager = application.position.managers.length > 0;
+  if (!currentUser.isAdmin && !isManager)
+    throw new Error('Not authorized to manage this application');
+
+  await prisma.application.update({
+    where: { id: applicationId },
+    data: { status, updatedById: currentUser.id },
+  });
+
+  revalidatePath(`/positions/${application.positionId}/applications`);
 }
