@@ -1,7 +1,11 @@
 import 'server-only';
 
 import prisma from '@/lib/prisma';
-import { type PositionForEdit, type PositionWithQuestions } from '@/lib/types';
+import {
+  type OpenPositionSummaryItem,
+  type PositionForEdit,
+  type PositionWithQuestions,
+} from '@/lib/types';
 
 export async function getPositions(
   includeAll = false,
@@ -70,6 +74,28 @@ export async function getPositionAccess(
   return prisma.position.findFirst({
     where: { id, deletedAt: null },
     select: { id: true, title: true, managers: { select: { id: true } } },
+  });
+}
+
+// Admin-only: open positions with filtered non-draft application counts in a single query.
+// Returns cross-position data — must only be called from an admin-gated context.
+export async function getOpenPositionsSummary(): Promise<
+  OpenPositionSummaryItem[]
+> {
+  return prisma.position.findMany({
+    where: { status: 'open', deletedAt: null },
+    select: {
+      id: true,
+      title: true,
+      _count: {
+        select: {
+          applications: {
+            where: { deletedAt: null, status: { not: 'draft' } },
+          },
+        },
+      },
+    },
+    orderBy: { title: 'asc' },
   });
 }
 

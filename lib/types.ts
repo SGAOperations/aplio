@@ -95,3 +95,21 @@ export type PositionApplicationListItem = Prisma.ApplicationGetPayload<{
     user: { select: { id: true; name: true; email: true } };
   };
 }>;
+
+// Admin-only type — exposes applicant identity (name/email) and position.
+// Must only be used in admin-gated contexts; never serialize to non-admin clients.
+export type AdminApplicationListItem = Prisma.ApplicationGetPayload<{
+  select: {
+    id: true;
+    status: true;
+    submittedAt: true;
+    position: { select: { id: true; title: true } };
+    user: { select: { id: true; name: true; email: true } };
+  };
+}>;
+
+// Admin-only type — open position with filtered non-draft application count.
+// Must only be used in admin-gated contexts.
+export type OpenPositionSummaryItem = Prisma.PositionGetPayload<{
+  select: { id: true; title: true; _count: { select: { applications: true } } };
+}>;

@@ -4,6 +4,7 @@ import { $Enums } from '@/prisma/client';
 
 import prisma from '@/lib/prisma';
 import {
+  type AdminApplicationListItem,
   type MyApplicationListItem,
   type PositionApplicationListItem,
 } from '@/lib/types';
@@ -66,4 +67,37 @@ export async function getMyApplicationStatusCounts(
   });
 
   return Object.fromEntries(rows.map((r) => [r.status, r._count]));
+}
+
+// Admin-only: returns application counts grouped by status across all positions.
+// Returns cross-user data — must only be called from an admin-gated context.
+export async function getApplicationStatusCounts(): Promise<
+  Partial<Record<$Enums.ApplicationStatus, number>>
+> {
+  const rows = await prisma.application.groupBy({
+    by: ['status'],
+    where: { deletedAt: null },
+    _count: true,
+  });
+
+  return Object.fromEntries(rows.map((r) => [r.status, r._count]));
+}
+
+// Admin-only: returns the most recent non-draft applications across all positions.
+// Returns cross-user data (applicant name/email) — must only be called from an admin-gated context.
+export async function getRecentApplications(
+  take = 10,
+): Promise<AdminApplicationListItem[]> {
+  return prisma.application.findMany({
+    where: { deletedAt: null, status: { not: 'draft' } },
+    select: {
+      id: true,
+      status: true,
+      submittedAt: true,
+      position: { select: { id: true, title: true } },
+      user: { select: { id: true, name: true, email: true } },
+    },
+    orderBy: { submittedAt: 'desc' },
+    take,
+  });
 }
