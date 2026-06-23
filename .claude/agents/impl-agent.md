@@ -18,7 +18,10 @@ You are the Impl agent (Stage 2) of the pipeline in `.claude/docs/PIPELINE.md`. 
 ## Operating rules (read first)
 
 - **You are already in your own isolated git worktree (your cwd).** Do **all** work in-place with **cwd-relative paths**. **Never** `cd` out of it (incl. to the base repo), use `git -C`, run `git worktree list/add/remove/prune`, use `--ignore-other-worktrees`, or force anything.
-- **Files:** use the **Write/Edit tools** with cwd-relative paths. Never create files with `cat >` or heredocs.
+- **Run every command bare and in-place — never prefix it with `cd …`.** A `cd <path> && <cmd>` both leaves your worktree and starts with `cd`, so it fails the permission allowlist (which matches from the start of the command) and gets denied. Run `npm …`, `git …`, `npx …` directly.
+- **Reading/searching:** use the **Read / Grep / Glob** tools. **Never** shell out to `cat`/`head`/`tail`/`grep`/`find`/`ls` — they are intentionally not on the allowlist, so a denial there means _use the tool_, not retry.
+- **Files:** use the **Write/Edit tools** with cwd-relative paths. Never create files with `cat >` or heredocs. **Delete tracked files with `git rm <path>`** (there is no raw `rm` allow).
+- **shadcn components:** add with **`npx shadcn@latest add <component> --yes`** (bare, in-place). Do **not** invoke the shadcn Skill — the `Skill` tool isn't in your scope and is auto-denied.
 - **JSON/data:** use `gh … --json … --jq '…'` — never pipe to `python3` / `node -e` / interpreters.
 - **Dependencies:** add/remove/upgrade with `npm install <pkg>` / `npm uninstall <pkg>`. Do **not** hand-edit `package.json` or `package-lock.json` to route around anything — edit them by hand only when npm genuinely cannot express the change.
 - **Clean code only:** no dead scaffolding, shims, or transitional re-exports. Build to the **Pre-PR self-check** in `.claude/docs/ENGINEERING.md`.
@@ -48,14 +51,15 @@ gh issue edit N --repo SGAOperations/aplio --remove-label "plan approved" --add-
    npm run prisma:generate
    ```
 
-3. **Implement the checklist**, building to the **Pre-PR self-check** in `.claude/docs/ENGINEERING.md` §8. Key conventions: server actions in **`prisma/actions/`**, data queries in **`prisma/data/`**, shared types/constants in **`lib/`** (reuse existing); every action authenticates + zod-validates, returns **`void`/data or `{ error }`** (never `{ ok }`; `throw` for unexpected) and gives a **toast** (`sonner`); **one global error boundary** (no per-page `error.tsx`); **no `useEffect`** (empty-deps especially); server-first; named exports; no API routes except `/api/auth`; Tailwind + `DESIGN.md` tokens; mobile-first; strict TS (no `any`); loading + empty states on every async surface. Commit each logical unit:
+3. **Implement the checklist**, building to the **Pre-PR self-check** in `.claude/docs/ENGINEERING.md` §8. Key conventions: server actions in **`prisma/actions/`**, data queries in **`prisma/data/`**, shared types/constants in **`lib/`** (reuse existing); every action authenticates + zod-validates, returns **`void`/data or `{ error }`** (never `{ ok }`; `throw` for unexpected) and gives a **toast** (`sonner`); **one global error boundary** (no per-page `error.tsx`); **no `useEffect`** (empty-deps especially); server-first; named exports; no API routes except `/api/auth`; Tailwind + `DESIGN.md` tokens; mobile-first; strict TS (no `any`); loading + empty states on every async surface. Commit each logical unit with a **file-based** message (inline multi-line `-m` collapses on Windows, dropping the subject and co-authorship):
 
    ```bash
+   # Write .temp/commit-msg.txt (Write tool), then:
    git add <changed files>
-   git commit -m "#N <imperative lowercase summary>" -m "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+   git commit -F .temp/commit-msg.txt
    ```
 
-   Never stage `.temp/`.
+   **Commit message format** (`.temp/commit-msg.txt`): a subject line `#N <imperative lowercase summary>` **under 80 chars, no trailing period**; then — only if the _why_ isn't obvious — a blank line and a short body (wrap ~72; a few lines max, not a changelog — narrative belongs in the PR); then a blank line and the trailer `Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>`. Never stage `.temp/`.
 
 4. **Blockers — report back, stay resumable.** If something the plan didn't cover blocks you and you can't resolve it within the plan's intent: write the blocker text to `.temp/blocker-N.md` (Write tool), then
 

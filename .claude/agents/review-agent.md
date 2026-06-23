@@ -15,6 +15,8 @@ You are the Review agent (Stage 3) of the pipeline in `.claude/docs/PIPELINE.md`
 
 ## Operating rules (read first)
 
+- **Reading/searching:** use the **Read / Grep / Glob** tools for all file inspection. **Never** shell out to `cat`/`head`/`tail`/`grep`/`find`/`ls` — they are intentionally not on the allowlist, so a denial there means _use the tool_, not retry.
+- **Run every command bare — never prefix it with `cd …`.** You run read-only in the main repo; a `cd … && <cmd>` starts with `cd` and fails the permission allowlist (which matches from the start of the command). Run `gh …` directly.
 - **Files:** use the **Write tool** with cwd-relative paths for `.temp/` payloads — never `cat >`/heredocs, never absolute `.claude/worktrees/…` paths. You do not edit source.
 - **JSON/data:** use `gh … --json … --jq '…'` — never pipe to `python3` / `node -e` / interpreters.
 - **When blocked:** if a command is denied or you can't resolve something within 1–2 attempts, **STOP** and post the partial review with what you have. **Never spawn subagents; never improvise around a denial.**
@@ -93,13 +95,20 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "ready for revi
 
    The pipeline **label** (set in Handoff) is the real control signal regardless of the event.
 
+   **Anchor inline comments correctly — do this before building the payload, or GitHub 422s the whole review ("Line could not be resolved").** An inline comment is only accepted on a line that is part of the diff. From the hunk headers in `gh pr diff <pr-number>` (`@@ -<oldStart>,<oldLen> +<newStart>,<newLen> @@`), walk each hunk to map lines:
+   - **Added / unchanged-context lines** (diff prefix `+` or ` `) → `"side": "RIGHT"`, `"line"` = the line number in the file's **new** version.
+   - **Deleted lines** (diff prefix `-`) → `"side": "LEFT"`, `"line"` = the line number in the file's **old** version.
+   - A finding **not** on any such line (unchanged code outside the diff, a whole-file/architectural point) is **not** inline — put it in `body` with a `blob/<headRefOid>` permalink. Do not guess a line number; only emit `comments[]` for lines you mapped from a hunk.
+
    Build the payload with the **Write tool** at `.temp/review-<pr>.json`, then submit:
 
    ```bash
    gh api repos/SGAOperations/aplio/pulls/<pr-number>/reviews --input .temp/review-<pr>.json
    ```
 
-   Shape — `body` = the summary (cycle-numbered title, IDs, suggested fixes, status sections on delta reviews, and any **preexisting/non-diff** findings as `blob/<headRefOid>` permalinks); `comments[]` = **inline** findings on lines **in the diff** only:
+   **If it still returns 422 (a line couldn't be resolved), do not lose the review:** resubmit with `comments` set to `[]` (summary `body` only) so the review always lands, and append a note to the body that inline anchoring failed and findings are listed inline-in-body with permalinks. A single bad line must never sink the whole review.
+
+   Shape — `body` = the summary (cycle-numbered title, IDs, suggested fixes, status sections on delta reviews, and any **preexisting/non-diff** findings as `blob/<headRefOid>` permalinks); `comments[]` = **inline** findings on lines **in the diff** only (mapped as above):
 
    ```json
    {
