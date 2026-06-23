@@ -1,5 +1,7 @@
 'use client';
 
+import { useTransition } from 'react';
+
 import { ChevronUp } from 'lucide-react';
 
 import { logoutBypassUser } from '@/prisma/services/dev-bypass';
@@ -21,6 +23,7 @@ interface UserMenuProps {
 
 export function UserMenu({ identity }: UserMenuProps) {
   const { email, roleLabel, isBypass } = identity;
+  const [pending, startTransition] = useTransition();
 
   return (
     <DropdownMenu>
@@ -47,15 +50,12 @@ export function UserMenu({ identity }: UserMenuProps) {
         {isBypass && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <form action={logoutBypassUser}>
-                <button
-                  type="submit"
-                  className="text-destructive w-full cursor-pointer text-left text-sm"
-                >
-                  Log out
-                </button>
-              </form>
+            <DropdownMenuItem
+              disabled={pending}
+              onSelect={() => startTransition(() => logoutBypassUser())}
+              className="text-destructive cursor-pointer text-sm"
+            >
+              Log out
             </DropdownMenuItem>
           </>
         )}

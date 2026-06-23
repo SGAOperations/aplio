@@ -15,6 +15,13 @@ async function resolveRealUser() {
   return prisma.user.findUnique({ where: { neonAuthId: session.user.id } });
 }
 
+// Returns true only when a bypass cookie is present on a non-production environment.
+// Extracted so layouts share a single definition; called after getCurrentUser() resolves.
+export async function getIsBypass(): Promise<boolean> {
+  if (process.env.VERCEL_ENV === 'production') return false;
+  return Boolean((await cookies()).get('dev-bypass-user-id')?.value);
+}
+
 // React.cache deduplicates calls within a single server render pass,
 // avoiding a redundant DB round-trip when layout and page both call getCurrentUser().
 export const getCurrentUser = cache(async function getCurrentUser() {
