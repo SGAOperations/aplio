@@ -113,3 +113,9 @@ export type AdminApplicationListItem = Prisma.ApplicationGetPayload<{
 export type OpenPositionSummaryItem = Prisma.PositionGetPayload<{
   select: { id: true; title: true; _count: { select: { applications: true } } };
 }>;
+
+export type ProfileCompleteness = {
+  complete: boolean;
+  missingCount: number;
+  requiredCount: number;
+};

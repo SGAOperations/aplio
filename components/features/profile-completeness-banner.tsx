@@ -31,9 +31,7 @@ export async function ProfileCompletenessBanner({
           <div>
             <p className="text-sm font-semibold">Complete your profile</p>
             <p className="text-muted-foreground mt-0.5 text-sm">
-              {missingCount > 0
-                ? `You have ${missingCount} required ${questionWord} left to answer.`
-                : 'Finish your profile so you’re ready to apply to open positions.'}
+              {`You have ${missingCount} required ${questionWord} left to answer.`}
             </p>
           </div>
           <Button asChild size="sm" className="shrink-0">

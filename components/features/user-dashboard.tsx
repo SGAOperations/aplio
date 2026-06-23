@@ -77,7 +77,8 @@ export function UserDashboard({ userId, userName }: UserDashboardProps) {
         </p>
       </div>
 
-      <Suspense fallback={null}>
+      {/* Fixed-height placeholder prevents CLS when the banner resolves and is present. */}
+      <Suspense fallback={<div className="h-[68px]" />}>
         <ProfileCompletenessBanner userId={userId} />
       </Suspense>
 

@@ -3,6 +3,7 @@ import 'server-only';
 import type { GlobalAnswer, GlobalQuestion } from '@/prisma/client';
 
 import prisma from '@/lib/prisma';
+import { type ProfileCompleteness } from '@/lib/types';
 
 export async function getProfileData(
   userId: string,
@@ -18,12 +19,6 @@ export async function getProfileData(
     answer: answers[0] ?? null,
   }));
 }
-
-export type ProfileCompleteness = {
-  complete: boolean;
-  missingCount: number;
-  requiredCount: number;
-};
 
 export async function getProfileCompleteness(
   userId: string,
