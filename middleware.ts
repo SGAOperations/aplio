@@ -20,5 +20,10 @@ export default function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  // Exclude Next internals and public metadata/icon assets so the
+  // file-convention favicon (/icon.svg) and apple-touch icon (/apple-icon)
+  // load on unauthenticated routes instead of being redirected to login.
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|icon.svg|apple-icon|sitemap.xml|robots.txt).*)',
+  ],
 };
