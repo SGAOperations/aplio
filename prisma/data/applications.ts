@@ -53,7 +53,11 @@ export async function getPositionApplications(
   positionId: string,
 ): Promise<PositionApplicationListItem[]> {
   return prisma.application.findMany({
-    where: { positionId, deletedAt: null, status: { not: 'draft' } },
+    where: {
+      positionId,
+      deletedAt: null,
+      status: { notIn: ['draft', 'withdrawn'] },
+    },
     select: positionApplicationSelect,
     orderBy: { submittedAt: 'desc' },
   });
@@ -109,26 +113,27 @@ export async function getMyApplicationStatusCounts(
 }
 
 // Admin-only: returns application counts grouped by status across all positions.
+// Excludes drafts and withdrawn applications — counts active pipeline statuses only.
 // Returns cross-user data — must only be called from an admin-gated context.
 export async function getApplicationStatusCounts(): Promise<
   Partial<Record<$Enums.ApplicationStatus, number>>
 > {
   const rows = await prisma.application.groupBy({
     by: ['status'],
-    where: { deletedAt: null },
+    where: { deletedAt: null, status: { notIn: ['draft', 'withdrawn'] } },
     _count: true,
   });
 
   return Object.fromEntries(rows.map((r) => [r.status, r._count]));
 }
 
-// Admin-only: returns the most recent non-draft applications across all positions.
+// Admin-only: returns the most recent non-draft, non-withdrawn applications across all positions.
 // Returns cross-user data (applicant name/email) — must only be called from an admin-gated context.
 export async function getRecentApplications(
   take = 10,
 ): Promise<AdminApplicationListItem[]> {
   return prisma.application.findMany({
-    where: { deletedAt: null, status: { not: 'draft' } },
+    where: { deletedAt: null, status: { notIn: ['draft', 'withdrawn'] } },
     select: {
       id: true,
       status: true,
