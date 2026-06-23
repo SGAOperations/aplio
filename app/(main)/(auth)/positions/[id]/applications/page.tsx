@@ -39,9 +39,9 @@ export default async function PositionApplicationsPage({
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
       <div>
         <Button variant="ghost" size="sm" asChild className="mb-2 -ml-2">
-          <Link href={`/positions/${id}/edit`}>
+          <Link href="/positions">
             <ArrowLeft className="size-4" />
-            Back to position
+            Back to positions
           </Link>
         </Button>
         <h1 className="text-3xl font-bold tracking-tight">{position.title}</h1>

@@ -84,7 +84,7 @@ export function PositionApplicationsTable({
         {applications.map((app) => {
           const displayName = app.user.name ?? app.user.email;
           return (
-            <div key={app.id} className="flex flex-col gap-3 p-4">
+            <div key={app.id} className="flex flex-col gap-2 p-4">
               <div>
                 <span className="font-medium">{displayName}</span>
                 {app.user.name && (

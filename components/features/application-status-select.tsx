@@ -36,6 +36,8 @@ export function ApplicationStatusSelect({
 }: ApplicationStatusSelectProps) {
   const [isPending, startTransition] = useTransition();
   // Controlled from local state so we can revert on failure.
+  // Safe: getPositionApplications filters status: { not: 'draft' }, so currentStatus
+  // is always one of the six manageable values — never ApplicationStatus.draft.
   const [value, setValue] = useState<ManageableStatus>(
     currentStatus as ManageableStatus,
   );
@@ -61,7 +63,7 @@ export function ApplicationStatusSelect({
     <div className="flex items-center gap-2">
       <Select value={value} onValueChange={handleChange} disabled={isPending}>
         <SelectTrigger
-          className="w-[180px]"
+          className="w-full"
           aria-label={`Status for ${applicantName}`}
         >
           <SelectValue />
