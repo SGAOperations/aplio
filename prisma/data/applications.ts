@@ -5,6 +5,7 @@ import { $Enums } from '@/prisma/client';
 import prisma from '@/lib/prisma';
 import {
   type AdminApplicationListItem,
+  type ApplicationForReview,
   type MyApplicationListItem,
   type PositionApplicationListItem,
 } from '@/lib/types';
@@ -54,6 +55,43 @@ export async function getPositionApplications(
     where: { positionId, deletedAt: null, status: { not: 'draft' } },
     select: positionApplicationSelect,
     orderBy: { submittedAt: 'desc' },
+  });
+}
+
+// Authorization is folded into the where clause: admins see any application;
+// managers only see applications for positions they manage. Unauthorized callers
+// and soft-deleted records both return null, which the page converts to notFound().
+export async function getApplicationForReview(
+  id: string,
+  user: { id: string; isAdmin: boolean },
+): Promise<ApplicationForReview | null> {
+  const where = user.isAdmin
+    ? { id, deletedAt: null }
+    : {
+        id,
+        deletedAt: null,
+        position: { managers: { some: { id: user.id } } },
+      };
+
+  return prisma.application.findFirst({
+    where,
+    select: {
+      id: true,
+      status: true,
+      submittedAt: true,
+      user: { select: { name: true, email: true } },
+      position: { select: { id: true, title: true } },
+      globalAnswers: {
+        where: { deletedAt: null },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true, questionLabel: true, value: true },
+      },
+      positionAnswers: {
+        where: { deletedAt: null },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true, questionLabel: true, value: true },
+      },
+    },
   });
 }
 

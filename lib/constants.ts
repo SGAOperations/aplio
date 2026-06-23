@@ -75,6 +75,28 @@ export const APPLICATION_STATUS_BADGE_VARIANT: Record<
   rejected: 'destructive',
 };
 
+// Tuple of all ApplicationStatus values — shared between zod enum (action) and
+// the Select options (control) so both stay in sync with the DB enum.
+export const APPLICATION_STATUS_VALUES = [
+  'draft',
+  'applied',
+  'reached_out',
+  'interview_scheduled',
+  'reviewing',
+  'accepted',
+  'rejected',
+] as const satisfies $Enums.ApplicationStatus[];
+
+// Select options for the status dropdown — one entry per APPLICATION_STATUS_LABELS entry,
+// mirroring STATUS_OPTIONS for positions.
+export const APPLICATION_STATUS_OPTIONS: {
+  value: $Enums.ApplicationStatus;
+  label: string;
+}[] = APPLICATION_STATUS_VALUES.map((value) => ({
+  value,
+  label: APPLICATION_STATUS_LABELS[value],
+}));
+
 export const STATUS_OPTIONS: { value: PositionStatus; label: string }[] = [
   { value: 'draft', label: 'Draft' },
   { value: 'open', label: 'Open' },

@@ -119,3 +119,33 @@ export type ProfileCompleteness = {
   missingCount: number;
   requiredCount: number;
 };
+
+// Answer row shape for the review detail page — same for global and position answers.
+// Audit columns are excluded; value is String[] (multi-value answers are supported).
+export type ApplicationReviewAnswer = {
+  id: string;
+  questionLabel: string;
+  value: string[];
+};
+
+// Full application shape for the admin/manager review page.
+// Prisma-generated payload keeps it in sync with the schema automatically.
+export type ApplicationForReview = Prisma.ApplicationGetPayload<{
+  select: {
+    id: true;
+    status: true;
+    submittedAt: true;
+    user: { select: { name: true; email: true } };
+    position: { select: { id: true; title: true } };
+    globalAnswers: {
+      where: { deletedAt: null };
+      orderBy: { createdAt: 'asc' };
+      select: { id: true; questionLabel: true; value: true };
+    };
+    positionAnswers: {
+      where: { deletedAt: null };
+      orderBy: { createdAt: 'asc' };
+      select: { id: true; questionLabel: true; value: true };
+    };
+  };
+}>;
