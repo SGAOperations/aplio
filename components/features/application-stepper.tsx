@@ -17,10 +17,9 @@ import type {
   GlobalApplicationAnswer,
   GlobalQuestion,
   PositionApplicationAnswer,
-  PositionQuestion,
 } from '@/prisma/client';
 
-import { type DraftApplication } from '@/lib/types';
+import { type DraftApplication, type PositionWithQuestions } from '@/lib/types';
 import { cn, isError, toStringArray } from '@/lib/utils';
 
 import { ApplicationQuestion } from '@/components/features/application-question';
@@ -28,9 +27,17 @@ import { Button } from '@/components/ui/button';
 
 type StepperFormValues = Record<string, string[]>;
 
+type NarrowQuestion = {
+  id: string;
+  label: string;
+  type: GlobalQuestion['type'];
+  required: boolean;
+  options: string[];
+};
+
 interface QuestionListProps {
   applicationId: string;
-  questions: (GlobalQuestion | PositionQuestion)[];
+  questions: NarrowQuestion[];
   control: Control<StepperFormValues>;
   isGlobal: boolean;
   readOnly?: boolean;
@@ -42,7 +49,7 @@ function ReadOnlyQuestionCard({
   question,
   displayValue,
 }: {
-  question: GlobalQuestion | PositionQuestion;
+  question: NarrowQuestion;
   displayValue: string[];
 }) {
   return (
@@ -149,7 +156,7 @@ interface ApplicationStepperProps {
   application: DraftApplication;
   globalQuestions: GlobalQuestion[];
   globalAnswers: GlobalAnswer[];
-  positionQuestions: PositionQuestion[];
+  positionQuestions: PositionWithQuestions['questions'];
 }
 
 export function ApplicationStepper({

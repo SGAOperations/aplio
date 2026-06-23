@@ -1,6 +1,7 @@
 import { z } from 'zod/v4';
 
 import { $Enums } from '@/prisma/client';
+import type { PositionStatus, QuestionType } from '@/prisma/client';
 
 import type { BadgeVariant } from '@/components/ui/badge';
 
@@ -61,3 +62,28 @@ export const APPLICATION_STATUS_BADGE_VARIANT: Record<
   accepted: 'success',
   rejected: 'destructive',
 };
+
+export const STATUS_OPTIONS: { value: PositionStatus; label: string }[] = [
+  { value: 'draft', label: 'Draft' },
+  { value: 'open', label: 'Open' },
+  { value: 'closed', label: 'Closed' },
+];
+
+export const STATUS_LABELS: Record<PositionStatus, string> = {
+  draft: 'Draft',
+  open: 'Open',
+  closed: 'Closed',
+};
+
+export const STATUS_VARIANTS: Record<PositionStatus, BadgeVariant> = {
+  draft: 'secondary',
+  open: 'default',
+  closed: 'outline',
+};
+
+export const QUESTION_TYPE_OPTIONS: { value: QuestionType; label: string }[] = [
+  { value: 'short_answer', label: 'Short Answer' },
+  { value: 'long_answer', label: 'Long Answer' },
+  { value: 'single_choice', label: 'Single Choice' },
+  { value: 'multiple_choice', label: 'Multiple Choice' },
+];
