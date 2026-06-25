@@ -32,7 +32,8 @@ export function PositionApplicationsTable({
     );
 
   return (
-    <Card className="gap-0 p-0">
+    // overflow-hidden clips the header hover highlight to the card's rounded corners
+    <Card className="gap-0 overflow-hidden p-0">
       {/* Desktop table — hidden on mobile */}
       <div className="hidden md:block">
         <Table>
