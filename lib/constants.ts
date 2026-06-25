@@ -110,6 +110,18 @@ export const REVIEWER_APPLICATION_STATUSES = [
 export const REVIEWER_APPLICATION_STATUS_OPTIONS =
   APPLICATION_STATUS_OPTIONS.filter((o) => o.value !== 'draft');
 
+// Submitted-but-not-concluded application statuses. Excludes 'draft' (unsubmitted,
+// applicant-owned), 'accepted'/'rejected' (terminal), and 'withdrawn' (resolved).
+// Used by the admin positions query to keep a closed position visible only while
+// it still has work in progress. Positive 'in' list so future enum values are
+// excluded by default until deliberately added — safer for a visibility metric.
+export const UNRESOLVED_APPLICATION_STATUSES = [
+  'applied',
+  'reached_out',
+  'interview_scheduled',
+  'reviewing',
+] as const satisfies $Enums.ApplicationStatus[];
+
 export const STATUS_OPTIONS: { value: PositionStatus; label: string }[] = [
   { value: 'draft', label: 'Draft' },
   { value: 'open', label: 'Open' },

@@ -1,9 +1,13 @@
 import { Briefcase } from 'lucide-react';
 
 import { getManagedPositionIds } from '@/prisma/data/managers';
-import { getPositions } from '@/prisma/data/positions';
+import {
+  getAdminPositions,
+  getPositions,
+} from '@/prisma/data/positions';
 
 import { getCurrentUser } from '@/lib/auth/server';
+import type { PositionWithQuestions } from '@/lib/types';
 
 import { PositionCard } from '@/components/features/position-card';
 import { PositionCreateDialog } from '@/components/features/position-create-dialog';
@@ -12,17 +16,18 @@ import { EmptyState } from '@/components/ui/empty-state';
 
 export default async function PositionsPage() {
   const user = await getCurrentUser();
-  const positions = await getPositions({
-    isAdmin: user.isAdmin,
-    userId: user.id,
-  });
 
+  let positions: PositionWithQuestions[];
   let managedIds: Set<string>;
+
   if (user.isAdmin) {
+    positions = await getAdminPositions();
     managedIds = new Set(positions.map((p) => p.id));
   } else {
+    positions = await getPositions({ isAdmin: false, userId: user.id });
     managedIds = await getManagedPositionIds(user.id);
   }
+
   const canCreate = user.isAdmin || managedIds.size > 0;
 
   return (
@@ -39,11 +44,19 @@ export default async function PositionsPage() {
       {positions.length === 0 ? (
         <EmptyState
           icon={Briefcase}
-          title={canCreate ? 'No positions yet' : 'No open positions'}
+          title={
+            user.isAdmin
+              ? 'No active positions.'
+              : canCreate
+                ? 'No positions yet'
+                : 'No open positions'
+          }
           description={
-            canCreate
-              ? 'Create your first position to start accepting applications.'
-              : 'There are no open positions right now. Check back soon.'
+            user.isAdmin
+              ? 'Open, draft, recently closed, and in-review positions appear here.'
+              : canCreate
+                ? 'Create your first position to start accepting applications.'
+                : 'There are no open positions right now. Check back soon.'
           }
           action={canCreate ? <PositionCreateDialog /> : undefined}
         />
