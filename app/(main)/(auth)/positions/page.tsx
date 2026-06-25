@@ -1,10 +1,7 @@
 import { Briefcase } from 'lucide-react';
 
 import { getManagedPositionIds } from '@/prisma/data/managers';
-import {
-  getAdminPositions,
-  getPositions,
-} from '@/prisma/data/positions';
+import { getAdminPositions, getPositions } from '@/prisma/data/positions';
 
 import { getCurrentUser } from '@/lib/auth/server';
 import type { PositionWithQuestions } from '@/lib/types';
