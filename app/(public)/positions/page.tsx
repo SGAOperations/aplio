@@ -12,7 +12,10 @@ export default async function PositionsPage() {
   const user = await getOptionalUser();
   const isAdmin = user?.isAdmin ?? false;
   const isAuthenticated = user !== null;
-  const positions = await getPositions({ isAdmin: false, userId: user?.id ?? null });
+  const positions = await getPositions({
+    isAdmin: false,
+    userId: user?.id ?? null,
+  });
 
   return (
     <div className="flex flex-col gap-6">
