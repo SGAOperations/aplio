@@ -1,6 +1,7 @@
 import { getManagedPositionIds } from '@/prisma/data/managers';
 import { getPositions } from '@/prisma/data/positions';
 import { getCurrentUser } from '@/lib/auth/server';
+
 import { PositionCard } from '@/components/features/position-card';
 import { PositionCreateDialog } from '@/components/features/position-create-dialog';
 import { PageHeader } from '@/components/layouts/page-header';
