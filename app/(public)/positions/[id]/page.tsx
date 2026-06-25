@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
@@ -11,6 +12,20 @@ import { formatDate, getPositionAvailability } from '@/lib/utils';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const position = await getPublicPosition(id);
+  if (!position) return {};
+  return {
+    title: position.title,
+    description: position.description.slice(0, 155),
+  };
+}
 
 export default async function PublicPositionDetailPage({
   params,

@@ -18,6 +18,7 @@ export default async function PublicLayout({
 
   const identity: NavIdentity | null = user
     ? {
+        name: user.name,
         email: user.email,
         roleLabel: user.isAdmin ? 'Admin' : 'User',
         isBypass,
@@ -33,7 +34,7 @@ export default async function PublicLayout({
             <span className="text-sm font-semibold tracking-tight">Aplio</span>
           </Link>
           {identity ? (
-            <UserMenu identity={identity} />
+            <UserMenu identity={identity} variant="header" />
           ) : (
             <Button asChild variant="outline" size="sm">
               <Link href="/login">Sign in</Link>
