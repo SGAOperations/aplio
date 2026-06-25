@@ -49,6 +49,7 @@ export const APPLICATION_STATUS_LABELS: Record<
   reviewing: 'Reviewing',
   accepted: 'Accepted',
   rejected: 'Rejected',
+  withdrawn: 'Withdrawn',
 };
 
 // Badge variant for each application status, using design-system tokens.
@@ -63,6 +64,7 @@ export const APPLICATION_STATUS_BADGE_VARIANT: Record<
   reviewing: 'warning',
   accepted: 'success',
   rejected: 'destructive',
+  withdrawn: 'outline',
 };
 
 // Tuple of all ApplicationStatus values — shared between zod enum (action) and

@@ -6,6 +6,7 @@ import { z } from 'zod';
 
 import type {
   Application,
+  ApplicationStatus,
   GlobalAnswer,
   GlobalApplicationAnswer,
   GlobalQuestion,
@@ -29,6 +30,9 @@ type GlobalAnswerWithQuestion = GlobalAnswer & {
 const createDraftApplicationSchema = z.object({
   positionId: z.string().min(1),
 });
+
+// Shared schema for actions that take a single application ID.
+const applicationIdSchema = z.object({ applicationId: z.string().min(1) });
 
 const createOrUpdateApplicationAnswerSchema = z.object({
   applicationId: z.string().min(1),
@@ -261,13 +265,24 @@ export async function updateApplicationStatus(
 
   const { applicationId, status } = parsed.data;
 
+  // Reviewer-selectable statuses exclude 'draft' and 'withdrawn' — a reviewer
+  // cannot push an application back to draft (applicant-owned) or to withdrawn
+  // (applicant-owned lifecycle action).
+  const nonReviewableStatuses = ['draft', 'withdrawn'] as ApplicationStatus[];
+
   // Authorization folded into the query — same pattern as getApplicationForReview.
-  // Returns null for non-existent, soft-deleted, or unauthorized callers.
+  // Returns null for non-existent, soft-deleted, withdrawn, or unauthorized callers.
+
   const where = user.isAdmin
-    ? { id: applicationId, deletedAt: null }
+    ? {
+        id: applicationId,
+        deletedAt: null,
+        status: { notIn: nonReviewableStatuses },
+      }
     : {
         id: applicationId,
         deletedAt: null,
+        status: { notIn: nonReviewableStatuses },
         position: { managers: { some: { id: user.id } } },
       };
 
@@ -276,9 +291,9 @@ export async function updateApplicationStatus(
     select: { id: true, status: true, positionId: true },
   });
 
-  // Null here means non-existent, soft-deleted, or the caller has no right to
-  // this application ID — an IDOR-style miss that should not be reachable from
-  // the UI, so we throw rather than returning a user-facing error.
+  // Null here means non-existent, soft-deleted, withdrawn, or the caller has no
+  // right to this application ID — an IDOR-style miss that should not be
+  // reachable from the UI, so we throw rather than returning a user-facing error.
   if (!application) throw new Error('Application not found or not authorized');
 
   // Prevent updating a draft that has not been submitted yet.
@@ -348,4 +363,91 @@ export async function updateApplicationStatuses(
   revalidatePath('/applications/[id]', 'layout');
 
   return { updated: result.count };
+}
+
+export async function withdrawApplication(
+  applicationId: string,
+): Promise<ResponseType<void>> {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) throw new Error('Unauthenticated');
+
+  const parsed = applicationIdSchema.safeParse({ applicationId });
+  if (!parsed.success) throw new Error('Invalid input');
+
+  const result = await prisma.application.updateMany({
+    where: {
+      id: parsed.data.applicationId,
+      userId: currentUser.id,
+      deletedAt: null,
+      status: { notIn: ['draft', 'withdrawn'] },
+    },
+    data: { status: 'withdrawn', updatedById: currentUser.id },
+  });
+
+  if (result.count === 0)
+    return { error: 'This application can no longer be withdrawn.' };
+
+  revalidatePath('/my-applications');
+  revalidatePath('/applications');
+  revalidatePath('/positions', 'layout');
+}
+
+export async function reopenApplication(
+  applicationId: string,
+): Promise<ResponseType<void>> {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) throw new Error('Unauthenticated');
+
+  const parsed = applicationIdSchema.safeParse({ applicationId });
+  if (!parsed.success) throw new Error('Invalid input');
+
+  const result = await prisma.application.updateMany({
+    where: {
+      id: parsed.data.applicationId,
+      userId: currentUser.id,
+      deletedAt: null,
+      status: 'withdrawn',
+    },
+    data: { status: 'applied', updatedById: currentUser.id },
+  });
+
+  if (result.count === 0)
+    return { error: 'This application can no longer be re-opened.' };
+
+  revalidatePath('/my-applications');
+  revalidatePath('/applications');
+  revalidatePath('/positions', 'layout');
+}
+
+export async function deleteDraftApplication(
+  applicationId: string,
+): Promise<ResponseType<void>> {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) throw new Error('Unauthenticated');
+
+  const parsed = applicationIdSchema.safeParse({ applicationId });
+  if (!parsed.success) throw new Error('Invalid input');
+
+  const id = parsed.data.applicationId;
+
+  const deleteResult = await prisma.$transaction(async (tx) => {
+    const app = await tx.application.findFirst({
+      where: { id, userId: currentUser.id, status: 'draft', deletedAt: null },
+      select: { id: true },
+    });
+
+    if (!app) return { error: 'This draft can no longer be deleted.' };
+
+    await tx.globalApplicationAnswer.deleteMany({
+      where: { applicationId: id },
+    });
+    await tx.positionApplicationAnswer.deleteMany({
+      where: { applicationId: id },
+    });
+    await tx.application.delete({ where: { id } });
+  });
+
+  if (deleteResult && 'error' in deleteResult) return deleteResult;
+
+  revalidatePath('/my-applications');
 }
