@@ -1,8 +1,9 @@
 'use client';
 
+import Link from 'next/link';
 import { useTransition } from 'react';
 
-import { ChevronUp } from 'lucide-react';
+import { ChevronUp, UserCircle } from 'lucide-react';
 
 import { logoutBypassUser } from '@/prisma/services/dev-bypass';
 
@@ -19,9 +20,10 @@ import {
 
 interface UserMenuProps {
   identity: NavIdentity;
+  onNavigate?: () => void;
 }
 
-export function UserMenu({ identity }: UserMenuProps) {
+export function UserMenu({ identity, onNavigate }: UserMenuProps) {
   const { email, roleLabel, isBypass } = identity;
   const [pending, startTransition] = useTransition();
 
@@ -47,6 +49,17 @@ export function UserMenu({ identity }: UserMenuProps) {
           <p className="truncate text-sm font-medium">{email}</p>
           <p className="text-muted-foreground text-xs">{roleLabel}</p>
         </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link
+            href="/profile"
+            className="flex items-center gap-2"
+            onClick={onNavigate}
+          >
+            <UserCircle className="size-4" aria-hidden />
+            Profile
+          </Link>
+        </DropdownMenuItem>
         {isBypass && (
           <>
             <DropdownMenuSeparator />

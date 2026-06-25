@@ -30,7 +30,8 @@ export function Sidebar({ isAdmin, identity }: SidebarProps) {
 
       <nav className="flex flex-col gap-1 p-2">
         {navItems.map(({ href, label, icon: Icon }) => {
-          const isActive = pathname.startsWith(href);
+          const isActive =
+            href === '/' ? pathname === '/' : pathname.startsWith(href);
           return (
             <Link
               key={href}

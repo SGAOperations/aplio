@@ -23,7 +23,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       onSessionChange={() => router.refresh()}
       credentials={false}
       emailOTP
-      redirectTo="/positions"
+      redirectTo="/"
       Link={Link}
     >
       {children}
