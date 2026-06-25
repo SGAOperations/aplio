@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { UNRESOLVED_APPLICATION_STATUSES } from '@/lib/constants';
 import prisma from '@/lib/prisma';
 import {
   type OpenPositionSummaryItem,
@@ -7,6 +8,29 @@ import {
   type PositionWithQuestions,
 } from '@/lib/types';
 import { isAcceptingApplications } from '@/lib/utils';
+
+// Shared select shape for PositionWithQuestions queries — extracted once so
+// every function returns the same type without duplicating the object literal.
+const positionWithQuestionsSelect = {
+  id: true,
+  title: true,
+  status: true,
+  description: true,
+  opensAt: true,
+  closesAt: true,
+  questions: {
+    where: { deletedAt: null },
+    orderBy: { order: 'asc' },
+    select: {
+      id: true,
+      label: true,
+      type: true,
+      required: true,
+      options: true,
+      order: true,
+    },
+  },
+} as const;
 
 // Manager-aware positions query.
 // Admin: all non-deleted positions.
@@ -26,26 +50,7 @@ export async function getPositions({
           deletedAt: null,
           OR: [{ status: 'open' }, { managers: { some: { id: userId } } }],
         },
-    select: {
-      id: true,
-      title: true,
-      status: true,
-      description: true,
-      opensAt: true,
-      closesAt: true,
-      questions: {
-        where: { deletedAt: null },
-        orderBy: { order: 'asc' },
-        select: {
-          id: true,
-          label: true,
-          type: true,
-          required: true,
-          options: true,
-          order: true,
-        },
-      },
-    },
+    select: positionWithQuestionsSelect,
     orderBy: { title: 'asc' },
   });
 }
@@ -55,26 +60,45 @@ export async function getPositions({
 export async function getOpenPositions(): Promise<PositionWithQuestions[]> {
   return prisma.position.findMany({
     where: { status: 'open', deletedAt: null },
-    select: {
-      id: true,
-      title: true,
-      status: true,
-      description: true,
-      opensAt: true,
-      closesAt: true,
-      questions: {
-        where: { deletedAt: null },
-        orderBy: { order: 'asc' },
-        select: {
-          id: true,
-          label: true,
-          type: true,
-          required: true,
-          options: true,
-          order: true,
+    select: positionWithQuestionsSelect,
+    orderBy: { title: 'asc' },
+  });
+}
+
+// Admin-only: returns all positions still worth an admin's attention.
+// A position is included when any of these hold:
+//   - status is 'open' or 'draft' (always show)
+//   - status is 'closed' and closesAt is within the last 30 days
+//   - status is 'closed' and closesAt is null, but updatedAt is within the last 30 days
+//   - status is 'closed' with at least one unresolved applicant
+// Fully-resolved closed positions (closed >30 days ago, no pending work) are hidden.
+// Returns cross-position data — must only be called from an admin-gated context.
+export async function getAdminPositions(): Promise<PositionWithQuestions[]> {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 30);
+
+  return prisma.position.findMany({
+    where: {
+      deletedAt: null,
+      OR: [
+        { status: { in: ['open', 'draft'] } },
+        // Recently closed via explicit close date
+        { status: 'closed', closesAt: { gte: cutoff } },
+        // Recently closed fallback when closesAt is null — use updatedAt recency
+        { status: 'closed', closesAt: null, updatedAt: { gte: cutoff } },
+        // Closed but still has unresolved applicants (work in progress)
+        {
+          status: 'closed',
+          applications: {
+            some: {
+              deletedAt: null,
+              status: { in: [...UNRESOLVED_APPLICATION_STATUSES] },
+            },
+          },
         },
-      },
+      ],
     },
+    select: positionWithQuestionsSelect,
     orderBy: { title: 'asc' },
   });
 }
@@ -84,26 +108,7 @@ export async function getPositionForApply(
 ): Promise<PositionWithQuestions | null> {
   const position = await prisma.position.findUnique({
     where: { id, status: 'open', deletedAt: null },
-    select: {
-      id: true,
-      title: true,
-      status: true,
-      description: true,
-      opensAt: true,
-      closesAt: true,
-      questions: {
-        where: { deletedAt: null },
-        orderBy: { order: 'asc' },
-        select: {
-          id: true,
-          label: true,
-          type: true,
-          required: true,
-          options: true,
-          order: true,
-        },
-      },
-    },
+    select: positionWithQuestionsSelect,
   });
 
   // Gate: return null for positions outside their date window so the apply route
