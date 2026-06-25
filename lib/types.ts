@@ -135,6 +135,14 @@ export type OpenPositionSummaryItem = Prisma.PositionGetPayload<{
 // Reviewer-selectable status — everything except 'draft'.
 export type ReviewerStatus = (typeof REVIEWER_APPLICATION_STATUSES)[number];
 
+// Sort options for the /applications hub.
+export type ApplicationSortField = 'date' | 'name' | 'status';
+export type ApplicationSortDirection = 'asc' | 'desc';
+export type ApplicationSort = {
+  field: ApplicationSortField;
+  direction: ApplicationSortDirection;
+};
+
 // Filters accepted by the /applications hub — all optional.
 // status is constrained to ReviewerStatus so 'draft' is never listed.
 export type ApplicationFilters = {
@@ -142,6 +150,7 @@ export type ApplicationFilters = {
   status?: ReviewerStatus;
   userId?: string;
   q?: string;
+  sort?: ApplicationSort;
 };
 
 // Row type for the applications hub table — reuses AdminApplicationListItem

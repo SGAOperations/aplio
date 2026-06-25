@@ -8,7 +8,13 @@ import {
 import { getCurrentUser } from '@/lib/auth/server';
 import { REVIEWER_APPLICATION_STATUSES } from '@/lib/constants';
 import prisma from '@/lib/prisma';
-import type { ApplicationFilters, ReviewerStatus } from '@/lib/types';
+import type {
+  ApplicationFilters,
+  ApplicationSort,
+  ApplicationSortDirection,
+  ApplicationSortField,
+  ReviewerStatus,
+} from '@/lib/types';
 
 import { ApplicationsTable } from '@/components/features/applications-table';
 import { ApplicationsToolbar } from '@/components/features/applications-toolbar';
@@ -16,6 +22,9 @@ import { ApplicationsToolbar } from '@/components/features/applications-toolbar'
 interface ApplicationsPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
+
+const VALID_SORT_FIELDS: ApplicationSortField[] = ['date', 'name', 'status'];
+const VALID_SORT_DIRECTIONS: ApplicationSortDirection[] = ['asc', 'desc'];
 
 export default async function ApplicationsPage({
   searchParams,
@@ -41,18 +50,34 @@ export default async function ApplicationsPage({
       ? (rawStatus as ReviewerStatus)
       : undefined;
 
+  // Parse sort from "field:direction" param (e.g. "date:desc").
+  const rawSort = typeof sp.sort === 'string' ? sp.sort : undefined;
+  let validSort: ApplicationSort | undefined;
+  if (rawSort) {
+    const [rawField, rawDir] = rawSort.split(':');
+    const field = rawField as ApplicationSortField;
+    const direction = rawDir as ApplicationSortDirection;
+    if (
+      VALID_SORT_FIELDS.includes(field) &&
+      VALID_SORT_DIRECTIONS.includes(direction)
+    )
+      validSort = { field, direction };
+  }
+
   const filters: ApplicationFilters = {
     positionId: typeof sp.positionId === 'string' ? sp.positionId : undefined,
     status: validStatus,
     userId: typeof sp.userId === 'string' ? sp.userId : undefined,
     q: typeof sp.q === 'string' && sp.q.trim() ? sp.q.trim() : undefined,
+    sort: validSort,
   };
 
   const hasActiveFilters = !!(
     filters.positionId ||
     filters.status ||
     filters.userId ||
-    filters.q
+    filters.q ||
+    filters.sort
   );
 
   const [applications, positions] = await Promise.all([
