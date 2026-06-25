@@ -111,6 +111,7 @@ export default async function ApplicationsPage({
       <ApplicationsTable
         applications={applications}
         hasActiveFilters={hasActiveFilters}
+        sort={filters.sort}
       />
     </div>
   );

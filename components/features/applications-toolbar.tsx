@@ -1,12 +1,12 @@
 'use client';
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 
 import { X } from 'lucide-react';
 
 import { REVIEWER_APPLICATION_STATUS_OPTIONS } from '@/lib/constants';
-import type { ApplicationFilters, ApplicationSort } from '@/lib/types';
+import type { ApplicationFilters } from '@/lib/types';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,20 +24,6 @@ interface ApplicationsToolbarProps {
   filters: ApplicationFilters;
 }
 
-const SORT_OPTIONS: { value: string; label: string }[] = [
-  { value: 'date:desc', label: 'Newest first' },
-  { value: 'date:asc', label: 'Oldest first' },
-  { value: 'name:asc', label: 'Name A–Z' },
-  { value: 'name:desc', label: 'Name Z–A' },
-  { value: 'status:asc', label: 'Status A–Z' },
-  { value: 'status:desc', label: 'Status Z–A' },
-];
-
-function sortToParam(sort: ApplicationSort | undefined): string {
-  if (!sort) return '';
-  return `${sort.field}:${sort.direction}`;
-}
-
 export function ApplicationsToolbar({
   positions,
   filters,
@@ -52,6 +38,11 @@ export function ApplicationsToolbar({
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );
+
+  // Track the search input value in local state so the X button reflects the
+  // current input value both on initial page load (from URL param) and after
+  // typing (without waiting for the debounce to update the URL).
+  const [searchValue, setSearchValue] = useState(filters.q ?? '');
 
   const hasActiveFilters = !!(
     filters.positionId ||
@@ -73,6 +64,7 @@ export function ApplicationsToolbar({
   }
 
   function handleSearch(value: string) {
+    setSearchValue(value);
     clearTimeout(debounceTimer.current);
     debounceTimer.current = setTimeout(() => {
       const params = new URLSearchParams(searchParams.toString());
@@ -87,6 +79,7 @@ export function ApplicationsToolbar({
   }
 
   function clearSearch() {
+    setSearchValue('');
     clearTimeout(debounceTimer.current);
     const params = new URLSearchParams(searchParams.toString());
     params.delete('q');
@@ -94,12 +87,11 @@ export function ApplicationsToolbar({
   }
 
   function clearFilters() {
+    setSearchValue('');
     // Drop all filters including userId so the user can escape the deep-link
     // context (#77) when the filter set returns zero results.
     router.push(pathname);
   }
-
-  const currentSort = sortToParam(filters.sort);
 
   return (
     // min-w-0 prevents the toolbar from expanding the page when filter controls
@@ -157,16 +149,17 @@ export function ApplicationsToolbar({
           <Label htmlFor="filter-search" className="text-xs">
             Search
           </Label>
-          <div className="relative">
+          {/* pb-0.5 gives the focus ring room on the bottom edge so it is not clipped */}
+          <div className="relative pb-0.5">
             <Input
               id="filter-search"
               aria-label="Search applications"
               placeholder="Name, email, position, or date"
-              defaultValue={filters.q ?? ''}
+              value={searchValue}
               onChange={(e) => handleSearch(e.target.value)}
               className="w-64 pr-8"
             />
-            {filters.q && (
+            {searchValue && (
               <button
                 type="button"
                 aria-label="Clear search"
@@ -177,29 +170,6 @@ export function ApplicationsToolbar({
               </button>
             )}
           </div>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="filter-sort" className="text-xs">
-            Sort
-          </Label>
-          <Select
-            value={currentSort}
-            onValueChange={(v) => updateParam('sort', v || undefined)}
-          >
-            <SelectTrigger id="filter-sort" className="w-40">
-              <SelectValue placeholder="Newest first" />
-            </SelectTrigger>
-            <SelectContent>
-              {/* Empty value resets to default (newest first) */}
-              <SelectItem value="">Default (newest)</SelectItem>
-              {SORT_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
 
         {hasActiveFilters && (

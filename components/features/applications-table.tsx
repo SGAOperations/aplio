@@ -1,13 +1,19 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 
-import { FileText, Inbox } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, FileText, Inbox } from 'lucide-react';
 
 import type { $Enums } from '@/prisma/client';
 
-import type { ApplicationListRow } from '@/lib/types';
+import type {
+  ApplicationListRow,
+  ApplicationSort,
+  ApplicationSortDirection,
+  ApplicationSortField,
+} from '@/lib/types';
 import { formatDate } from '@/lib/utils';
 
 import { ApplicationsBulkBar } from '@/components/features/applications-bulk-bar';
@@ -27,12 +33,75 @@ import {
 interface ApplicationsTableProps {
   applications: ApplicationListRow[];
   hasActiveFilters: boolean;
+  sort?: ApplicationSort;
+}
+
+interface SortableHeadProps {
+  field: ApplicationSortField;
+  sort?: ApplicationSort;
+  onSort: (
+    field: ApplicationSortField,
+    direction: ApplicationSortDirection,
+  ) => void;
+  children: React.ReactNode;
+}
+
+function SortableHead({ field, sort, onSort, children }: SortableHeadProps) {
+  const isActive = sort?.field === field;
+  const isAsc = isActive && sort?.direction === 'asc';
+
+  function handleClick() {
+    if (!isActive) {
+      // Default to desc for date (newest first), asc for name/status (A-Z).
+      const defaultDir: ApplicationSortDirection =
+        field === 'date' ? 'desc' : 'asc';
+      onSort(field, defaultDir);
+    } else {
+      onSort(field, isAsc ? 'desc' : 'asc');
+    }
+  }
+
+  return (
+    <TableHead>
+      <button
+        type="button"
+        onClick={handleClick}
+        className="hover:text-foreground flex items-center gap-1 font-medium transition-colors"
+        aria-label={`Sort by ${String(children)}${isActive ? (isAsc ? ', currently ascending' : ', currently descending') : ''}`}
+      >
+        {children}
+        {isActive ? (
+          isAsc ? (
+            <ArrowUp
+              className="text-foreground h-3.5 w-3.5"
+              aria-hidden="true"
+            />
+          ) : (
+            <ArrowDown
+              className="text-foreground h-3.5 w-3.5"
+              aria-hidden="true"
+            />
+          )
+        ) : (
+          <ArrowUpDown
+            className="text-muted-foreground h-3.5 w-3.5"
+            aria-hidden="true"
+          />
+        )}
+      </button>
+    </TableHead>
+  );
 }
 
 export function ApplicationsTable({
   applications,
   hasActiveFilters,
+  sort,
 }: ApplicationsTableProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkStatus, setBulkStatus] = useState<$Enums.ApplicationStatus | ''>(
     '',
@@ -70,6 +139,15 @@ export function ApplicationsTable({
   function clearSelection() {
     setSelectedIds(new Set());
     setBulkStatus('');
+  }
+
+  function handleSort(
+    field: ApplicationSortField,
+    direction: ApplicationSortDirection,
+  ) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('sort', `${field}:${direction}`);
+    router.push(`${pathname}?${params.toString()}`);
   }
 
   if (applications.length === 0) {
@@ -122,7 +200,8 @@ export function ApplicationsTable({
         />
       )}
 
-      <Card className="gap-0 p-0">
+      {/* overflow-hidden clips the header hover highlight to the card's rounded corners */}
+      <Card className="gap-0 overflow-hidden p-0">
         {/* Desktop table — hidden on mobile */}
         <div className="hidden md:block">
           <Table>
@@ -135,10 +214,16 @@ export function ApplicationsTable({
                     aria-label="Select all applications"
                   />
                 </TableHead>
-                <TableHead>Applicant</TableHead>
+                <SortableHead field="name" sort={sort} onSort={handleSort}>
+                  Applicant
+                </SortableHead>
                 <TableHead>Position</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Submitted</TableHead>
+                <SortableHead field="status" sort={sort} onSort={handleSort}>
+                  Status
+                </SortableHead>
+                <SortableHead field="date" sort={sort} onSort={handleSort}>
+                  Submitted
+                </SortableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
