@@ -144,6 +144,7 @@ export async function addPositionManager(
 
   const exists = await prisma.position.findFirst({
     where: { id: positionId, deletedAt: null },
+    select: { id: true },
   });
   if (!exists) notFound();
 
@@ -174,6 +175,7 @@ export async function removePositionManager(
 
   const exists = await prisma.position.findFirst({
     where: { id: positionId, deletedAt: null },
+    select: { id: true },
   });
   if (!exists) notFound();
 
