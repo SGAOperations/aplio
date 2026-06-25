@@ -24,12 +24,30 @@ export async function getIsBypass(): Promise<boolean> {
   return Boolean((await cookies()).get('dev-bypass-user-id')?.value);
 }
 
+// Resolves to an active user without redirecting — used on the login page to
+// decide whether to auto-forward. Returns null for unauthenticated, deactivated,
+// or provisioning-gap users so the login form is shown instead of looping.
+export const getOptionalUser = cache(async function getOptionalUser() {
+  if (process.env.VERCEL_ENV !== 'production') {
+    const bypassUserId = (await cookies()).get('dev-bypass-user-id')?.value;
+    if (bypassUserId) {
+      const user = await prisma.user.findUnique({
+        where: { id: bypassUserId, deletedAt: null },
+      });
+      if (user) return user;
+      // Deactivated or stale bypass cookie — fall through, return null below.
+    }
+    return resolveRealUser();
+  }
+  return resolveRealUser();
+});
+
 // React.cache deduplicates calls within a single server render pass,
 // avoiding a redundant DB round-trip when layout and page both call getCurrentUser().
+// Pure read — no side effects (no signOut, no cookie mutations).
 export const getCurrentUser = cache(async function getCurrentUser() {
   if (process.env.VERCEL_ENV !== 'production') {
-    const cookieStore = await cookies();
-    const bypassUserId = cookieStore.get('dev-bypass-user-id')?.value;
+    const bypassUserId = (await cookies()).get('dev-bypass-user-id')?.value;
 
     if (bypassUserId) {
       const user = await prisma.user.findUnique({
@@ -37,18 +55,7 @@ export const getCurrentUser = cache(async function getCurrentUser() {
       });
       // Valid active bypass session — use it.
       if (user) return user;
-
-      // Bypass cookie present but user is deactivated — clear the cookie so
-      // the user is treated as unauthenticated, then redirect to login.
-      const deactivatedBypass = await prisma.user.findUnique({
-        where: { id: bypassUserId },
-      });
-      if (deactivatedBypass?.deletedAt) {
-        cookieStore.delete('dev-bypass-user-id');
-        redirect('/login');
-      }
-
-      // Stale/invalid bypass cookie — fall through to real auth.
+      // Deactivated or stale bypass cookie — fall through to real auth.
     }
 
     const realUser = await resolveRealUser();
@@ -59,14 +66,6 @@ export const getCurrentUser = cache(async function getCurrentUser() {
 
   const realUser = await resolveRealUser();
   if (realUser) return realUser;
-
-  // Real Neon Auth session but user is deactivated — sign them out so they are
-  // treated as unauthenticated, then redirect to login.
-  const { data: session } = await authServer.getSession();
-  if (session?.user) {
-    await authServer.signOut();
-    redirect('/login');
-  }
 
   redirect('/login');
 });
