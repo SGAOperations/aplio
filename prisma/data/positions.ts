@@ -4,6 +4,7 @@ import { UNRESOLVED_APPLICATION_STATUSES } from '@/lib/constants';
 import prisma from '@/lib/prisma';
 import {
   type OpenPositionSummaryItem,
+  type PositionDetail,
   type PositionForEdit,
   type PositionWithQuestions,
 } from '@/lib/types';
@@ -147,6 +148,37 @@ export async function getOpenPositionsSummary(): Promise<
       },
     },
     orderBy: { title: 'asc' },
+  });
+}
+
+// Full read payload for the detail page: any non-deleted status (no status filter),
+// no applications, managers fetched as id-only for the draft gate check (§3).
+export async function getPositionDetail(
+  id: string,
+): Promise<PositionDetail | null> {
+  return prisma.position.findFirst({
+    where: { id, deletedAt: null },
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      description: true,
+      opensAt: true,
+      closesAt: true,
+      questions: {
+        where: { deletedAt: null },
+        orderBy: { order: 'asc' },
+        select: {
+          id: true,
+          label: true,
+          type: true,
+          required: true,
+          options: true,
+          order: true,
+        },
+      },
+      managers: { select: { id: true } },
+    },
   });
 }
 

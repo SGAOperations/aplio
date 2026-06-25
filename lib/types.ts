@@ -32,6 +32,13 @@ export type PositionManager = {
   email: string;
 };
 
+// Detail view type: full read payload including managers for the access check.
+// Manager ids are consumed server-side only; name/email are not needed for the
+// draft gate check so we keep the manager shape minimal (§3).
+export type PositionDetail = PositionWithQuestions & {
+  managers: { id: string }[];
+};
+
 // Narrowed question shape — only the fields rendered by the edit page and
 // PositionQuestionsSection; audit columns are excluded to avoid leaking them
 // across the server/client prop boundary.
