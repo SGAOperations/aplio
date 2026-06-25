@@ -79,6 +79,14 @@ export async function updatePosition(
 
   const { id, title, description, status, opensAt, closesAt } = parsed.data;
 
+  // Stale-link guard: a manager navigating to a deleted position should get an
+  // actionable message, not a generic error toast (ENGINEERING §4 gray-area rule).
+  const exists = await prisma.position.findFirst({
+    where: { id, deletedAt: null },
+    select: { id: true },
+  });
+  if (!exists) return { error: 'Position no longer exists' };
+
   const hasAccess = await checkPositionAccess(id, user.id, user.isAdmin);
   if (!hasAccess) throw new Error('Forbidden');
 
