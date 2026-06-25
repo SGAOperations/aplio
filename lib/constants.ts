@@ -87,6 +87,27 @@ export const APPLICATION_STATUS_OPTIONS: {
   label: APPLICATION_STATUS_LABELS[value],
 }));
 
+// Reviewer-selectable statuses exclude 'draft' — a reviewer cannot push an
+// application back to draft; that state is applicant-owned. Written as a
+// literal tuple so z.enum() infers the correct union without an unsafe cast.
+// Used in the single-update action, the bulk-update action, and both status
+// controls — extracted here (ENGINEERING §1: abstract at 2+).
+export const REVIEWER_APPLICATION_STATUSES = [
+  'applied',
+  'reached_out',
+  'interview_scheduled',
+  'reviewing',
+  'accepted',
+  'rejected',
+] as const satisfies [
+  Exclude<$Enums.ApplicationStatus, 'draft'>,
+  ...Exclude<$Enums.ApplicationStatus, 'draft'>[],
+];
+
+// Reviewer-facing Select options — draft excluded.
+export const REVIEWER_APPLICATION_STATUS_OPTIONS =
+  APPLICATION_STATUS_OPTIONS.filter((o) => o.value !== 'draft');
+
 export const STATUS_OPTIONS: { value: PositionStatus; label: string }[] = [
   { value: 'draft', label: 'Draft' },
   { value: 'open', label: 'Open' },

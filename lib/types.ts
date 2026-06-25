@@ -7,6 +7,8 @@ import type {
 } from '@/prisma/client';
 import type { Prisma } from '@/prisma/client';
 
+import type { REVIEWER_APPLICATION_STATUSES } from '@/lib/constants';
+
 export type PositionWithQuestions = {
   id: string;
   title: string;
@@ -129,6 +131,31 @@ export type PositionAvailability =
 export type OpenPositionSummaryItem = Prisma.PositionGetPayload<{
   select: { id: true; title: true; _count: { select: { applications: true } } };
 }>;
+
+// Reviewer-selectable status — everything except 'draft'.
+export type ReviewerStatus = (typeof REVIEWER_APPLICATION_STATUSES)[number];
+
+// Sort options for the /applications hub.
+export type ApplicationSortField = 'date' | 'name' | 'status';
+export type ApplicationSortDirection = 'asc' | 'desc';
+export type ApplicationSort = {
+  field: ApplicationSortField;
+  direction: ApplicationSortDirection;
+};
+
+// Filters accepted by the /applications hub — all optional.
+// status is constrained to ReviewerStatus so 'draft' is never listed.
+export type ApplicationFilters = {
+  positionId?: string;
+  status?: ReviewerStatus;
+  userId?: string;
+  q?: string;
+  sort?: ApplicationSort;
+};
+
+// Row type for the applications hub table — reuses AdminApplicationListItem
+// (no audit fields cross the server/client boundary).
+export type ApplicationListRow = AdminApplicationListItem;
 
 export type ProfileCompleteness = {
   complete: boolean;
