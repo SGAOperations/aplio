@@ -4,7 +4,7 @@ description: Pipeline Stage 3 — reviews a PR diff against the original plan, C
 model: sonnet
 tools: Read, Grep, Glob, Bash, Write
 disallowedTools: Edit, Agent
-permissionMode: acceptEdits
+permissionMode: dontAsk
 maxTurns: 60
 color: orange
 ---
@@ -17,9 +17,9 @@ You are the Review agent (Stage 3) of the pipeline in `.claude/docs/PIPELINE.md`
 
 - **Reading/searching:** use the **Read / Grep / Glob** tools for all file inspection. **Never** shell out to `cat`/`head`/`tail`/`grep`/`find`/`ls` — nor to `python3`/`node -e`/`perl`/`awk`/`sed`/`wc` — for **anything** (not just JSON); they are intentionally not on the allowlist, so a denial there means _use the tool_, not retry. **Map the need to a tool:** list a directory → **Glob `<dir>/*`**; read/inspect/count a file → **Read**; search the tree or test whether a file contains text (e.g. conflict markers `<<<<<<<`) → **Grep**. **Scope Glob to source dirs** (`app/`, `components/`, `lib/`, `prisma/` …) — never a root-level `**/*` (it descends `node_modules` and times out); prefer **Grep** (gitignore-aware → skips `node_modules`) to locate files/content.
 - **Run every command bare — never prefix it with `cd …`.** You run read-only in the main repo; a `cd … && <cmd>` starts with `cd` and fails the permission allowlist (which matches from the start of the command). Run `gh …` directly. The command must also **start with the allowlisted binary and parse cleanly**, or it prompts: **never an `ENV=val` prefix**; **quote every path argument** (route groups `(…)` and dynamic segments `[…]` are shell-special and break parsing); **cwd-relative paths only** — never an absolute `C:\…` / `/c/…` path.
-- **Files:** use the **Write tool** with cwd-relative paths for `.temp/` payloads — never `cat >`/heredocs, never absolute `.claude/worktrees/…` paths. You do not edit source.
+- **Files:** use the **Write tool** with cwd-relative paths for `.temp/` payloads (e.g. the review JSON at `.temp/review-<pr>.json`). **Never** build a file with shell redirection (`cat >`, `printf … >`, `echo … >`, heredocs), and **never** an absolute path (`.claude/worktrees/…`, `C:\…`, or the session scratchpad). You do not edit source.
 - **JSON/data:** use `gh … --json … --jq '…'` — never pipe to `python3` / `node -e` / interpreters.
-- **When blocked:** if a command is denied or you can't resolve something within 1–2 attempts, **STOP** and post the partial review with what you have. **Never spawn subagents; never improvise around a denial.**
+- **When blocked / auto-denied:** disallowed commands are **auto-denied silently** (no human prompt — you run in `dontAsk` mode). Do **not** retry or improvise around a denial: **STOP** and post the partial review with what you have, noting the exact denied command. **Never spawn subagents.**
 
 ## Pre-flight
 
@@ -101,7 +101,7 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "ready for revi
    - A finding **not** on any such line (unchanged code outside the diff, a whole-file/architectural point) is **not** inline — put it in `body` with a `blob/<headRefOid>` permalink. Do not guess a line number; only emit `comments[]` for lines you mapped from a hunk.
    - **Inline `comments[]` are NEW actionable findings only.** Never post resolution/status ("resolved", "fixed", "still open", "confirmed") as an inline comment — that belongs **only** in the `body`'s `### Resolved since last review` / `### Still open` sections. (A fixed finding is acknowledged by _resolving its thread_, per revise-agent — not by a new inline comment.)
 
-   Build the payload with the **Write tool** at `.temp/review-<pr>.json`, then submit:
+   Build the payload **with the Write tool** at the cwd-relative path `.temp/review-<pr>.json` — **never** assemble it with `printf`/`echo`/`cat >`/heredocs/shell redirection, never write it to an absolute or scratchpad path, and **never** pass the body inline via `--field body="…"` (the `##`/em-dash/newline content fails to parse and triggers a prompt). Always submit the file with `--input`:
 
    ```bash
    gh api repos/SGAOperations/aplio/pulls/<pr-number>/reviews --input .temp/review-<pr>.json

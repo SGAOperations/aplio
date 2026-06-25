@@ -1,0 +1,18 @@
+# Normalize line endings: LF in the repo and on checkout (incl. Windows).
+# Keeps prettier (endOfLine: lf) green for agents in fresh worktrees and ends
+# the recurring CRLF churn. Committed blobs are already LF, so this only
+# affects checkout — no blob renormalization.
+* text=auto eol=lf
+
+# Binary files: never normalize.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.pdf binary

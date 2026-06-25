@@ -44,7 +44,7 @@ npm run eslint:check     # fix the underlying code — NEVER add eslint-disable
 npm run tsc:check        # fix type errors
 ```
 
-Never push with known failures. Use `npx prisma` (never `node_modules/.bin/prisma`).
+Never push with known failures. Run Prisma via the **`npm run prisma:*` scripts** — `npm run prisma:generate`, `npm run prisma:migrate -- --name <name>` — **never `npx prisma`** (npx is allow-listed for shadcn only; pipeline agents auto-deny other `npx`). Same for prettier/tsc/tsx: use `npm run …`, not `npx …`.
 
 ## Issue Tracking
 

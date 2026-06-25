@@ -16,7 +16,7 @@ Schema changes are high-risk; this runs only when you invoke it. Follow `.claude
 3. **Create the migration** (this writes to the dev database — review before running, and confirm `.env`/DB is the intended dev target):
 
    ```bash
-   npm run prisma:migrate        # prisma migrate dev — prompts for a migration name
+   npm run prisma:migrate -- --name <migration_name>   # prisma migrate dev; pass --name (non-interactive). Never `npx prisma`.
    ```
 
    Inspect the generated SQL under `prisma/migrations/` for accidental data loss (drops, non-nullable columns without defaults on populated tables).
