@@ -13,6 +13,17 @@ const inter = Inter({ variable: '--font-sans', subsets: ['latin'] });
 export const metadata: Metadata = {
   title: { default: 'Aplio', template: 'Aplio - %s' },
   description: 'A student government application management system.',
+  openGraph: {
+    title: 'Aplio',
+    description: 'A student government application management system.',
+    images: [{ url: '/logo-light.svg', width: 512, height: 512 }],
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Aplio',
+    description: 'A student government application management system.',
+    images: ['/logo-light.svg'],
+  },
 };
 
 export default function RootLayout({
