@@ -3,7 +3,6 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
-import { getOptionalUser } from '@/lib/auth/server';
 import prisma from '@/lib/prisma';
 
 export type BypassRole = 'admin' | 'applicant' | 'position-manager';
@@ -32,15 +31,7 @@ const BYPASS_USERS: Record<
 export async function loginAsBypassUser(role: BypassRole) {
   if (process.env.VERCEL_ENV === 'production') return;
 
-  // If a bypass cookie is already present but getOptionalUser() returns null,
-  // the session belongs to a deactivated user. Do not reset the cookie — redirect
-  // to /login so the loop is broken (the stale cookie remains but is never refreshed).
   const cookieStore = await cookies();
-  const existingBypassId = cookieStore.get('dev-bypass-user-id')?.value;
-  if (existingBypassId) {
-    const currentUser = await getOptionalUser();
-    if (!currentUser) redirect('/login');
-  }
 
   const config = BYPASS_USERS[role];
   if (!config) return;
