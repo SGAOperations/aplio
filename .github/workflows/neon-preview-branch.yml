@@ -9,7 +9,7 @@
 #
 # Neon parent branch assumption: the project's default branch (main/prod).
 # To use a non-default parent, set NEON_PARENT_BRANCH_ID as a repo secret/variable;
-# the create-branch step passes it as parent_id and omits the input when the secret
+# the create-branch step passes it as parent_branch and omits the input when the secret
 # is empty so the action falls back to the project default.
 
 name: Neon Preview Branch
@@ -76,7 +76,7 @@ jobs:
       - name: Create or reuse Neon branch
         id: create_branch
         if: steps.check_neon.outputs.has_neon == 'true'
-        # @v6 — current major; outputs: db_url (direct/unpooled), db_url_with_pooler (pooled)
+        # @v6 — current major; outputs: db_url (direct/unpooled). db_url_with_pooler is empty in v6.
         uses: neondatabase/create-branch-action@v6
         with:
           project_id: ${{ secrets.NEON_PROJECT_ID }}
@@ -87,18 +87,17 @@ jobs:
           api_key: ${{ secrets.NEON_API_KEY }}
           # Optional: override the parent branch. When NEON_PARENT_BRANCH_ID is empty
           # the action falls back to the project default branch.
-          parent_id: ${{ secrets.NEON_PARENT_BRANCH_ID }}
+          parent_branch: ${{ secrets.NEON_PARENT_BRANCH_ID }}
 
-      # Mask both URLs so they never appear in subsequent log lines.
+      # Mask the URL so it never appears in subsequent log lines.
       # Note: ::add-mask:: only redacts output printed *after* this step — it cannot
       # retroactively scrub log lines the create-branch action emitted during its own
       # execution. The Neon action masks internally; this step guards any downstream
-      # shell steps that echo the URLs.
-      - name: Mask Neon connection strings
+      # shell steps that echo the URL.
+      - name: Mask Neon connection string
         if: steps.check_neon.outputs.has_neon == 'true'
         run: |
           echo "::add-mask::${{ steps.create_branch.outputs.db_url }}"
-          echo "::add-mask::${{ steps.create_branch.outputs.db_url_with_pooler }}"
 
       - name: Apply migrations
         if: steps.check_neon.outputs.has_neon == 'true'
@@ -127,7 +126,8 @@ jobs:
           fi
 
       - name: Set Vercel preview DATABASE_URL
-        # Uses the pooled URL — the runtime app uses the connection pooler.
+        # Uses the direct URL from db_url — v6 does not populate db_url_with_pooler.
+        # The Prisma datasource has no directUrl split, so the direct endpoint is fine.
         # Endpoint: POST /v10/projects/{id}/env (Vercel REST API)
         # Scoped to target=preview + gitBranch=<head_ref> so only this PR's preview
         # deployment sees the branch DB; production is never touched.
@@ -136,9 +136,14 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          POOLED_URL: ${{ steps.create_branch.outputs.db_url_with_pooler }}
+          BRANCH_URL: ${{ steps.create_branch.outputs.db_url }}
           GIT_BRANCH: ${{ github.head_ref }}
         run: |
+          if [ -z "$BRANCH_URL" ]; then
+            echo "::error::db_url output from create-branch-action is empty; cannot set Vercel DATABASE_URL."
+            exit 1
+          fi
+
           # Look up any existing branch-scoped DATABASE_URL to avoid duplicates.
           # jq @uri performs RFC-3986 percent-encoding without requiring Python.
           EXISTING_ID=$(curl -sf \
@@ -153,14 +158,14 @@ jobs:
               -H "Authorization: Bearer $VERCEL_TOKEN" \
               -H "Content-Type: application/json" \
               "https://api.vercel.com/v10/projects/$VERCEL_PROJECT_ID/env/$EXISTING_ID?teamId=$VERCEL_ORG_ID" \
-              -d "{\"value\":\"$POOLED_URL\"}")
+              -d "{\"value\":\"$BRANCH_URL\"}")
           else
             # Create a new branch-scoped preview env var.
             HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
               -H "Authorization: Bearer $VERCEL_TOKEN" \
               -H "Content-Type: application/json" \
               "https://api.vercel.com/v10/projects/$VERCEL_PROJECT_ID/env?teamId=$VERCEL_ORG_ID" \
-              -d "{\"key\":\"DATABASE_URL\",\"value\":\"$POOLED_URL\",\"type\":\"encrypted\",\"target\":[\"preview\"],\"gitBranch\":\"$GIT_BRANCH\"}")
+              -d "{\"key\":\"DATABASE_URL\",\"value\":\"$BRANCH_URL\",\"type\":\"encrypted\",\"target\":[\"preview\"],\"gitBranch\":\"$GIT_BRANCH\"}")
           fi
 
           # A non-2xx from a configured Vercel integration is a real error — fail the job.
