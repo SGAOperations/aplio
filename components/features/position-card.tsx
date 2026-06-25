@@ -5,15 +5,10 @@ import { useState } from 'react';
 
 import { ChevronDown, ChevronUp, Inbox, Pencil } from 'lucide-react';
 
-import {
-  AVAILABILITY_LABELS,
-  AVAILABILITY_VARIANTS,
-  STATUS_LABELS,
-  STATUS_VARIANTS,
-} from '@/lib/constants';
 import type { PositionWithQuestions } from '@/lib/types';
 import { formatDate, getPositionAvailability } from '@/lib/utils';
 
+import { PositionStatusBadge } from '@/components/features/status-badge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,20 +40,7 @@ export function PositionCard({
           <div className="flex items-center gap-3">
             <CardTitle className="text-lg">{position.title}</CardTitle>
             {showAdminActions && (
-              // Use computed availability so a date-closed 'open' position shows
-              // "Closed" rather than "Open". Fall back to STATUS_LABELS for
-              // 'unavailable' (draft/closed) so draft still reads "Draft".
-              <Badge
-                variant={
-                  availability === 'unavailable'
-                    ? (STATUS_VARIANTS[position.status] ?? 'outline')
-                    : AVAILABILITY_VARIANTS[availability]
-                }
-              >
-                {availability === 'unavailable'
-                  ? (STATUS_LABELS[position.status] ?? position.status)
-                  : AVAILABILITY_LABELS[availability]}
-              </Badge>
+              <PositionStatusBadge position={position} />
             )}
           </div>
           {open ? (
