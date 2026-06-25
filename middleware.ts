@@ -21,10 +21,15 @@ async function bypassMiddleware(request: NextRequest): Promise<NextResponse> {
   // Public browse routes pass through without any auth requirement.
   if (isPublicPositionsPath(pathname)) return NextResponse.next();
 
-  // A picked bypass role short-circuits real-auth checks.
+  // A picked bypass role short-circuits real-auth checks — authenticated users
+  // at the root land on the main app dashboard.
   if (request.cookies.get('dev-bypass-user-id')) return NextResponse.next();
 
-  // No bypass cookie — honour a real Neon Auth session; redirect the rest to the picker.
+  // No bypass cookie — for the root, send anonymous visitors to the positions
+  // list rather than the auth picker. For everything else, require auth.
+  if (pathname === '/')
+    return neonAuthMiddleware({ loginUrl: '/positions' })(request);
+
   return neonAuthMiddleware({ loginUrl: '/login/bypass' })(request);
 }
 
@@ -36,14 +41,18 @@ export default function middleware(request: NextRequest) {
   // Public browse routes are reachable without authentication in production too.
   if (isPublicPositionsPath(pathname)) return NextResponse.next();
 
+  // Unauthenticated visitors at the root land on the public positions list rather
+  // than the login page; authenticated users pass through to the main app dashboard.
+  if (pathname === '/')
+    return neonAuthMiddleware({ loginUrl: '/positions' })(request);
+
   return neonAuthMiddleware({ loginUrl: '/login' })(request);
 }
 
 export const config = {
-  // Exclude Next internals and public metadata/icon assets so the
-  // file-convention favicon (/icon.svg) and apple-touch icon (/apple-icon)
-  // load on unauthenticated routes instead of being redirected to login.
+  // Exclude Next internals, public metadata/icon assets, and static images so
+  // they load on unauthenticated routes without being redirected to login.
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|icon.svg|apple-icon|sitemap.xml|robots.txt).*)',
+    '/((?!_next/static|_next/image|favicon.ico|icon.svg|logo-icon.svg|apple-icon|sitemap.xml|robots.txt).*)',
   ],
 };

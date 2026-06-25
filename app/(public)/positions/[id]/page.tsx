@@ -86,14 +86,20 @@ export default async function PublicPositionDetailPage({
           <>
             {isAuthenticated ? (
               <Button asChild>
-                <Link href={`/positions/${id}/apply`}>Apply</Link>
+                <Link href={`/positions/${id}/apply`}>Apply now</Link>
               </Button>
             ) : (
-              <Button asChild>
-                <Link href={`/login?redirectTo=/positions/${id}/apply`}>
-                  Sign in to apply
-                </Link>
-              </Button>
+              <div className="flex flex-col gap-2">
+                <Button asChild>
+                  <Link href={`/login?redirectTo=/positions/${id}/apply`}>
+                    Sign in to apply
+                  </Link>
+                </Button>
+                <p className="text-muted-foreground text-xs">
+                  You&apos;ll be taken directly to the application after signing
+                  in.
+                </p>
+              </div>
             )}
             {position.closesAt && (
               <span className="text-muted-foreground text-sm">
