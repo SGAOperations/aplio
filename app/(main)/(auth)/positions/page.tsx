@@ -37,7 +37,7 @@ export default async function PositionsPage() {
           action={user.isAdmin ? <PositionCreateDialog /> : undefined}
         />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid items-start gap-4 md:grid-cols-2 lg:grid-cols-3">
           {positions.map((position) => (
             <PositionCard
               key={position.id}

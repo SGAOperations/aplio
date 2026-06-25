@@ -39,7 +39,7 @@ export default async function ApplicationDetailPage({
 
   return (
     <div className="mx-auto max-w-5xl">
-      <div className="mb-6">
+      <div className="mb-4">
         <PageHeader
           title={applicantName}
           description={application.user.email}
@@ -48,16 +48,16 @@ export default async function ApplicationDetailPage({
       </div>
 
       {/* Two-column layout at lg: Status panel sticky on right; answers on left */}
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-3">
         {/* Left: answers (lg:col-span-2) */}
-        <div className="flex flex-col gap-6 lg:col-span-2">
+        <div className="flex flex-col gap-4 lg:col-span-2">
           <Card>
-            <CardHeader className="p-4 pb-3">
+            <CardHeader className="p-3 pb-2">
               <CardTitle className="text-base font-semibold">
                 Profile answers
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-4 pt-0">
+            <CardContent className="p-3 pt-0">
               <ApplicationAnswersList
                 answers={application.globalAnswers}
                 emptyMessage="No profile answers."
@@ -66,13 +66,13 @@ export default async function ApplicationDetailPage({
           </Card>
 
           <Card>
-            <CardHeader className="p-4 pb-3">
+            <CardHeader className="p-3 pb-2">
               <CardTitle className="text-base font-semibold">
                 Position answers
               </CardTitle>
               <CardDescription>{application.position.title}</CardDescription>
             </CardHeader>
-            <CardContent className="p-4 pt-0">
+            <CardContent className="p-3 pt-0">
               <ApplicationAnswersList
                 answers={application.positionAnswers}
                 emptyMessage="No position-specific answers."
@@ -84,10 +84,10 @@ export default async function ApplicationDetailPage({
         {/* Right: Status panel — sticky on lg, stacked first on mobile */}
         <div className="order-first lg:sticky lg:top-6 lg:order-none lg:self-start">
           <Card>
-            <CardHeader className="p-4 pb-3">
+            <CardHeader className="p-3 pb-2">
               <CardTitle className="text-base font-semibold">Status</CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-col gap-4 p-4 pt-0">
+            <CardContent className="flex flex-col gap-3 p-3 pt-0">
               <ApplicationStatusBadge status={application.status} />
               <ApplicationStatusControl
                 applicationId={application.id}
