@@ -7,8 +7,8 @@
       "Bash(npx shadcn *)",
       "Bash(npx shadcn@latest *)",
       "Bash(npx shadcn@* *)",
-      "Edit(.temp/**)",
-      "Write(.temp/**)",
+      "Edit(**)",
+      "Write(**)",
       "WebFetch(domain:nextjs.org)",
       "WebFetch(domain:ui.shadcn.com)",
       "WebFetch(domain:code.claude.com)"
@@ -25,6 +25,19 @@
       "Bash(npm adduser *)",
       "Bash(npx vercel *)",
       "Bash(vercel *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/log-bash-denial.mjs"
+          }
+        ]
+      }
     ]
   },
   "env": { "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1" }
