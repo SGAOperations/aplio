@@ -38,12 +38,15 @@ export const getCurrentUser = cache(async function getCurrentUser() {
       // Valid active bypass session — use it.
       if (user) return user;
 
-      // Bypass cookie present but user is deactivated (deletedAt is set) — show
-      // the deactivated page so the teardown island can clear the cookie.
+      // Bypass cookie present but user is deactivated — clear the cookie so
+      // the user is treated as unauthenticated, then redirect to login.
       const deactivatedBypass = await prisma.user.findUnique({
         where: { id: bypassUserId },
       });
-      if (deactivatedBypass?.deletedAt) redirect('/login/deactivated');
+      if (deactivatedBypass?.deletedAt) {
+        cookieStore.delete('dev-bypass-user-id');
+        redirect('/login');
+      }
 
       // Stale/invalid bypass cookie — fall through to real auth.
     }
@@ -57,10 +60,13 @@ export const getCurrentUser = cache(async function getCurrentUser() {
   const realUser = await resolveRealUser();
   if (realUser) return realUser;
 
-  // Real Neon Auth session but user is deactivated — show the deactivated page
-  // so the teardown island can sign the user out of Neon Auth.
+  // Real Neon Auth session but user is deactivated — sign them out so they are
+  // treated as unauthenticated, then redirect to login.
   const { data: session } = await authServer.getSession();
-  if (session?.user) redirect('/login/deactivated');
+  if (session?.user) {
+    await authServer.signOut();
+    redirect('/login');
+  }
 
   redirect('/login');
 });
