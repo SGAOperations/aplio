@@ -8,6 +8,7 @@ import { formatDate } from '@/lib/utils';
 import { ApplicationAnswersList } from '@/components/features/application-answers-list';
 import { ApplicationStatusControl } from '@/components/features/application-status-control';
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
+import { PageHeader } from '@/components/layouts/page-header';
 import {
   Card,
   CardContent,
@@ -32,67 +33,69 @@ export default async function ApplicationDetailPage({
 
   const applicantName = application.user.name ?? application.user.email;
   const isDraft = application.status === 'draft';
+  const metaLine = isDraft
+    ? `${application.position.title} · Draft — not yet submitted`
+    : `${application.position.title} · Applied ${formatDate(application.submittedAt)}`;
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {applicantName}
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          {application.user.email}
-        </p>
-        <p className="text-muted-foreground mt-1 text-sm">
-          {application.position.title}
-          {isDraft ? (
-            <span> · Draft — not yet submitted</span>
-          ) : (
-            <span> · Applied {formatDate(application.submittedAt)}</span>
-          )}
-        </p>
-      </header>
+    <div className="mx-auto max-w-5xl">
+      <div className="mb-6">
+        <PageHeader
+          title={applicantName}
+          description={`${application.user.email} · ${metaLine}`}
+        />
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base font-semibold">Status</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <ApplicationStatusBadge status={application.status} />
-          <ApplicationStatusControl
-            applicationId={application.id}
-            currentStatus={application.status}
-          />
-        </CardContent>
-      </Card>
+      {/* Two-column layout at lg: Status panel sticky on right; answers on left */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Left: answers (lg:col-span-2) */}
+        <div className="flex flex-col gap-6 lg:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base font-semibold">
+                Profile answers
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ApplicationAnswersList
+                answers={application.globalAnswers}
+                emptyMessage="No profile answers."
+              />
+            </CardContent>
+          </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base font-semibold">
-            Profile answers
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ApplicationAnswersList
-            answers={application.globalAnswers}
-            emptyMessage="No profile answers."
-          />
-        </CardContent>
-      </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base font-semibold">
+                Position answers
+              </CardTitle>
+              <CardDescription>{application.position.title}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ApplicationAnswersList
+                answers={application.positionAnswers}
+                emptyMessage="No position-specific answers."
+              />
+            </CardContent>
+          </Card>
+        </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base font-semibold">
-            Position answers
-          </CardTitle>
-          <CardDescription>{application.position.title}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ApplicationAnswersList
-            answers={application.positionAnswers}
-            emptyMessage="No position-specific answers."
-          />
-        </CardContent>
-      </Card>
+        {/* Right: Status panel — sticky on lg, stacked first on mobile */}
+        <div className="order-first lg:sticky lg:top-6 lg:order-none lg:self-start">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base font-semibold">Status</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              <ApplicationStatusBadge status={application.status} />
+              <ApplicationStatusControl
+                applicationId={application.id}
+                currentStatus={application.status}
+              />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

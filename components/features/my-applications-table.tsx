@@ -7,7 +7,8 @@ import { formatDate } from '@/lib/utils';
 
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   Table,
   TableBody,
@@ -26,23 +27,16 @@ export function MyApplicationsTable({
 }: MyApplicationsTableProps) {
   if (applications.length === 0)
     return (
-      <Card>
-        <CardContent className="flex flex-col items-center gap-4 py-16 text-center">
-          <FileText
-            className="text-muted-foreground size-12"
-            aria-hidden="true"
-          />
-          <div>
-            <p className="text-base font-semibold">No applications yet</p>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Browse open positions to start your first application.
-            </p>
-          </div>
+      <EmptyState
+        icon={FileText}
+        title="No applications yet"
+        description="Browse open positions to start your first application."
+        action={
           <Button asChild>
             <Link href="/positions">Browse positions</Link>
           </Button>
-        </CardContent>
-      </Card>
+        }
+      />
     );
 
   return (

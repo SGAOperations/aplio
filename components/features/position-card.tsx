@@ -39,9 +39,7 @@ export function PositionCard({
         >
           <div className="flex items-center gap-3">
             <CardTitle className="text-lg">{position.title}</CardTitle>
-            {showAdminActions && (
-              <PositionStatusBadge position={position} />
-            )}
+            {showAdminActions && <PositionStatusBadge position={position} />}
           </div>
           {open ? (
             <ChevronUp className="text-muted-foreground size-5 shrink-0" />

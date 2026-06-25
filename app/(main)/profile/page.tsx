@@ -3,6 +3,7 @@ import { getProfileData } from '@/prisma/data/profile';
 import { getCurrentUser } from '@/lib/auth/server';
 
 import { ProfileForm } from '@/components/features/profile-form';
+import { PageHeader } from '@/components/layouts/page-header';
 
 export default async function ProfilePage() {
   const user = await getCurrentUser();
@@ -10,7 +11,13 @@ export default async function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <ProfileForm profileData={profileData} />
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          title="Profile"
+          description="Your answers are shared across every application."
+        />
+        <ProfileForm profileData={profileData} />
+      </div>
     </div>
   );
 }
