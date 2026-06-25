@@ -1,16 +1,21 @@
+import { Briefcase } from 'lucide-react';
+
 import { getManagedPositionIds } from '@/prisma/data/managers';
 import { getPositions } from '@/prisma/data/positions';
+
 import { getCurrentUser } from '@/lib/auth/server';
 
 import { PositionCard } from '@/components/features/position-card';
 import { PositionCreateDialog } from '@/components/features/position-create-dialog';
 import { PageHeader } from '@/components/layouts/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Briefcase } from 'lucide-react';
 
 export default async function PositionsPage() {
   const user = await getCurrentUser();
-  const positions = await getPositions({ isAdmin: user.isAdmin, userId: user.id });
+  const positions = await getPositions({
+    isAdmin: user.isAdmin,
+    userId: user.id,
+  });
 
   let managedIds: Set<string>;
   if (user.isAdmin) {

@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { notFound } from 'next/navigation';
 
 import { z } from 'zod/v4';
 
@@ -141,6 +142,11 @@ export async function addPositionManager(
 
   const { positionId, userId } = parsed.data;
 
+  const exists = await prisma.position.findFirst({
+    where: { id: positionId, deletedAt: null },
+  });
+  if (!exists) notFound();
+
   const hasAccess = await checkPositionAccess(
     positionId,
     user.id,
@@ -165,6 +171,11 @@ export async function removePositionManager(
   if (!parsed.success) return { error: 'Invalid input' };
 
   const { positionId, userId } = parsed.data;
+
+  const exists = await prisma.position.findFirst({
+    where: { id: positionId, deletedAt: null },
+  });
+  if (!exists) notFound();
 
   const hasAccess = await checkPositionAccess(
     positionId,
