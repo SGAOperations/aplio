@@ -9,8 +9,13 @@ import { deleteGlobalQuestion } from '@/prisma/actions/global-questions';
 
 import { QUESTION_TYPE_LABELS } from '@/lib/constants';
 import type { GlobalQuestionListItem } from '@/lib/types';
+import {
+  type SortableColumn,
+  useSortableTable,
+} from '@/lib/use-sortable-table';
 
 import { GlobalQuestionDialog } from '@/components/features/global-question-dialog';
+import { SortableHeader } from '@/components/features/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -36,9 +41,24 @@ interface GlobalQuestionsTableProps {
   questions: GlobalQuestionListItem[];
 }
 
+const COLUMNS: SortableColumn<GlobalQuestionListItem>[] = [
+  { key: 'order', accessor: (q) => q.order },
+  { key: 'label', accessor: (q) => q.label },
+  { key: 'type', accessor: (q) => QUESTION_TYPE_LABELS[q.type] },
+  // Sort 1 (yes) before 0 (no) when ascending so required questions surface first.
+  { key: 'required', accessor: (q) => (q.required ? 1 : 0) },
+];
+
 export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Default sort: order ascending — the meaningful sequence for global questions.
+  const { sortedRows, sort, toggle, ariaSort } = useSortableTable(
+    questions,
+    COLUMNS,
+    { defaultSort: { key: 'order', direction: 'asc' } },
+  );
 
   async function handleDelete() {
     if (!deletingId) return;
@@ -74,16 +94,49 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-16">Order</TableHead>
-              <TableHead>Label</TableHead>
-              <TableHead className="w-36">Type</TableHead>
+              <SortableHeader
+                label="Order"
+                sortKey="order"
+                active={sort.key === 'order'}
+                direction={sort.direction}
+                ariaSort={ariaSort('order')}
+                onToggle={() => toggle('order')}
+                className="w-16"
+              />
+              <SortableHeader
+                label="Label"
+                sortKey="label"
+                active={sort.key === 'label'}
+                direction={sort.direction}
+                ariaSort={ariaSort('label')}
+                onToggle={() => toggle('label')}
+              />
+              <SortableHeader
+                label="Type"
+                sortKey="type"
+                active={sort.key === 'type'}
+                direction={sort.direction}
+                ariaSort={ariaSort('type')}
+                onToggle={() => toggle('type')}
+                className="w-36"
+              />
+              {/* Options column — not sortable (rendered chips, not data) */}
               <TableHead>Options</TableHead>
-              <TableHead className="w-28">Required</TableHead>
+              <SortableHeader
+                label="Required"
+                sortKey="required"
+                active={sort.key === 'required'}
+                direction={sort.direction}
+                ariaSort={ariaSort('required')}
+                onToggle={() => toggle('required')}
+                className="w-28"
+              />
+              {/* Actions column — not sortable */}
               <TableHead className="w-32">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {questions.map((question) => (
+            {sortedRows.map((question) => (
               <TableRow key={question.id}>
                 <TableCell>{question.order}</TableCell>
                 <TableCell className="font-medium">{question.label}</TableCell>
@@ -140,9 +193,9 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
         </Table>
       </Card>
 
-      {/* Mobile stacked cards */}
+      {/* Mobile stacked cards — sort order from sortedRows reflects active sort */}
       <div className="flex flex-col gap-3 md:hidden">
-        {questions.map((question) => (
+        {sortedRows.map((question) => (
           <Card key={question.id} className="p-4">
             <div className="flex flex-col gap-3">
               <div className="flex items-start justify-between gap-2">
