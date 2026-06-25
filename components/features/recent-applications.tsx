@@ -22,7 +22,8 @@ export async function RecentApplications() {
   const applications = await getRecentApplications();
 
   return (
-    <Card className="gap-0 p-0">
+    // overflow-hidden clips the header hover highlight to the card's rounded corners
+    <Card className="gap-0 overflow-hidden p-0">
       <CardHeader className="border-b p-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-semibold">
