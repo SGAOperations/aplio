@@ -9,11 +9,17 @@ import { formatDate, getPositionAvailability } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-export async function OpenPositionsWidget() {
+interface OpenPositionsWidgetProps {
+  limit?: number;
+}
+
+export async function OpenPositionsWidget({
+  limit = 3,
+}: OpenPositionsWidgetProps) {
   // getOpenPositions returns only open positions; does not surface a manager's
   // draft/closed positions in this "Open Positions" widget context.
   const positions = await getOpenPositions();
-  const displayed = positions.slice(0, 5);
+  const displayed = positions.slice(0, limit);
 
   return (
     <Card className="gap-0 p-0">
@@ -24,9 +30,10 @@ export async function OpenPositionsWidget() {
           </CardTitle>
           <Link
             href="/positions"
+            aria-label="See all positions"
             className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm transition-colors"
           >
-            View all
+            See all
             <ArrowRight className="size-3.5" aria-hidden="true" />
           </Link>
         </div>

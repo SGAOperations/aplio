@@ -200,6 +200,16 @@ export type ApplicationForReview = Prisma.ApplicationGetPayload<{
   };
 }>;
 
+// Activity feed item — role-agnostic shape produced by the applicant/admin
+// feed wrappers and consumed by the shared ActivityFeedList leaf.
+// statusVariant drives the dot color; sentence is pre-rendered safe copy.
+export type ActivityItem = {
+  id: string;
+  statusVariant: string;
+  sentence: string;
+  timestamp: Date;
+};
+
 // Identity shape passed to nav components so sidebar and mobile nav agree
 // on what to display in the user menu.
 export interface NavIdentity {

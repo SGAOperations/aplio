@@ -271,6 +271,28 @@ export async function getApplications(
   });
 }
 
+// Applicant-scoped: count of non-draft applications for the stat card.
+// Uses a direct count rather than re-fetching the full groupBy result to keep it cheap.
+export async function getMySubmittedCount(userId: string): Promise<number> {
+  return prisma.application.count({
+    where: { userId, deletedAt: null, status: { not: 'draft' } },
+  });
+}
+
+// Applicant-scoped: most recent non-draft applications ordered by last update,
+// used for the applicant activity feed. Reuses applicationSelect which includes updatedAt.
+export async function getMyRecentActivity(
+  userId: string,
+  take = 10,
+): Promise<MyApplicationListItem[]> {
+  return prisma.application.findMany({
+    where: { userId, deletedAt: null, status: { not: 'draft' } },
+    select: applicationSelect,
+    orderBy: { updatedAt: 'desc' },
+    take,
+  });
+}
+
 // Returns positions the caller may review — used to populate the Position filter
 // Select on /applications. Admins see all non-deleted; managers see their positions.
 export async function getReviewablePositions(user: {
