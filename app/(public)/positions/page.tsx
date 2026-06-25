@@ -1,9 +1,12 @@
+import { Briefcase } from 'lucide-react';
+
 import { getPositions } from '@/prisma/data/positions';
 
 import { getOptionalUser } from '@/lib/auth/server';
 
 import { PositionCard } from '@/components/features/position-card';
 import { PositionCreateDialog } from '@/components/features/position-create-dialog';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export default async function PositionsPage() {
   const user = await getOptionalUser();
@@ -21,9 +24,16 @@ export default async function PositionsPage() {
       </div>
 
       {positions.length === 0 ? (
-        <p className="text-muted-foreground text-sm">
-          There are no{isAdmin ? '' : ' open'} positions at this time.
-        </p>
+        <EmptyState
+          icon={Briefcase}
+          title={isAdmin ? 'No positions yet' : 'No open positions'}
+          description={
+            isAdmin
+              ? 'Create your first position to start accepting applications.'
+              : 'Check back later for open positions.'
+          }
+          action={isAdmin ? <PositionCreateDialog /> : undefined}
+        />
       ) : (
         <div className="flex flex-col gap-4">
           {positions.map((position) => (
