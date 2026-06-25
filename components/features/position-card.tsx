@@ -33,7 +33,7 @@ export function PositionCard({
       <CardHeader className="p-0">
         <button
           type="button"
-          className="flex w-full items-center justify-between p-6 text-left"
+          className="flex w-full items-center justify-between p-4 text-left"
           onClick={() => setOpen((prev) => !prev)}
           aria-expanded={open}
         >
@@ -50,7 +50,7 @@ export function PositionCard({
       </CardHeader>
 
       {open && (
-        <CardContent className="flex flex-col gap-4 px-6 pb-6">
+        <CardContent className="flex flex-col gap-4 px-4 pb-4">
           <p className="text-muted-foreground text-sm">
             {position.description}
           </p>

@@ -13,8 +13,8 @@ export default function ApplicationDetailLoading() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Left: answers */}
         <div className="flex flex-col gap-6 lg:col-span-2">
-          <div className="rounded-xl border p-6 shadow-sm">
-            <Skeleton className="mb-4 h-5 w-32" />
+          <div className="rounded-xl border p-4 shadow-sm">
+            <Skeleton className="mb-3 h-5 w-32" />
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-1">
                 <Skeleton className="h-3 w-24" />
@@ -31,9 +31,9 @@ export default function ApplicationDetailLoading() {
             </div>
           </div>
 
-          <div className="rounded-xl border p-6 shadow-sm">
+          <div className="rounded-xl border p-4 shadow-sm">
             <Skeleton className="mb-1 h-5 w-36" />
-            <Skeleton className="mb-4 h-3 w-28" />
+            <Skeleton className="mb-3 h-3 w-28" />
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-1">
                 <Skeleton className="h-3 w-28" />
@@ -49,7 +49,7 @@ export default function ApplicationDetailLoading() {
 
         {/* Right: Status panel */}
         <div className="order-first lg:order-none">
-          <div className="rounded-xl border p-6 shadow-sm">
+          <div className="rounded-xl border p-4 shadow-sm">
             <Skeleton className="mb-4 h-5 w-12" />
             <div className="flex flex-col gap-2">
               <Skeleton className="h-6 w-24" />

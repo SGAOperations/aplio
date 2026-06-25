@@ -56,7 +56,7 @@ export default async function ApplyPage({
 
   return (
     <div className="mx-auto max-w-2xl">
-      <div className="mb-8">
+      <div className="mb-6">
         <PageHeader
           title={`Apply: ${position.title}`}
           description={
@@ -69,7 +69,7 @@ export default async function ApplyPage({
 
       {!application ? (
         <Card>
-          <CardContent className="flex flex-col gap-4 p-6">
+          <CardContent className="flex flex-col gap-4 p-4">
             <div>
               <p className="font-medium">Complete your profile first</p>
               <p className="text-muted-foreground mt-1 text-sm">

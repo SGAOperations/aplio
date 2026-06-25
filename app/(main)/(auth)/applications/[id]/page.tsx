@@ -52,12 +52,12 @@ export default async function ApplicationDetailPage({
         {/* Left: answers (lg:col-span-2) */}
         <div className="flex flex-col gap-6 lg:col-span-2">
           <Card>
-            <CardHeader>
+            <CardHeader className="p-4 pb-3">
               <CardTitle className="text-base font-semibold">
                 Profile answers
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 pt-0">
               <ApplicationAnswersList
                 answers={application.globalAnswers}
                 emptyMessage="No profile answers."
@@ -66,13 +66,13 @@ export default async function ApplicationDetailPage({
           </Card>
 
           <Card>
-            <CardHeader>
+            <CardHeader className="p-4 pb-3">
               <CardTitle className="text-base font-semibold">
                 Position answers
               </CardTitle>
               <CardDescription>{application.position.title}</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 pt-0">
               <ApplicationAnswersList
                 answers={application.positionAnswers}
                 emptyMessage="No position-specific answers."
@@ -84,10 +84,10 @@ export default async function ApplicationDetailPage({
         {/* Right: Status panel — sticky on lg, stacked first on mobile */}
         <div className="order-first lg:sticky lg:top-6 lg:order-none lg:self-start">
           <Card>
-            <CardHeader>
+            <CardHeader className="p-4 pb-3">
               <CardTitle className="text-base font-semibold">Status</CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-col gap-4">
+            <CardContent className="flex flex-col gap-4 p-4 pt-0">
               <ApplicationStatusBadge status={application.status} />
               <ApplicationStatusControl
                 applicationId={application.id}
