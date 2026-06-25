@@ -12,7 +12,12 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const roleLabel = user.isAdmin ? 'Admin' : 'User';
   const isBypass = await getIsBypass();
 
-  const identity: NavIdentity = { email: user.email, roleLabel, isBypass };
+  const identity: NavIdentity = {
+    name: user.name,
+    email: user.email,
+    roleLabel,
+    isBypass,
+  };
 
   return (
     <div className="flex h-dvh w-full overflow-hidden">

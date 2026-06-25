@@ -24,18 +24,19 @@ interface UserMenuProps {
 }
 
 export function UserMenu({ identity, onNavigate }: UserMenuProps) {
-  const { email, roleLabel, isBypass } = identity;
+  const { name, email, roleLabel, isBypass } = identity;
+  const displayName = name ?? email;
   const [pending, startTransition] = useTransition();
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          aria-label={`Account menu for ${email}`}
+          aria-label={`Account menu for ${displayName}`}
           className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition-colors"
         >
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{email}</p>
+            <p className="truncate text-sm font-medium">{displayName}</p>
             <p className="text-muted-foreground text-xs">{roleLabel}</p>
           </div>
           <ChevronUp
@@ -46,7 +47,7 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
       </DropdownMenuTrigger>
       <DropdownMenuContent side="top" align="start" className="w-52">
         <DropdownMenuLabel className="font-normal">
-          <p className="truncate text-sm font-medium">{email}</p>
+          <p className="truncate text-sm font-medium">{displayName}</p>
           <p className="text-muted-foreground text-xs">{roleLabel}</p>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
