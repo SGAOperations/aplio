@@ -65,7 +65,8 @@ export function MobileNav({ isAdmin, identity }: MobileNavProps) {
 
             <nav className="flex flex-col gap-1 p-2">
               {navItems.map(({ href, label, icon: Icon }) => {
-                const isActive = pathname.startsWith(href);
+                const isActive =
+                  href === '/' ? pathname === '/' : pathname.startsWith(href);
                 return (
                   <Link
                     key={href}
@@ -85,7 +86,7 @@ export function MobileNav({ isAdmin, identity }: MobileNavProps) {
             </nav>
 
             <div className="border-sidebar-border mt-auto border-t p-2">
-              <UserMenu identity={identity} />
+              <UserMenu identity={identity} onNavigate={() => setOpen(false)} />
             </div>
           </SheetContent>
         </Sheet>

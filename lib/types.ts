@@ -169,6 +169,7 @@ export type ApplicationForReview = Prisma.ApplicationGetPayload<{
 // Identity shape passed to nav components so sidebar and mobile nav agree
 // on what to display in the user menu.
 export interface NavIdentity {
+  name: string | null;
   email: string;
   roleLabel: string;
   // true only for bypass sessions on non-production environments;

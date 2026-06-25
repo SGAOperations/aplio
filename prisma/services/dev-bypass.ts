@@ -74,7 +74,7 @@ export async function loginAsBypassUser(role: BypassRole) {
     path: '/',
   });
 
-  redirect('/positions');
+  redirect('/');
 }
 
 // Clears the bypass session cookie and returns the caller to the picker.
