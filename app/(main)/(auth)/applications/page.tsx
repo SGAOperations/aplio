@@ -51,6 +51,7 @@ export default async function ApplicationsPage({
   const hasActiveFilters = !!(
     filters.positionId ||
     filters.status ||
+    filters.userId ||
     filters.q
   );
 
@@ -60,8 +61,16 @@ export default async function ApplicationsPage({
   ]);
 
   const count = applications.length;
+  // `getApplications` caps results at 100; show "100+" when the list may be
+  // truncated so the label is never misleadingly exact.
   const countLabel =
-    count === 1 ? '1 application' : count > 0 ? `${count} applications` : null;
+    count === 1
+      ? '1 application'
+      : count >= 100
+        ? '100+ applications'
+        : count > 0
+          ? `${count} applications`
+          : null;
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">

@@ -20,7 +20,11 @@ interface SidebarProps {
   canReviewApplications: boolean;
 }
 
-export function Sidebar({ isAdmin, identity, canReviewApplications }: SidebarProps) {
+export function Sidebar({
+  isAdmin,
+  identity,
+  canReviewApplications,
+}: SidebarProps) {
   const pathname = usePathname();
   const navItems = [
     ...baseNavItems,

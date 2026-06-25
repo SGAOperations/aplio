@@ -25,7 +25,11 @@ interface MobileNavProps {
   canReviewApplications: boolean;
 }
 
-export function MobileNav({ isAdmin, identity, canReviewApplications }: MobileNavProps) {
+export function MobileNav({
+  isAdmin,
+  identity,
+  canReviewApplications,
+}: MobileNavProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const navItems = [

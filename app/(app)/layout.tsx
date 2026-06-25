@@ -20,6 +20,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     isBypass,
   };
 
+  // No active pages live under (app)/ yet, but the query is kept in sync with
+  // (main)/layout.tsx to satisfy the shared Sidebar/MobileNav props contract.
   const canReviewApplications =
     user.isAdmin ||
     (await prisma.position.count({

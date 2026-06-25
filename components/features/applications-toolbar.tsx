@@ -40,6 +40,7 @@ export function ApplicationsToolbar({
   const hasActiveFilters = !!(
     filters.positionId ||
     filters.status ||
+    filters.userId ||
     filters.q
   );
 
@@ -69,11 +70,9 @@ export function ApplicationsToolbar({
   }
 
   function clearFilters() {
-    const params = new URLSearchParams();
-    // Preserve userId if present — the deep-link remains active after clearing.
-    const userId = searchParams.get('userId');
-    if (userId) params.set('userId', userId);
-    router.push(`${pathname}?${params.toString()}`);
+    // Drop all filters including userId so the user can escape the deep-link
+    // context (#77) when the filter set returns zero results.
+    router.push(pathname);
   }
 
   return (

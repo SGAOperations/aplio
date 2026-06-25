@@ -343,6 +343,9 @@ export async function updateApplicationStatuses(
   });
 
   revalidatePath('/applications');
+  // Clears all cached detail-page renders — bulk updates don't have individual
+  // positionIds at hand, so the wildcard layout segment is the right scope.
+  revalidatePath('/applications/[id]', 'layout');
 
   return { updated: result.count };
 }
