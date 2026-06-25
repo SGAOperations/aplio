@@ -28,8 +28,11 @@ export default async function EditPositionPage({
 
   // Access check: admins always have access; managers are confirmed after the DB fetch
   // because the manager list is part of the position record.
-  const isManager = position.managers.some((m) => m.id === user.id);
-  if (!user.isAdmin && !isManager) redirect(`/positions/${id}`);
+  const isPositionManager = position.managers.some((m) => m.id === user.id);
+  if (!user.isAdmin && !isPositionManager) redirect(`/positions/${id}`);
+
+  // canManage: admin always; managers confirmed above via the position record.
+  const canManage = user.isAdmin || isPositionManager;
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
@@ -60,11 +63,11 @@ export default async function EditPositionPage({
           />
         }
         managersContent={
-          user.isAdmin ? (
+          canManage ? (
             <PositionManagersSection
               positionId={position.id}
               initialManagers={position.managers}
-              isAdmin={user.isAdmin}
+              canManage={canManage}
             />
           ) : null
         }

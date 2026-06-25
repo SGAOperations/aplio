@@ -1,8 +1,11 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { notFound } from 'next/navigation';
 
 import { z } from 'zod/v4';
+
+import { checkPositionAccess, isManager } from '@/prisma/data/managers';
 
 import { getCurrentUser } from '@/lib/auth/server';
 import prisma from '@/lib/prisma';
@@ -30,25 +33,28 @@ const deletePositionSchema = z.object({ id: z.string().min(1) });
 
 const addPositionManagerSchema = z.object({
   positionId: z.string().min(1),
-  userId: z.string().min(1),
+  userId: z.string().cuid(),
 });
 
 const removePositionManagerSchema = z.object({
   positionId: z.string().min(1),
-  userId: z.string().min(1),
+  userId: z.string().cuid(),
 });
 
 export async function createPosition(
   input: unknown,
 ): Promise<{ id: string } | { error: string }> {
   const user = await getCurrentUser();
-  if (!user.isAdmin) return { error: 'Unauthorized' };
+
+  const allowed = user.isAdmin || (await isManager(user.id));
+  if (!allowed) return { error: 'Unauthorized' };
 
   const parsed = createPositionSchema.safeParse(input);
   if (!parsed.success) return { error: 'Invalid input' };
 
   const { title, description, status, opensAt, closesAt } = parsed.data;
 
+  // Creator is auto-assigned as a manager so they can immediately edit the position.
   const position = await prisma.position.create({
     data: {
       title,
@@ -58,6 +64,7 @@ export async function createPosition(
       closesAt: closesAt ? new Date(closesAt) : null,
       createdById: user.id,
       updatedById: user.id,
+      managers: { connect: { id: user.id } },
     },
     select: { id: true },
   });
@@ -76,15 +83,16 @@ export async function updatePosition(
 
   const { id, title, description, status, opensAt, closesAt } = parsed.data;
 
-  const position = await prisma.position.findFirst({
+  // Stale-link guard: a manager navigating to a deleted position should get an
+  // actionable message, not a generic error toast (ENGINEERING §4 gray-area rule).
+  const exists = await prisma.position.findFirst({
     where: { id, deletedAt: null },
-    include: { managers: { where: { id: user.id } } },
+    select: { id: true },
   });
+  if (!exists) return { error: 'Position no longer exists' };
 
-  if (!position) return { error: 'Position not found' };
-
-  const isManager = position.managers.length > 0;
-  if (!user.isAdmin && !isManager) return { error: 'Unauthorized' };
+  const hasAccess = await checkPositionAccess(id, user.id, user.isAdmin);
+  if (!hasAccess) throw new Error('Forbidden');
 
   await prisma.position.update({
     where: { id },
@@ -128,18 +136,24 @@ export async function addPositionManager(
   input: unknown,
 ): Promise<void | { error: string }> {
   const user = await getCurrentUser();
-  if (!user.isAdmin) return { error: 'Unauthorized' };
 
   const parsed = addPositionManagerSchema.safeParse(input);
   if (!parsed.success) return { error: 'Invalid input' };
 
   const { positionId, userId } = parsed.data;
 
-  const addPosition = await prisma.position.findFirst({
+  const exists = await prisma.position.findFirst({
     where: { id: positionId, deletedAt: null },
     select: { id: true },
   });
-  if (!addPosition) return { error: 'Not found' };
+  if (!exists) notFound();
+
+  const hasAccess = await checkPositionAccess(
+    positionId,
+    user.id,
+    user.isAdmin,
+  );
+  if (!hasAccess) throw new Error('Forbidden');
 
   await prisma.position.update({
     where: { id: positionId },
@@ -153,18 +167,24 @@ export async function removePositionManager(
   input: unknown,
 ): Promise<void | { error: string }> {
   const user = await getCurrentUser();
-  if (!user.isAdmin) return { error: 'Unauthorized' };
 
   const parsed = removePositionManagerSchema.safeParse(input);
   if (!parsed.success) return { error: 'Invalid input' };
 
   const { positionId, userId } = parsed.data;
 
-  const removePosition = await prisma.position.findFirst({
+  const exists = await prisma.position.findFirst({
     where: { id: positionId, deletedAt: null },
     select: { id: true },
   });
-  if (!removePosition) return { error: 'Not found' };
+  if (!exists) notFound();
+
+  const hasAccess = await checkPositionAccess(
+    positionId,
+    user.id,
+    user.isAdmin,
+  );
+  if (!hasAccess) throw new Error('Forbidden');
 
   await prisma.position.update({
     where: { id: positionId },
@@ -176,9 +196,12 @@ export async function removePositionManager(
 
 const searchUsersSchema = z.object({ query: z.string().max(200) });
 
+// Authenticated directory lookup used to assign position managers.
+// Intentionally exposes name+email to any logged-in user — only id/displayName/email
+// are returned (no sensitive/internal fields). Capped at 10 results.
 export async function searchUsers(input: unknown) {
-  const user = await getCurrentUser();
-  if (!user.isAdmin) return [];
+  // getCurrentUser redirects if unauthenticated; no further role check needed.
+  await getCurrentUser();
 
   const parsed = searchUsersSchema.safeParse(input);
   if (!parsed.success) return [];

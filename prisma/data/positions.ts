@@ -8,13 +8,53 @@ import {
 } from '@/lib/types';
 import { isAcceptingApplications } from '@/lib/utils';
 
-export async function getPositions(
-  includeAll = false,
-): Promise<PositionWithQuestions[]> {
+// Manager-aware positions query.
+// Admin: all non-deleted positions.
+// Non-admin: open positions ∪ positions the user manages (including drafts).
+// A plain applicant (manages nothing) collapses to open-only — same as before.
+export async function getPositions({
+  isAdmin,
+  userId,
+}: {
+  isAdmin: boolean;
+  userId: string;
+}): Promise<PositionWithQuestions[]> {
   return prisma.position.findMany({
-    where: includeAll
+    where: isAdmin
       ? { deletedAt: null }
-      : { status: 'open', deletedAt: null },
+      : {
+          deletedAt: null,
+          OR: [{ status: 'open' }, { managers: { some: { id: userId } } }],
+        },
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      description: true,
+      opensAt: true,
+      closesAt: true,
+      questions: {
+        where: { deletedAt: null },
+        orderBy: { order: 'asc' },
+        select: {
+          id: true,
+          label: true,
+          type: true,
+          required: true,
+          options: true,
+          order: true,
+        },
+      },
+    },
+    orderBy: { title: 'asc' },
+  });
+}
+
+// Open-only positions for widgets (e.g. dashboard) that must not surface
+// a manager's draft/closed positions in an "Open Positions" context.
+export async function getOpenPositions(): Promise<PositionWithQuestions[]> {
+  return prisma.position.findMany({
+    where: { status: 'open', deletedAt: null },
     select: {
       id: true,
       title: true,

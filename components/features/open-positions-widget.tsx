@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 import { ArrowRight, Briefcase } from 'lucide-react';
 
-import { getPositions } from '@/prisma/data/positions';
+import { getOpenPositions } from '@/prisma/data/positions';
 
 import { formatDate, getPositionAvailability } from '@/lib/utils';
 
@@ -10,9 +10,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export async function OpenPositionsWidget() {
-  // Reuse getPositions(false) — returns only open positions. Slight over-fetch
-  // of questions fields is acceptable to reuse the shared type (ENGINEERING §2).
-  const positions = await getPositions(false);
+  // getOpenPositions returns only open positions; does not surface a manager's
+  // draft/closed positions in this "Open Positions" widget context.
+  const positions = await getOpenPositions();
   const displayed = positions.slice(0, 5);
 
   return (
@@ -74,7 +74,7 @@ export async function OpenPositionsWidget() {
                       <span className="text-muted-foreground shrink-0 text-xs">
                         {availability === 'upcoming' && position.opensAt
                           ? `Opens ${formatDate(position.opensAt)}`
-                          : /* closed_by_date or unavailable (unreachable via getPositions(false)) */ 'Closed'}
+                          : /* closed_by_date or unavailable (unreachable via getOpenPositions) */ 'Closed'}
                       </span>
                     )}
                   </div>

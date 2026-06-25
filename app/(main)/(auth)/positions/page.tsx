@@ -1,5 +1,6 @@
 import { Briefcase } from 'lucide-react';
 
+import { getManagedPositionIds } from '@/prisma/data/managers';
 import { getPositions } from '@/prisma/data/positions';
 
 import { getCurrentUser } from '@/lib/auth/server';
@@ -11,30 +12,40 @@ import { EmptyState } from '@/components/ui/empty-state';
 
 export default async function PositionsPage() {
   const user = await getCurrentUser();
-  const positions = await getPositions(user.isAdmin);
+  const positions = await getPositions({
+    isAdmin: user.isAdmin,
+    userId: user.id,
+  });
+
+  let managedIds: Set<string>;
+  if (user.isAdmin) {
+    managedIds = new Set(positions.map((p) => p.id));
+  } else {
+    managedIds = await getManagedPositionIds(user.id);
+  }
+  const canCreate = user.isAdmin || managedIds.size > 0;
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title={user.isAdmin ? 'Positions' : 'Open Positions'}
+        title={canCreate ? 'Positions' : 'Open Positions'}
         description={
-          user.isAdmin
+          canCreate
             ? 'Create, edit, and review applications for every position.'
             : 'Browse and apply to open positions.'
         }
-        actions={user.isAdmin ? <PositionCreateDialog /> : undefined}
+        actions={canCreate ? <PositionCreateDialog /> : undefined}
       />
-
       {positions.length === 0 ? (
         <EmptyState
           icon={Briefcase}
-          title={user.isAdmin ? 'No positions yet' : 'No open positions'}
+          title={canCreate ? 'No positions yet' : 'No open positions'}
           description={
-            user.isAdmin
+            canCreate
               ? 'Create your first position to start accepting applications.'
               : 'There are no open positions right now. Check back soon.'
           }
-          action={user.isAdmin ? <PositionCreateDialog /> : undefined}
+          action={canCreate ? <PositionCreateDialog /> : undefined}
         />
       ) : (
         <div className="grid items-start gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -42,7 +53,7 @@ export default async function PositionsPage() {
             <PositionCard
               key={position.id}
               position={position}
-              showAdminActions={user.isAdmin}
+              canManage={managedIds.has(position.id)}
             />
           ))}
         </div>

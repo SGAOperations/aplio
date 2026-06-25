@@ -28,13 +28,13 @@ interface UserResult {
 interface PositionManagersSectionProps {
   positionId: string;
   initialManagers: PositionManager[];
-  isAdmin: boolean;
+  canManage: boolean;
 }
 
 export function PositionManagersSection({
   positionId,
   initialManagers,
-  isAdmin,
+  canManage,
 }: PositionManagersSectionProps) {
   const [managers, setManagers] = useState<PositionManager[]>(initialManagers);
   const [query, setQuery] = useState('');
@@ -124,7 +124,7 @@ export function PositionManagersSection({
                   </p>
                 )}
               </div>
-              {isAdmin && (
+              {canManage && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -144,7 +144,7 @@ export function PositionManagersSection({
         </ul>
       )}
 
-      {isAdmin && (
+      {canManage && (
         <div className="flex flex-col gap-2">
           <Label htmlFor="manager-search">Add Manager</Label>
           <div className="relative">

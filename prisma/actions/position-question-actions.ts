@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache';
 
 import { z } from 'zod/v4';
 
+import { checkPositionAccess } from '@/prisma/data/managers';
+
 import { getCurrentUser } from '@/lib/auth/server';
 import prisma from '@/lib/prisma';
 
@@ -36,21 +38,6 @@ const deletePositionQuestionSchema = z.object({
   positionId: z.string().min(1),
 });
 
-async function checkAccess(
-  positionId: string,
-  userId: string,
-  isAdmin: boolean,
-): Promise<boolean> {
-  if (isAdmin) return true;
-
-  const position = await prisma.position.findFirst({
-    where: { id: positionId, deletedAt: null },
-    include: { managers: { where: { id: userId } } },
-  });
-
-  return (position?.managers.length ?? 0) > 0;
-}
-
 export async function createPositionQuestion(
   input: unknown,
 ): Promise<{ id: string; order: number } | { error: string }> {
@@ -61,8 +48,12 @@ export async function createPositionQuestion(
 
   const { positionId, label, type, required, options } = parsed.data;
 
-  const hasAccess = await checkAccess(positionId, user.id, user.isAdmin);
-  if (!hasAccess) return { error: 'Unauthorized' };
+  const hasAccess = await checkPositionAccess(
+    positionId,
+    user.id,
+    user.isAdmin,
+  );
+  if (!hasAccess) throw new Error('Forbidden');
 
   const created = await prisma.$transaction(async (tx) => {
     const maxOrder = await tx.positionQuestion.aggregate({
@@ -100,8 +91,12 @@ export async function updatePositionQuestion(
 
   const { id, positionId, label, type, required, options } = parsed.data;
 
-  const hasAccess = await checkAccess(positionId, user.id, user.isAdmin);
-  if (!hasAccess) return { error: 'Unauthorized' };
+  const hasAccess = await checkPositionAccess(
+    positionId,
+    user.id,
+    user.isAdmin,
+  );
+  if (!hasAccess) throw new Error('Forbidden');
 
   // Scope the write to positionId to prevent IDOR across positions
   const result = await prisma.positionQuestion.updateMany({
@@ -124,8 +119,12 @@ export async function deletePositionQuestion(
 
   const { id, positionId } = parsed.data;
 
-  const hasAccess = await checkAccess(positionId, user.id, user.isAdmin);
-  if (!hasAccess) return { error: 'Unauthorized' };
+  const hasAccess = await checkPositionAccess(
+    positionId,
+    user.id,
+    user.isAdmin,
+  );
+  if (!hasAccess) throw new Error('Forbidden');
 
   // Scope the write to positionId to prevent IDOR across positions
   const result = await prisma.positionQuestion.updateMany({
