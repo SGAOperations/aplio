@@ -53,7 +53,7 @@ export async function createPositionQuestion(
     user.id,
     user.isAdmin,
   );
-  if (!hasAccess) return { error: 'Unauthorized' };
+  if (!hasAccess) throw new Error('Forbidden');
 
   const created = await prisma.$transaction(async (tx) => {
     const maxOrder = await tx.positionQuestion.aggregate({
@@ -96,7 +96,7 @@ export async function updatePositionQuestion(
     user.id,
     user.isAdmin,
   );
-  if (!hasAccess) return { error: 'Unauthorized' };
+  if (!hasAccess) throw new Error('Forbidden');
 
   // Scope the write to positionId to prevent IDOR across positions
   const result = await prisma.positionQuestion.updateMany({
@@ -124,7 +124,7 @@ export async function deletePositionQuestion(
     user.id,
     user.isAdmin,
   );
-  if (!hasAccess) return { error: 'Unauthorized' };
+  if (!hasAccess) throw new Error('Forbidden');
 
   // Scope the write to positionId to prevent IDOR across positions
   const result = await prisma.positionQuestion.updateMany({

@@ -80,7 +80,7 @@ export async function updatePosition(
   const { id, title, description, status, opensAt, closesAt } = parsed.data;
 
   const hasAccess = await checkPositionAccess(id, user.id, user.isAdmin);
-  if (!hasAccess) return { error: 'Unauthorized' };
+  if (!hasAccess) throw new Error('Forbidden');
 
   await prisma.position.update({
     where: { id },
@@ -135,7 +135,7 @@ export async function addPositionManager(
     user.id,
     user.isAdmin,
   );
-  if (!hasAccess) return { error: 'Unauthorized' };
+  if (!hasAccess) throw new Error('Forbidden');
 
   await prisma.position.update({
     where: { id: positionId },
@@ -160,7 +160,7 @@ export async function removePositionManager(
     user.id,
     user.isAdmin,
   );
-  if (!hasAccess) return { error: 'Unauthorized' };
+  if (!hasAccess) throw new Error('Forbidden');
 
   await prisma.position.update({
     where: { id: positionId },
