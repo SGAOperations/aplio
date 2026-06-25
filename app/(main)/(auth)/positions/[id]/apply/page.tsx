@@ -9,7 +9,9 @@ import { getCurrentUser } from '@/lib/auth/server';
 import { isError, toStringArray } from '@/lib/utils';
 
 import { ApplicationStepper } from '@/components/features/application-stepper';
+import { PageHeader } from '@/components/layouts/page-header';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 
 export default async function ApplyPage({
   params,
@@ -54,28 +56,33 @@ export default async function ApplyPage({
 
   return (
     <div className="mx-auto max-w-2xl">
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Apply: {position.title}
-        </h1>
-        {application && (
-          <p className="text-muted-foreground mt-1 text-sm">
-            Complete the form below to submit your application.
-          </p>
-        )}
+      <div className="mb-6">
+        <PageHeader
+          title={`Apply: ${position.title}`}
+          description={
+            application
+              ? 'Complete the form below to submit your application.'
+              : undefined
+          }
+        />
       </div>
 
       {!application ? (
-        <div className="bg-muted rounded-lg p-6">
-          <p className="font-medium">Complete your profile first</p>
-          <p className="text-muted-foreground mt-1 text-sm">
-            You need to answer all required profile questions before applying.
-            Your profile answers are shared across all applications.
-          </p>
-          <Button asChild className="mt-4">
-            <Link href="/profile">Go to Profile</Link>
-          </Button>
-        </div>
+        <Card>
+          <CardContent className="flex flex-col gap-4 p-4">
+            <div>
+              <p className="font-medium">Complete your profile first</p>
+              <p className="text-muted-foreground mt-1 text-sm">
+                You need to answer all required profile questions before
+                applying. Your profile answers are shared across all
+                applications.
+              </p>
+            </div>
+            <Button asChild className="w-fit">
+              <Link href="/profile">Go to Profile</Link>
+            </Button>
+          </CardContent>
+        </Card>
       ) : (
         <ApplicationStepper
           application={application}

@@ -4,7 +4,8 @@ import { type PositionApplicationListItem } from '@/lib/types';
 import { formatDate } from '@/lib/utils';
 
 import { ApplicationStatusControl } from '@/components/features/application-status-control';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   Table,
   TableBody,
@@ -23,18 +24,11 @@ export function PositionApplicationsTable({
 }: PositionApplicationsTableProps) {
   if (applications.length === 0)
     return (
-      <Card>
-        <CardContent className="flex flex-col items-center gap-4 py-16 text-center">
-          <Inbox className="text-muted-foreground size-12" aria-hidden="true" />
-          <div>
-            <p className="text-base font-semibold">No applications yet</p>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Applications will appear here once candidates apply to this
-              position.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <EmptyState
+        icon={Inbox}
+        title="No applications yet"
+        description="Applications will appear here once candidates apply to this position."
+      />
     );
 
   return (

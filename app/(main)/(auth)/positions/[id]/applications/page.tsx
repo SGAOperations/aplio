@@ -1,7 +1,4 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
-
-import { ArrowLeft } from 'lucide-react';
 
 import { getPositionApplications } from '@/prisma/data/applications';
 import { getPositionAccess } from '@/prisma/data/positions';
@@ -9,7 +6,7 @@ import { getPositionAccess } from '@/prisma/data/positions';
 import { getCurrentUser } from '@/lib/auth/server';
 
 import { PositionApplicationsTable } from '@/components/features/position-applications-table';
-import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/layouts/page-header';
 
 interface PositionApplicationsPageProps {
   params: Promise<{ id: string }>;
@@ -37,18 +34,12 @@ export default async function PositionApplicationsPage({
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
-      <div>
-        <Button variant="ghost" size="sm" asChild className="mb-2 -ml-2">
-          <Link href="/positions">
-            <ArrowLeft className="size-4" />
-            Back to positions
-          </Link>
-        </Button>
-        <h1 className="text-3xl font-bold tracking-tight">{position.title}</h1>
-        {countLabel && (
-          <p className="text-muted-foreground mt-1 text-sm">{countLabel}</p>
-        )}
-      </div>
+      <PageHeader
+        title={position.title}
+        description={countLabel ?? undefined}
+        backHref="/positions"
+        backLabel="Back to positions"
+      />
 
       <PositionApplicationsTable applications={applications} />
     </div>

@@ -8,6 +8,7 @@ import { PositionDetailsForm } from '@/components/features/position-details-form
 import { PositionEditTabs } from '@/components/features/position-edit-tabs';
 import { PositionManagersSection } from '@/components/features/position-managers-section';
 import { PositionQuestionsSection } from '@/components/features/position-questions-section';
+import { PageHeader } from '@/components/layouts/page-header';
 
 interface EditPositionPageProps {
   params: Promise<{ id: string }>;
@@ -32,10 +33,12 @@ export default async function EditPositionPage({
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">{position.title}</h1>
-        <p className="text-muted-foreground mt-1 text-sm">Edit position</p>
-      </div>
+      <PageHeader
+        title={position.title}
+        description="Edit position"
+        backHref="/positions"
+        backLabel="Back to positions"
+      />
 
       <PositionEditTabs
         detailsContent={

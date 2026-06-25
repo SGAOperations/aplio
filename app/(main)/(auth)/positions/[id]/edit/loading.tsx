@@ -3,8 +3,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function EditPositionLoading() {
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <Skeleton className="h-9 w-56" />
+      {/* PageHeader skeleton: back link + title + description */}
+      <div className="flex flex-col gap-1">
+        <Skeleton className="mb-1 h-7 w-32" />
+        <Skeleton className="h-8 w-56" />
         <Skeleton className="h-4 w-24" />
       </div>
 

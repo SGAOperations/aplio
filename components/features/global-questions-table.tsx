@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 
+import { ListChecks } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { deleteGlobalQuestion } from '@/prisma/actions/global-questions';
@@ -10,7 +11,9 @@ import { QUESTION_TYPE_LABELS } from '@/lib/constants';
 import type { GlobalQuestionListItem } from '@/lib/types';
 
 import { GlobalQuestionDialog } from '@/components/features/global-question-dialog';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -19,6 +22,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { EmptyState } from '@/components/ui/empty-state';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 interface GlobalQuestionsTableProps {
   questions: GlobalQuestionListItem[];
@@ -43,35 +55,44 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
 
   if (questions.length === 0)
     return (
-      <div className="text-muted-foreground flex flex-col items-center justify-center gap-2 rounded-lg border py-16 text-sm">
-        <p className="font-medium">No questions yet</p>
-        <p>Create your first global question using the button above.</p>
-      </div>
+      <EmptyState
+        icon={ListChecks}
+        title="No questions yet"
+        description="Add your first global question — applicants answer it once in their profile."
+        action={
+          <GlobalQuestionDialog
+            trigger={<Button size="sm">Add Question</Button>}
+          />
+        }
+      />
     );
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50">
-            <tr>
-              <th className="px-4 py-3 text-left font-medium">Order</th>
-              <th className="px-4 py-3 text-left font-medium">Label</th>
-              <th className="px-4 py-3 text-left font-medium">Type</th>
-              <th className="px-4 py-3 text-left font-medium">Options</th>
-              <th className="px-4 py-3 text-left font-medium">Required</th>
-              <th className="px-4 py-3 text-left font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
+      {/* Desktop table */}
+      <Card className="hidden gap-0 p-0 md:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-16">Order</TableHead>
+              <TableHead>Label</TableHead>
+              <TableHead className="w-36">Type</TableHead>
+              <TableHead>Options</TableHead>
+              <TableHead className="w-28">Required</TableHead>
+              <TableHead className="w-32">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {questions.map((question) => (
-              <tr key={question.id} className="hover:bg-muted/30">
-                <td className="px-4 py-3">{question.order}</td>
-                <td className="px-4 py-3 font-medium">{question.label}</td>
-                <td className="text-muted-foreground px-4 py-3">
-                  {QUESTION_TYPE_LABELS[question.type]}
-                </td>
-                <td className="px-4 py-3">
+              <TableRow key={question.id}>
+                <TableCell>{question.order}</TableCell>
+                <TableCell className="font-medium">{question.label}</TableCell>
+                <TableCell>
+                  <Badge variant="secondary">
+                    {QUESTION_TYPE_LABELS[question.type]}
+                  </Badge>
+                </TableCell>
+                <TableCell>
                   {question.options.length > 0 ? (
                     <div className="flex flex-wrap gap-1">
                       {question.options.map((opt) => (
@@ -86,11 +107,15 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
                   ) : (
                     <span className="text-muted-foreground">—</span>
                   )}
-                </td>
-                <td className="px-4 py-3">
-                  {question.required ? 'Yes' : 'No'}
-                </td>
-                <td className="px-4 py-3">
+                </TableCell>
+                <TableCell>
+                  {question.required ? (
+                    <Badge variant="outline">Required</Badge>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </TableCell>
+                <TableCell>
                   <div className="flex gap-2">
                     <GlobalQuestionDialog
                       trigger={
@@ -108,11 +133,66 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
                       Delete
                     </Button>
                   </div>
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
+      </Card>
+
+      {/* Mobile stacked cards */}
+      <div className="flex flex-col gap-3 md:hidden">
+        {questions.map((question) => (
+          <Card key={question.id} className="p-4">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-start justify-between gap-2">
+                <p className="font-medium">{question.label}</p>
+                <Badge variant="secondary">
+                  {QUESTION_TYPE_LABELS[question.type]}
+                </Badge>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground text-xs">
+                  Order: {question.order}
+                </span>
+                {question.required && (
+                  <Badge variant="outline" className="text-xs">
+                    Required
+                  </Badge>
+                )}
+              </div>
+              {question.options.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {question.options.map((opt) => (
+                    <span
+                      key={opt}
+                      className="bg-secondary text-secondary-foreground rounded-full px-2 py-0.5 text-xs"
+                    >
+                      {opt}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <GlobalQuestionDialog
+                  trigger={
+                    <Button variant="outline" size="sm">
+                      Edit
+                    </Button>
+                  }
+                  question={question}
+                />
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setDeletingId(question.id)}
+                >
+                  Delete
+                </Button>
+              </div>
+            </div>
+          </Card>
+        ))}
       </div>
 
       <Dialog
