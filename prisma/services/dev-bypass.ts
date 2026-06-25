@@ -31,6 +31,8 @@ const BYPASS_USERS: Record<
 export async function loginAsBypassUser(role: BypassRole) {
   if (process.env.VERCEL_ENV === 'production') return;
 
+  const cookieStore = await cookies();
+
   const config = BYPASS_USERS[role];
   if (!config) return;
 
@@ -66,7 +68,6 @@ export async function loginAsBypassUser(role: BypassRole) {
     }
   }
 
-  const cookieStore = await cookies();
   cookieStore.set('dev-bypass-user-id', user.id, {
     httpOnly: true,
     secure: true,
