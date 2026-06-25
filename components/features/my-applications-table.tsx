@@ -1,11 +1,19 @@
+'use client';
+
 import Link from 'next/link';
 
 import { FileText } from 'lucide-react';
 
+import { APPLICATION_STATUS_LABELS } from '@/lib/constants';
 import { type MyApplicationListItem } from '@/lib/types';
+import {
+  type SortableColumn,
+  useSortableTable,
+} from '@/lib/use-sortable-table';
 import { formatDate } from '@/lib/utils';
 
 import { MyApplicationRowActions } from '@/components/features/my-application-row-actions';
+import { SortableHeader } from '@/components/features/sortable-header';
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -23,9 +31,22 @@ interface MyApplicationsTableProps {
   applications: MyApplicationListItem[];
 }
 
+const COLUMNS: SortableColumn<MyApplicationListItem>[] = [
+  { key: 'position', accessor: (a) => a.position.title },
+  // Sort by human label A-Z so order matches what the user reads in the badge.
+  { key: 'status', accessor: (a) => APPLICATION_STATUS_LABELS[a.status] },
+  // Drafts have null submittedAt — they sort last (null-last rule in the hook).
+  { key: 'applied', accessor: (a) => a.submittedAt },
+];
+
 export function MyApplicationsTable({
   applications,
 }: MyApplicationsTableProps) {
+  const { sortedRows, sort, toggle, ariaSort } = useSortableTable(
+    applications,
+    COLUMNS,
+  );
+
   if (applications.length === 0)
     return (
       <EmptyState
@@ -48,14 +69,35 @@ export function MyApplicationsTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Position</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Applied</TableHead>
+              <SortableHeader
+                label="Position"
+                sortKey="position"
+                active={sort.key === 'position'}
+                direction={sort.direction}
+                ariaSort={ariaSort('position')}
+                onToggle={() => toggle('position')}
+              />
+              <SortableHeader
+                label="Status"
+                sortKey="status"
+                active={sort.key === 'status'}
+                direction={sort.direction}
+                ariaSort={ariaSort('status')}
+                onToggle={() => toggle('status')}
+              />
+              <SortableHeader
+                label="Applied"
+                sortKey="applied"
+                active={sort.key === 'applied'}
+                direction={sort.direction}
+                ariaSort={ariaSort('applied')}
+                onToggle={() => toggle('applied')}
+              />
               <TableHead>Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {applications.map((app) => (
+            {sortedRows.map((app) => (
               <TableRow key={app.id}>
                 <TableCell>
                   <Link
@@ -93,9 +135,9 @@ export function MyApplicationsTable({
         </Table>
       </div>
 
-      {/* Mobile stacked cards — shown only on mobile */}
+      {/* Mobile stacked cards — sort order from sortedRows reflects active sort */}
       <div className="flex flex-col divide-y md:hidden">
-        {applications.map((app) => (
+        {sortedRows.map((app) => (
           <div key={app.id} className="flex flex-col gap-2 p-4">
             <div className="flex items-center justify-between gap-2">
               <Link
