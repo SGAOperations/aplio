@@ -23,7 +23,7 @@ export function PageHeader({
   return (
     <div className="flex flex-col gap-1">
       {backHref && (
-        <Button variant="ghost" size="sm" asChild className="mb-1 -ml-2 w-fit">
+        <Button variant="ghost" size="sm" asChild className="mb-2 -ml-2 w-fit">
           <Link href={backHref}>
             <ArrowLeft className="size-4" />
             {backLabel}

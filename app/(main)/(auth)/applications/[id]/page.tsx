@@ -42,8 +42,9 @@ export default async function ApplicationDetailPage({
       <div className="mb-6">
         <PageHeader
           title={applicantName}
-          description={`${application.user.email} · ${metaLine}`}
+          description={application.user.email}
         />
+        <p className="text-muted-foreground mt-1 text-sm">{metaLine}</p>
       </div>
 
       {/* Two-column layout at lg: Status panel sticky on right; answers on left */}

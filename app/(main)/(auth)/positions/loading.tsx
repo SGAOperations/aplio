@@ -9,7 +9,7 @@ export default function PositionsLoading() {
           <Skeleton className="h-8 w-40" />
           <Skeleton className="h-4 w-64" />
         </div>
-        <Skeleton className="h-9 w-32 shrink-0" />
+        <Skeleton className="h-10 w-32 shrink-0" />
       </div>
 
       {/* Card grid skeleton */}
