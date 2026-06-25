@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 
-import { ArrowDown, ArrowUp, ArrowUpDown, FileText, Inbox } from 'lucide-react';
+import { FileText, Inbox } from 'lucide-react';
 
 import type { $Enums } from '@/prisma/client';
 
@@ -17,6 +17,12 @@ import type {
 import { formatDate } from '@/lib/utils';
 
 import { ApplicationsBulkBar } from '@/components/features/applications-bulk-bar';
+// SortableHeader is the shared indicator component — this table keeps its own
+// server-side sort mechanism (router.push re-fetches within the 100-row cap),
+// unlike the client-sorted tables that use useSortableTable. The ?sort=field:direction
+// param format here is intentionally different from the client tables' ?sort=&dir=
+// to avoid coupling the server re-fetch contract to a client-state abstraction.
+import { SortableHeader } from '@/components/features/sortable-header';
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -34,63 +40,6 @@ interface ApplicationsTableProps {
   applications: ApplicationListRow[];
   hasActiveFilters: boolean;
   sort?: ApplicationSort;
-}
-
-interface SortableHeadProps {
-  field: ApplicationSortField;
-  sort?: ApplicationSort;
-  onSort: (
-    field: ApplicationSortField,
-    direction: ApplicationSortDirection,
-  ) => void;
-  children: React.ReactNode;
-}
-
-function SortableHead({ field, sort, onSort, children }: SortableHeadProps) {
-  const isActive = sort?.field === field;
-  const isAsc = isActive && sort?.direction === 'asc';
-
-  function handleClick() {
-    if (!isActive) {
-      // Default to desc for date (newest first), asc for name/status (A-Z).
-      const defaultDir: ApplicationSortDirection =
-        field === 'date' ? 'desc' : 'asc';
-      onSort(field, defaultDir);
-    } else {
-      onSort(field, isAsc ? 'desc' : 'asc');
-    }
-  }
-
-  return (
-    <TableHead>
-      <button
-        type="button"
-        onClick={handleClick}
-        className="hover:text-foreground flex items-center gap-1 font-medium transition-colors"
-        aria-label={`Sort by ${String(children)}${isActive ? (isAsc ? ', currently ascending' : ', currently descending') : ''}`}
-      >
-        {children}
-        {isActive ? (
-          isAsc ? (
-            <ArrowUp
-              className="text-foreground h-3.5 w-3.5"
-              aria-hidden="true"
-            />
-          ) : (
-            <ArrowDown
-              className="text-foreground h-3.5 w-3.5"
-              aria-hidden="true"
-            />
-          )
-        ) : (
-          <ArrowUpDown
-            className="text-muted-foreground h-3.5 w-3.5"
-            aria-hidden="true"
-          />
-        )}
-      </button>
-    </TableHead>
-  );
 }
 
 export function ApplicationsTable({
@@ -147,7 +96,19 @@ export function ApplicationsTable({
   ) {
     const params = new URLSearchParams(searchParams.toString());
     params.set('sort', `${field}:${direction}`);
+    // router.push triggers a server re-fetch — required because this table is
+    // capped at 100 rows and must sort server-side for correct ordering.
     router.push(`${pathname}?${params.toString()}`);
+  }
+
+  function toggleSort(field: ApplicationSortField) {
+    const isActive = sort?.field === field;
+    if (!isActive) {
+      // Default to desc for date (newest first), asc for name/status (A-Z).
+      handleSort(field, field === 'date' ? 'desc' : 'asc');
+    } else {
+      handleSort(field, sort?.direction === 'asc' ? 'desc' : 'asc');
+    }
   }
 
   if (applications.length === 0) {
@@ -214,16 +175,46 @@ export function ApplicationsTable({
                     aria-label="Select all applications"
                   />
                 </TableHead>
-                <SortableHead field="name" sort={sort} onSort={handleSort}>
-                  Applicant
-                </SortableHead>
+                <SortableHeader
+                  label="Applicant"
+                  active={sort?.field === 'name'}
+                  direction={sort?.direction ?? 'asc'}
+                  ariaSort={
+                    sort?.field === 'name'
+                      ? sort.direction === 'asc'
+                        ? 'ascending'
+                        : 'descending'
+                      : 'none'
+                  }
+                  onToggle={() => toggleSort('name')}
+                />
                 <TableHead>Position</TableHead>
-                <SortableHead field="status" sort={sort} onSort={handleSort}>
-                  Status
-                </SortableHead>
-                <SortableHead field="date" sort={sort} onSort={handleSort}>
-                  Submitted
-                </SortableHead>
+                <SortableHeader
+                  label="Status"
+                  active={sort?.field === 'status'}
+                  direction={sort?.direction ?? 'asc'}
+                  ariaSort={
+                    sort?.field === 'status'
+                      ? sort.direction === 'asc'
+                        ? 'ascending'
+                        : 'descending'
+                      : 'none'
+                  }
+                  onToggle={() => toggleSort('status')}
+                />
+                <SortableHeader
+                  label="Submitted"
+                  active={sort?.field === 'date'}
+                  direction={sort?.direction ?? 'asc'}
+                  ariaSort={
+                    sort?.field === 'date'
+                      ? sort.direction === 'asc'
+                        ? 'ascending'
+                        : 'descending'
+                      : 'none'
+                  }
+                  onToggle={() => toggleSort('date')}
+                />
               </TableRow>
             </TableHeader>
             <TableBody>
