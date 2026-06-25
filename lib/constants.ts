@@ -152,3 +152,8 @@ export const AVAILABILITY_VARIANTS: Record<PositionAvailability, BadgeVariant> =
     closed_by_date: 'outline',
     unavailable: 'outline',
   };
+
+// Public URLs for the legal pages — referenced from the login footer, app footer,
+// and each legal page's cross-link footer. One edit when the URLs change.
+export const PRIVACY_HREF = '/privacy';
+export const TERMS_HREF = '/terms';

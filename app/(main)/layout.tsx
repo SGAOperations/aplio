@@ -4,6 +4,7 @@ import { getCurrentUser, getIsBypass } from '@/lib/auth/server';
 import prisma from '@/lib/prisma';
 import type { NavIdentity } from '@/lib/types';
 
+import { AppFooter } from '@/components/layouts/app-footer';
 import { MobileNav } from '@/components/layouts/mobile-nav';
 import { Sidebar } from '@/components/layouts/sidebar';
 
@@ -42,6 +43,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         />
         <main className="flex flex-1 flex-col overflow-y-auto">
           <div className="flex-1 p-6">{children}</div>
+          <AppFooter />
         </main>
       </div>
     </div>
