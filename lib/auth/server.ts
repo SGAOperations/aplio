@@ -35,7 +35,7 @@ export const getOptionalUser = cache(async function getOptionalUser() {
         where: { id: bypassUserId, deletedAt: null },
       });
       if (user) return user;
-      // Deactivated or stale bypass cookie — fall through, return null below.
+      // Deactivated or stale bypass cookie — fall through to real-auth check below.
     }
     return resolveRealUser();
   }
