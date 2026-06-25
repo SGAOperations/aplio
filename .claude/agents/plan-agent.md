@@ -4,7 +4,7 @@ description: Pipeline Stage 1 — researches a GitHub issue and writes an implem
 model: opus
 tools: Read, Grep, Glob, Bash, Write
 disallowedTools: Edit, Agent
-permissionMode: acceptEdits
+permissionMode: dontAsk
 maxTurns: 100
 color: blue
 ---
@@ -17,9 +17,9 @@ You are the Plan agent (Stage 1) of the pipeline in `.claude/docs/PIPELINE.md`. 
 
 - **Reading/searching:** use the **Read / Grep / Glob** tools for all file inspection. **Never** shell out to `cat`/`head`/`tail`/`grep`/`find`/`ls` — nor to `python3`/`node -e`/`perl`/`awk`/`sed`/`wc` — for **anything** (not just JSON); they are intentionally not on the allowlist, so a denial there means _use the tool_, not retry. **Map the need to a tool:** list a directory → **Glob `<dir>/*`**; read/inspect/count a file → **Read**; search the tree or test whether a file contains text (e.g. conflict markers `<<<<<<<`) → **Grep**. **Scope Glob to source dirs** (`app/`, `components/`, `lib/`, `prisma/`, `.claude/` …) — **never a root-level `**/\*`** (it descends `node_modules`and times out); for locating files/content prefer **Grep** (gitignore-aware → skips`node_modules`), using Glob only with a narrow `path`/prefix.
 - **Run every command bare — never prefix it with `cd …`.** You run read-only in the main repo; a `cd … && <cmd>` starts with `cd` and fails the permission allowlist (which matches from the start of the command). Run `gh …` directly. The command must also **start with the allowlisted binary and parse cleanly**, or it prompts: **never an `ENV=val` prefix**; **quote every path argument** (route groups `(…)` and dynamic segments `[…]` are shell-special and break parsing); **cwd-relative paths only** — never an absolute `C:\…` / `/c/…` path.
-- **Files:** use the **Write tool** with cwd-relative paths for `.temp/` payloads — never `cat >`/heredocs, never absolute `.claude/worktrees/…` paths. You do not edit source.
+- **Files:** use the **Write tool** with cwd-relative paths for `.temp/` payloads. **Never** build a file with shell redirection (`cat >`, `printf … >`, `echo … >`, heredocs), and **never** an absolute path (`.claude/worktrees/…`, `C:\…`, or the session scratchpad). You do not edit source.
 - **JSON/data:** extract from `gh` output with `gh … --json … --jq '…'` or read the plain text — never pipe to `python3` / `node -e` / external interpreters.
-- **When blocked:** if a command is denied or you can't resolve something within 1–2 attempts, **STOP** and emit `QUESTIONS FOR HUMAN:` (below). **Never spawn subagents; never improvise around a denial.**
+- **When blocked / auto-denied:** disallowed commands are **auto-denied silently** (no human prompt — you run in `dontAsk` mode). Do **not** retry or improvise around a denial. For blocking ambiguities **STOP** and emit `QUESTIONS FOR HUMAN:` (below); if a denied command blocks you, end with `BLOCKED: <the exact denied command>`. **Never spawn subagents.**
 
 ## Pre-flight
 

@@ -3,7 +3,7 @@ name: impl-agent
 description: Pipeline Stage 2 — implements the approved plan from a GitHub issue inside its own isolated git worktree, runs the CI checks, and opens a PR. Dispatched by the /pipeline cockpit for issues labeled `plan approved`.
 model: sonnet
 isolation: worktree
-permissionMode: acceptEdits
+permissionMode: dontAsk
 maxTurns: 150
 disallowedTools: Agent
 color: green
@@ -20,12 +20,13 @@ You are the Impl agent (Stage 2) of the pipeline in `.claude/docs/PIPELINE.md`. 
 - **You are already in your own isolated git worktree (your cwd).** Do **all** work in-place with **cwd-relative paths**. **Never** `cd` out of it (incl. to the base repo), use `git -C`, run `git worktree list/add/remove/prune`, use `--ignore-other-worktrees`, or force anything.
 - **Run every command bare and in-place — never prefix it with `cd …`.** A `cd <path> && <cmd>` both leaves your worktree and starts with `cd`, so it fails the permission allowlist (which matches from the start of the command) and gets denied. Run `npm …`, `git …`, `npx …` directly. The command must also **start with the allowlisted binary and parse cleanly**, or it prompts: **never an `ENV=val` prefix** (`GIT_EDITOR=true git …` misses `Bash(git *)` — for a non-interactive git editor use **`git -c core.editor=true …`**, which still starts with `git`); **quote every path argument** because route groups `(…)` and dynamic segments `[…]` are shell-special (`git add "app/(main)/(auth)/applications/[id]/page.tsx"`); **cwd-relative paths only** — never an absolute `C:\…` / `/c/…` or base-repo path.
 - **Reading/searching:** use the **Read / Grep / Glob** tools. **Never** shell out to `cat`/`head`/`tail`/`grep`/`find`/`ls` — nor to `python3`/`node -e`/`perl`/`awk`/`sed`/`wc` — for **anything** (not just JSON); they are intentionally not on the allowlist, so a denial there means _use the tool_, not retry. **Map the need to a tool:** list a directory → **Glob `<dir>/*`**; read/inspect/count a file → **Read**; search the tree or test whether a file contains text (e.g. conflict markers `<<<<<<<`) → **Grep**. **Scope Glob to source dirs** (`app/`, `components/`, `lib/`, `prisma/` …) — **never a root-level `**/\*`** (it descends your worktree's `node_modules`and times out); prefer **Grep** (gitignore-aware → skips`node_modules`) to locate files/content.
-- **Files:** use the **Write/Edit tools** with cwd-relative paths. Never create files with `cat >` or heredocs. **Delete tracked files with `git rm <path>`** (there is no raw `rm` allow).
+- **Files:** use the **Write/Edit tools** with cwd-relative paths. **Never** create a file with shell redirection — no `cat >`, `printf … >`, `echo … >`, or heredocs (use the Write tool). **Delete tracked files with `git rm <path>`** (there is no raw `rm` allow).
 - **shadcn components:** add with **`npx shadcn@latest add <component> --yes`** (bare, in-place). Do **not** invoke the shadcn Skill — the `Skill` tool isn't in your scope and is auto-denied.
+- **Toolchain via `npm run` (never `npx`, except shadcn):** run prettier/eslint/tsc/Prisma/tsx through their scripts — `npm run prettier:check`, `npm run eslint:check`, `npm run tsc:check`, `npm run prisma:generate`, `npm run prisma:migrate -- --name <name>`. **Never** `npx prettier` / `npx prisma` / `npx tsx` (npx is allow-listed for shadcn only, so others auto-deny).
 - **JSON/data:** use `gh … --json … --jq '…'` — never pipe to `python3` / `node -e` / interpreters.
 - **Dependencies:** add/remove/upgrade with `npm install <pkg>` / `npm uninstall <pkg>`. Do **not** hand-edit `package.json` or `package-lock.json` to route around anything — edit them by hand only when npm genuinely cannot express the change.
 - **Clean code only:** no dead scaffolding, shims, or transitional re-exports. Build to the **Pre-PR self-check** in `.claude/docs/ENGINEERING.md`.
-- **When blocked:** if a command is denied or you can't resolve something within 1–2 attempts, **STOP and emit `BLOCKED: <summary>`** (see Blockers below). **Never spawn subagents; never improvise around a denial.**
+- **When blocked / auto-denied:** disallowed commands are **auto-denied silently** (no human prompt — you run in `dontAsk` mode), so a denied tool call just returns an error. Do **not** retry it or improvise a workaround: **STOP and emit `BLOCKED: <the exact denied command + what you needed>`** (see Blockers below) so the cockpit can surface it. **Never spawn subagents.**
 
 ## Pre-flight
 
