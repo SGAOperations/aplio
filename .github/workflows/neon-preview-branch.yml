@@ -8,7 +8,9 @@
 #   VERCEL_PROJECT_ID   — Vercel project ID (optional)
 #
 # Neon parent branch assumption: the project's default branch (main/prod).
-# To use a non-default parent, set NEON_PARENT_BRANCH_ID as a repo secret/variable.
+# To use a non-default parent, set NEON_PARENT_BRANCH_ID as a repo secret/variable;
+# the create-branch step passes it as parent_id and omits the input when the secret
+# is empty so the action falls back to the project default.
 
 name: Neon Preview Branch
 
@@ -56,8 +58,24 @@ jobs:
         # aligns with the other workflows and catches schema/config issues early.
         run: npm run prisma:generate
 
+      - name: Check Neon secrets
+        id: check_neon
+        # secrets.* cannot be evaluated directly in `if:` conditions, so we probe
+        # via env and write a flag to GITHUB_OUTPUT.
+        env:
+          HAS_KEY: ${{ secrets.NEON_API_KEY != '' }}
+          HAS_PROJECT: ${{ secrets.NEON_PROJECT_ID != '' }}
+        run: |
+          if [ "$HAS_KEY" = "true" ] && [ "$HAS_PROJECT" = "true" ]; then
+            echo "has_neon=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_neon=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::NEON_API_KEY or NEON_PROJECT_ID not configured; skipping Neon branch create and migration."
+          fi
+
       - name: Create or reuse Neon branch
         id: create_branch
+        if: steps.check_neon.outputs.has_neon == 'true'
         # @v6 — current major; outputs: db_url (direct/unpooled), db_url_with_pooler (pooled)
         uses: neondatabase/create-branch-action@v6
         with:
@@ -67,14 +85,23 @@ jobs:
           # (reuses an existing branch with the same name).
           branch_name: preview/${{ github.head_ref }}
           api_key: ${{ secrets.NEON_API_KEY }}
+          # Optional: override the parent branch. When NEON_PARENT_BRANCH_ID is empty
+          # the action falls back to the project default branch.
+          parent_id: ${{ secrets.NEON_PARENT_BRANCH_ID }}
 
-      # Mask both URLs so they never appear in logs.
+      # Mask both URLs so they never appear in subsequent log lines.
+      # Note: ::add-mask:: only redacts output printed *after* this step — it cannot
+      # retroactively scrub log lines the create-branch action emitted during its own
+      # execution. The Neon action masks internally; this step guards any downstream
+      # shell steps that echo the URLs.
       - name: Mask Neon connection strings
+        if: steps.check_neon.outputs.has_neon == 'true'
         run: |
           echo "::add-mask::${{ steps.create_branch.outputs.db_url }}"
           echo "::add-mask::${{ steps.create_branch.outputs.db_url_with_pooler }}"
 
       - name: Apply migrations
+        if: steps.check_neon.outputs.has_neon == 'true'
         # Uses the direct (unpooled) URL — prisma migrate deploy requires a direct connection.
         # No continue-on-error: a migration failure MUST turn the PR check red (AC).
         run: npm run prisma:migrate:deploy
@@ -104,7 +131,7 @@ jobs:
         # Endpoint: POST /v10/projects/{id}/env (Vercel REST API)
         # Scoped to target=preview + gitBranch=<head_ref> so only this PR's preview
         # deployment sees the branch DB; production is never touched.
-        if: steps.check_vercel.outputs.has_vercel == 'true'
+        if: steps.check_neon.outputs.has_neon == 'true' && steps.check_vercel.outputs.has_vercel == 'true'
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -113,9 +140,10 @@ jobs:
           GIT_BRANCH: ${{ github.head_ref }}
         run: |
           # Look up any existing branch-scoped DATABASE_URL to avoid duplicates.
+          # jq @uri performs RFC-3986 percent-encoding without requiring Python.
           EXISTING_ID=$(curl -sf \
             -H "Authorization: Bearer $VERCEL_TOKEN" \
-            "https://api.vercel.com/v10/projects/$VERCEL_PROJECT_ID/env?teamId=$VERCEL_ORG_ID&gitBranch=$(python3 -c 'import urllib.parse,os; print(urllib.parse.quote(os.environ["GIT_BRANCH"]))')" \
+            "https://api.vercel.com/v10/projects/$VERCEL_PROJECT_ID/env?teamId=$VERCEL_ORG_ID&gitBranch=$(printf '%s' "$GIT_BRANCH" | jq -sRr @uri)" \
             | jq -r '.envs[] | select(.key == "DATABASE_URL" and .gitBranch == env.GIT_BRANCH) | .id' \
             || true)
 
@@ -188,9 +216,10 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           GIT_BRANCH: ${{ github.head_ref }}
         run: |
+          # jq @uri performs RFC-3986 percent-encoding without requiring Python.
           EXISTING_ID=$(curl -sf \
             -H "Authorization: Bearer $VERCEL_TOKEN" \
-            "https://api.vercel.com/v10/projects/$VERCEL_PROJECT_ID/env?teamId=$VERCEL_ORG_ID&gitBranch=$(python3 -c 'import urllib.parse,os; print(urllib.parse.quote(os.environ["GIT_BRANCH"]))')" \
+            "https://api.vercel.com/v10/projects/$VERCEL_PROJECT_ID/env?teamId=$VERCEL_ORG_ID&gitBranch=$(printf '%s' "$GIT_BRANCH" | jq -sRr @uri)" \
             | jq -r '.envs[] | select(.key == "DATABASE_URL" and .gitBranch == env.GIT_BRANCH) | .id' \
             || true)
 
