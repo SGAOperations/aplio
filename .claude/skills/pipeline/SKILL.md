@@ -1,14 +1,14 @@
 ---
 name: pipeline
 description: Interactive pipeline cockpit — polls GitHub labels, dispatches background stage subagents, relays their questions, and runs the human gates conversationally. Run the session on haiku. Usage: /pipeline
-allowed-tools: Bash(gh issue list *) Bash(gh issue view *) Bash(gh issue edit *) Bash(gh issue comment *) Bash(gh pr list *) Bash(gh pr view *) Bash(gh pr edit *) Bash(gh pr comment *) Bash(gh api graphql *) Bash(git worktree *) Write TaskList TaskStop
+allowed-tools: Bash(gh issue list *) Bash(gh issue view *) Bash(gh issue edit *) Bash(gh issue comment *) Bash(gh pr list *) Bash(gh pr view *) Bash(gh pr edit *) Bash(gh pr comment *) Bash(gh api graphql *) Bash(git worktree *) Read Write TaskList TaskStop
 ---
 
 # Pipeline Cockpit
 
 You are the orchestrator of the agent pipeline in `.claude/docs/PIPELINE.md`. The human talks to you in plain language; GitHub labels are the durable state machine; **background subagents** do the work. You apply every label — the human never runs `gh` commands.
 
-**Model:** run this session on haiku — ticks are mechanical (queries, label swaps, dispatch, relaying).
+**Model & permission mode:** run this session on **haiku** (ticks are mechanical — queries, label swaps, dispatch, relaying) **and in `default` permission mode** — _not_ `acceptEdits` / `bypassPermissions` / `auto`. The parent session's mode overrides a dispatched subagent's `permissionMode: dontAsk`, and that `dontAsk` is exactly what makes the stage agents **auto-deny** disallowed commands instead of surfacing a permission prompt to you. If you launched this session in another mode, restart it in default.
 
 ## Safety rails (absolute)
 
@@ -16,7 +16,7 @@ You are the orchestrator of the agent pipeline in `.claude/docs/PIPELINE.md`. Th
 - Never touch PRs labeled `approved` or `needs human` beyond announcing them.
 - Never act on issues/PRs that lack a pipeline **trigger** label — opt-in is human-initiated.
 - Never dispatch for an item with an **in-flight** label (`planning`, `in progress`, `reviewing`, `revising`) — an agent owns it or a human paused it.
-- Every dispatch runs in the background (`run_in_background: true`). Worktree isolation, model, tool scope, and permission mode all come from the subagent definition in `.claude/agents/` — you do not set them at the call site.
+- Every dispatch runs in the background (`run_in_background: true`). Worktree isolation, model, tool scope, and **permission mode (`dontAsk` — auto-denies anything not allow-listed)** all come from the subagent definition in `.claude/agents/` — you do not set them at the call site. (Since CC v2.1.186 a background subagent's prompts surface to you unless it runs `dontAsk` **and** this session is in default mode — see Model & permission mode.)
 - **Respect the draining flag:** while draining (see Stop controls), dispatch nothing new and schedule no wakeup; only report state and relay completions.
 
 ## Tick procedure
@@ -49,6 +49,8 @@ gh pr view <n> --repo SGAOperations/aplio --json state,mergedAt,closed --jq '{st
 If `state` is `MERGED` (or `closed`), announce "PR #<n> merged ✅ — dropped from tracking" once, **remove it from your announced-awaiting-merge set**, and clean up its worktree (hygiene below). This keeps `status` truthful without the human telling you.
 
 **Worktree hygiene (each tick):** run `git worktree prune` (clears registrations whose dir is already gone — safe). Then, for any item whose work is done (PR merged/closed or no active pipeline label) **and** whose path **appears in `git worktree list`**, remove it with `git worktree remove --force <exact path from \`git worktree list\`>`. **Only ever pass a path that `git worktree list`shows** — an orphan dir (no`.git`, not listed) is not a worktree and will error. **Never** remove a worktree for an in-flight item. On Windows, `git worktree remove`often fails with`Invalid argument`once`node_modules`exists, and orphan dirs accumulate that neither`remove`nor`prune` can clear — **do not claim "prune will fix it next tick" (it won't)**: report the failure and tell the human to run **`/worktree-clean`\*\* (the manual sweep skill) to reclaim the space.
+
+**Denial report (each tick):** stage agents auto-deny disallowed commands (`dontAsk`) instead of prompting; a `PreToolUse` hook logs each one to **`.agents/denials.log`** (gitignored, base repo). Read it each tick and track how many lines are new since the previous tick. If denials **cluster** — say **≥3 new**, or the same command repeated — report it **once**, e.g. _"⚠️ 4 commands auto-denied this tick (e.g. `npx prisma migrate …` ×2, `printf … >` ×1) — the pipeline likely needs a permission/instruction change."_ Do **not** prompt or act on it automatically; this is visibility so the human knows when to harden the pipeline. A few isolated denials are normal and need no report.
 
 ## Dispatching
 
