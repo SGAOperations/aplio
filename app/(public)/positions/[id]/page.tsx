@@ -89,17 +89,11 @@ export default async function PublicPositionDetailPage({
                 <Link href={`/positions/${id}/apply`}>Apply now</Link>
               </Button>
             ) : (
-              <div className="flex flex-col gap-2">
-                <Button asChild>
-                  <Link href={`/login?redirectTo=/positions/${id}/apply`}>
-                    Apply now
-                  </Link>
-                </Button>
-                <p className="text-muted-foreground text-xs">
-                  We&apos;ll send you a one-time code to continue your
-                  application.
-                </p>
-              </div>
+              <Button asChild>
+                <Link href={`/login?redirectTo=/positions/${id}/apply`}>
+                  Apply now
+                </Link>
+              </Button>
             )}
             {position.closesAt && (
               <span className="text-muted-foreground text-sm">
