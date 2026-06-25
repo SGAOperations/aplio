@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 
+import { isManager } from '@/prisma/data/managers';
+
 import { getCurrentUser, getIsBypass } from '@/lib/auth/server';
-import prisma from '@/lib/prisma';
 import type { NavIdentity } from '@/lib/types';
 
 import { MobileNav } from '@/components/layouts/mobile-nav';
@@ -10,7 +11,11 @@ import { Sidebar } from '@/components/layouts/sidebar';
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const user = await getCurrentUser();
 
-  const roleLabel = user.isAdmin ? 'Admin' : 'User';
+  // Admins always see reviewer nav; check manager status only for non-admins.
+  const userIsManager = user.isAdmin ? false : await isManager(user.id);
+  const canReviewApplications = user.isAdmin || userIsManager;
+
+  const roleLabel = user.isAdmin ? 'Admin' : userIsManager ? 'Manager' : 'User';
   const isBypass = await getIsBypass();
 
   const identity: NavIdentity = {
@@ -19,13 +24,6 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     roleLabel,
     isBypass,
   };
-
-  // Admins always see reviewer nav; managers see it only while they manage ≥1 position.
-  const canReviewApplications =
-    user.isAdmin ||
-    (await prisma.position.count({
-      where: { managers: { some: { id: user.id } }, deletedAt: null },
-    })) > 0;
 
   return (
     <div className="flex h-dvh w-full overflow-hidden">

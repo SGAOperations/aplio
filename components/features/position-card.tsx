@@ -15,12 +15,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface PositionCardProps {
   position: PositionWithQuestions;
-  showAdminActions?: boolean;
+  canManage?: boolean;
 }
 
 export function PositionCard({
   position,
-  showAdminActions = false,
+  canManage = false,
 }: PositionCardProps) {
   const [open, setOpen] = useState(false);
 
@@ -39,7 +39,7 @@ export function PositionCard({
         >
           <div className="flex items-center gap-3">
             <CardTitle className="text-lg">{position.title}</CardTitle>
-            {showAdminActions && <PositionStatusBadge position={position} />}
+            {canManage && <PositionStatusBadge position={position} />}
           </div>
           {open ? (
             <ChevronUp className="text-muted-foreground size-5 shrink-0" />
@@ -69,7 +69,7 @@ export function PositionCard({
           )}
 
           <div className="flex items-center gap-2 pt-2">
-            {showAdminActions ? (
+            {canManage ? (
               <>
                 {isAccepting && (
                   <Button asChild>

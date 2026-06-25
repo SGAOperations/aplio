@@ -1,10 +1,10 @@
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 
+import { isManager } from '@/prisma/data/managers';
 import { getProfileCompleteness } from '@/prisma/data/profile';
 
 import { getCurrentUser } from '@/lib/auth/server';
-import prisma from '@/lib/prisma';
 
 export default async function AuthGateLayout({
   children,
@@ -15,10 +15,7 @@ export default async function AuthGateLayout({
 
   if (user.isAdmin) return <>{children}</>;
 
-  const managedCount = await prisma.position.count({
-    where: { managers: { some: { id: user.id } }, deletedAt: null },
-  });
-  if (managedCount > 0) return <>{children}</>;
+  if (await isManager(user.id)) return <>{children}</>;
 
   const { complete } = await getProfileCompleteness(user.id);
   if (!complete) redirect('/profile');

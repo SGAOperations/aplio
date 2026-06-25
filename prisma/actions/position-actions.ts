@@ -42,13 +42,13 @@ export async function createPosition(
   input: unknown,
 ): Promise<{ id: string } | { error: string }> {
   const user = await getCurrentUser();
-  if (!user.isAdmin) return { error: 'Unauthorized' };
 
   const parsed = createPositionSchema.safeParse(input);
   if (!parsed.success) return { error: 'Invalid input' };
 
   const { title, description, status, opensAt, closesAt } = parsed.data;
 
+  // Creator is auto-assigned as a manager so they can immediately edit the position.
   const position = await prisma.position.create({
     data: {
       title,
@@ -58,6 +58,7 @@ export async function createPosition(
       closesAt: closesAt ? new Date(closesAt) : null,
       createdById: user.id,
       updatedById: user.id,
+      managers: { connect: { id: user.id } },
     },
     select: { id: true },
   });
@@ -83,8 +84,8 @@ export async function updatePosition(
 
   if (!position) return { error: 'Position not found' };
 
-  const isManager = position.managers.length > 0;
-  if (!user.isAdmin && !isManager) return { error: 'Unauthorized' };
+  const isPositionManager = position.managers.length > 0;
+  if (!user.isAdmin && !isPositionManager) return { error: 'Unauthorized' };
 
   await prisma.position.update({
     where: { id },
@@ -128,18 +129,23 @@ export async function addPositionManager(
   input: unknown,
 ): Promise<void | { error: string }> {
   const user = await getCurrentUser();
-  if (!user.isAdmin) return { error: 'Unauthorized' };
 
   const parsed = addPositionManagerSchema.safeParse(input);
   if (!parsed.success) return { error: 'Invalid input' };
 
   const { positionId, userId } = parsed.data;
 
-  const addPosition = await prisma.position.findFirst({
+  // Fetch position and check if the caller manages it (admin or manager-of-this-position).
+  const position = await prisma.position.findFirst({
     where: { id: positionId, deletedAt: null },
-    select: { id: true },
+    select: {
+      id: true,
+      managers: { where: { id: user.id }, select: { id: true } },
+    },
   });
-  if (!addPosition) return { error: 'Not found' };
+  if (!position) return { error: 'Not found' };
+  if (!user.isAdmin && position.managers.length === 0)
+    return { error: 'Unauthorized' };
 
   await prisma.position.update({
     where: { id: positionId },
@@ -153,18 +159,23 @@ export async function removePositionManager(
   input: unknown,
 ): Promise<void | { error: string }> {
   const user = await getCurrentUser();
-  if (!user.isAdmin) return { error: 'Unauthorized' };
 
   const parsed = removePositionManagerSchema.safeParse(input);
   if (!parsed.success) return { error: 'Invalid input' };
 
   const { positionId, userId } = parsed.data;
 
-  const removePosition = await prisma.position.findFirst({
+  // Fetch position and check if the caller manages it (admin or manager-of-this-position).
+  const position = await prisma.position.findFirst({
     where: { id: positionId, deletedAt: null },
-    select: { id: true },
+    select: {
+      id: true,
+      managers: { where: { id: user.id }, select: { id: true } },
+    },
   });
-  if (!removePosition) return { error: 'Not found' };
+  if (!position) return { error: 'Not found' };
+  if (!user.isAdmin && position.managers.length === 0)
+    return { error: 'Unauthorized' };
 
   await prisma.position.update({
     where: { id: positionId },
@@ -176,9 +187,12 @@ export async function removePositionManager(
 
 const searchUsersSchema = z.object({ query: z.string().max(200) });
 
+// Authenticated directory lookup used to assign position managers.
+// Intentionally exposes name+email to any logged-in user — only id/displayName/email
+// are returned (no sensitive/internal fields). Capped at 10 results.
 export async function searchUsers(input: unknown) {
-  const user = await getCurrentUser();
-  if (!user.isAdmin) return [];
+  // getCurrentUser redirects if unauthenticated; no further role check needed.
+  await getCurrentUser();
 
   const parsed = searchUsersSchema.safeParse(input);
   if (!parsed.success) return [];
