@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 interface PositionCardProps {
   position: PositionWithQuestions;
   canManage?: boolean;
+  isAuthenticated?: boolean;
 }
 
 // Server component — accordion removed; flat summary card with always-visible
@@ -19,6 +20,7 @@ interface PositionCardProps {
 export function PositionCard({
   position,
   canManage = false,
+  isAuthenticated = false,
 }: PositionCardProps) {
   const availability = getPositionAvailability(position);
   const isAccepting = availability === 'accepting';
@@ -77,7 +79,15 @@ export function PositionCard({
             <>
               {isAccepting && (
                 <Button asChild size="sm">
-                  <Link href={`/positions/${position.id}/apply`}>Apply</Link>
+                  {isAuthenticated ? (
+                    <Link href={`/positions/${position.id}/apply`}>Apply</Link>
+                  ) : (
+                    <Link
+                      href={`/login?redirectTo=/positions/${position.id}/apply`}
+                    >
+                      Sign in to apply
+                    </Link>
+                  )}
                 </Button>
               )}
               <Button asChild variant="outline" size="sm">

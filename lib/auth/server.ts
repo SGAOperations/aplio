@@ -7,14 +7,25 @@ import prisma from '@/lib/prisma';
 
 export const authServer = createAuthServer();
 
-// Resolve a real Neon Auth session to an active (non-deactivated) database user.
-// Returns null when no valid session exists or the user is deactivated.
+// Provision-on-first-auth: create the app User row when a real Neon session
+// has no matching row yet, then return it. Create-only (empty update {}) so an
+// existing row is returned without any write.
+// Keyed on the unique neonAuthId → race-safe via the DB unique constraint + upsert.
+// name omitted when falsy (OTP identities often supply an empty string → store null).
+// Deactivated users (#153) are blocked by the post-upsert guard below.
 async function resolveRealUser() {
   const { data: session } = await authServer.getSession();
   if (!session?.user) return null;
-  return prisma.user.findUnique({
-    where: { neonAuthId: session.user.id, deletedAt: null },
+
+  const { id: neonAuthId, email, name } = session.user;
+
+  const row = await prisma.user.upsert({
+    where: { neonAuthId },
+    update: {},
+    create: { neonAuthId, email, ...(name ? { name } : {}), isAdmin: false },
   });
+  if (row.deletedAt) return null;
+  return row;
 }
 
 // Returns true only when a bypass cookie is present on a non-production environment.
@@ -24,9 +35,10 @@ export async function getIsBypass(): Promise<boolean> {
   return Boolean((await cookies()).get('dev-bypass-user-id')?.value);
 }
 
-// Resolves to an active user without redirecting — used on the login page to
-// decide whether to auto-forward. Returns null for unauthenticated, deactivated,
-// or provisioning-gap users so the login form is shown instead of looping.
+// Like getCurrentUser, but returns null instead of redirecting when no user is
+// resolved. For PUBLIC pages that optionally personalize for a logged-in visitor
+// (e.g. /positions) without forcing authentication. Provisioning still runs for a
+// real session via resolveRealUser, so a logged-in visitor always has an app row.
 export const getOptionalUser = cache(async function getOptionalUser() {
   if (process.env.VERCEL_ENV !== 'production') {
     const bypassUserId = (await cookies()).get('dev-bypass-user-id')?.value;
@@ -35,37 +47,17 @@ export const getOptionalUser = cache(async function getOptionalUser() {
         where: { id: bypassUserId, deletedAt: null },
       });
       if (user) return user;
-      // Deactivated or stale bypass cookie — fall through to real-auth check below.
     }
-    return resolveRealUser();
   }
-  return resolveRealUser();
+  return resolveRealUser(); // null when no session; provisions when there is one
 });
 
 // React.cache deduplicates calls within a single server render pass,
 // avoiding a redundant DB round-trip when layout and page both call getCurrentUser().
-// Pure read — no side effects (no signOut, no cookie mutations).
 export const getCurrentUser = cache(async function getCurrentUser() {
-  if (process.env.VERCEL_ENV !== 'production') {
-    const bypassUserId = (await cookies()).get('dev-bypass-user-id')?.value;
+  const user = await getOptionalUser();
+  if (user) return user;
 
-    if (bypassUserId) {
-      const user = await prisma.user.findUnique({
-        where: { id: bypassUserId, deletedAt: null },
-      });
-      // Valid active bypass session — use it.
-      if (user) return user;
-      // Deactivated or stale bypass cookie — fall through to real auth.
-    }
-
-    const realUser = await resolveRealUser();
-    if (realUser) return realUser;
-
-    redirect('/login/bypass');
-  }
-
-  const realUser = await resolveRealUser();
-  if (realUser) return realUser;
-
+  if (process.env.VERCEL_ENV !== 'production') redirect('/login/bypass');
   redirect('/login');
 });
