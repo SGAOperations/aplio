@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 
 import { z } from 'zod/v4';
 
-import { checkPositionAccess } from '@/prisma/data/managers';
+import { checkPositionAccess, isManager } from '@/prisma/data/managers';
 
 import { getCurrentUser } from '@/lib/auth/server';
 import prisma from '@/lib/prisma';
@@ -44,6 +44,9 @@ export async function createPosition(
   input: unknown,
 ): Promise<{ id: string } | { error: string }> {
   const user = await getCurrentUser();
+
+  const allowed = user.isAdmin || (await isManager(user.id));
+  if (!allowed) return { error: 'Unauthorized' };
 
   const parsed = createPositionSchema.safeParse(input);
   if (!parsed.success) return { error: 'Invalid input' };

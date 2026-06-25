@@ -4,10 +4,10 @@ import {
   getApplications,
   getReviewablePositions,
 } from '@/prisma/data/applications';
+import { isManager } from '@/prisma/data/managers';
 
 import { getCurrentUser } from '@/lib/auth/server';
 import { REVIEWER_APPLICATION_STATUSES } from '@/lib/constants';
-import prisma from '@/lib/prisma';
 import type {
   ApplicationFilters,
   ApplicationSort,
@@ -34,10 +34,8 @@ export default async function ApplicationsPage({
   // Authorization guard: admins pass; managers pass only while they have ≥1 position.
   // Regular applicants are redirected to home — the (auth) layout is not sufficient.
   if (!user.isAdmin) {
-    const managed = await prisma.position.count({
-      where: { managers: { some: { id: user.id } }, deletedAt: null },
-    });
-    if (managed === 0) redirect('/');
+    const managed = await isManager(user.id);
+    if (!managed) redirect('/');
   }
 
   const sp = await searchParams;
