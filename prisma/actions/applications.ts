@@ -272,8 +272,6 @@ export async function updateApplicationStatus(
 
   // Authorization folded into the query — same pattern as getApplicationForReview.
   // Returns null for non-existent, soft-deleted, withdrawn, or unauthorized callers.
-  // Applicant-owned statuses that a reviewer must never be able to set.
-  const nonReviewableStatuses = ['draft', 'withdrawn'] as ApplicationStatus[];
 
   const where = user.isAdmin
     ? {
