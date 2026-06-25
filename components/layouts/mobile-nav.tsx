@@ -41,7 +41,7 @@ export function MobileNav({
   return (
     <header className="bg-sidebar border-sidebar-border flex h-14 items-center border-b px-4 md:hidden">
       <Link href="/" className="flex items-center gap-2">
-        <Image src="/logo-icon.svg" alt="Aplio" width={32} height={32} />
+        <Image src="/logo-dark.svg" alt="Aplio" width={32} height={32} />
         <span className="text-sm font-semibold tracking-tight">Aplio</span>
       </Link>
 
@@ -64,7 +64,7 @@ export function MobileNav({
                   onClick={() => setOpen(false)}
                 >
                   <Image
-                    src="/logo-icon.svg"
+                    src="/logo-dark.svg"
                     alt="Aplio"
                     width={32}
                     height={32}
