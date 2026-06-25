@@ -60,7 +60,6 @@ export function PositionApplicationsTable({
             <TableRow>
               <SortableHeader
                 label="Applicant"
-                sortKey="applicant"
                 active={sort.key === 'applicant'}
                 direction={sort.direction}
                 ariaSort={ariaSort('applicant')}
@@ -68,7 +67,6 @@ export function PositionApplicationsTable({
               />
               <SortableHeader
                 label="Submitted"
-                sortKey="submitted"
                 active={sort.key === 'submitted'}
                 direction={sort.direction}
                 ariaSort={ariaSort('submitted')}
@@ -76,7 +74,6 @@ export function PositionApplicationsTable({
               />
               <SortableHeader
                 label="Status"
-                sortKey="status"
                 active={sort.key === 'status'}
                 direction={sort.direction}
                 ariaSort={ariaSort('status')}

@@ -96,7 +96,6 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
             <TableRow>
               <SortableHeader
                 label="Order"
-                sortKey="order"
                 active={sort.key === 'order'}
                 direction={sort.direction}
                 ariaSort={ariaSort('order')}
@@ -105,7 +104,6 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
               />
               <SortableHeader
                 label="Label"
-                sortKey="label"
                 active={sort.key === 'label'}
                 direction={sort.direction}
                 ariaSort={ariaSort('label')}
@@ -113,7 +111,6 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
               />
               <SortableHeader
                 label="Type"
-                sortKey="type"
                 active={sort.key === 'type'}
                 direction={sort.direction}
                 ariaSort={ariaSort('type')}
@@ -124,7 +121,6 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
               <TableHead>Options</TableHead>
               <SortableHeader
                 label="Required"
-                sortKey="required"
                 active={sort.key === 'required'}
                 direction={sort.direction}
                 ariaSort={ariaSort('required')}

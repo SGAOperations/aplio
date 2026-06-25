@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import { parseAsStringEnum, parseAsStringLiteral, useQueryStates } from 'nuqs';
 
@@ -58,7 +58,10 @@ export function useSortableTable<T>(
   columns: SortableColumn<T>[],
   options?: UseSortableTableOptions,
 ): UseSortableTableResult<T> {
-  const validKeys = columns.map((c) => c.key) as [string, ...string[]];
+  const validKeys = useMemo(
+    () => columns.map((c) => c.key) as [string, ...string[]],
+    [columns],
+  );
 
   const [params, setParams] = useQueryStates(
     {
@@ -68,25 +71,37 @@ export function useSortableTable<T>(
     { history: 'replace', scroll: false, shallow: true },
   );
 
+  const defaultSortKey = options?.defaultSort?.key;
+  const defaultSortDirection = options?.defaultSort?.direction;
+
   // Resolve sort state: URL params take precedence; fall back to defaultSort.
+  // Primitive deps prevent recomputing when an inline defaultSort object is passed.
   const sort: SortState = useMemo(() => {
     if (params.sort !== null)
       return { key: params.sort, direction: params.dir ?? 'asc' };
-    return options?.defaultSort ?? { key: null, direction: 'asc' };
-  }, [params.sort, params.dir, options]);
+    if (defaultSortKey !== undefined)
+      return { key: defaultSortKey, direction: defaultSortDirection ?? 'asc' };
+    return { key: null, direction: 'asc' };
+  }, [params.sort, params.dir, defaultSortKey, defaultSortDirection]);
 
-  function toggle(key: string) {
-    if (sort.key !== key) {
-      // Inactive column → sort asc.
-      void setParams({ sort: key as (typeof validKeys)[number], dir: 'asc' });
-    } else if (sort.direction === 'asc') {
-      // Active asc → sort desc.
-      void setParams({ sort: key as (typeof validKeys)[number], dir: 'desc' });
-    } else {
-      // Active desc → clear (return to default order).
-      void setParams({ sort: null, dir: null });
-    }
-  }
+  const toggle = useCallback(
+    (key: string) => {
+      if (sort.key !== key) {
+        // Inactive column → sort asc.
+        void setParams({ sort: key as (typeof validKeys)[number], dir: 'asc' });
+      } else if (sort.direction === 'asc') {
+        // Active asc → sort desc.
+        void setParams({
+          sort: key as (typeof validKeys)[number],
+          dir: 'desc',
+        });
+      } else {
+        // Active desc → clear (return to default order).
+        void setParams({ sort: null, dir: null });
+      }
+    },
+    [sort.key, sort.direction, setParams],
+  );
 
   const sortedRows = useMemo(() => {
     if (!sort.key) return rows;
@@ -102,10 +117,13 @@ export function useSortableTable<T>(
     });
   }, [rows, columns, sort.key, sort.direction]);
 
-  function ariaSort(key: string): 'ascending' | 'descending' | 'none' {
-    if (sort.key !== key) return 'none';
-    return sort.direction === 'asc' ? 'ascending' : 'descending';
-  }
+  const ariaSort = useCallback(
+    (key: string): 'ascending' | 'descending' | 'none' => {
+      if (sort.key !== key) return 'none';
+      return sort.direction === 'asc' ? 'ascending' : 'descending';
+    },
+    [sort.key, sort.direction],
+  );
 
   return { sortedRows, sort, toggle, ariaSort };
 }

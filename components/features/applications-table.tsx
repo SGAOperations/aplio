@@ -177,7 +177,6 @@ export function ApplicationsTable({
                 </TableHead>
                 <SortableHeader
                   label="Applicant"
-                  sortKey="name"
                   active={sort?.field === 'name'}
                   direction={sort?.direction ?? 'asc'}
                   ariaSort={
@@ -192,7 +191,6 @@ export function ApplicationsTable({
                 <TableHead>Position</TableHead>
                 <SortableHeader
                   label="Status"
-                  sortKey="status"
                   active={sort?.field === 'status'}
                   direction={sort?.direction ?? 'asc'}
                   ariaSort={
@@ -206,7 +204,6 @@ export function ApplicationsTable({
                 />
                 <SortableHeader
                   label="Submitted"
-                  sortKey="date"
                   active={sort?.field === 'date'}
                   direction={sort?.direction ?? 'asc'}
                   ariaSort={

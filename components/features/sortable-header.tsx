@@ -8,7 +8,6 @@ import { TableHead } from '@/components/ui/table';
 
 interface SortableHeaderProps {
   label: string;
-  sortKey: string;
   active: boolean;
   direction: SortDirection;
   ariaSort: 'ascending' | 'descending' | 'none';

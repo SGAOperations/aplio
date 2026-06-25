@@ -71,7 +71,6 @@ export function MyApplicationsTable({
             <TableRow>
               <SortableHeader
                 label="Position"
-                sortKey="position"
                 active={sort.key === 'position'}
                 direction={sort.direction}
                 ariaSort={ariaSort('position')}
@@ -79,7 +78,6 @@ export function MyApplicationsTable({
               />
               <SortableHeader
                 label="Status"
-                sortKey="status"
                 active={sort.key === 'status'}
                 direction={sort.direction}
                 ariaSort={ariaSort('status')}
@@ -87,7 +85,6 @@ export function MyApplicationsTable({
               />
               <SortableHeader
                 label="Applied"
-                sortKey="applied"
                 active={sort.key === 'applied'}
                 direction={sort.direction}
                 ariaSort={ariaSort('applied')}
