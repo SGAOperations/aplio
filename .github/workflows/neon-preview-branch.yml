@@ -1,0 +1,210 @@
+# Neon Preview Branch — per-PR isolated database with auto-migration
+#
+# Required secrets (GitHub → Settings → Secrets and variables → Actions):
+#   NEON_API_KEY        — Neon API key with branch create/delete permissions
+#   NEON_PROJECT_ID     — Neon project ID (find in Neon console → Settings)
+#   VERCEL_TOKEN        — Vercel personal access token (optional; skip var-wiring if absent)
+#   VERCEL_ORG_ID       — Vercel team/org ID (optional)
+#   VERCEL_PROJECT_ID   — Vercel project ID (optional)
+#
+# Neon parent branch assumption: the project's default branch (main/prod).
+# To use a non-default parent, set NEON_PARENT_BRANCH_ID as a repo secret/variable.
+
+name: Neon Preview Branch
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+# Cancel in-progress runs for the same PR so rapid pushes don't race on the
+# same Neon branch (create-vs-migrate overlap).
+concurrency:
+  group: neon-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  # ── upsert ─────────────────────────────────────────────────────────────────
+  # Runs on open / synchronize / reopen.
+  # Creates (or reuses) a Neon branch and applies pending migrations.
+  upsert:
+    name: Create branch & migrate
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: npm
+
+      - name: Install dependencies
+        # npm ci is the correct CI form — lockfile-faithful, no resolution surprises.
+        # Existing workflows use npm install; this workflow intentionally uses npm ci.
+        run: npm ci
+
+      - name: Generate Prisma client
+        # Guards against config drift; migrate deploy doesn't strictly need it but
+        # aligns with the other workflows and catches schema/config issues early.
+        run: npm run prisma:generate
+
+      - name: Create or reuse Neon branch
+        id: create_branch
+        # @v6 — current major; outputs: db_url (direct/unpooled), db_url_with_pooler (pooled)
+        uses: neondatabase/create-branch-action@v6
+        with:
+          project_id: ${{ secrets.NEON_PROJECT_ID }}
+          # Stable slug: preview/<head-ref> matches the issue's naming convention.
+          # The create-branch action accepts arbitrary branch names and is idempotent
+          # (reuses an existing branch with the same name).
+          branch_name: preview/${{ github.head_ref }}
+          api_key: ${{ secrets.NEON_API_KEY }}
+
+      # Mask both URLs so they never appear in logs.
+      - name: Mask Neon connection strings
+        run: |
+          echo "::add-mask::${{ steps.create_branch.outputs.db_url }}"
+          echo "::add-mask::${{ steps.create_branch.outputs.db_url_with_pooler }}"
+
+      - name: Apply migrations
+        # Uses the direct (unpooled) URL — prisma migrate deploy requires a direct connection.
+        # No continue-on-error: a migration failure MUST turn the PR check red (AC).
+        run: npm run prisma:migrate:deploy
+        env:
+          DATABASE_URL: ${{ steps.create_branch.outputs.db_url }}
+
+      # ── Vercel env-var wiring (resilient — skipped if secrets absent) ──────
+
+      - name: Check Vercel secrets
+        id: check_vercel
+        # secrets.* cannot be evaluated directly in `if:` conditions, so we probe
+        # via env and write a flag to GITHUB_OUTPUT.
+        env:
+          HAS_TOKEN: ${{ secrets.VERCEL_TOKEN != '' }}
+          HAS_ORG: ${{ secrets.VERCEL_ORG_ID != '' }}
+          HAS_PROJECT: ${{ secrets.VERCEL_PROJECT_ID != '' }}
+        run: |
+          if [ "$HAS_TOKEN" = "true" ] && [ "$HAS_ORG" = "true" ] && [ "$HAS_PROJECT" = "true" ]; then
+            echo "has_vercel=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_vercel=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Vercel secrets not configured; skipping preview env var update."
+          fi
+
+      - name: Set Vercel preview DATABASE_URL
+        # Uses the pooled URL — the runtime app uses the connection pooler.
+        # Endpoint: POST /v10/projects/{id}/env (Vercel REST API)
+        # Scoped to target=preview + gitBranch=<head_ref> so only this PR's preview
+        # deployment sees the branch DB; production is never touched.
+        if: steps.check_vercel.outputs.has_vercel == 'true'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          POOLED_URL: ${{ steps.create_branch.outputs.db_url_with_pooler }}
+          GIT_BRANCH: ${{ github.head_ref }}
+        run: |
+          # Look up any existing branch-scoped DATABASE_URL to avoid duplicates.
+          EXISTING_ID=$(curl -sf \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v10/projects/$VERCEL_PROJECT_ID/env?teamId=$VERCEL_ORG_ID&gitBranch=$(python3 -c 'import urllib.parse,os; print(urllib.parse.quote(os.environ["GIT_BRANCH"]))')" \
+            | jq -r '.envs[] | select(.key == "DATABASE_URL" and .gitBranch == env.GIT_BRANCH) | .id' \
+            || true)
+
+          if [ -n "$EXISTING_ID" ] && [ "$EXISTING_ID" != "null" ]; then
+            # Patch the existing record in-place.
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X PATCH \
+              -H "Authorization: Bearer $VERCEL_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.vercel.com/v10/projects/$VERCEL_PROJECT_ID/env/$EXISTING_ID?teamId=$VERCEL_ORG_ID" \
+              -d "{\"value\":\"$POOLED_URL\"}")
+          else
+            # Create a new branch-scoped preview env var.
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+              -H "Authorization: Bearer $VERCEL_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.vercel.com/v10/projects/$VERCEL_PROJECT_ID/env?teamId=$VERCEL_ORG_ID" \
+              -d "{\"key\":\"DATABASE_URL\",\"value\":\"$POOLED_URL\",\"type\":\"encrypted\",\"target\":[\"preview\"],\"gitBranch\":\"$GIT_BRANCH\"}")
+          fi
+
+          # A non-2xx from a configured Vercel integration is a real error — fail the job.
+          if [[ "$HTTP_STATUS" -lt 200 || "$HTTP_STATUS" -ge 300 ]]; then
+            echo "Vercel API returned HTTP $HTTP_STATUS; failing job."
+            exit 1
+          fi
+
+  # ── cleanup ────────────────────────────────────────────────────────────────
+  # Runs on PR close (merged or abandoned).
+  # Deletes the Neon branch and removes the branch-scoped Vercel env var.
+  cleanup:
+    name: Delete branch
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Delete Neon branch
+        id: delete_branch
+        # @v3 — current major; tolerant if the branch is already gone (idempotent).
+        # continue-on-error is acceptable here: a missing branch on cleanup is benign.
+        uses: neondatabase/delete-branch-action@v3
+        continue-on-error: true
+        with:
+          project_id: ${{ secrets.NEON_PROJECT_ID }}
+          branch: preview/${{ github.head_ref }}
+          api_key: ${{ secrets.NEON_API_KEY }}
+
+      # ── Vercel cleanup (resilient — skipped if secrets absent) ─────────────
+
+      - name: Check Vercel secrets
+        id: check_vercel
+        env:
+          HAS_TOKEN: ${{ secrets.VERCEL_TOKEN != '' }}
+          HAS_ORG: ${{ secrets.VERCEL_ORG_ID != '' }}
+          HAS_PROJECT: ${{ secrets.VERCEL_PROJECT_ID != '' }}
+        run: |
+          if [ "$HAS_TOKEN" = "true" ] && [ "$HAS_ORG" = "true" ] && [ "$HAS_PROJECT" = "true" ]; then
+            echo "has_vercel=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_vercel=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Vercel secrets not configured; skipping preview env var cleanup."
+          fi
+
+      - name: Remove Vercel preview DATABASE_URL
+        # Deletes the branch-scoped env var created during upsert.
+        # Skips silently if not found — cleanup is best-effort.
+        if: steps.check_vercel.outputs.has_vercel == 'true'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          GIT_BRANCH: ${{ github.head_ref }}
+        run: |
+          EXISTING_ID=$(curl -sf \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v10/projects/$VERCEL_PROJECT_ID/env?teamId=$VERCEL_ORG_ID&gitBranch=$(python3 -c 'import urllib.parse,os; print(urllib.parse.quote(os.environ["GIT_BRANCH"]))')" \
+            | jq -r '.envs[] | select(.key == "DATABASE_URL" and .gitBranch == env.GIT_BRANCH) | .id' \
+            || true)
+
+          if [ -z "$EXISTING_ID" ] || [ "$EXISTING_ID" = "null" ]; then
+            echo "No branch-scoped DATABASE_URL found for branch $GIT_BRANCH; nothing to clean up."
+            exit 0
+          fi
+
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v10/projects/$VERCEL_PROJECT_ID/env/$EXISTING_ID?teamId=$VERCEL_ORG_ID")
+
+          if [[ "$HTTP_STATUS" -lt 200 || "$HTTP_STATUS" -ge 300 ]]; then
+            echo "Vercel DELETE returned HTTP $HTTP_STATUS; failing job."
+            exit 1
+          fi
+          echo "Removed branch-scoped DATABASE_URL for branch $GIT_BRANCH."
