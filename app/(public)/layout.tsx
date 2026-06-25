@@ -30,7 +30,7 @@ export default async function PublicLayout({
       <header className="border-b">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
           <Link href="/positions" className="flex items-center gap-2">
-            <Image src="/logo-icon.svg" alt="Aplio" width={32} height={32} />
+            <Image src="/logo-dark.svg" alt="Aplio" width={32} height={32} />
             <span className="text-sm font-semibold tracking-tight">Aplio</span>
           </Link>
           {identity ? (
