@@ -92,12 +92,12 @@ export default async function PublicPositionDetailPage({
               <div className="flex flex-col gap-2">
                 <Button asChild>
                   <Link href={`/login?redirectTo=/positions/${id}/apply`}>
-                    Sign in to apply
+                    Apply now
                   </Link>
                 </Button>
                 <p className="text-muted-foreground text-xs">
-                  You&apos;ll be taken directly to the application after signing
-                  in.
+                  We&apos;ll send you a one-time code to continue your
+                  application.
                 </p>
               </div>
             )}
