@@ -7,12 +7,12 @@ import prisma from '@/lib/prisma';
 
 export const authServer = createAuthServer();
 
-// Resolve a real Neon Auth session to a database user.
-// Returns null when no valid session exists.
+// Resolve a real Neon Auth session to an active (non-deactivated) database user.
+// Returns null when no valid session exists or the user is deactivated.
 async function resolveRealUser() {
   const { data: session } = await authServer.getSession();
   if (!session?.user) return null;
-  return prisma.user.findUnique({ where: { neonAuthId: session.user.id } });
+  return prisma.user.findUnique({ where: { neonAuthId: session.user.id, deletedAt: null } });
 }
 
 // Returns true only when a bypass cookie is present on a non-production environment.
@@ -31,11 +31,11 @@ export const getCurrentUser = cache(async function getCurrentUser() {
 
     if (bypassUserId) {
       const user = await prisma.user.findUnique({
-        where: { id: bypassUserId },
+        where: { id: bypassUserId, deletedAt: null },
       });
-      // Valid bypass session — use it.
+      // Valid active bypass session — use it.
       if (user) return user;
-      // Stale/invalid bypass cookie — fall through to real auth rather than dead-ending.
+      // Stale, invalid, or deactivated bypass — fall through to real auth.
     }
 
     const realUser = await resolveRealUser();
