@@ -3,6 +3,8 @@ import { z } from 'zod/v4';
 import { $Enums } from '@/prisma/client';
 import type { PositionStatus, QuestionType } from '@/prisma/client';
 
+import type { PositionAvailability } from '@/lib/types';
+
 import type { BadgeVariant } from '@/components/ui/badge';
 
 export const QUESTION_TYPE_VALUES = [
@@ -109,3 +111,21 @@ export const QUESTION_TYPE_OPTIONS: { value: QuestionType; label: string }[] = [
   { value: 'single_choice', label: 'Single Choice' },
   { value: 'multiple_choice', label: 'Multiple Choice' },
 ];
+
+// Human-readable labels for each computed availability state.
+// 'accepting'/'closed_by_date' intentionally mirror STATUS_LABELS 'open'/'closed' so
+// the admin badge reflects the effective state rather than the raw DB status enum.
+export const AVAILABILITY_LABELS: Record<PositionAvailability, string> = {
+  accepting: 'Open',
+  upcoming: 'Upcoming',
+  closed_by_date: 'Closed',
+  unavailable: 'Closed',
+};
+
+export const AVAILABILITY_VARIANTS: Record<PositionAvailability, BadgeVariant> =
+  {
+    accepting: 'default',
+    upcoming: 'secondary',
+    closed_by_date: 'outline',
+    unavailable: 'outline',
+  };

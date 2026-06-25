@@ -108,6 +108,22 @@ export type AdminApplicationListItem = Prisma.ApplicationGetPayload<{
   };
 }>;
 
+// Minimal structural type for the position-window helper. Satisfied by
+// PositionWithQuestions, PositionForEdit, and raw Prisma rows — no conversion needed.
+export type PositionWindow = {
+  status: PositionStatus;
+  opensAt: Date | null;
+  closesAt: Date | null;
+};
+
+// Applicant-facing availability states derived from status + date window.
+// 'unavailable' covers draft/closed positions (status is the master switch).
+export type PositionAvailability =
+  | 'accepting'
+  | 'upcoming'
+  | 'closed_by_date'
+  | 'unavailable';
+
 // Admin-only type — open position with filtered non-draft application count.
 // Must only be used in admin-gated contexts.
 export type OpenPositionSummaryItem = Prisma.PositionGetPayload<{
