@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 
 import {
   getApplications,
+  getApplicationsTotal,
   getReviewablePositions,
 } from '@/prisma/data/applications';
 import { isManager } from '@/prisma/data/managers';
@@ -78,33 +79,30 @@ export default async function ApplicationsPage({
     filters.sort
   );
 
-  const [applications, positions] = await Promise.all([
+  const [applications, positions, total] = await Promise.all([
     getApplications(user, filters),
     getReviewablePositions(user),
+    getApplicationsTotal(user),
   ]);
 
-  const count = applications.length;
-  // `getApplications` caps results at 100; show "100+" when the list may be
-  // truncated so the label is never misleadingly exact.
-  const countLabel =
-    count === 1
-      ? '1 application'
-      : count >= 100
-        ? '100+ applications'
-        : count > 0
-          ? `${count} applications`
-          : null;
+  // `total > applications.length` is true only when the take:100 cap actually
+  // truncated results — avoids a false positive when exactly 100 apps exist.
+  const shownCapped = total > applications.length;
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">Applications</h1>
-        {countLabel && (
-          <p className="text-muted-foreground mt-1 text-sm">{countLabel}</p>
-        )}
       </header>
 
-      <ApplicationsToolbar positions={positions} filters={filters} />
+      <ApplicationsToolbar
+        positions={positions}
+        filters={filters}
+        shown={applications.length}
+        total={total}
+        shownCapped={shownCapped}
+        hasActiveFilters={hasActiveFilters}
+      />
 
       <ApplicationsTable
         applications={applications}

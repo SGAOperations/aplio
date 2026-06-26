@@ -15,10 +15,7 @@ export default async function UsersPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Users"
-        description={`${users.length} ${users.length === 1 ? 'user' : 'users'}`}
-      />
+      <PageHeader title="Users" />
 
       <UsersTable users={users} currentUserId={user.id} />
     </div>

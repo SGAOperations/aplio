@@ -7,6 +7,7 @@ import { X } from 'lucide-react';
 
 import { REVIEWER_APPLICATION_STATUS_OPTIONS } from '@/lib/constants';
 import type { ApplicationFilters } from '@/lib/types';
+import { formatTableCount } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,11 +23,19 @@ import {
 interface ApplicationsToolbarProps {
   positions: { id: string; title: string }[];
   filters: ApplicationFilters;
+  shown: number;
+  total: number;
+  shownCapped: boolean;
+  hasActiveFilters: boolean;
 }
 
 export function ApplicationsToolbar({
   positions,
   filters,
+  shown,
+  total,
+  shownCapped,
+  hasActiveFilters: hasActiveFiltersProp,
 }: ApplicationsToolbarProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -44,13 +53,7 @@ export function ApplicationsToolbar({
   // typing (without waiting for the debounce to update the URL).
   const [searchValue, setSearchValue] = useState(filters.q ?? '');
 
-  const hasActiveFilters = !!(
-    filters.positionId ||
-    filters.status ||
-    filters.userId ||
-    filters.q ||
-    filters.sort
-  );
+  const hasActiveFilters = hasActiveFiltersProp;
 
   function updateParam(key: string, value: string | undefined) {
     const params = new URLSearchParams(searchParams.toString());
@@ -178,6 +181,19 @@ export function ApplicationsToolbar({
             Clear filters
           </Button>
         )}
+
+        <p
+          aria-live="polite"
+          className="text-muted-foreground self-end text-sm sm:ml-auto"
+        >
+          {formatTableCount({
+            shown,
+            total,
+            noun: 'application',
+            shownCapped,
+            isFiltered: hasActiveFilters,
+          })}
+        </p>
       </div>
     </div>
   );

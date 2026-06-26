@@ -13,7 +13,7 @@ import {
   type SortableColumn,
   useSortableTable,
 } from '@/lib/use-sortable-table';
-import { formatDate } from '@/lib/utils';
+import { formatDate, formatTableCount } from '@/lib/utils';
 
 import { SortableHeader } from '@/components/features/sortable-header';
 import { Badge } from '@/components/ui/badge';
@@ -122,15 +122,29 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
   return (
     <>
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="users-search">Search</Label>
-          <Input
-            id="users-search"
-            placeholder="Search by name or email"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="max-w-sm"
-          />
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="users-search">Search</Label>
+            <Input
+              id="users-search"
+              placeholder="Search by name or email"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="max-w-sm"
+            />
+          </div>
+
+          <p
+            aria-live="polite"
+            className="text-muted-foreground self-end text-sm sm:ml-auto"
+          >
+            {formatTableCount({
+              shown: filtered.length,
+              total: users.length,
+              noun: 'user',
+              isFiltered: !!q,
+            })}
+          </p>
         </div>
 
         <Card className="gap-0 p-0">
