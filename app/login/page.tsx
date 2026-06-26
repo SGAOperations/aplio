@@ -39,8 +39,9 @@ export default async function SignInPage({
         path="SIGN_IN"
         redirectTo={safeTo}
         classNames={{
-          base: 'max-w-md',
-          form: { otpInputContainer: 'justify-center' },
+          base: 'max-w-xl',
+          content: 'w-full',
+          form: { base: 'w-full', otpInputContainer: 'justify-center' },
         }}
         localization={
           applyContext
