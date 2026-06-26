@@ -1,15 +1,11 @@
-'use client';
-
 import Link from 'next/link';
-import { useState } from 'react';
 
-import { ChevronDown, ChevronUp, Inbox, Pencil } from 'lucide-react';
+import { Inbox, Pencil } from 'lucide-react';
 
 import type { PositionWithQuestions } from '@/lib/types';
 import { formatDate, getPositionAvailability } from '@/lib/utils';
 
 import { PositionStatusBadge } from '@/components/features/status-badge';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -18,106 +14,79 @@ interface PositionCardProps {
   canManage?: boolean;
 }
 
+// Server component — accordion removed; flat summary card with always-visible
+// truncated description and a CTA row linking into the detail page.
 export function PositionCard({
   position,
   canManage = false,
 }: PositionCardProps) {
-  const [open, setOpen] = useState(false);
-
-  // Derive availability once per render so copy and button logic stay in sync.
   const availability = getPositionAvailability(position);
   const isAccepting = availability === 'accepting';
 
+  let dateLabel: string | null = null;
+  if (availability === 'accepting' && position.closesAt)
+    dateLabel = `Closes ${formatDate(position.closesAt)}`;
+  else if (availability === 'upcoming' && position.opensAt)
+    dateLabel = `Opens ${formatDate(position.opensAt)}`;
+  else if (
+    (availability === 'closed_by_date' || availability === 'unavailable') &&
+    position.closesAt
+  )
+    dateLabel = `Closed ${formatDate(position.closesAt)}`;
+
   return (
-    <Card className="gap-0 p-0">
-      <CardHeader className="p-0">
-        <button
-          type="button"
-          className="flex w-full items-center justify-between p-4 text-left"
-          onClick={() => setOpen((prev) => !prev)}
-          aria-expanded={open}
-        >
-          <div className="flex items-center gap-3">
-            <CardTitle className="text-lg">{position.title}</CardTitle>
-            {canManage && <PositionStatusBadge position={position} />}
-          </div>
-          {open ? (
-            <ChevronUp className="text-muted-foreground size-5 shrink-0" />
-          ) : (
-            <ChevronDown className="text-muted-foreground size-5 shrink-0" />
-          )}
-        </button>
+    <Card className="flex flex-col gap-0 p-0">
+      <CardHeader className="p-4 pb-2">
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="text-lg leading-snug">
+            {position.title}
+          </CardTitle>
+          <PositionStatusBadge position={position} />
+        </div>
       </CardHeader>
 
-      {open && (
-        <CardContent className="flex flex-col gap-4 px-4 pb-4">
-          <p className="text-muted-foreground text-sm">
-            {position.description}
-          </p>
+      <CardContent className="flex flex-col gap-3 px-4 pb-4">
+        <p className="text-muted-foreground line-clamp-2 text-sm">
+          {position.description}
+        </p>
 
-          {position.questions.length > 0 && (
-            <div className="flex flex-col gap-2">
-              <p className="text-sm font-medium">Application questions</p>
-              <ul className="text-muted-foreground list-inside list-disc space-y-1 text-sm">
-                {position.questions.map(
-                  (question: PositionWithQuestions['questions'][number]) => (
-                    <li key={question.id}>{question.label}</li>
-                  ),
-                )}
-              </ul>
-            </div>
+        {dateLabel && (
+          <p className="text-muted-foreground text-xs">{dateLabel}</p>
+        )}
+
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          {canManage ? (
+            <>
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/positions/${position.id}`}>View Details</Link>
+              </Button>
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/positions/${position.id}/edit`}>
+                  <Pencil className="size-4" />
+                  Edit
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/positions/${position.id}/applications`}>
+                  <Inbox className="size-4" />
+                  Applications
+                </Link>
+              </Button>
+            </>
+          ) : (
+            <>
+              {isAccepting && (
+                <Button asChild size="sm">
+                  <Link href={`/positions/${position.id}/apply`}>Apply</Link>
+                </Button>
+              )}
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/positions/${position.id}`}>View Details</Link>
+              </Button>
+            </>
           )}
-
-          <div className="flex items-center gap-2 pt-2">
-            {canManage ? (
-              <>
-                {isAccepting && (
-                  <Button asChild>
-                    <Link href={`/positions/${position.id}/apply`}>Apply</Link>
-                  </Button>
-                )}
-                <Button asChild variant="outline">
-                  <Link href={`/positions/${position.id}/edit`}>
-                    <Pencil className="size-4" />
-                    Edit
-                  </Link>
-                </Button>
-                <Button asChild variant="outline">
-                  <Link href={`/positions/${position.id}/applications`}>
-                    <Inbox className="size-4" />
-                    Applications
-                  </Link>
-                </Button>
-              </>
-            ) : (
-              <>
-                {isAccepting && (
-                  <>
-                    <Button asChild>
-                      <Link href={`/positions/${position.id}/apply`}>
-                        Apply
-                      </Link>
-                    </Button>
-                    {position.closesAt && (
-                      <span className="text-muted-foreground text-sm">
-                        Closes {formatDate(position.closesAt)}
-                      </span>
-                    )}
-                  </>
-                )}
-                {availability === 'upcoming' && position.opensAt && (
-                  <Badge variant="secondary">
-                    Opens {formatDate(position.opensAt)}
-                  </Badge>
-                )}
-                {availability === 'closed_by_date' && (
-                  <Badge variant="outline">Closed</Badge>
-                )}
-              </>
-            )}
-          </div>
-        </CardContent>
-      )}
+        </div>
+      </CardContent>
     </Card>
   );
 }
