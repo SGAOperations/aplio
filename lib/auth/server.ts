@@ -7,11 +7,33 @@ import { prisma } from '@/lib/prisma';
 
 export const authServer = createAuthServer();
 
-// Provision-on-first-auth: create the app User row when a real Neon session
-// has no matching row yet, then return it. Create-only (empty update {}) so an
-// existing row is returned without any write.
-// Keyed on the unique neonAuthId → race-safe via the DB unique constraint + upsert.
+// Shared upsert used by both provision-on-first-auth and the admin createUser action.
+// Create-only (empty update {}) so an existing row is returned without any write
+// on sign-in. Keyed on neonAuthId — race-safe via the DB unique constraint.
 // name omitted when falsy (OTP identities often supply an empty string → store null).
+export async function upsertAppUser(
+  {
+    neonAuthId,
+    email,
+    name,
+  }: { neonAuthId: string; email: string; name?: string | null },
+  createdById?: string,
+) {
+  return prisma.user.upsert({
+    where: { neonAuthId },
+    update: {},
+    create: {
+      neonAuthId,
+      email,
+      ...(name ? { name } : {}),
+      isAdmin: false,
+      ...(createdById ? { createdById } : {}),
+    },
+  });
+}
+
+// Provision-on-first-auth: create the app User row when a real Neon session
+// has no matching row yet, then return it.
 // Deactivated users (#153) are blocked by the post-upsert guard below.
 async function resolveRealUser() {
   const { data: session } = await authServer.getSession();
@@ -19,11 +41,7 @@ async function resolveRealUser() {
 
   const { id: neonAuthId, email, name } = session.user;
 
-  const row = await prisma.user.upsert({
-    where: { neonAuthId },
-    update: {},
-    create: { neonAuthId, email, ...(name ? { name } : {}), isAdmin: false },
-  });
+  const row = await upsertAppUser({ neonAuthId, email, name });
   if (row.deletedAt) return null;
   return row;
 }

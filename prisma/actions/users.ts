@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache';
 
 import { z } from 'zod/v4';
 
-import { getCurrentUser } from '@/lib/auth/server';
+import { authServer, getCurrentUser } from '@/lib/auth/server';
+import { createUserSchema } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 
 const toggleAdminSchema = z.object({
@@ -66,6 +67,62 @@ export async function deactivateUser(
   // Not reachable from the freshly-rendered admin list → unexpected → throw.
   if (result.count === 0)
     throw new Error('User not found or already deactivated');
+
+  revalidatePath('/users');
+}
+
+export async function createUser(input: unknown): Promise<ActionError | void> {
+  const admin = await getCurrentUser();
+  if (!admin.isAdmin) return { error: 'Unauthorized' };
+
+  const parsed = createUserSchema.safeParse(input);
+  if (!parsed.success) return { error: 'Invalid input' };
+
+  const { email, name, isAdmin } = parsed.data;
+
+  // Generate a strong random password to satisfy the better-auth API.
+  // The created user never uses this password — they sign in via email OTP.
+  const password = `${crypto.randomUUID()}-${crypto.randomUUID()}`;
+
+  const { data: authData, error: authError } =
+    await authServer.admin.createUser({ email, name: name ?? '', password });
+
+  if (authError) {
+    // Duplicate email codes from the better-auth admin plugin.
+    const code = (authError as { code?: string }).code;
+    if (
+      code === 'USER_ALREADY_EXISTS' ||
+      code === 'USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL'
+    )
+      return { error: 'A user with this email already exists.' };
+    // Anything else is unexpected (network failure, auth config, etc.) → throw.
+    throw new Error('Failed to create auth user');
+  }
+
+  if (!authData?.user?.id)
+    throw new Error('Missing user ID from auth response');
+
+  const neonAuthId = authData.user.id;
+
+  await prisma.$transaction(async (tx) => {
+    const appUser = await tx.user.upsert({
+      where: { neonAuthId },
+      update: {},
+      create: {
+        neonAuthId,
+        email,
+        ...(name ? { name } : {}),
+        isAdmin: false,
+        createdById: admin.id,
+      },
+    });
+
+    if (isAdmin)
+      await tx.user.update({
+        where: { id: appUser.id },
+        data: { isAdmin: true, updatedById: admin.id },
+      });
+  });
 
   revalidatePath('/users');
 }

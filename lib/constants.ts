@@ -191,6 +191,13 @@ export const AVAILABILITY_VARIANTS: Record<PositionAvailability, BadgeVariant> =
 export const PRIVACY_HREF = '/privacy';
 export const TERMS_HREF = '/terms';
 
+// Shared between the createUser server action and the CreateUserDialog form.
+export const createUserSchema = z.object({
+  email: z.string().trim().email('Enter a valid email address.'),
+  name: z.string().trim().optional(),
+  isAdmin: z.boolean().default(false),
+});
+
 // Maps badge variant to a design-token dot color used in stat cards and the
 // activity feed. Extracted from pipeline-summary.tsx so both consumers share
 // one source of truth (ENGINEERING §1: abstract at 2+).
