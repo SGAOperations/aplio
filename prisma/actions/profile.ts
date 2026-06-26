@@ -7,6 +7,7 @@ import { z } from 'zod/v4';
 import type { GlobalAnswer } from '@/prisma/client';
 
 import { getCurrentUser } from '@/lib/auth/server';
+import { NAME_MAX_LENGTH } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 import { type ResponseType } from '@/lib/utils';
 
@@ -14,6 +15,36 @@ const updateGlobalAnswerSchema = z.object({
   questionId: z.string().min(1),
   value: z.array(z.string()),
 });
+
+const setUserNameSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, 'Enter your full name.')
+    .max(
+      NAME_MAX_LENGTH,
+      `Name must be ${NAME_MAX_LENGTH} characters or fewer.`,
+    ),
+});
+
+type ActionError = { error: string };
+
+export async function setUserName(input: unknown): Promise<ActionError | void> {
+  const user = await getCurrentUser();
+
+  const parsed = setUserNameSchema.safeParse(input);
+  if (!parsed.success) return { error: 'Enter your full name.' };
+
+  // Write scoped to the calling user — no client-supplied ID, no IDOR.
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { name: parsed.data.name },
+  });
+
+  revalidatePath('/profile');
+  // Revalidate layout so sidebar/nav reflects the new name immediately.
+  revalidatePath('/', 'layout');
+}
 
 export async function updateGlobalAnswer(
   questionId: string,
