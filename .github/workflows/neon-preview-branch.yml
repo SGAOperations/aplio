@@ -1,16 +1,15 @@
 # Neon Preview Branch — per-PR isolated database with auto-migration
 #
 # Required secrets (GitHub → Settings → Secrets and variables → Actions):
-#   NEON_API_KEY        — Neon API key with branch create/delete permissions
-#   NEON_PROJECT_ID     — Neon project ID (find in Neon console → Settings)
+#   NEON_API_KEY            — Neon API key with branch create/delete permissions
+#   NEON_PROJECT_ID         — Neon project ID (find in Neon console → Settings)
+#   NEON_PARENT_BRANCH_ID   — Neon branch ID of the *dev* branch (Neon console →
+#                             Branches → dev → Settings). REQUIRED — preview branches
+#                             must fork from dev (not prod). The check_neon step fails
+#                             loudly if this secret is absent.
 #   VERCEL_TOKEN        — Vercel personal access token (optional; skip var-wiring if absent)
 #   VERCEL_ORG_ID       — Vercel team/org ID (optional)
 #   VERCEL_PROJECT_ID   — Vercel project ID (optional)
-#
-# Neon parent branch assumption: the project's default branch (main/prod).
-# To use a non-default parent, set NEON_PARENT_BRANCH_ID as a repo secret/variable;
-# the create-branch step passes it as parent_branch and omits the input when the secret
-# is empty so the action falls back to the project default.
 
 name: Neon Preview Branch
 
@@ -62,16 +61,21 @@ jobs:
         id: check_neon
         # secrets.* cannot be evaluated directly in `if:` conditions, so we probe
         # via env and write a flag to GITHUB_OUTPUT.
+        # NEON_PARENT_BRANCH_ID is required — silently falling back to prod is wrong.
         env:
           HAS_KEY: ${{ secrets.NEON_API_KEY != '' }}
           HAS_PROJECT: ${{ secrets.NEON_PROJECT_ID != '' }}
+          HAS_PARENT: ${{ secrets.NEON_PARENT_BRANCH_ID != '' }}
         run: |
-          if [ "$HAS_KEY" = "true" ] && [ "$HAS_PROJECT" = "true" ]; then
-            echo "has_neon=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_neon=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::NEON_API_KEY or NEON_PROJECT_ID not configured; skipping Neon branch create and migration."
+          if [ "$HAS_KEY" != "true" ] || [ "$HAS_PROJECT" != "true" ]; then
+            echo "::error::NEON_API_KEY and NEON_PROJECT_ID are required secrets. Configure them in GitHub → Settings → Secrets and variables → Actions."
+            exit 1
           fi
+          if [ "$HAS_PARENT" != "true" ]; then
+            echo "::error::NEON_PARENT_BRANCH_ID is required. Set it to the Neon branch ID of the dev branch (Neon console → Branches → dev → Settings) so preview branches fork from dev, not prod."
+            exit 1
+          fi
+          echo "has_neon=true" >> "$GITHUB_OUTPUT"
 
       - name: Create or reuse Neon branch
         id: create_branch
@@ -85,8 +89,8 @@ jobs:
           # (reuses an existing branch with the same name).
           branch_name: preview/${{ github.head_ref }}
           api_key: ${{ secrets.NEON_API_KEY }}
-          # Optional: override the parent branch. When NEON_PARENT_BRANCH_ID is empty
-          # the action falls back to the project default branch.
+          # Required: fork from the dev branch, not prod. NEON_PARENT_BRANCH_ID must be
+          # set to the Neon branch ID of dev — enforced by the check_neon step above.
           parent_branch: ${{ secrets.NEON_PARENT_BRANCH_ID }}
 
       # Mask the URL so it never appears in subsequent log lines.
