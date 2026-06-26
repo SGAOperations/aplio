@@ -1,10 +1,19 @@
 'use client';
 
+import { useTheme } from 'next-themes';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTransition } from 'react';
 
-import { ChevronUp, LogOut, UserCircle } from 'lucide-react';
+import {
+  ChevronUp,
+  LogOut,
+  Monitor,
+  Moon,
+  Sun,
+  SunMoon,
+  UserCircle,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 import { logoutBypassUser } from '@/prisma/services/dev-bypass';
@@ -17,7 +26,12 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
@@ -29,6 +43,12 @@ interface UserMenuProps {
   variant?: 'sidebar' | 'header';
 }
 
+const THEME_OPTIONS = [
+  { value: 'system', label: 'System', icon: Monitor },
+  { value: 'light', label: 'Light', icon: Sun },
+  { value: 'dark', label: 'Dark', icon: Moon },
+] as const;
+
 export function UserMenu({
   identity,
   onNavigate,
@@ -38,6 +58,10 @@ export function UserMenu({
   const displayName = name ?? email;
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  // next-themes is loaded with { ssr: false }; `theme` is undefined on first
+  // render before the provider resolves. Default to 'system' to match
+  // defaultTheme so the radio shows a selection without a flash.
+  const { theme = 'system', setTheme } = useTheme();
 
   const triggerClassName =
     variant === 'header'
@@ -97,6 +121,23 @@ export function UserMenu({
             Profile
           </Link>
         </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger className="gap-2">
+            <SunMoon className="size-4" aria-hidden />
+            Theme
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            <DropdownMenuRadioGroup value={theme} onValueChange={setTheme}>
+              {THEME_OPTIONS.map(({ value, label, icon: Icon }) => (
+                <DropdownMenuRadioItem key={value} value={value}>
+                  <Icon className="size-4" aria-hidden />
+                  {label}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           disabled={pending}
