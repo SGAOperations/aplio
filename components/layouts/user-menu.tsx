@@ -1,12 +1,15 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useTransition } from 'react';
 
-import { ChevronUp, UserCircle } from 'lucide-react';
+import { ChevronUp, LogOut, UserCircle } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { logoutBypassUser } from '@/prisma/services/dev-bypass';
 
+import { authClient } from '@/lib/auth/client';
 import type { NavIdentity } from '@/lib/types';
 
 import {
@@ -34,11 +37,28 @@ export function UserMenu({
   const { name, email, roleLabel, isBypass } = identity;
   const displayName = name ?? email;
   const [pending, startTransition] = useTransition();
+  const router = useRouter();
 
   const triggerClassName =
     variant === 'header'
       ? 'flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition-colors bg-transparent hover:bg-muted'
       : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition-colors';
+
+  function handleLogout() {
+    startTransition(async () => {
+      if (isBypass) {
+        logoutBypassUser();
+        return;
+      }
+      try {
+        await authClient.signOut();
+        router.push('/login');
+        router.refresh();
+      } catch {
+        toast.error('Could not sign out. Please try again.');
+      }
+    });
+  }
 
   return (
     <DropdownMenu>
@@ -73,18 +93,15 @@ export function UserMenu({
             Profile
           </Link>
         </DropdownMenuItem>
-        {isBypass && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              disabled={pending}
-              onSelect={() => startTransition(() => logoutBypassUser())}
-              className="text-destructive cursor-pointer text-sm"
-            >
-              Log out
-            </DropdownMenuItem>
-          </>
-        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          disabled={pending}
+          onSelect={handleLogout}
+          className="text-destructive cursor-pointer text-sm"
+        >
+          <LogOut className="size-4" aria-hidden />
+          Log out
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
