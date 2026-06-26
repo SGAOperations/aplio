@@ -1,7 +1,9 @@
 import { Activity } from 'lucide-react';
 
-import { getMyRecentActivity } from '@/prisma/data/applications';
-import { getRecentApplications } from '@/prisma/data/applications';
+import {
+  getMyRecentActivity,
+  getRecentApplications,
+} from '@/prisma/data/applications';
 
 import {
   APPLICATION_STATUS_BADGE_VARIANT,
@@ -22,56 +24,60 @@ interface ActivityFeedListProps {
 
 function ActivityFeedList({ items, emptyDescription }: ActivityFeedListProps) {
   return (
-    <Card className="gap-0 p-0">
-      <CardHeader className="border-b p-4">
-        <CardTitle className="text-base font-semibold">
-          Recent activity
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-0">
-        {items.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-10 text-center">
-            <Activity
-              className="text-muted-foreground size-10"
-              aria-hidden="true"
-            />
-            <p className="text-sm font-medium">No recent activity</p>
-            <p className="text-muted-foreground text-sm">{emptyDescription}</p>
-          </div>
-        ) : (
-          <ol>
-            {items.map((item) => {
-              const dotClass =
-                STATUS_BADGE_VARIANT_TO_DOT[item.statusVariant] ??
-                'bg-muted-foreground';
-              const isoString = item.timestamp.toISOString();
-              const relativeTime = formatRelativeTime(item.timestamp);
+    <section aria-label="Recent activity">
+      <Card className="gap-0 p-0">
+        <CardHeader className="border-b p-4">
+          <CardTitle className="text-base font-semibold">
+            Recent activity
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {items.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-10 text-center">
+              <Activity
+                className="text-muted-foreground size-10"
+                aria-hidden="true"
+              />
+              <p className="text-sm font-medium">No recent activity</p>
+              <p className="text-muted-foreground text-sm">
+                {emptyDescription}
+              </p>
+            </div>
+          ) : (
+            <ol>
+              {items.map((item) => {
+                const dotClass =
+                  STATUS_BADGE_VARIANT_TO_DOT[item.statusVariant] ??
+                  'bg-muted-foreground';
+                const isoString = item.timestamp.toISOString();
+                const relativeTime = formatRelativeTime(item.timestamp);
 
-              return (
-                <li
-                  key={item.id}
-                  className="flex items-start gap-3 border-b px-4 py-3 last:border-0"
-                >
-                  <span
-                    className={`mt-1.5 size-2 shrink-0 rounded-full ${dotClass}`}
-                    aria-hidden="true"
-                  />
-                  <p className="line-clamp-2 min-w-0 flex-1 text-sm">
-                    {item.sentence}
-                  </p>
-                  <time
-                    dateTime={isoString}
-                    className="text-muted-foreground ml-auto shrink-0 text-xs tabular-nums"
+                return (
+                  <li
+                    key={item.id}
+                    className="flex items-start gap-3 border-b px-4 py-3 last:border-0"
                   >
-                    {relativeTime}
-                  </time>
-                </li>
-              );
-            })}
-          </ol>
-        )}
-      </CardContent>
-    </Card>
+                    <span
+                      className={`mt-1.5 size-2 shrink-0 rounded-full ${dotClass}`}
+                      aria-hidden="true"
+                    />
+                    <p className="line-clamp-2 min-w-0 flex-1 text-sm">
+                      {item.sentence}
+                    </p>
+                    <time
+                      dateTime={isoString}
+                      className="text-muted-foreground ml-auto shrink-0 text-xs tabular-nums"
+                    >
+                      {relativeTime}
+                    </time>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </CardContent>
+      </Card>
+    </section>
   );
 }
 
@@ -144,7 +150,7 @@ export function ActivityFeedSkeleton() {
         <div className="bg-muted h-5 w-32 animate-pulse rounded" />
       </CardHeader>
       <CardContent className="p-0">
-        {Array.from({ length: 5 }).map((_, i) => (
+        {Array.from({ length: 10 }).map((_, i) => (
           <div
             key={i}
             className="flex items-center gap-3 border-b px-4 py-3 last:border-0"

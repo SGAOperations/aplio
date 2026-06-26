@@ -165,6 +165,11 @@ export const AVAILABILITY_VARIANTS: Record<PositionAvailability, BadgeVariant> =
     unavailable: 'outline',
   };
 
+// Public URLs for the legal pages — referenced from the login footer, app footer,
+// and each legal page's cross-link footer. One edit when the URLs change.
+export const PRIVACY_HREF = '/privacy';
+export const TERMS_HREF = '/terms';
+
 // Maps badge variant to a design-token dot color used in stat cards and the
 // activity feed. Extracted from pipeline-summary.tsx so both consumers share
 // one source of truth (ENGINEERING §1: abstract at 2+).

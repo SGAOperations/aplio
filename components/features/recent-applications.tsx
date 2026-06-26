@@ -80,7 +80,7 @@ function ApplicationList({
             >
               {applicantLabel}
             </Link>
-            <span className="text-muted-foreground hidden shrink-0 text-xs sm:inline">
+            <span className="text-muted-foreground shrink-0 text-xs">
               {app.position.title}
             </span>
             <ApplicationStatusBadge status={app.status} />

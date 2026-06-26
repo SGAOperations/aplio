@@ -9,6 +9,8 @@ import type { Prisma } from '@/prisma/client';
 
 import type { REVIEWER_APPLICATION_STATUSES } from '@/lib/constants';
 
+import type { BadgeVariant } from '@/components/ui/badge';
+
 export type PositionWithQuestions = {
   id: string;
   title: string;
@@ -205,7 +207,7 @@ export type ApplicationForReview = Prisma.ApplicationGetPayload<{
 // statusVariant drives the dot color; sentence is pre-rendered safe copy.
 export type ActivityItem = {
   id: string;
-  statusVariant: string;
+  statusVariant: BadgeVariant;
   sentence: string;
   timestamp: Date;
 };
