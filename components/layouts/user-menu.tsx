@@ -49,10 +49,10 @@ export function UserMenu({
           className={triggerClassName}
         >
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">
-              {displayName}
+            <p className="flex items-baseline gap-1.5 text-sm font-medium">
+              <span className="truncate">{displayName}</span>
               {version && (
-                <span className="text-muted-foreground ml-1.5 shrink-0 text-xs font-normal">
+                <span className="text-muted-foreground shrink-0 text-xs font-normal">
                   v{version}
                 </span>
               )}
