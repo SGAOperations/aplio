@@ -17,7 +17,8 @@
     "prisma:seed": "npx tsx --env-file=.env prisma/seed.ts",
     "db:start": "docker compose up -d",
     "db:stop": "docker compose down",
-    "db:reset": "prisma migrate reset"
+    "db:reset": "prisma migrate reset",
+    "prepare": "husky"
   },
   "prisma": {
     "seed": "npx tsx --env-file=.env prisma/seed.ts"
@@ -69,6 +70,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
+    "husky": "^9.1.7",
     "prisma": "^7.8.0",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",

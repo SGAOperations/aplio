@@ -1,0 +1,94 @@
+#!/usr/bin/env sh
+# commit-msg hook — enforces the Aplio subject-line format defined in CLAUDE.md.
+# Installed automatically via `npm run prepare` / `npm ci`.
+
+MSG_FILE="$1"
+
+# Extract the subject: first non-blank, non-comment line of the message file.
+# git inserts '#'-prefixed comment lines; real subjects starting with '#NNN'
+# are distinguished because they begin with '#' followed immediately by a digit.
+subject=""
+while IFS= read -r line; do
+  case "$line" in
+    "") continue ;;
+  esac
+  case "$line" in
+    "#"[0-9]*) subject="$line"; break ;;
+    "#"*) continue ;;
+    *) subject="$line"; break ;;
+  esac
+done < "$MSG_FILE"
+
+if [ -z "$subject" ]; then
+  echo "commit-msg: could not extract a subject line — commit blocked." >&2
+  exit 1
+fi
+
+# ── Exemptions (pass through without validation) ────────────────────────────
+
+# git-generated subjects that cannot be reformatted by the author
+case "$subject" in
+  "Merge "*|"Revert "*|"fixup! "*|"squash! "*)
+    exit 0 ;;
+esac
+
+# Release bump — actual form used by /release: "bump version to v<x.y.z>"
+case "$subject" in
+  "bump version to v"[0-9]*"."[0-9]*"."[0-9]*)
+    exit 0 ;;
+esac
+
+# Bare semver — literal form from the ticket spec: "1.0.1" or "v1.0.2"
+if expr "$subject" : "v\{0,1\}[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$" > /dev/null 2>&1; then
+  exit 0
+fi
+
+# ── Validation ───────────────────────────────────────────────────────────────
+
+FAIL=""
+
+# Rule 1 — Length: subject must be under 80 characters
+len=${#subject}
+if [ "$len" -ge 80 ]; then
+  FAIL="${FAIL}  - Subject is ${len} characters; must be under 80."
+fi
+
+# Rule 2 — Shape: must start with #<digits><space>
+case "$subject" in
+  "#"[0-9]*" "*)
+    msg_part="${subject#\#}"
+    digits="${msg_part%%[!0-9]*}"
+    msg_part="${msg_part#"$digits"}"
+    msg_part="${msg_part# }"
+    ;;
+  *)
+    FAIL="${FAIL}${FAIL:+
+}  - Subject must start with '#<issue-number> ' (e.g. '#123 add login page')."
+    msg_part=""
+    ;;
+esac
+
+# Rule 3 — Lowercase: first char after '#NNN ' must be a–z (only if shape passed)
+if [ -n "$msg_part" ]; then
+  first_char="$(printf '%s' "$msg_part" | cut -c1)"
+  case "$first_char" in
+    [a-z]) ;;
+    *) FAIL="${FAIL}${FAIL:+
+}  - Message must begin with a lowercase letter (got '${first_char}')." ;;
+  esac
+fi
+
+# Rule 4 — No trailing period
+case "$subject" in
+  *.) FAIL="${FAIL}${FAIL:+
+}  - Subject must not end with a period." ;;
+esac
+
+# ── Report ───────────────────────────────────────────────────────────────────
+
+if [ -n "$FAIL" ]; then
+  printf '\ncommit-msg: subject rejected:\n  %s\n\nRule(s) violated:\n%s\n\nRequired format: #<issue-number> <lowercase imperative message> (under 80 chars, no trailing period)\nExample:         #123 add login page\n\n' "$subject" "$FAIL" >&2
+  exit 1
+fi
+
+exit 0
