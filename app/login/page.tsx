@@ -34,7 +34,7 @@ export default async function SignInPage({
   const isDev = process.env.VERCEL_ENV !== 'production';
 
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className="flex w-full flex-col items-center gap-4">
       <AuthView
         path="SIGN_IN"
         redirectTo={safeTo}
