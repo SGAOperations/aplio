@@ -94,10 +94,12 @@ export function ApplicationsToolbar({
   }
 
   return (
-    // min-w-0 prevents the toolbar from expanding the page when filter controls
-    // change width; overflow-x-auto lets it scroll on very narrow viewports
-    // instead of reflowing the surrounding layout.
-    <div className="min-w-0 overflow-x-auto">
+    // w-full spans the full content column to match the table sibling below.
+    // p-1 gives ≥3px clearance on all sides so 3px focus rings (input.tsx,
+    // select.tsx) are not clipped: overflow-x: auto forces overflow-y to auto
+    // per the CSS spec, silently clipping any ring bleed outside the box.
+    // min-w-0 + overflow-x-auto preserve narrow-viewport horizontal scrolling.
+    <div className="w-full min-w-0 overflow-x-auto p-1">
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="filter-position" className="text-xs">
@@ -149,8 +151,7 @@ export function ApplicationsToolbar({
           <Label htmlFor="filter-search" className="text-xs">
             Search
           </Label>
-          {/* pb-0.5 gives the focus ring room on the bottom edge so it is not clipped */}
-          <div className="relative pb-0.5">
+          <div className="relative">
             <Input
               id="filter-search"
               aria-label="Search applications"
