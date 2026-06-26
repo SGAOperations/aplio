@@ -61,6 +61,9 @@ export function UserMenu({
         <DropdownMenuLabel className="font-normal">
           <p className="truncate text-sm font-medium">{displayName}</p>
           <p className="text-muted-foreground text-xs">{roleLabel}</p>
+          {email !== displayName && (
+            <p className="text-muted-foreground truncate text-xs">{email}</p>
+          )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
