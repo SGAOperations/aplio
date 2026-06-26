@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 import { ArrowRight, Briefcase } from 'lucide-react';
 
-import { getOpenPositions } from '@/prisma/data/positions';
+import { getPositions } from '@/prisma/data/positions';
 
 import { formatDate, getPositionAvailability } from '@/lib/utils';
 
@@ -16,9 +16,9 @@ interface OpenPositionsWidgetProps {
 export async function OpenPositionsWidget({
   limit = 3,
 }: OpenPositionsWidgetProps) {
-  // getOpenPositions returns only open positions; does not surface a manager's
-  // draft/closed positions in this "Open Positions" widget context.
-  const positions = await getOpenPositions();
+  // isAdmin:false + userId:null → open-only positions; does not surface a
+  // manager's draft/closed positions in this "Open Positions" widget context.
+  const positions = await getPositions({ isAdmin: false, userId: null });
   const displayed = positions.slice(0, limit);
 
   return (
@@ -81,7 +81,7 @@ export async function OpenPositionsWidget({
                       <span className="text-muted-foreground shrink-0 text-xs">
                         {availability === 'upcoming' && position.opensAt
                           ? `Opens ${formatDate(position.opensAt)}`
-                          : /* closed_by_date or unavailable (unreachable via getOpenPositions) */ 'Closed'}
+                          : 'Closed'}
                       </span>
                     )}
                   </div>

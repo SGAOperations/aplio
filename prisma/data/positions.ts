@@ -1,5 +1,7 @@
 import 'server-only';
 
+import { cache } from 'react';
+
 import { UNRESOLVED_APPLICATION_STATUSES } from '@/lib/constants';
 import prisma from '@/lib/prisma';
 import {
@@ -35,32 +37,24 @@ const positionWithQuestionsSelect = {
 
 // Manager-aware positions query.
 // Admin: all non-deleted positions.
-// Non-admin: open positions ∪ positions the user manages (including drafts).
-// A plain applicant (manages nothing) collapses to open-only — same as before.
+// Non-admin with userId: open positions ∪ positions the user manages (including drafts).
+// Non-admin without userId (public/anonymous): open positions only.
 export async function getPositions({
   isAdmin,
   userId,
 }: {
   isAdmin: boolean;
-  userId: string;
+  userId: string | null;
 }): Promise<PositionWithQuestions[]> {
   return prisma.position.findMany({
     where: isAdmin
       ? { deletedAt: null }
-      : {
-          deletedAt: null,
-          OR: [{ status: 'open' }, { managers: { some: { id: userId } } }],
-        },
-    select: positionWithQuestionsSelect,
-    orderBy: { title: 'asc' },
-  });
-}
-
-// Open-only positions for widgets (e.g. dashboard) that must not surface
-// a manager's draft/closed positions in an "Open Positions" context.
-export async function getOpenPositions(): Promise<PositionWithQuestions[]> {
-  return prisma.position.findMany({
-    where: { status: 'open', deletedAt: null },
+      : userId
+        ? {
+            deletedAt: null,
+            OR: [{ status: 'open' }, { managers: { some: { id: userId } } }],
+          }
+        : { deletedAt: null, status: 'open' },
     select: positionWithQuestionsSelect,
     orderBy: { title: 'asc' },
   });
@@ -195,6 +189,19 @@ export async function getAcceptingPositionsCount(): Promise<number> {
   });
   return positions.filter((p) => isAcceptingApplications(p)).length;
 }
+
+// Public detail page: only open, non-deleted positions with an explicit select of
+// non-sensitive fields. Drafts/closed return null → notFound() at the call site.
+// Wrapped in React.cache so generateMetadata and the page component share one DB
+// round-trip per request even when both call this function independently.
+export const getPublicPosition = cache(async function getPublicPosition(
+  id: string,
+): Promise<PositionWithQuestions | null> {
+  return prisma.position.findUnique({
+    where: { id, status: 'open', deletedAt: null },
+    select: positionWithQuestionsSelect,
+  });
+});
 
 export async function getPositionForEdit(
   id: string,
