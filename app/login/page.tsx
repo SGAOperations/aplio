@@ -38,7 +38,10 @@ export default async function SignInPage({
       <AuthView
         path="SIGN_IN"
         redirectTo={safeTo}
-        classNames={{ form: { otpInputContainer: 'justify-center' } }}
+        classNames={{
+          base: 'max-w-md',
+          form: { otpInputContainer: 'justify-center' },
+        }}
         localization={
           applyContext
             ? {
