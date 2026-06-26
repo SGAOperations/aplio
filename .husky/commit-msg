@@ -34,7 +34,7 @@ esac
 
 # Release bump — actual form used by /release: "bump version to v<x.y.z>"
 case "$subject" in
-  "bump version to v"[0-9]*.[0-9]*.[0-9]*)
+  "bump version to v"[0-9]*"."[0-9]*"."[0-9]*)
     exit 0 ;;
 esac
 
@@ -50,7 +50,7 @@ FAIL=""
 # Rule 1 — Length: subject must be under 80 characters
 len=${#subject}
 if [ "$len" -ge 80 ]; then
-  FAIL="  - Subject is ${len} characters; must be under 80."
+  FAIL="${FAIL}  - Subject is ${len} characters; must be under 80."
 fi
 
 # Rule 2 — Shape: must start with #<digits><space>
@@ -62,8 +62,8 @@ case "$subject" in
     msg_part="${msg_part# }"
     ;;
   *)
-    FAIL="${FAIL}
-  - Subject must start with '#<issue-number> ' (e.g. '#123 add login page')."
+    FAIL="${FAIL}${FAIL:+
+}  - Subject must start with '#<issue-number> ' (e.g. '#123 add login page')."
     msg_part=""
     ;;
 esac
@@ -73,15 +73,15 @@ if [ -n "$msg_part" ]; then
   first_char="$(printf '%s' "$msg_part" | cut -c1)"
   case "$first_char" in
     [a-z]) ;;
-    *) FAIL="${FAIL}
-  - Message must begin with a lowercase letter (got '${first_char}')." ;;
+    *) FAIL="${FAIL}${FAIL:+
+}  - Message must begin with a lowercase letter (got '${first_char}')." ;;
   esac
 fi
 
 # Rule 4 — No trailing period
 case "$subject" in
-  *.) FAIL="${FAIL}
-  - Subject must not end with a period." ;;
+  *.) FAIL="${FAIL}${FAIL:+
+}  - Subject must not end with a period." ;;
 esac
 
 # ── Report ───────────────────────────────────────────────────────────────────
