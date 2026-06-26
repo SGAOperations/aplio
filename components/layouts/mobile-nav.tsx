@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 
 import {
   adminOnlyNavItems,
+  anonymousNavItems,
   baseNavItems,
   reviewerNavItems,
 } from '@/components/layouts/nav-items';
@@ -21,7 +22,7 @@ import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 
 interface MobileNavProps {
   isAdmin: boolean;
-  identity: NavIdentity;
+  identity: NavIdentity | null;
   canReviewApplications: boolean;
 }
 
@@ -32,15 +33,21 @@ export function MobileNav({
 }: MobileNavProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const navItems = [
-    ...baseNavItems,
-    ...(canReviewApplications ? reviewerNavItems : []),
-    ...(isAdmin ? adminOnlyNavItems : []),
-  ];
+
+  const navItems = identity
+    ? [
+        ...baseNavItems,
+        ...(canReviewApplications ? reviewerNavItems : []),
+        ...(isAdmin ? adminOnlyNavItems : []),
+      ]
+    : anonymousNavItems;
+
+  // Anonymous visitors land on /positions; authenticated users go to the dashboard.
+  const logoHref = identity ? '/' : '/positions';
 
   return (
     <header className="bg-sidebar border-sidebar-border flex h-14 items-center border-b px-4 md:hidden">
-      <Link href="/" className="flex items-center gap-2">
+      <Link href={logoHref} className="flex items-center gap-2">
         <Image src="/logo-dark.svg" alt="Aplio" width={32} height={32} />
         <span className="flex items-baseline gap-1.5">
           <span className="text-sm font-semibold tracking-tight">Aplio</span>
@@ -66,7 +73,7 @@ export function MobileNav({
             <div className="border-sidebar-border flex h-14 items-center border-b px-4">
               <SheetTitle asChild>
                 <Link
-                  href="/"
+                  href={logoHref}
                   className="flex items-center gap-2"
                   onClick={() => setOpen(false)}
                 >
@@ -113,7 +120,21 @@ export function MobileNav({
             </nav>
 
             <div className="border-sidebar-border mt-auto border-t p-2">
-              <UserMenu identity={identity} onNavigate={() => setOpen(false)} />
+              {identity ? (
+                <UserMenu
+                  identity={identity}
+                  onNavigate={() => setOpen(false)}
+                />
+              ) : (
+                <Button
+                  asChild
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setOpen(false)}
+                >
+                  <Link href="/login">Sign in</Link>
+                </Button>
+              )}
             </div>
           </SheetContent>
         </Sheet>

@@ -9,14 +9,16 @@ import { cn } from '@/lib/utils';
 
 import {
   adminOnlyNavItems,
+  anonymousNavItems,
   baseNavItems,
   reviewerNavItems,
 } from '@/components/layouts/nav-items';
 import { UserMenu } from '@/components/layouts/user-menu';
+import { Button } from '@/components/ui/button';
 
 interface SidebarProps {
   isAdmin: boolean;
-  identity: NavIdentity;
+  identity: NavIdentity | null;
   canReviewApplications: boolean;
 }
 
@@ -26,16 +28,22 @@ export function Sidebar({
   canReviewApplications,
 }: SidebarProps) {
   const pathname = usePathname();
-  const navItems = [
-    ...baseNavItems,
-    ...(canReviewApplications ? reviewerNavItems : []),
-    ...(isAdmin ? adminOnlyNavItems : []),
-  ];
+
+  const navItems = identity
+    ? [
+        ...baseNavItems,
+        ...(canReviewApplications ? reviewerNavItems : []),
+        ...(isAdmin ? adminOnlyNavItems : []),
+      ]
+    : anonymousNavItems;
+
+  // Anonymous visitors land on /positions; authenticated users go to the dashboard.
+  const logoHref = identity ? '/' : '/positions';
 
   return (
     <aside className="bg-sidebar border-sidebar-border hidden h-full w-56 shrink-0 flex-col border-r md:flex">
       <div className="border-sidebar-border flex h-14 items-center border-b px-4">
-        <Link href="/" className="flex items-center gap-2">
+        <Link href={logoHref} className="flex items-center gap-2">
           <Image src="/logo-dark.svg" alt="Aplio" width={32} height={32} />
           <span className="flex items-baseline gap-1.5">
             <span className="text-sm font-semibold tracking-tight">Aplio</span>
@@ -69,7 +77,13 @@ export function Sidebar({
       </nav>
 
       <div className="border-sidebar-border mt-auto border-t p-2">
-        <UserMenu identity={identity} />
+        {identity ? (
+          <UserMenu identity={identity} />
+        ) : (
+          <Button asChild variant="outline" className="w-full">
+            <Link href="/login">Sign in</Link>
+          </Button>
+        )}
       </div>
     </aside>
   );
