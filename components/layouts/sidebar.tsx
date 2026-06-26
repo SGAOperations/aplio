@@ -1,12 +1,12 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 import type { NavIdentity } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
+import { Logo } from '@/components/layouts/logo';
 import {
   adminOnlyNavItems,
   anonymousNavItems,
@@ -44,7 +44,7 @@ export function Sidebar({
     <aside className="bg-sidebar border-sidebar-border hidden h-full w-56 shrink-0 flex-col border-r md:flex">
       <div className="border-sidebar-border flex h-14 items-center border-b px-4">
         <Link href={logoHref} className="flex items-center gap-2">
-          <Image src="/logo-dark.svg" alt="Aplio" width={32} height={32} />
+          <Logo />
           <span className="flex items-baseline gap-1.5">
             <span className="text-sm font-semibold tracking-tight">Aplio</span>
             {process.env.version && (

@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
@@ -10,6 +9,7 @@ import { Menu } from 'lucide-react';
 import type { NavIdentity } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
+import { Logo } from '@/components/layouts/logo';
 import {
   adminOnlyNavItems,
   anonymousNavItems,
@@ -48,7 +48,7 @@ export function MobileNav({
   return (
     <header className="bg-sidebar border-sidebar-border flex h-14 items-center border-b px-4 md:hidden">
       <Link href={logoHref} className="flex items-center gap-2">
-        <Image src="/logo-dark.svg" alt="Aplio" width={32} height={32} />
+        <Logo />
         <span className="flex items-baseline gap-1.5">
           <span className="text-sm font-semibold tracking-tight">Aplio</span>
           {process.env.version && (
@@ -77,12 +77,7 @@ export function MobileNav({
                   className="flex items-center gap-2"
                   onClick={() => setOpen(false)}
                 >
-                  <Image
-                    src="/logo-dark.svg"
-                    alt="Aplio"
-                    width={32}
-                    height={32}
-                  />
+                  <Logo />
                   <span className="flex items-baseline gap-1.5">
                     <span className="text-sm font-semibold tracking-tight">
                       Aplio

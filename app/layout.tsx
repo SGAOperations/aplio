@@ -13,6 +13,12 @@ const inter = Inter({ variable: '--font-sans', subsets: ['latin'] });
 export const metadata: Metadata = {
   title: { default: 'Aplio', template: 'Aplio - %s' },
   description: 'A student government application management system.',
+  icons: [
+    // Light-mode favicon: white/light background logo
+    { url: '/logo-light.svg', media: '(prefers-color-scheme: light)' },
+    // Dark-mode favicon: dark background logo
+    { url: '/logo-dark.svg', media: '(prefers-color-scheme: dark)' },
+  ],
   openGraph: {
     title: 'Aplio',
     description: 'A student government application management system.',
