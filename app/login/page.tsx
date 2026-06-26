@@ -70,9 +70,19 @@ export default async function SignInPage({
         </p>
       )}
       <p className="text-muted-foreground text-xs">
-        <Link href={PRIVACY_HREF} className="hover:text-foreground hover:underline">Privacy Policy</Link>
+        <Link
+          href={PRIVACY_HREF}
+          className="hover:text-foreground hover:underline"
+        >
+          Privacy Policy
+        </Link>
         {' · '}
-        <Link href={TERMS_HREF} className="hover:text-foreground hover:underline">Terms of Service</Link>
+        <Link
+          href={TERMS_HREF}
+          className="hover:text-foreground hover:underline"
+        >
+          Terms of Service
+        </Link>
       </p>
     </div>
   );
