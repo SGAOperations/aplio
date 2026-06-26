@@ -44,7 +44,8 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
   const [confirmDeactivateId, setConfirmDeactivateId] = useState<string | null>(
     null,
   );
-  const [pendingToggleId, setPendingToggleId] = useState<string | null>(null);
+  const [togglingAdminId, setTogglingAdminId] = useState<string | null>(null);
+  const [, startToggleTransition] = useTransition();
   const [isPendingDeactivate, startDeactivateTransition] = useTransition();
 
   const q = query.trim().toLowerCase();
@@ -56,20 +57,22 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       )
     : users;
 
-  async function handleToggleAdmin(userId: string, makeAdmin: boolean) {
-    setPendingToggleId(userId);
-    try {
-      const result = await toggleUserAdmin({ userId, makeAdmin });
-      if (result?.error) {
-        toast.error(result.error);
-        return;
+  function handleToggleAdmin(userId: string, makeAdmin: boolean) {
+    setTogglingAdminId(userId);
+    startToggleTransition(async () => {
+      try {
+        const result = await toggleUserAdmin({ userId, makeAdmin });
+        if (result?.error) {
+          toast.error(result.error);
+          return;
+        }
+        toast.success(makeAdmin ? 'User promoted to admin.' : 'Admin removed.');
+      } catch {
+        toast.error('Something went wrong. Please try again.');
+      } finally {
+        setTogglingAdminId(null);
       }
-      toast.success(makeAdmin ? 'User promoted to admin.' : 'Admin removed.');
-    } catch {
-      toast.error('Something went wrong. Please try again.');
-    } finally {
-      setPendingToggleId(null);
-    }
+    });
   }
 
   function handleDeactivateConfirm() {
@@ -86,7 +89,6 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
         setConfirmDeactivateId(null);
       } catch {
         toast.error('Something went wrong. Please try again.');
-        setConfirmDeactivateId(null);
       }
     });
   }
@@ -111,7 +113,6 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="max-w-sm"
-            aria-label="Search users by name or email"
           />
         </div>
 
@@ -141,7 +142,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
                   const isSelf = user.id === currentUserId;
                   const isManager = user._count.managedPositions > 0;
                   const appCount = user._count.applications;
-                  const isTogglingAdmin = pendingToggleId === user.id;
+                  const isTogglingAdmin = togglingAdminId === user.id;
 
                   return (
                     <TableRow key={user.id}>
