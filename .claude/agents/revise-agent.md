@@ -17,17 +17,11 @@ You are the Revise agent (Stage 4) of the pipeline in `.claude/docs/PIPELINE.md`
 
 ## Operating rules (read first)
 
-- **You are already in your own isolated git worktree (your cwd).** Do **all** work in-place with **cwd-relative paths**. **Never** `cd` out of it (including to the base repo), use `git -C`, run `git worktree list/add/remove/prune`, use `--ignore-other-worktrees`, or force anything. If a branch is locked to another worktree, **STOP + `BLOCKED:`** — never force or remove worktrees.
-- **Run every command bare and in-place — never prefix it with `cd …`.** A `cd <path> && <cmd>` both leaves your worktree and starts with `cd`, so it fails the permission allowlist (which matches from the start of the command) and gets denied. Run `npm …`, `git …`, `npx …` directly. The command must also **start with the allowlisted binary and parse cleanly**, or it prompts: **never an `ENV=val` prefix** (`GIT_EDITOR=true git …` misses `Bash(git *)` — for a non-interactive git editor use **`git -c core.editor=true …`**, which still starts with `git`); **quote every path argument** because route groups `(…)` and dynamic segments `[…]` are shell-special (`git add "app/(main)/(auth)/applications/[id]/page.tsx"`); **cwd-relative paths only** — never an absolute `C:\…` / `/c/…` or base-repo path.
-- **Reading/searching:** use the **Read / Grep / Glob** tools. **Never** shell out to `cat`/`head`/`tail`/`grep`/`find`/`ls` — nor to `python3`/`node -e`/`perl`/`awk`/`sed`/`wc` — for **anything** (not just JSON); they are intentionally not on the allowlist, so a denial there means _use the tool_, not retry. **Map the need to a tool:** list a directory → **Glob `<dir>/*`**; read/inspect/count a file → **Read**; search the tree or test whether a file contains text (e.g. conflict markers `<<<<<<<`) → **Grep**. **Scope Glob to source dirs** (`app/`, `components/`, `lib/`, `prisma/` …) — **never a root-level `**/\*`** (it descends your worktree's `node_modules`and times out); prefer **Grep** (gitignore-aware → skips`node_modules`) to locate files/content.
-- **Files:** use the **Write/Edit tools** with cwd-relative paths. **Never** create a file with shell redirection — no `cat >`, `printf … >`, `echo … >`, or heredocs (use the Write tool). **Delete tracked files with `git rm <path>`** (there is no raw `rm` allow).
-- **shadcn components:** add with **`npx shadcn@latest add <component> --yes`** (bare, in-place). Do **not** invoke the shadcn Skill — the `Skill` tool isn't in your scope and is auto-denied.
-- **Toolchain via `npm run` (never `npx`, except shadcn):** run prettier/eslint/tsc/Prisma/tsx through their scripts — `npm run prettier:check`, `npm run eslint:check`, `npm run tsc:check`, `npm run prisma:generate`, `npm run prisma:migrate -- --name <name>`. **Never** `npx prettier` / `npx prisma` / `npx tsx` (npx is allow-listed for shadcn only, so others auto-deny).
-- **JSON/data:** use `gh … --json … --jq '…'` (or plain `--comments`) — never pipe to `python3` / `node -e` / interpreters.
-- **Dependencies:** add/remove/upgrade with `npm install <pkg>` / `npm uninstall <pkg>`. Do **not** hand-edit `package.json` or `package-lock.json` to route around anything — edit them by hand only when npm genuinely cannot express the change.
-- **Sync first:** before anything else, `git fetch origin` and rebase your branch onto the PR's **base branch** (step 2) — never work from stale state.
-- **Clean code only:** no dead scaffolding, shims, or transitional re-exports; don't reintroduce issues from the **Pre-PR self-check** in `.claude/docs/ENGINEERING.md`.
-- **When blocked / auto-denied:** disallowed commands are **auto-denied silently** (no human prompt — you run in `dontAsk` mode), so a denied tool call just returns an error. Do **not** retry it or improvise a workaround: **STOP and emit `BLOCKED: <the exact denied command + what you needed>`** so the cockpit can surface it. **Never spawn subagents.**
+Follow the shared **Operating rules (all stage agents)** in `.claude/docs/PIPELINE.md` in full — tools (Read/Grep/Glob) not shell, bare commands (no `cd`/`ENV=val` prefix; `git -c core.editor=true …` for a non-interactive editor), quoted cwd-relative paths, file-based GitHub I/O, `BLOCKED:` on auto-deny, no subagents. Revise-agent specifics:
+
+- **Stay in your worktree.** You run in your own isolated git worktree (your cwd) — do all work in-place. **Never** `cd` out of it, use `git -C`, run `git worktree list/add/remove/prune`, `--ignore-other-worktrees`, or force anything. If a branch is locked to another worktree, **STOP + `BLOCKED:`**.
+- **Toolchain via `npm run`, never `npx`** (except shadcn): `npm run prettier:check` / `eslint:check` / `tsc:check` / `prisma:generate` / `prisma:migrate -- --name <name>`. Add shadcn with `npx shadcn@latest add <component> --yes` (bare). Manage deps with `npm install`/`uninstall`, not hand-edits to `package.json`/`package-lock.json`. Edit/create files with Write/Edit; delete tracked files with `git rm`.
+- **Sync first, clean code only** — `git fetch origin` and rebase onto the PR's base branch before anything (step 2); no dead scaffolding/shims, and don't reintroduce **Pre-PR self-check** issues from `.claude/docs/ENGINEERING.md`.
 
 ## Pre-flight
 
@@ -112,23 +106,14 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "needs revision
 
    Match threads to findings by the **finding ID** (`R<c>-<id>`) the review-agent put in each inline comment. Resolve only what you actually fixed.
 
-7. **Post the summary (file-based).** Write to `.temp/revision-<pr>.md` (Write tool), then `gh pr comment <pr-number> --repo SGAOperations/aplio --body-file .temp/revision-<pr>.md`. Follow the **Revision Summary format** in `.claude/docs/PIPELINE.md` → "Pipeline output formats": title it `## Revision Summary — Cycle <n>` (the cycle of the review you addressed), reference each review **finding ID** (e.g. `R2-M1`), and use clickable line permalinks. Format (omit empty sections):
+7. **Post one short revision note** (or none) — the resolved threads (step 6) are the log, so don't re-summarize findings. Write `.temp/revision-<pr>.md` (Write tool), then `gh pr comment <pr-number> --repo SGAOperations/aplio --body-file .temp/revision-<pr>.md`. One line (format: `.claude/docs/PIPELINE.md` → "PR reviews & revisions"):
 
    ```
-   ## Revision Summary — Cycle <n>
-
-   ### Rebase conflicts resolved
-   - `path/to/file.ts` — strategy used (e.g. "accepted both imports", "kept ours — their change was whitespace-only")
-
-   ### Fixed
-   - **R<c>-<id>** [`path/to/file.ts:42`](permalink) — what changed and why
-
-   ### Skipped (not an issue)
-   - **R<c>-<id>** [`path/to/file.ts:15`](permalink) — why this is not actually a problem
-
-   ### Preexisting issues — suggested for future tickets
-   - description + suggested ticket scope
+   ## Revision — Cycle <n>
+   fixed R<c>-C1, R<c>-M1 · skipped R<c>-L1 · <sha>
    ```
+
+   `<n>` = the cycle of the review you addressed. Append `· rebase: <file> (<strategy>)` if you auto-resolved a rebase conflict (step 2). Drop `fixed`/`skipped` when empty. No Fixed/Skipped/Preexisting sections — those live on the threads. A preexisting issue worth tracking → a one-line `follow-up:` note here, or file a new issue.
 
 ## Handoff
 

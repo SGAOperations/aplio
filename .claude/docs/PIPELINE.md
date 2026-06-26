@@ -45,16 +45,18 @@ We **allow broad dev-command categories** (`gh`/`git`/`npm`) — with **`npx` sc
 
 Agents never pass large markdown (plans, reviews, comments) as an inline `--body "..."` argument — shell quoting of backticks/code-fences fails cross-platform. They write the payload to `.temp/` (gitignored) and use `gh ... --body-file`. The same applies to the cockpit's escalation comments.
 
-### Command form (why the allowlist sometimes "doesn't work")
+### Operating rules (all stage agents)
 
-A Bash command only matches the `permissions.allow` list if it **starts with an allowlisted binary AND parses cleanly** — otherwise it falls through to a prompt (which a background agent auto-denies). So agents must:
+Canonical rules every stage agent follows — each agent file points here and restates only its specifics. A Bash command matches the `permissions.allow` list only if it **starts with an allowlisted binary AND parses cleanly**; otherwise it falls through to a prompt that a background agent auto-denies.
 
-- **No prefixes** — never `cd … && …` and never an `ENV=val cmd` assignment; both move the start token off the binary (`GIT_EDITOR=true git …` misses `Bash(git *)`). For a non-interactive git editor use `git -c core.editor=true …`.
-- **Quote every path argument** — Next.js route groups `(…)` and dynamic segments `[…]` are shell-special and break parsing; `git add -A` avoids enumerating them.
-- **cwd-relative paths**, forward slashes — never an absolute `C:\…` / `/c/…` or base-repo path.
-- **Inspect via the Read/Grep/Glob tools**, never `cat`/`ls`/`grep`/`python3`/`wc` (not on the allowlist by design; the tool is the route).
+- **Inspect with tools, not the shell** — Read / Grep / Glob for all file reading, searching, and listing; **never** `cat`/`head`/`tail`/`grep`/`find`/`ls` nor `python3`/`node -e`/`awk`/`sed`/`wc` (not allow-listed by design — a denial means _use the tool_, not retry). Scope Glob to source dirs; prefer Grep (gitignore-aware, skips `node_modules`) over a root-level `**/*`.
+- **Run commands bare** — no `cd … && …` and no `ENV=val cmd` prefix (both move the start token off the binary; `GIT_EDITOR=true git …` misses `Bash(git *)`). For a non-interactive git editor use `git -c core.editor=true …`.
+- **Quote every path argument** — route groups `(…)` and dynamic segments `[…]` are shell-special; use cwd-relative paths with forward slashes, never an absolute `C:\…` / `/c/…` or base-repo path. `git add -A` avoids enumerating them.
+- **Write files with the Write/Edit tools** at cwd-relative paths — never shell redirection (`cat >`, `printf >`, `echo >`, heredocs). Delete tracked files with `git rm`.
+- **GitHub I/O is file-based** — large markdown goes to `.temp/` (gitignored) via `gh … --body-file`/`--input`, never inline `--body "…"`. Extract data with `gh … --json … --jq '…'`, never piped to an interpreter.
+- **When auto-denied, stop — don't improvise.** A denied command just errors (no prompt, under `dontAsk`). Don't retry or route around it: **emit `BLOCKED: <exact denied command + what you needed>`** so the cockpit surfaces it. Never spawn subagents.
 
-This is enforced in each agent's "Operating rules"; it's documented here so the rationale isn't re-debugged.
+Documented once here so the rationale isn't re-debugged; agent files restate only the rules unique to them.
 
 ## Label lifecycle
 
@@ -120,19 +122,42 @@ Permission mode: every stage agent runs **`permissionMode: dontAsk`** (auto-deny
 
 Defined once here; the stage agents follow these exactly.
 
-### PR comments & reviews (review, revise, escalation; blockers on the issue)
+### Writing style (every output)
 
-The **code review is a real GitHub PR review** (`gh api …/pulls/<pr>/reviews --input`) — a summary body **plus inline line comments** on changed lines — not a plain comment. **Event:** `COMMENT` when the reviewer is the PR author (common case — same account; GitHub forbids `REQUEST_CHANGES`/`APPROVE` on your own PR), else `REQUEST_CHANGES` (Critical/Medium) or `APPROVE`. The pipeline **label** is the real control signal regardless. Revision summaries, escalations, and blockers use `gh … --body-file`.
+Every plan, review, summary, and comment is written for a human scanning fast:
 
-- **Title (no emoji, cycle-numbered):** `## Code Review — Cycle <n>` · `## Revision Summary — Cycle <n>` · `## Pipeline Escalation` (and `## Blocker` on issues). `<n>` = prior review count + 1. Keep the literal `Code Review` text — the cockpit's cycle-cap counts it.
-- **Provenance line** under the title: `_<stage> · PR #<pr> · against plan in #<issue>_`.
-- **Findings** carry a **stable ID** (`R<cycle>-<sev><n>`) and a **clickable permalink to the exact line(s)**: ``[`path/file.ts:42`](https://github.com/SGAOperations/aplio/blob/<headRefOid>/path/file.ts#L42)`` (range `#L42-L48`); get `<headRefOid>` from `gh pr view <pr> --json headRefOid`.
-- **Severity headers use colored circles:** `### 🔴 Critical` · `### 🟠 Medium` · `### 🟡 Low` · `### ⚪ Nit`. Each finding ends with **`Suggested fix:`** (+ an alternative where useful).
-- **Escalating bar — what blocks rises with the review cycle** (so the first pass polishes everything and later passes converge): **cycle 1** any finding (incl. Nit) → `needs revision`; **cycle 2** Low+ blocks (Nit doesn't); **cycle 3+** Critical/Medium only. A nit introduced during a revision can't re-trigger at cycle ≥2. The cockpit cycle-cap (5 with Critical/Medium still open → `needs human`) is unchanged.
-- **Later (delta) reviews** open with `### Resolved since last review` / `### Still open` (referencing prior IDs) before the new findings.
-- **Inline-comment anchoring:** a `comments[]` entry is only accepted on a line **in the diff** — map it from `gh pr diff` hunk headers (added/context → `side:"RIGHT"`, new-version line number; deletions → `side:"LEFT"`, old-version line number). Findings off the diff go in the body as permalinks. If the reviews API still 422s ("Line could not be resolved"), **resubmit with `comments:[]`** (body only) so a review always lands. **Inline comments are NEW actionable findings only** — resolution/status ("resolved", "fixed", "still open") goes in the body's status sections, never as an inline comment.
-- **Thread resolution (revise):** after pushing fixes, revise replies `Fixed in <sha> (R<c>-<id>)` to each addressed inline-comment thread and resolves it via GraphQL (`addPullRequestReviewThreadReply` + `resolveReviewThread`), matching threads to findings by ID; genuinely-skipped threads stay open. Keeps unresolved conversations from blocking merge.
-- **Footer:** `_Posted by the agent pipeline._`
+- **Bullets and short sentences over paragraphs** — one idea per bullet.
+- **Never restate context the reader already has** (the ticket, a prior review, the diff) — reference it.
+- **Omit empty sections** — no "N/A" / "Not applicable" / "None" filler; if a section doesn't apply, leave it out.
+- **No meta-commentary** — don't describe the document itself ("This section records…", "For completeness…").
+- **Say it once** — never repeat a point across sections, or across body + inline + summary.
+
+### Implementation plan (plan-agent writes it into the issue body)
+
+Appended below the ticket under a `---` then `## Implementation Plan`; revision mode replaces only that block. **Do not restate the ticket** — reference it. Fixed sections in this order; the conditional ones appear **only when they apply** (omit otherwise — no stub):
+
+- **## Overview** — 2–4 sentences: what, why, the approach.
+- **## Changes** — files to create/modify, one bullet each: `` `path` — one-line reason ``.
+- **## Implementation** — ordered `- [ ]` checkboxes, one line each; fold validation / states / error-model notes into the step they belong to.
+- **## Data & contracts** _(only if schema or server actions change)_ — Prisma changes; per action: zod + auth scoping and the exact `{ error: '…' }` copy vs. throw (§4 decision test).
+- **## UX states** _(only if there's UI)_ — loading / empty / error + key copy, as bullets.
+- **## Testing** — human-runnable manual steps as `- [ ]` (feeds the PR Testing plan).
+- **## Risks / notes** _(optional)_ — only real, non-obvious ones.
+
+Most plans fit on one screen. No "Nature of this ticket" preamble, no restated Goal/Files, no N/A sections.
+
+### PR reviews & revisions
+
+The **code review is a real GitHub PR review** (`gh api …/pulls/<pr>/reviews --input`): **inline line comments carry the findings**; the body is a one-line verdict. **Event:** `COMMENT` when the reviewer is the PR author (common case — same account; GitHub forbids `REQUEST_CHANGES`/`APPROVE` on your own PR), else `REQUEST_CHANGES` (Critical/Medium) or `APPROVE`. The pipeline **label** is the real control signal regardless.
+
+**Findings live on the threads, not in a summary.** A resolved review thread _is_ the log entry — collapsed and out of the way until expanded. So a finding is never re-narrated cycle after cycle, and "what's still open" is GitHub's unresolved-conversation count.
+
+- **Review body = title + one line.** `## Code Review — Cycle <n> · <verdict>` (keep the literal `Code Review` — the cockpit cycle-cap counts it; `<verdict>` = `needs revision`/`approved`; `<n>` = prior review count + 1), then a single counts line, e.g. `2 open — 1 🔴 Critical, 1 🟠 Medium (see inline)`. Nothing else — no per-finding list, no provenance line, no footer, no Resolved/Still-open sections (thread state is the truth). **Only exception:** a finding that can't anchor to a diff line (architectural / off-diff) has no thread, so it goes in the body with a `blob/<headRefOid>` permalink (get `<headRefOid>` from `gh pr view <pr> --json headRefOid`).
+- **Each finding = one inline comment** on a diff line: `**R<n>-<sev><id>** <emoji> — <problem>. Fix: <one line>.` Stable ID `R<cycle>-<sev><id>` (e.g. `R2-M1`); severities 🔴 Critical · 🟠 Medium · 🟡 Low · ⚪ Nit. Inline comments are **new actionable findings only** — never status ("fixed"/"still open").
+- **Escalating bar — what blocks rises with the cycle** (pass 1 polishes everything, later passes converge): **cycle 1** any finding → `needs revision`; **cycle 2** Low+ blocks (Nit doesn't); **cycle 3+** Critical/Medium only. A nit introduced during a revision can't re-trigger at cycle ≥2. Cockpit cycle-cap (5 with Critical/Medium still open → `needs human`) unchanged.
+- **Inline anchoring:** a `comments[]` entry is accepted only on a line **in the diff** — map it from `gh pr diff` hunk headers (added/context → `side:"RIGHT"`, new-version line; deletions → `side:"LEFT"`, old-version line). If the reviews API 422s ("Line could not be resolved"), **resubmit with `comments:[]`** (body only) and list those findings in the body with permalinks, so a review always lands.
+- **Revision — resolve threads, don't summarize.** After pushing fixes, for each finding **fixed**: reply `Fixed in <sha>` on its thread and resolve it via GraphQL (`addPullRequestReviewThreadReply` + `resolveReviewThread`), matched by ID; **genuinely-skipped** threads get a one-line reason and stay open. Then one short PR comment per cycle (or none): `## Revision — Cycle <n>` + a single line `fixed <ids> · skipped <ids> · <sha>` (append `· rebase: <file> (<strategy>)` if a conflict was auto-resolved). No Fixed/Skipped/Preexisting sections. A preexisting issue worth tracking → a one-line `follow-up:` note or a new issue, not a summary block.
+- **Other comments:** `## Pipeline Escalation` (revise — ambiguous rebase) and `## Blocker` (impl — on the issue) stay short: what's blocked + the decision needed, via `--body-file`.
 
 ### PR description (impl writes it via `gh pr create --body-file`)
 
