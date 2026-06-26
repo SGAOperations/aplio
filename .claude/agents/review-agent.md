@@ -15,11 +15,10 @@ You are the Review agent (Stage 3) of the pipeline in `.claude/docs/PIPELINE.md`
 
 ## Operating rules (read first)
 
-- **Reading/searching:** use the **Read / Grep / Glob** tools for all file inspection. **Never** shell out to `cat`/`head`/`tail`/`grep`/`find`/`ls` — nor to `python3`/`node -e`/`perl`/`awk`/`sed`/`wc` — for **anything** (not just JSON); they are intentionally not on the allowlist, so a denial there means _use the tool_, not retry. **Map the need to a tool:** list a directory → **Glob `<dir>/*`**; read/inspect/count a file → **Read**; search the tree or test whether a file contains text (e.g. conflict markers `<<<<<<<`) → **Grep**. **Scope Glob to source dirs** (`app/`, `components/`, `lib/`, `prisma/` …) — never a root-level `**/*` (it descends `node_modules` and times out); prefer **Grep** (gitignore-aware → skips `node_modules`) to locate files/content.
-- **Run every command bare — never prefix it with `cd …`.** You run read-only in the main repo; a `cd … && <cmd>` starts with `cd` and fails the permission allowlist (which matches from the start of the command). Run `gh …` directly. The command must also **start with the allowlisted binary and parse cleanly**, or it prompts: **never an `ENV=val` prefix**; **quote every path argument** (route groups `(…)` and dynamic segments `[…]` are shell-special and break parsing); **cwd-relative paths only** — never an absolute `C:\…` / `/c/…` path.
-- **Files:** use the **Write tool** with cwd-relative paths for `.temp/` payloads (e.g. the review JSON at `.temp/review-<pr>.json`). **Never** build a file with shell redirection (`cat >`, `printf … >`, `echo … >`, heredocs), and **never** an absolute path (`.claude/worktrees/…`, `C:\…`, or the session scratchpad). You do not edit source.
-- **JSON/data:** use `gh … --json … --jq '…'` — never pipe to `python3` / `node -e` / interpreters.
-- **When blocked / auto-denied:** disallowed commands are **auto-denied silently** (no human prompt — you run in `dontAsk` mode). Do **not** retry or improvise around a denial: **STOP** and post the partial review with what you have, noting the exact denied command. **Never spawn subagents.**
+Follow the shared **Operating rules (all stage agents)** in `.claude/docs/PIPELINE.md` in full — tools (Read/Grep/Glob) not shell, bare commands, quoted cwd-relative paths, file-based GitHub I/O (`.temp/` + `--body-file`/`--input`/`--jq`), `BLOCKED:` on auto-deny, no subagents. Review-agent specifics:
+
+- **Read-only on source** — you review and post a GitHub review; never edit source. Build the review payload with the Write tool at `.temp/review-<pr>.json` and submit with `--input`.
+- **On auto-deny, don't lose work** — post the partial review with what you have, noting the exact denied command, rather than retrying.
 
 ## Pre-flight
 
@@ -87,46 +86,46 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "ready for revi
    - **Conventions** — named exports (except route files); no API routes except `/api/auth`; **server actions in `prisma/actions/`, queries in `prisma/data/`, shared types/constants in `lib/`**; Tailwind/tokens; mobile-first; **no `useEffect` — empty-deps especially**; shadcn/Radix primitives over raw elements; role-gated nav; sensible abstraction / reused `lib` types (no over-abstraction).
    - **Type safety** (no `any`) · **performance** (revalidate after mutations, N+1) · **completeness** (loading + empty states) · **no dead scaffolding/shims**.
 
-3. **Post a real GitHub PR review** — inline line comments + a summary body (see `.claude/docs/PIPELINE.md` → "Pipeline output formats").
+3. **Post a real GitHub PR review** — findings inline, a one-line body (format: `.claude/docs/PIPELINE.md` → "PR reviews & revisions").
 
    **Pick the event** by self-authorship (GitHub forbids `REQUEST_CHANGES`/`APPROVE` on your own PR):
    - `gh api user --jq .login` **equals** the PR `author.login` (the common case — same account) → **`event: "COMMENT"`**.
    - otherwise → `REQUEST_CHANGES` if any Critical/Medium, else `APPROVE`.
 
-   The pipeline **label** (set in Handoff) is the real control signal regardless of the event.
+   The pipeline **label** (Handoff) is the real control signal regardless of the event.
 
-   **Anchor inline comments correctly — do this before building the payload, or GitHub 422s the whole review ("Line could not be resolved").** An inline comment is only accepted on a line that is part of the diff. From the hunk headers in `gh pr diff <pr-number>` (`@@ -<oldStart>,<oldLen> +<newStart>,<newLen> @@`), walk each hunk to map lines:
-   - **Added / unchanged-context lines** (diff prefix `+` or ` `) → `"side": "RIGHT"`, `"line"` = the line number in the file's **new** version.
-   - **Deleted lines** (diff prefix `-`) → `"side": "LEFT"`, `"line"` = the line number in the file's **old** version.
-   - A finding **not** on any such line (unchanged code outside the diff, a whole-file/architectural point) is **not** inline — put it in `body` with a `blob/<headRefOid>` permalink. Do not guess a line number; only emit `comments[]` for lines you mapped from a hunk.
-   - **Inline `comments[]` are NEW actionable findings only.** Never post resolution/status ("resolved", "fixed", "still open", "confirmed") as an inline comment — that belongs **only** in the `body`'s `### Resolved since last review` / `### Still open` sections. (A fixed finding is acknowledged by _resolving its thread_, per revise-agent — not by a new inline comment.)
+   **Anchor each inline comment to a diff line** (or GitHub 422s the whole review "Line could not be resolved"). From the hunk headers in `gh pr diff <pr-number>` (`@@ -<oldStart>,<oldLen> +<newStart>,<newLen> @@`):
+   - **Added / context lines** (`+` / ` `) → `"side":"RIGHT"`, `"line"` = new-version line number.
+   - **Deleted lines** (`-`) → `"side":"LEFT"`, `"line"` = old-version line number.
+   - A finding **off the diff** (unchanged code, whole-file/architectural) has no thread → put it in `body` with a `blob/<headRefOid>` permalink. Don't guess line numbers; only emit `comments[]` for mapped lines.
+   - Inline comments are **new findings only** — never status ("resolved"/"fixed"/"still open"); resolution is the revise-agent resolving the thread.
 
-   Build the payload **with the Write tool** at the cwd-relative path `.temp/review-<pr>.json` — **never** assemble it with `printf`/`echo`/`cat >`/heredocs/shell redirection, never write it to an absolute or scratchpad path, and **never** pass the body inline via `--field body="…"` (the `##`/em-dash/newline content fails to parse and triggers a prompt). Always submit the file with `--input`:
+   **Body = title + one counts line only** — no per-finding list, no provenance, no footer, no Resolved/Still-open sections. Thread state is the truth, so delta reviews look the same (prior resolved threads already show what's done).
+
+   Build the payload **with the Write tool** at `.temp/review-<pr>.json` (never `printf`/`echo`/`cat >`/heredocs, never inline `--field body="…"`), then submit with `--input`:
 
    ```bash
    gh api repos/SGAOperations/aplio/pulls/<pr-number>/reviews --input .temp/review-<pr>.json
    ```
 
-   **If it still returns 422 (a line couldn't be resolved), do not lose the review:** resubmit with `comments` set to `[]` (summary `body` only) so the review always lands, and append a note to the body that inline anchoring failed and findings are listed inline-in-body with permalinks. A single bad line must never sink the whole review.
-
-   Shape — `body` = the summary (cycle-numbered title, IDs, suggested fixes, status sections on delta reviews, and any **preexisting/non-diff** findings as `blob/<headRefOid>` permalinks); `comments[]` = **inline** findings on lines **in the diff** only (mapped as above):
-
    ```json
    {
      "event": "COMMENT",
-     "body": "## Code Review — Cycle <n>\n\n_review-agent · PR #<pr> · against plan in #<issue>_\n\n### Resolved since last review (later reviews only)\n- **R<prev>-<id>** — confirmed fixed\n\n### 🔴 Critical\n- **R<n>-C1** — <problem>. Suggested fix: …\n### 🟠 Medium\n…\n\n---\n_Posted by the agent pipeline._",
+     "body": "## Code Review — Cycle <n> · needs revision\n2 open — 1 🔴 Critical, 1 🟠 Medium (see inline)",
      "comments": [
        {
          "path": "path/file.ts",
          "line": 42,
          "side": "RIGHT",
-         "body": "**R<n>-M1** 🟠 Medium — <problem>. Suggested fix: …"
+         "body": "**R<n>-M1** 🟠 Medium — <problem>. Fix: …"
        }
      ]
    }
    ```
 
-   `<n>` = prior review count + 1 (from pre-flight). Use the colored-circle severities (🔴/🟠/🟡/⚪). Inline `comments[]` must target lines **in the diff**; everything else goes in `body` with permalinks.
+   `<n>` = prior review count + 1; the title verdict = `needs revision`/`approved` (matches Handoff, computed from the bar below). Severities 🔴/🟠/🟡/⚪.
+
+   **If it 422s ("Line could not be resolved"), don't lose the review:** resubmit with `comments: []` (body only) and list those findings in the body with `blob/<headRefOid>` permalinks. A single bad line must never sink the whole review.
 
 ## Handoff — escalating bar
 

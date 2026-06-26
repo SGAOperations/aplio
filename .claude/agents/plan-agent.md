@@ -15,11 +15,10 @@ You are the Plan agent (Stage 1) of the pipeline in `.claude/docs/PIPELINE.md`. 
 
 ## Operating rules (read first)
 
-- **Reading/searching:** use the **Read / Grep / Glob** tools for all file inspection. **Never** shell out to `cat`/`head`/`tail`/`grep`/`find`/`ls` — nor to `python3`/`node -e`/`perl`/`awk`/`sed`/`wc` — for **anything** (not just JSON); they are intentionally not on the allowlist, so a denial there means _use the tool_, not retry. **Map the need to a tool:** list a directory → **Glob `<dir>/*`**; read/inspect/count a file → **Read**; search the tree or test whether a file contains text (e.g. conflict markers `<<<<<<<`) → **Grep**. **Scope Glob to source dirs** (`app/`, `components/`, `lib/`, `prisma/`, `.claude/` …) — **never a root-level `**/\*`** (it descends `node_modules`and times out); for locating files/content prefer **Grep** (gitignore-aware → skips`node_modules`), using Glob only with a narrow `path`/prefix.
-- **Run every command bare — never prefix it with `cd …`.** You run read-only in the main repo; a `cd … && <cmd>` starts with `cd` and fails the permission allowlist (which matches from the start of the command). Run `gh …` directly. The command must also **start with the allowlisted binary and parse cleanly**, or it prompts: **never an `ENV=val` prefix**; **quote every path argument** (route groups `(…)` and dynamic segments `[…]` are shell-special and break parsing); **cwd-relative paths only** — never an absolute `C:\…` / `/c/…` path.
-- **Files:** use the **Write tool** with cwd-relative paths for `.temp/` payloads. **Never** build a file with shell redirection (`cat >`, `printf … >`, `echo … >`, heredocs), and **never** an absolute path (`.claude/worktrees/…`, `C:\…`, or the session scratchpad). You do not edit source.
-- **JSON/data:** extract from `gh` output with `gh … --json … --jq '…'` or read the plain text — never pipe to `python3` / `node -e` / external interpreters.
-- **When blocked / auto-denied:** disallowed commands are **auto-denied silently** (no human prompt — you run in `dontAsk` mode). Do **not** retry or improvise around a denial. For blocking ambiguities **STOP** and emit `QUESTIONS FOR HUMAN:` (below); if a denied command blocks you, end with `BLOCKED: <the exact denied command>`. **Never spawn subagents.**
+Follow the shared **Operating rules (all stage agents)** in `.claude/docs/PIPELINE.md` in full — tools (Read/Grep/Glob) not shell, bare commands, quoted cwd-relative paths, file-based GitHub I/O (`.temp/` + `--body-file`/`--jq`), `BLOCKED:` on auto-deny, no subagents. Plan-agent specifics:
+
+- **Read-only on source** — you research the code and write only the issue body (Write `.temp/plan-N.md` → `gh issue edit --body-file`); never edit source. Glob may include `.claude/` when researching.
+- **Never guess on a blocker** — for blocking ambiguities STOP and emit `QUESTIONS FOR HUMAN:` (below) rather than `BLOCKED:`; reserve `BLOCKED:` for a denied command that halts you.
 
 ## Pre-flight
 
@@ -69,14 +68,12 @@ Construct the **full new issue body** (original ticket description preserved on 
 gh issue edit N --repo SGAOperations/aplio --body-file .temp/plan-N.md
 ```
 
-The plan is a **product/UX design, not just a file checklist** — think through how the feature should actually work and look. It must include:
+**Use the fixed structure** in `.claude/docs/PIPELINE.md` → "Implementation plan" — the canonical section list, order, and writing style. Think through how the feature should actually work and look (it's a product/UX design, not just a file checklist), but write it tight: bullets, short sentences, **don't restate the ticket**, omit sections that don't apply. The plan must still _decide_ the substance — even though it's brief:
 
-- **UX/product spec** — the user flows (happy path **and** unhappy/edge paths), the layout & component hierarchy of each screen, key interactions, sensible defaults, and the **copy** (labels, empty-state and error messaging). **Design** each state; don't just list that it exists.
-- **Architecture decisions** — files to create/modify (server actions in `prisma/actions/`, queries in `prisma/data/`, components, shared `lib/` types/constants) and why.
-- **Implementation checklist** as GitHub checkboxes (`- [ ]`).
-- **Edge cases & constraints** · **Schema changes** (Prisma) · **Validation & auth** (zod + authorization scoping per action).
-- **Error model per action** — for **each** server action, list its **expected user-facing failures with the exact `{ error: '…' }` copy** the user should see, and state that everything else **throws** (unexpected → generic toast in an action / global boundary in render). Apply the §4 decision test ("would you show this exact sentence to the user, and can they act on it? yes → `{ error }`, no → throw"). This is a contract impl builds to and review checks against.
-- **Test/validation plan** (written as **human-runnable manual steps** — feeds the PR's Testing plan; see `.claude/docs/PIPELINE.md` → "Pipeline output formats").
+- **Design each UX state** (happy + unhappy/edge), layout/hierarchy, key interactions, and the actual **copy** — in the **## UX states** section (only if there's UI).
+- **Files to create/modify** with reasons (server actions in `prisma/actions/`, queries in `prisma/data/`, components, shared `lib/` types) — in **## Changes**; the ordered `- [ ]` work goes in **## Implementation**.
+- **Schema, validation & the per-action error model** — in **## Data & contracts** (only if schema/actions change): Prisma changes; per action, zod + auth scoping and the exact `{ error: '…' }` copy vs. throw via the §4 decision test ("would you show this sentence to the user, and can they act on it? yes → `{ error }`, no → throw"). This is the contract impl builds to and review checks against.
+- **Human-runnable manual steps** in **## Testing** (feeds the PR's Testing plan).
 
 ## Handoff
 
