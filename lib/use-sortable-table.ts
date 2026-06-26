@@ -86,21 +86,21 @@ export function useSortableTable<T>(
 
   const toggle = useCallback(
     (key: string) => {
-      if (sort.key !== key) {
-        // Inactive column → sort asc.
+      if (params.sort !== key) {
+        // No explicit URL sort on this column → begin cycle at asc.
         void setParams({ sort: key as (typeof validKeys)[number], dir: 'asc' });
-      } else if (sort.direction === 'asc') {
-        // Active asc → sort desc.
+      } else if (params.dir !== 'desc') {
+        // Explicitly sorted asc (or no dir param, which defaults to asc) → desc.
         void setParams({
           sort: key as (typeof validKeys)[number],
           dir: 'desc',
         });
       } else {
-        // Active desc → clear (return to default order).
+        // Explicitly sorted desc → clear (return to default order).
         void setParams({ sort: null, dir: null });
       }
     },
-    [sort.key, sort.direction, setParams],
+    [params.sort, params.dir, setParams],
   );
 
   const sortedRows = useMemo(() => {
