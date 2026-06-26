@@ -67,7 +67,7 @@ export function PositionCard({
                 </Link>
               </Button>
               <Button asChild variant="outline" size="sm">
-                <Link href={`/positions/${position.id}/applications`}>
+                <Link href={`/applications?positionId=${position.id}`}>
                   <Inbox className="size-4" />
                   Applications
                 </Link>

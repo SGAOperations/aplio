@@ -307,7 +307,6 @@ export async function updateApplicationStatus(
 
   revalidatePath(`/applications/${applicationId}`);
   revalidatePath('/applications');
-  revalidatePath(`/positions/${application.positionId}/applications`);
 }
 
 const updateApplicationStatusesSchema = z.object({
