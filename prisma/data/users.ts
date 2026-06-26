@@ -14,9 +14,13 @@ export async function getUsersForAdmin(): Promise<AdminUserListItem[]> {
       email: true,
       isAdmin: true,
       createdAt: true,
+      managedPositions: {
+        where: { deletedAt: null },
+        select: { id: true, title: true },
+        orderBy: { title: 'asc' },
+      },
       _count: {
         select: {
-          managedPositions: { where: { deletedAt: null } },
           applications: {
             where: { deletedAt: null, status: { not: 'draft' } },
           },

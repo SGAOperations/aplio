@@ -221,9 +221,9 @@ export type AdminUserListItem = Prisma.UserGetPayload<{
     email: true;
     isAdmin: true;
     createdAt: true;
+    managedPositions: { select: { id: true; title: true } };
     _count: {
       select: {
-        managedPositions: { where: { deletedAt: null } };
         applications: { where: { deletedAt: null; status: { not: 'draft' } } };
       };
     };

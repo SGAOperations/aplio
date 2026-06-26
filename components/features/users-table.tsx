@@ -124,6 +124,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
                 <TableHead>Roles</TableHead>
                 <TableHead>Joined</TableHead>
                 <TableHead>Applications</TableHead>
+                <TableHead>Managed Positions</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -131,7 +132,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
               {filtered.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={5}
+                    colSpan={6}
                     className="text-muted-foreground text-center"
                   >
                     No users match your search.
@@ -140,7 +141,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
               ) : (
                 filtered.map((user) => {
                   const isSelf = user.id === currentUserId;
-                  const isManager = user._count.managedPositions > 0;
+                  const isManager = user.managedPositions.length > 0;
                   const appCount = user._count.applications;
                   const isTogglingAdmin = togglingAdminId === user.id;
 
@@ -189,7 +190,25 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
                         )}
                       </TableCell>
                       <TableCell>
-                        <div className="flex flex-wrap gap-2">
+                        {isManager ? (
+                          <div className="flex flex-wrap gap-1">
+                            {user.managedPositions.slice(0, 2).map((pos) => (
+                              <Badge key={pos.id} variant="outline">
+                                {pos.title}
+                              </Badge>
+                            ))}
+                            {user.managedPositions.length > 2 && (
+                              <Badge variant="outline">
+                                +{user.managedPositions.length - 2} more
+                              </Badge>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex flex-wrap justify-end gap-2">
                           <Button
                             variant="outline"
                             size="sm"
