@@ -212,6 +212,24 @@ export type ActivityItem = {
   timestamp: Date;
 };
 
+// Admin-only type — exposes other users' identities (name/email/role/counts).
+// Must only be used in admin-gated contexts; never serialize to non-admin clients.
+export type AdminUserListItem = Prisma.UserGetPayload<{
+  select: {
+    id: true;
+    name: true;
+    email: true;
+    isAdmin: true;
+    createdAt: true;
+    managedPositions: { select: { id: true; title: true } };
+    _count: {
+      select: {
+        applications: { where: { deletedAt: null; status: { not: 'draft' } } };
+      };
+    };
+  };
+}>;
+
 // Identity shape passed to nav components so sidebar and mobile nav agree
 // on what to display in the user menu.
 export interface NavIdentity {
