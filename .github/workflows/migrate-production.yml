@@ -1,0 +1,80 @@
+# Migrate Production DB — deploy pending migrations to long-lived environments
+#
+# Required secrets (GitHub → Settings → Secrets and variables → Actions):
+#   PRODUCTION_DATABASE_URL — direct/unpooled Postgres connection string for the
+#                             production database; used on pushes to `main`.
+#   DEV_DATABASE_URL        — direct/unpooled Postgres connection string for the
+#                             dev database; used on pushes to `dev`.
+#
+# Both secrets MUST use a direct (unpooled) connection — `prisma migrate deploy`
+# requires a direct connection; a pooled/PgBouncer endpoint will cause the
+# migration step to fail. The selected secret is assigned to DATABASE_URL at
+# runtime by branch.
+#
+# Failure model: a failed migration fails this workflow loudly (no continue-on-error).
+# There is no automated rollback — manual intervention is required on failure.
+
+name: Migrate Production DB
+
+on:
+  push:
+    branches: [main, dev]
+
+concurrency:
+  group: migrate-db-${{ github.ref }}
+  cancel-in-progress: false # migrations must not be interrupted mid-apply
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    name: Deploy migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Select database URL
+        env:
+          PRODUCTION_DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          DEV_DATABASE_URL: ${{ secrets.DEV_DATABASE_URL }}
+        run: |
+          case "${{ github.ref_name }}" in
+            main)
+              SELECTED_SECRET="$PRODUCTION_DATABASE_URL"
+              SECRET_NAME="PRODUCTION_DATABASE_URL"
+              ;;
+            dev)
+              SELECTED_SECRET="$DEV_DATABASE_URL"
+              SECRET_NAME="DEV_DATABASE_URL"
+              ;;
+            *)
+              echo "::error::Unrecognized branch '${{ github.ref_name }}'. Update on.push.branches and the case statement together."
+              exit 1
+              ;;
+          esac
+
+          if [ -z "$SELECTED_SECRET" ]; then
+            echo "::error::Required secret $SECRET_NAME for branch ${{ github.ref_name }} is not configured. Add it under GitHub → Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+          echo "DATABASE_URL=$SELECTED_SECRET" >> "$GITHUB_ENV"
+
+      - name: Generate Prisma client
+        run: npm run prisma:generate
+
+      - name: Apply migrations
+        run: npm run prisma:migrate:deploy
