@@ -98,3 +98,39 @@ export function isAcceptingApplications(
 ): boolean {
   return getPositionAvailability(position, now) === 'accepting';
 }
+
+interface FormatTableCountOptions {
+  shown: number;
+  total: number;
+  /** Singular noun, e.g. "application". Pluralized by appending "s" unless `pluralNoun` is given. */
+  noun: string;
+  /** Override the plural form if it is not simply `noun + "s"`. */
+  pluralNoun?: string;
+  /**
+   * Set to true when the shown count is capped (e.g. `getApplications` caps at 100)
+   * so the display reads "100+" rather than a misleadingly exact number.
+   */
+  shownCapped?: boolean;
+}
+
+/**
+ * Formats a table row count for display in a toolbar.
+ *
+ * When shown === total returns "{total} {noun}" (no redundant x/x).
+ * When filtered returns "{shown} / {total} {noun}".
+ * When shownCapped and shown === total (capped threshold) uses "100+" for shown side.
+ */
+export function formatTableCount({
+  shown,
+  total,
+  noun,
+  pluralNoun,
+  shownCapped = false,
+}: FormatTableCountOptions): string {
+  const plural = pluralNoun ?? `${noun}s`;
+  const nounLabel = total === 1 && shown === total ? noun : plural;
+  const shownLabel = shownCapped ? '100+' : String(shown);
+
+  if (!shownCapped && shown === total) return `${total} ${nounLabel}`;
+  return `${shownLabel} / ${total} ${plural}`;
+}

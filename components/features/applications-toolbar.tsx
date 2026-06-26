@@ -7,6 +7,7 @@ import { X } from 'lucide-react';
 
 import { REVIEWER_APPLICATION_STATUS_OPTIONS } from '@/lib/constants';
 import type { ApplicationFilters } from '@/lib/types';
+import { formatTableCount } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,11 +23,17 @@ import {
 interface ApplicationsToolbarProps {
   positions: { id: string; title: string }[];
   filters: ApplicationFilters;
+  shown: number;
+  total: number;
+  shownCapped: boolean;
 }
 
 export function ApplicationsToolbar({
   positions,
   filters,
+  shown,
+  total,
+  shownCapped,
 }: ApplicationsToolbarProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -178,6 +185,13 @@ export function ApplicationsToolbar({
             Clear filters
           </Button>
         )}
+
+        <p
+          aria-live="polite"
+          className="text-muted-foreground self-end text-sm sm:ml-auto"
+        >
+          {formatTableCount({ shown, total, noun: 'application', shownCapped })}
+        </p>
       </div>
     </div>
   );

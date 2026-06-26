@@ -293,6 +293,25 @@ export async function getMyRecentActivity(
   });
 }
 
+// Caller-scoped unfiltered count of non-draft applications, used for the
+// toolbar "shown / total" display. Shares the same baseWhere scope as
+// getApplications (admins: all non-draft; managers: own positions only).
+// No filters are applied — this is the denominator for the count display.
+export async function getApplicationsTotal(user: {
+  id: string;
+  isAdmin: boolean;
+}): Promise<number> {
+  const where = user.isAdmin
+    ? { deletedAt: null, status: { not: 'draft' as const } }
+    : {
+        deletedAt: null,
+        status: { not: 'draft' as const },
+        position: { managers: { some: { id: user.id } } },
+      };
+
+  return prisma.application.count({ where });
+}
+
 // Returns positions the caller may review — used to populate the Position filter
 // Select on /applications. Admins see all non-deleted; managers see their positions.
 export async function getReviewablePositions(user: {
