@@ -60,16 +60,6 @@ export async function getPositions({
   });
 }
 
-// Open-only positions for widgets (e.g. dashboard) that must not surface
-// a manager's draft/closed positions in an "Open Positions" context.
-export async function getOpenPositions(): Promise<PositionWithQuestions[]> {
-  return prisma.position.findMany({
-    where: { status: 'open', deletedAt: null },
-    select: positionWithQuestionsSelect,
-    orderBy: { title: 'asc' },
-  });
-}
-
 // Admin-only: returns all positions still worth an admin's attention.
 // A position is included when any of these hold:
 //   - status is 'open' or 'draft' (always show)

@@ -53,6 +53,6 @@ export const config = {
   // Exclude Next internals, public metadata/icon assets, and static images so
   // they load on unauthenticated routes without being redirected to login.
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|icon.svg|logo-icon.svg|apple-icon|sitemap.xml|robots.txt).*)',
+    '/((?!_next/static|_next/image|favicon.ico|icon.svg|logo-dark.svg|apple-icon|sitemap.xml|robots.txt).*)',
   ],
 };
