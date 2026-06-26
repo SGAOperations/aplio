@@ -85,7 +85,9 @@ export default async function ApplicationsPage({
     getApplicationsTotal(user),
   ]);
 
-  const shownCapped = applications.length >= 100;
+  // `total > applications.length` is true only when the take:100 cap actually
+  // truncated results — avoids a false positive when exactly 100 apps exist.
+  const shownCapped = total > applications.length;
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -99,6 +101,7 @@ export default async function ApplicationsPage({
         shown={applications.length}
         total={total}
         shownCapped={shownCapped}
+        hasActiveFilters={hasActiveFilters}
       />
 
       <ApplicationsTable

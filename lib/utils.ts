@@ -111,14 +111,20 @@ interface FormatTableCountOptions {
    * so the display reads "100+" rather than a misleadingly exact number.
    */
   shownCapped?: boolean;
+  /**
+   * Whether any filters are currently active. When false (unfiltered), the
+   * function always collapses to "{total} {noun}" regardless of shown vs total —
+   * this matters when capping is in play (shown=100, total=250, no filters).
+   */
+  isFiltered?: boolean;
 }
 
 /**
  * Formats a table row count for display in a toolbar.
  *
- * When shown === total returns "{total} {noun}" (no redundant x/x).
+ * When unfiltered (isFiltered=false) returns "{total} {noun}" (no x/x).
  * When filtered returns "{shown} / {total} {noun}".
- * When shownCapped and shown === total (capped threshold) uses "100+" for shown side.
+ * When shownCapped uses "100+" for the shown side.
  */
 export function formatTableCount({
   shown,
@@ -126,11 +132,12 @@ export function formatTableCount({
   noun,
   pluralNoun,
   shownCapped = false,
+  isFiltered = false,
 }: FormatTableCountOptions): string {
   const plural = pluralNoun ?? `${noun}s`;
   const nounLabel = total === 1 ? noun : plural;
   const shownLabel = shownCapped ? '100+' : String(shown);
 
-  if (shown === total) return `${shownLabel} ${nounLabel}`;
+  if (!isFiltered) return `${total} ${nounLabel}`;
   return `${shownLabel} / ${total} ${nounLabel}`;
 }

@@ -26,6 +26,7 @@ interface ApplicationsToolbarProps {
   shown: number;
   total: number;
   shownCapped: boolean;
+  hasActiveFilters: boolean;
 }
 
 export function ApplicationsToolbar({
@@ -34,6 +35,7 @@ export function ApplicationsToolbar({
   shown,
   total,
   shownCapped,
+  hasActiveFilters: hasActiveFiltersProp,
 }: ApplicationsToolbarProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -51,13 +53,7 @@ export function ApplicationsToolbar({
   // typing (without waiting for the debounce to update the URL).
   const [searchValue, setSearchValue] = useState(filters.q ?? '');
 
-  const hasActiveFilters = !!(
-    filters.positionId ||
-    filters.status ||
-    filters.userId ||
-    filters.q ||
-    filters.sort
-  );
+  const hasActiveFilters = hasActiveFiltersProp;
 
   function updateParam(key: string, value: string | undefined) {
     const params = new URLSearchParams(searchParams.toString());
@@ -190,7 +186,13 @@ export function ApplicationsToolbar({
           aria-live="polite"
           className="text-muted-foreground self-end text-sm sm:ml-auto"
         >
-          {formatTableCount({ shown, total, noun: 'application', shownCapped })}
+          {formatTableCount({
+            shown,
+            total,
+            noun: 'application',
+            shownCapped,
+            isFiltered: hasActiveFilters,
+          })}
         </p>
       </div>
     </div>
