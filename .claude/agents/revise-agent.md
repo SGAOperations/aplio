@@ -68,7 +68,15 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "needs revision
    npm run prisma:generate
    ```
 
-   If the rebase **conflicts**: **`git rebase --abort`** and escalate — **never resolve conflicts yourself and never `git rebase --continue`**. Write the conflict description to `.temp/conflict-<pr>.md`, `gh pr comment <pr-number> --repo SGAOperations/aplio --body-file .temp/conflict-<pr>.md`, `gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "revising" --add-label "needs human"`, and end with: `BLOCKED: rebase of <branch> onto origin/<base> conflicts in <files>; human decision needed.` (If the rebase pauses for a non-conflict reason and you must continue, use `git -c core.editor=true rebase --continue` — never an `ENV=val` prefix.)
+   If the rebase **conflicts**, follow the **Rebase conflict protocol** below — attempt autonomous resolution for structurally unambiguous conflicts, escalate only when judgment requires the original author. **Fail closed: when in doubt about any single conflict, abort the whole rebase and escalate** — never partially resolve, and never let an auto-resolve silently drop a side's logic.
+
+   **Rebase conflict protocol** (the canonical classification matrix — what is auto-resolvable vs. what must escalate — lives in `.claude/docs/PIPELINE.md` → "Rebase conflict protocol"; read it before classifying):
+
+   - **a. Never-touch short-circuit (check first).** List conflicted files with `git diff --name-only --diff-filter=U`. If **any** conflicted file is a Prisma migration (`prisma/migrations/**/*.sql`), `CLAUDE.md` or any `.claude/docs/**` file, or env/config (`.env*`, `next.config.*`), **skip classification entirely and escalate** (step e) — these are correctness- or policy-critical and never safe to auto-merge, however trivial the diff looks.
+   - **b. Inspect.** Otherwise, for each conflicted file use **Grep** (`<<<<<<<`) to find the markers and **Read** to inspect both sides of every hunk. Never `cat`/`sed`/shell-redirect.
+   - **c. Classify** every conflict against the matrix in `PIPELINE.md`. A conflict is **auto-resolvable** only when ours and theirs are in clearly separate, non-overlapping sections (e.g. each side added a different import/export), one side made a whitespace/formatting-only change in the other's area, one side deleted a block the other never touched, or it is a generated lockfile. It must **escalate** when both sides modified the same function body / expression / schema field / constant or the same lines, or when accepting one side would drop the other's logic. If **all** conflicts are auto-resolvable → step d; if **any** is ambiguous/semantic → step e (abort the entire rebase, do not partially resolve).
+   - **d. Resolve (all auto-resolvable).** For each file, use **Edit/Write** to produce the merged content with **every conflict marker removed** (`<<<<<<<`, `=======`, `>>>>>>>`), then `git add "<path>"` (quote the path — `(group)`/`[id]` segments break an unquoted add). For `package-lock.json`, prefer taking the base's lockfile and re-running `npm ci` so it reflects the rebased tree, rather than hand-merging JSON. Then continue **non-interactively**: `git -c core.editor=true rebase --continue` (never a bare `git rebase --continue` that may open an editor, never an `ENV=val` prefix). A rebase can pause more than once — if a later step surfaces new conflicts, **re-run this protocol from step a** for them. Record each file's resolution strategy for the step 7 summary. When the rebase completes, proceed to `npm ci` / `npm run prisma:generate` and the rest of the steps as normal.
+   - **e. Escalate (any ambiguous/semantic/never-touch).** `git rebase --abort`. Write a `## Pipeline Escalation` body to `.temp/conflict-<pr>.md` (Write tool) that lists each conflicting file, the specific ambiguous hunks, both sides of each conflict, and why autonomous resolution was not safe. Then `gh pr comment <pr-number> --repo SGAOperations/aplio --body-file .temp/conflict-<pr>.md`, `gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "revising" --add-label "needs human"`, and end with: `BLOCKED: rebase of <branch> onto origin/<base> has ambiguous conflicts in <files>; human decision needed.`
 
 3. **Apply fixes** per the review's findings. Fix **every finding the review flagged at this cycle's bar** (the review uses an escalating bar — on an early cycle that includes Low/Nit; fix them rather than deferring), all **introduced in this PR**. Skip a flagged item only if it's genuinely not an issue (explain the skip). **Preexisting** findings of any severity: do not fix — note them as suggested future tickets in the summary. No scope creep beyond the review.
 
@@ -108,6 +116,9 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "needs revision
 
    ```
    ## Revision Summary — Cycle <n>
+
+   ### Rebase conflicts resolved
+   - `path/to/file.ts` — strategy used (e.g. "accepted both imports", "kept ours — their change was whitespace-only")
 
    ### Fixed
    - **R<c>-<id>** [`path/to/file.ts:42`](permalink) — what changed and why

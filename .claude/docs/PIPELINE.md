@@ -30,7 +30,7 @@ File the issue → in the cockpit: "work on #N, auto-approve the plan" → wait 
 
 - **Cockpit** (`/pipeline`, a skill) runs in the human's interactive session. It owns the conversation, the human gates (`AskUserQuestion`), and the wakeup schedule (`ScheduleWakeup`) — tools that only exist in a main session, not a subagent.
 - **Stage workers** are **subagents** in `.claude/agents/` (`plan-agent`, `impl-agent`, `review-agent`, `revise-agent`). Each carries its own `model`, tool scope, `permissionMode`, and (for the two that write code) `isolation: worktree` in its frontmatter. The cockpit dispatches by `subagent_type`; it sets nothing else at the call site.
-- **`impl-agent` and `revise-agent` get their own isolated git worktree** — a fresh checkout where they `npm ci` + `npm run prisma:generate`, do the work, and push a feature branch. impl branches from `main`; **revise rebases onto the PR's base branch** (`baseRefName`, not assumed `main`). No manual `git worktree`, symlinks, or `.env` are involved.
+- **`impl-agent` and `revise-agent` get their own isolated git worktree** — a fresh checkout where they `npm ci` + `npm run prisma:generate`, do the work, and push a feature branch. impl branches from `main`; **revise rebases onto the PR's base branch** (`baseRefName`, not assumed `main`), autonomously resolving structurally unambiguous conflicts and escalating only ambiguous ones (see "Rebase conflict protocol"). No manual `git worktree`, symlinks, or `.env` are involved.
 - **`plan-agent` and `review-agent` are read-only on source** (`disallowedTools: Edit`); they only read code and write to GitHub via `gh`.
 
 ### Why background dispatch needs care
@@ -77,14 +77,14 @@ Rule: **every stage agent's first action is swapping its trigger label for its i
 
 ### PR labels
 
-| Label              | Set by                        | Type      | Meaning                                                                                   |
-| ------------------ | ----------------------------- | --------- | ----------------------------------------------------------------------------------------- |
-| `ready for review` | `impl-agent` / `revise-agent` | trigger   | Dispatch `review-agent`                                                                   |
-| `reviewing`        | `review-agent`                | in-flight | Review underway                                                                           |
-| `needs revision`   | `review-agent`                | trigger   | Dispatch `revise-agent` (subject to cycle cap)                                            |
-| `revising`         | `revise-agent`                | in-flight | Fixes underway                                                                            |
-| `approved`         | `review-agent`                | terminal  | Findings are at/under the current cycle's bar (escalating, below); human merges on GitHub |
-| `needs human`      | Cockpit / `revise-agent`      | gate      | 5 cycles without convergence or rebase conflict; pipeline stops                           |
+| Label              | Set by                        | Type      | Meaning                                                                                          |
+| ------------------ | ----------------------------- | --------- | ------------------------------------------------------------------------------------------------ |
+| `ready for review` | `impl-agent` / `revise-agent` | trigger   | Dispatch `review-agent`                                                                          |
+| `reviewing`        | `review-agent`                | in-flight | Review underway                                                                                  |
+| `needs revision`   | `review-agent`                | trigger   | Dispatch `revise-agent` (subject to cycle cap)                                                   |
+| `revising`         | `revise-agent`                | in-flight | Fixes underway                                                                                   |
+| `approved`         | `review-agent`                | terminal  | Findings are at/under the current cycle's bar (escalating, below); human merges on GitHub        |
+| `needs human`      | Cockpit / `revise-agent`      | gate      | 5 cycles without convergence, or an ambiguous rebase conflict needing the author; pipeline stops |
 
 ## Stages and models
 
@@ -146,7 +146,41 @@ Write the message to `.temp/commit-msg.txt` and `git commit -F .temp/commit-msg.
 
 - **Review ↔ revise non-convergence** — before each revise dispatch the cockpit counts `## Code Review` comments; at 5 with Critical/Medium still found it labels `needs human`, comments, and stops dispatching for it.
 - **Impl blocker** — `impl-agent` comments `## Blocker`, labels `blocked`, and reports `BLOCKED:`; the cockpit relays and resumes the same agent with the human's decision.
-- **Rebase conflict during revision** — `revise-agent` aborts the rebase, comments, labels `needs human`.
+- **Rebase conflict during revision** — `revise-agent` attempts autonomous resolution per the **Rebase conflict protocol** below; it aborts, comments with a `## Pipeline Escalation`, and labels `needs human` **only** when a conflict is ambiguous/semantic (or on the never-touch list).
+
+### Rebase conflict protocol (for `revise-agent`)
+
+When `git rebase origin/<base>` hits conflicts, `revise-agent` resolves the structurally unambiguous ones itself and escalates the rest. **Fail closed:** if any single conflict is ambiguous or on the never-touch list, abort the **entire** rebase and escalate — never partially resolve, and never let an auto-resolve silently drop a side's logic.
+
+1. **Inspect conflicts** — run `git diff --name-only --diff-filter=U` to list conflicted files. For each file, read the conflict markers (via the Grep/Read tools — `<<<<<<<`).
+
+2. **Classify each conflict:**
+
+   | Auto-resolvable ✓                                                                                                      | Escalate ✗                                                                            |
+   | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+   | Our changes and theirs are in clearly separate sections of the file (non-overlapping line ranges within the same hunk) | Both sides modified the same function body, same expression, or same schema field     |
+   | `package-lock.json` or other generated/lockfile conflicts                                                              | Prisma migration files (`prisma/migrations/**/*.sql`) — never auto-resolve migrations |
+   | Theirs added a new import / export; ours added a different one; no line overlap                                        | Type definitions or constants where both sides changed the same key                   |
+   | Theirs made a whitespace/formatting-only change in our area                                                            | Logic changes on the same lines from both sides                                       |
+   | One side deleted a block entirely that the other side didn't touch                                                     | Any conflict where accepting one side would silently drop the other's logic           |
+
+3. **If all conflicts are auto-resolvable:**
+   - Resolve each conflict (pick ours, pick theirs, or merge cleanly) with the Edit/Write tools — removing every conflict marker — then `git add "<path>"` (quoted), then `git -c core.editor=true rebase --continue` (non-interactive; never a bare `--continue` that may open an editor). For `package-lock.json`, prefer taking the base's lockfile and re-running `npm ci` over hand-merging JSON. A rebase may pause repeatedly — re-run this protocol for any new conflicts each pause.
+   - In the revision summary comment, list each resolved file and state the resolution strategy used (e.g. "accepted both imports", "kept ours — their change was whitespace-only").
+
+4. **If any conflict is ambiguous/semantic:**
+   - `git rebase --abort` immediately (abort the whole rebase — do not leave a half-rebased state).
+   - Comment on the PR with a `## Pipeline Escalation` section that:
+     - Lists each conflicting file and the specific hunks that are ambiguous.
+     - Describes both sides of each conflict.
+     - States why autonomous resolution was not safe.
+   - Label the issue `needs human` and stop.
+
+5. **Never** auto-resolve conflicts in (escalate regardless of apparent simplicity):
+   - Prisma migration files (`prisma/migrations/**/*.sql`)
+   - `CLAUDE.md` or any `.claude/docs/` file
+   - Environment config (`.env*`, `next.config.*`)
+
 - **Plan questions** — `plan-agent` never guesses: it returns `QUESTIONS FOR HUMAN:` and the cockpit relays, then resumes it with answers.
 
 ## Stopping & draining
