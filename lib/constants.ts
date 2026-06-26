@@ -191,6 +191,10 @@ export const AVAILABILITY_VARIANTS: Record<PositionAvailability, BadgeVariant> =
 export const PRIVACY_HREF = '/privacy';
 export const TERMS_HREF = '/terms';
 
+// Maximum character length for a user's full name — shared between the zod schema
+// in the server action and the client-side NameField component.
+export const NAME_MAX_LENGTH = 100;
+
 // Maps badge variant to a design-token dot color used in stat cards and the
 // activity feed. Extracted from pipeline-summary.tsx so both consumers share
 // one source of truth (ENGINEERING §1: abstract at 2+).

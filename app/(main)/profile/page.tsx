@@ -4,6 +4,7 @@ import { getProfileData } from '@/prisma/data/profile';
 
 import { getCurrentUser } from '@/lib/auth/server';
 
+import { NameField } from '@/components/features/name-field';
 import { ProfileForm } from '@/components/features/profile-form';
 import { PageHeader } from '@/components/layouts/page-header';
 
@@ -20,6 +21,7 @@ export default async function ProfilePage() {
           title="Profile"
           description="Your answers are shared across every application."
         />
+        {!user.name?.trim() && <NameField defaultName={user.name ?? ''} />}
         <ProfileForm profileData={profileData} />
       </div>
     </div>

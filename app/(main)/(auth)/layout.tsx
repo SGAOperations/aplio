@@ -13,6 +13,9 @@ export default async function AuthGateLayout({
 }) {
   const user = await getCurrentUser();
 
+  // Name gate is universal — every role must set a name before accessing the app.
+  if (!user.name?.trim()) redirect('/profile');
+
   if (user.isAdmin) return <>{children}</>;
 
   if (await isManager(user.id)) return <>{children}</>;
