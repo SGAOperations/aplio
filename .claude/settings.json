@@ -20,6 +20,8 @@
       "Bash(gh auth *)",
       "Bash(git push * main)",
       "Bash(git push origin main)",
+      "Bash(git push * dev)",
+      "Bash(git push origin dev)",
       "Bash(npm publish *)",
       "Bash(npm login *)",
       "Bash(npm adduser *)",
