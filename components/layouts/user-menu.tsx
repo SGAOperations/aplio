@@ -33,7 +33,6 @@ export function UserMenu({
 }: UserMenuProps) {
   const { name, email, roleLabel, isBypass } = identity;
   const displayName = name ?? email;
-  const version = process.env.version;
   const [pending, startTransition] = useTransition();
 
   const triggerClassName =
@@ -49,14 +48,7 @@ export function UserMenu({
           className={triggerClassName}
         >
           <div className="min-w-0 flex-1">
-            <p className="flex items-baseline gap-1.5 text-sm font-medium">
-              <span className="truncate">{displayName}</span>
-              {version && (
-                <span className="text-muted-foreground shrink-0 text-xs font-normal">
-                  v{version}
-                </span>
-              )}
-            </p>
+            <p className="truncate text-sm font-medium">{displayName}</p>
             <p className="text-muted-foreground text-xs">{roleLabel}</p>
           </div>
           <ChevronUp
