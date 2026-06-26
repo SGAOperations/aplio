@@ -42,7 +42,14 @@ export function MobileNav({
     <header className="bg-sidebar border-sidebar-border flex h-14 items-center border-b px-4 md:hidden">
       <Link href="/" className="flex items-center gap-2">
         <Image src="/logo-dark.svg" alt="Aplio" width={32} height={32} />
-        <span className="text-sm font-semibold tracking-tight">Aplio</span>
+        <span className="flex items-baseline gap-1.5">
+          <span className="text-sm font-semibold tracking-tight">Aplio</span>
+          {process.env.version && (
+            <span className="text-muted-foreground shrink-0 text-xs font-normal">
+              v{process.env.version}
+            </span>
+          )}
+        </span>
       </Link>
 
       <div className="ml-auto">
@@ -69,8 +76,15 @@ export function MobileNav({
                     width={32}
                     height={32}
                   />
-                  <span className="text-sm font-semibold tracking-tight">
-                    Aplio
+                  <span className="flex items-baseline gap-1.5">
+                    <span className="text-sm font-semibold tracking-tight">
+                      Aplio
+                    </span>
+                    {process.env.version && (
+                      <span className="text-muted-foreground shrink-0 text-xs font-normal">
+                        v{process.env.version}
+                      </span>
+                    )}
                   </span>
                 </Link>
               </SheetTitle>
