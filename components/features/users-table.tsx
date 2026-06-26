@@ -142,6 +142,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
               shown: filtered.length,
               total: users.length,
               noun: 'user',
+              isFiltered: !!q,
             })}
           </p>
         </div>
