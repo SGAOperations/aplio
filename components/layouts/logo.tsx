@@ -1,5 +1,7 @@
 import Image from 'next/image';
 
+import { cn } from '@/lib/utils';
+
 interface LogoProps {
   width?: number;
   height?: number;
@@ -14,16 +16,14 @@ export function Logo({ width = 32, height = 32, className }: LogoProps) {
         alt="Aplio"
         width={width}
         height={height}
-        className={className ? `dark:hidden ${className}` : 'dark:hidden'}
+        className={cn('dark:hidden', className)}
       />
       <Image
         src="/logo-dark.svg"
         alt="Aplio"
         width={width}
         height={height}
-        className={
-          className ? `hidden dark:block ${className}` : 'hidden dark:block'
-        }
+        className={cn('hidden dark:block', className)}
       />
     </>
   );
