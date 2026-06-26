@@ -26,11 +26,6 @@ export async function PipelineSummary() {
 
   return (
     <section aria-label="Pipeline summary">
-      {total === 0 && (
-        <p className="text-muted-foreground mb-4 text-sm">
-          No applications submitted yet.
-        </p>
-      )}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-7">
         {/* Leading "Total" card — sum of all non-draft pipeline statuses */}
         <StatCard label="Total" value={total} dotClassName="bg-primary" />
