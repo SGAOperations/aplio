@@ -1,4 +1,4 @@
-# Migrate Production DB — deploy pending migrations to long-lived environments
+# Migrate DB — deploy pending migrations to long-lived environments
 #
 # Required secrets (GitHub → Settings → Secrets and variables → Actions):
 #   PRODUCTION_DATABASE_URL — direct/unpooled Postgres connection string for the
@@ -14,11 +14,13 @@
 # Failure model: a failed migration fails this workflow loudly (no continue-on-error).
 # There is no automated rollback — manual intervention is required on failure.
 
-name: Migrate Production DB
+name: Migrate DB
 
 on:
   push:
     branches: [main, dev]
+    paths:
+      - 'prisma/migrations/**'
 
 concurrency:
   group: migrate-db-${{ github.ref }}
