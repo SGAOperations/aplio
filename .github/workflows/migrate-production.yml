@@ -13,11 +13,6 @@
 #
 # Failure model: a failed migration fails this workflow loudly (no continue-on-error).
 # There is no automated rollback — manual intervention is required on failure.
-#
-# Note on missing-secret behavior: unlike the Neon preview workflow (where secrets
-# are optional conveniences), a missing secret for the branch being deployed is a
-# hard failure (`::error::` + exit 1). Silently skipping would allow schema drift
-# to go undetected, which defeats the purpose of this workflow.
 
 name: Migrate Production DB
 
@@ -25,14 +20,9 @@ on:
   push:
     branches: [main, dev]
 
-# Per-branch serialization: two pushes to the same branch queue rather than race
-# (cancel-in-progress: false). Cross-branch runs are independent (different ref key
-# → different concurrency group) so a main run and a dev run proceed in parallel.
-# Migrations must never be interrupted mid-apply, so cancel-in-progress is false —
-# stricter than the preview workflow where cancelling a branch-create is harmless.
 concurrency:
   group: migrate-db-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: false # migrations must not be interrupted mid-apply
 
 permissions:
   contents: read
@@ -54,18 +44,9 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        # npm ci is the correct CI form — lockfile-faithful, no resolution surprises.
         run: npm ci
 
       - name: Select database URL
-        # secrets.* cannot be addressed dynamically by a runtime key in a ${{ }} expression.
-        # Both secrets are read into step-level env: (so GitHub masks them in logs), then a
-        # case statement maps the current branch to the correct one and writes it to
-        # $GITHUB_ENV as DATABASE_URL for the subsequent migrate step.
-        #
-        # Fail-loud on a missing secret: unlike the Neon preview workflow's warn-and-skip
-        # for optional secrets, a missing connection string here means the migration cannot
-        # run — silently skipping would let schema drift go unnoticed.
         env:
           PRODUCTION_DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
           DEV_DATABASE_URL: ${{ secrets.DEV_DATABASE_URL }}
@@ -93,14 +74,7 @@ jobs:
           echo "DATABASE_URL=$SELECTED_SECRET" >> "$GITHUB_ENV"
 
       - name: Generate Prisma client
-        # Guards against config/schema drift; aligns with the preview workflow.
-        # migrate deploy does not strictly require the generated client, but this
-        # catches schema/config issues early in the same way the preview workflow does.
         run: npm run prisma:generate
 
       - name: Apply migrations
-        # DATABASE_URL is set in the job environment by the preceding select step.
-        # No continue-on-error: a migration failure MUST turn this check red.
-        # prisma migrate deploy is idempotent — re-running on a push with no new
-        # migrations is a safe no-op (exits 0).
         run: npm run prisma:migrate:deploy
