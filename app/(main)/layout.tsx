@@ -18,7 +18,11 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   if (user) {
     // Admins always see reviewer nav; check manager status only for non-admins.
-    const userIsManager = user.isAdmin ? false : await isManager(user.id);
+    // Run both independent fetches in parallel for non-admin visitors.
+    const [userIsManager, isBypass] = await Promise.all([
+      user.isAdmin ? Promise.resolve(false) : isManager(user.id),
+      getIsBypass(),
+    ]);
     canReviewApplications = user.isAdmin || userIsManager;
     isAdmin = user.isAdmin;
 
@@ -27,7 +31,6 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       : userIsManager
         ? 'Manager'
         : 'User';
-    const isBypass = await getIsBypass();
 
     identity = { name: user.name, email: user.email, roleLabel, isBypass };
   }
