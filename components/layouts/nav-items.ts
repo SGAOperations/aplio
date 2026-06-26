@@ -13,6 +13,12 @@ export const baseNavItems = [
   { href: '/my-applications', label: 'My Applications', icon: Inbox },
 ];
 
+// Anonymous visitors may only reach Positions without being redirected to login.
+// Home and My Applications are auth-gated and would bounce an unauthenticated user.
+export const anonymousNavItems = [
+  { href: '/positions', label: 'Positions', icon: BriefcaseBusiness },
+];
+
 // Shown to admins AND managers — anyone who can review applications.
 export const reviewerNavItems = [
   { href: '/applications', label: 'Applications', icon: FileText },
