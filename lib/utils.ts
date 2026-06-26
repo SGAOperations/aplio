@@ -98,3 +98,46 @@ export function isAcceptingApplications(
 ): boolean {
   return getPositionAvailability(position, now) === 'accepting';
 }
+
+interface FormatTableCountOptions {
+  shown: number;
+  total: number;
+  /** Singular noun, e.g. "application". Pluralized by appending "s" unless `pluralNoun` is given. */
+  noun: string;
+  /** Override the plural form if it is not simply `noun + "s"`. */
+  pluralNoun?: string;
+  /**
+   * Set to true when the shown count is capped (e.g. `getApplications` caps at 100)
+   * so the display reads "100+" rather than a misleadingly exact number.
+   */
+  shownCapped?: boolean;
+  /**
+   * Whether any filters are currently active. When false (unfiltered), the
+   * function always collapses to "{total} {noun}" regardless of shown vs total —
+   * this matters when capping is in play (shown=100, total=250, no filters).
+   */
+  isFiltered?: boolean;
+}
+
+/**
+ * Formats a table row count for display in a toolbar.
+ *
+ * When unfiltered (isFiltered=false) returns "{total} {noun}" (no x/x).
+ * When filtered returns "{shown} / {total} {noun}".
+ * When shownCapped uses "100+" for the shown side.
+ */
+export function formatTableCount({
+  shown,
+  total,
+  noun,
+  pluralNoun,
+  shownCapped = false,
+  isFiltered = false,
+}: FormatTableCountOptions): string {
+  const plural = pluralNoun ?? `${noun}s`;
+  const nounLabel = total === 1 ? noun : plural;
+  const shownLabel = shownCapped ? '100+' : String(shown);
+
+  if (!isFiltered) return `${total} ${nounLabel}`;
+  return `${shownLabel} / ${total} ${nounLabel}`;
+}

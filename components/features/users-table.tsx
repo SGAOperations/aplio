@@ -9,8 +9,13 @@ import { toast } from 'sonner';
 import { deactivateUser, toggleUserAdmin } from '@/prisma/actions/users';
 
 import type { AdminUserListItem } from '@/lib/types';
-import { formatDate } from '@/lib/utils';
+import {
+  type SortableColumn,
+  useSortableTable,
+} from '@/lib/use-sortable-table';
+import { formatDate, formatTableCount } from '@/lib/utils';
 
+import { SortableHeader } from '@/components/features/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -39,6 +44,12 @@ interface UsersTableProps {
   currentUserId: string;
 }
 
+const COLUMNS: SortableColumn<AdminUserListItem>[] = [
+  { key: 'user', accessor: (u) => u.name ?? u.email },
+  { key: 'joined', accessor: (u) => u.createdAt },
+  { key: 'applications', accessor: (u) => u._count.applications },
+];
+
 export function UsersTable({ users, currentUserId }: UsersTableProps) {
   const [query, setQuery] = useState('');
   const [confirmDeactivateId, setConfirmDeactivateId] = useState<string | null>(
@@ -56,6 +67,12 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
           u.email.toLowerCase().includes(q),
       )
     : users;
+
+  const { sortedRows, sort, toggle, ariaSort } = useSortableTable(
+    filtered,
+    COLUMNS,
+    { defaultSort: { key: 'joined', direction: 'desc' } },
+  );
 
   function handleToggleAdmin(userId: string, makeAdmin: boolean) {
     setTogglingAdminId(userId);
@@ -105,31 +122,63 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
   return (
     <>
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="users-search">Search</Label>
-          <Input
-            id="users-search"
-            placeholder="Search by name or email"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="max-w-sm"
-          />
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="users-search">Search</Label>
+            <Input
+              id="users-search"
+              placeholder="Search by name or email"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="max-w-sm"
+            />
+          </div>
+
+          <p
+            aria-live="polite"
+            className="text-muted-foreground self-end text-sm sm:ml-auto"
+          >
+            {formatTableCount({
+              shown: filtered.length,
+              total: users.length,
+              noun: 'user',
+              isFiltered: !!q,
+            })}
+          </p>
         </div>
 
         <Card className="gap-0 p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>User</TableHead>
+                <SortableHeader
+                  label="User"
+                  active={sort.key === 'user'}
+                  direction={sort.direction}
+                  ariaSort={ariaSort('user')}
+                  onToggle={() => toggle('user')}
+                />
                 <TableHead>Roles</TableHead>
-                <TableHead>Joined</TableHead>
-                <TableHead>Applications</TableHead>
+                <SortableHeader
+                  label="Joined"
+                  active={sort.key === 'joined'}
+                  direction={sort.direction}
+                  ariaSort={ariaSort('joined')}
+                  onToggle={() => toggle('joined')}
+                />
+                <SortableHeader
+                  label="Applications"
+                  active={sort.key === 'applications'}
+                  direction={sort.direction}
+                  ariaSort={ariaSort('applications')}
+                  onToggle={() => toggle('applications')}
+                />
                 <TableHead>Managed Positions</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.length === 0 ? (
+              {sortedRows.length === 0 ? (
                 <TableRow>
                   <TableCell
                     colSpan={6}
@@ -139,7 +188,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
                   </TableCell>
                 </TableRow>
               ) : (
-                filtered.map((user) => {
+                sortedRows.map((user) => {
                   const isSelf = user.id === currentUserId;
                   const isManager = user.managedPositions.length > 0;
                   const appCount = user._count.applications;

@@ -13,7 +13,7 @@ You are the Impl agent (Stage 2) of the pipeline in `.claude/docs/PIPELINE.md`. 
 
 **Input:** the issue number you were given (referred to below as `N`).
 
-**Your environment:** you run in your **own isolated git worktree** — a fresh checkout of `main`. All your work happens here. You do **not** create worktrees, symlinks, or `.env` files manually; none of that is needed.
+**Your environment:** you run in your **own isolated git worktree** — a fresh checkout of `main`, rebased onto `dev` during setup (step 2). All your work happens here. You do **not** create worktrees, symlinks, or `.env` files manually; none of that is needed.
 
 ## Operating rules (read first)
 
@@ -45,11 +45,13 @@ gh issue edit N --repo SGAOperations/aplio --remove-label "plan approved" --add-
 ## Work
 
 1. **Read standards & plan.** Read `.claude/docs/ENGINEERING.md` and the root `CLAUDE.md`, then `gh issue view N --repo SGAOperations/aplio` for the plan and its checklist.
-2. **Bootstrap the worktree.** `node_modules` and the Prisma client are gitignored, so a fresh checkout lacks them:
+2. **Bootstrap the worktree.** `node_modules` and the Prisma client are gitignored, so a fresh checkout lacks them. Also rebase onto `dev` so the worktree reflects the current integration branch (not just `main`):
 
    ```bash
    npm ci
    npm run prisma:generate
+   git fetch origin
+   git rebase origin/dev
    ```
 
 3. **Implement the checklist**, building to the **Pre-PR self-check** in `.claude/docs/ENGINEERING.md` §8. Key conventions: server actions in **`prisma/actions/`**, data queries in **`prisma/data/`**, shared types/constants in **`lib/`** (reuse existing); every action authenticates + zod-validates, returns **`void`/data or `{ error }`** (never `{ ok }`; `throw` for unexpected) and gives a **toast** (`sonner`); **one global error boundary** (no per-page `error.tsx`); **no `useEffect`** (empty-deps especially); server-first; named exports; no API routes except `/api/auth`; Tailwind + `DESIGN.md` tokens; mobile-first; strict TS (no `any`); loading + empty states on every async surface. Commit each logical unit with a **file-based** message (inline multi-line `-m` collapses on Windows, dropping the subject and co-authorship):
@@ -89,11 +91,14 @@ gh issue edit N --repo SGAOperations/aplio --remove-label "plan approved" --add-
 
    ```bash
    gh pr create --repo SGAOperations/aplio \
+     --base dev \
      --title "#N <Ticket Title In Title Case>" \
      --body-file .temp/pr-N.md \
      --assignee "b-at-neu" \
      --head N-ticket-name-in-kebab-case
    ```
+
+   **Always target `dev`** (the integration branch) — never open feature PRs against `main`. Releases flow `dev → main` via the `/release` command.
 
    Note the PR number returned.
 

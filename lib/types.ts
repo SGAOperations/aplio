@@ -237,6 +237,6 @@ export interface NavIdentity {
   email: string;
   roleLabel: string;
   // true only for bypass sessions on non-production environments;
-  // gates the Log out control which is bypass-only (real-auth sign-out is out of scope).
+  // routes the Log out handler to logoutBypassUser() instead of authClient.signOut().
   isBypass: boolean;
 }

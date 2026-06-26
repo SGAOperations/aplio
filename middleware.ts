@@ -52,7 +52,9 @@ export default function middleware(request: NextRequest) {
 export const config = {
   // Exclude Next internals, public metadata/icon assets, and static images so
   // they load on unauthenticated routes without being redirected to login.
+  // `icon` matches any path starting with /icon (e.g. static icon files);
+  // `apple-icon` covers app/apple-icon.tsx similarly.
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|icon.svg|logo-dark.svg|apple-icon|sitemap.xml|robots.txt).*)',
+    '/((?!_next/static|_next/image|favicon.ico|icon|logo-dark.svg|logo-light.svg|apple-icon|sitemap.xml|robots.txt).*)',
   ],
 };

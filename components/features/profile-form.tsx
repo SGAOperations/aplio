@@ -2,10 +2,13 @@
 
 import { useState } from 'react';
 
+import { ListChecks } from 'lucide-react';
+
 import type { GlobalAnswer, GlobalQuestion } from '@/prisma/client';
 
 import { ProfileQuestion } from '@/components/features/profile-question';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 
 interface ProfileFormProps {
   profileData: { question: GlobalQuestion; answer: GlobalAnswer | null }[];
@@ -13,6 +16,15 @@ interface ProfileFormProps {
 
 export function ProfileForm({ profileData }: ProfileFormProps) {
   const [isEditing, setIsEditing] = useState(false);
+
+  if (profileData.length === 0)
+    return (
+      <EmptyState
+        icon={ListChecks}
+        title="No profile questions yet"
+        description="Questions added by an admin will appear here for you to answer."
+      />
+    );
 
   return (
     <div className="flex flex-col gap-6">

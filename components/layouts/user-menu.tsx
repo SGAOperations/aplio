@@ -1,12 +1,24 @@
 'use client';
 
+import { useTheme } from 'next-themes';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useTransition } from 'react';
 
-import { ChevronUp, UserCircle } from 'lucide-react';
+import {
+  ChevronUp,
+  LogOut,
+  Monitor,
+  Moon,
+  Sun,
+  SunMoon,
+  UserCircle,
+} from 'lucide-react';
+import { toast } from 'sonner';
 
 import { logoutBypassUser } from '@/prisma/services/dev-bypass';
 
+import { authClient } from '@/lib/auth/client';
 import type { NavIdentity } from '@/lib/types';
 
 import {
@@ -14,7 +26,12 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
@@ -26,6 +43,12 @@ interface UserMenuProps {
   variant?: 'sidebar' | 'header';
 }
 
+const THEME_OPTIONS = [
+  { value: 'system', label: 'System', icon: Monitor },
+  { value: 'light', label: 'Light', icon: Sun },
+  { value: 'dark', label: 'Dark', icon: Moon },
+] as const;
+
 export function UserMenu({
   identity,
   onNavigate,
@@ -34,11 +57,33 @@ export function UserMenu({
   const { name, email, roleLabel, isBypass } = identity;
   const displayName = name ?? email;
   const [pending, startTransition] = useTransition();
+  const router = useRouter();
+  // next-themes is loaded with { ssr: false }; `theme` is undefined on first
+  // render before the provider resolves. Default to 'system' to match
+  // defaultTheme so the radio shows a selection without a flash.
+  const { theme = 'system', setTheme } = useTheme();
 
   const triggerClassName =
     variant === 'header'
       ? 'flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition-colors bg-transparent hover:bg-muted'
       : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition-colors';
+
+  function handleLogout() {
+    startTransition(async () => {
+      if (isBypass) {
+        await logoutBypassUser();
+        return;
+      }
+      try {
+        await authClient.signOut();
+        toast.success('Signed out.');
+        router.push('/login');
+        router.refresh();
+      } catch {
+        toast.error('Could not sign out. Please try again.');
+      }
+    });
+  }
 
   return (
     <DropdownMenu>
@@ -61,6 +106,9 @@ export function UserMenu({
         <DropdownMenuLabel className="font-normal">
           <p className="truncate text-sm font-medium">{displayName}</p>
           <p className="text-muted-foreground text-xs">{roleLabel}</p>
+          {email !== displayName && (
+            <p className="text-muted-foreground truncate text-xs">{email}</p>
+          )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
@@ -73,18 +121,32 @@ export function UserMenu({
             Profile
           </Link>
         </DropdownMenuItem>
-        {isBypass && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              disabled={pending}
-              onSelect={() => startTransition(() => logoutBypassUser())}
-              className="text-destructive cursor-pointer text-sm"
-            >
-              Log out
-            </DropdownMenuItem>
-          </>
-        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger className="gap-2">
+            <SunMoon className="size-4" aria-hidden />
+            Theme
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            <DropdownMenuRadioGroup value={theme} onValueChange={setTheme}>
+              {THEME_OPTIONS.map(({ value, label, icon: Icon }) => (
+                <DropdownMenuRadioItem key={value} value={value}>
+                  <Icon className="size-4" aria-hidden />
+                  {label}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          disabled={pending}
+          onSelect={handleLogout}
+          className="text-destructive cursor-pointer text-sm"
+        >
+          <LogOut className="size-4" aria-hidden />
+          Log out
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
