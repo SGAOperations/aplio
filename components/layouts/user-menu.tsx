@@ -47,11 +47,12 @@ export function UserMenu({
   function handleLogout() {
     startTransition(async () => {
       if (isBypass) {
-        logoutBypassUser();
+        await logoutBypassUser();
         return;
       }
       try {
         await authClient.signOut();
+        toast.success('Signed out.');
         router.push('/login');
         router.refresh();
       } catch {
