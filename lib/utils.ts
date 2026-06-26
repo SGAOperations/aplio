@@ -128,9 +128,9 @@ export function formatTableCount({
   shownCapped = false,
 }: FormatTableCountOptions): string {
   const plural = pluralNoun ?? `${noun}s`;
-  const nounLabel = total === 1 && shown === total ? noun : plural;
+  const nounLabel = total === 1 ? noun : plural;
   const shownLabel = shownCapped ? '100+' : String(shown);
 
-  if (!shownCapped && shown === total) return `${total} ${nounLabel}`;
-  return `${shownLabel} / ${total} ${plural}`;
+  if (shown === total) return `${shownLabel} ${nounLabel}`;
+  return `${shownLabel} / ${total} ${nounLabel}`;
 }

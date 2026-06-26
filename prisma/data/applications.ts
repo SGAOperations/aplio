@@ -20,6 +20,19 @@ const applicationSelect = {
   position: { select: { id: true, title: true } },
 } as const;
 
+// Shared scope guard: admins see all non-draft; managers see only their positions.
+// Used by both getApplications (filtered list) and getApplicationsTotal (denominator)
+// so the two always cover the same universe of rows.
+function buildBaseWhere(user: { id: string; isAdmin: boolean }) {
+  return user.isAdmin
+    ? { deletedAt: null, status: { not: 'draft' as const } }
+    : {
+        deletedAt: null,
+        status: { not: 'draft' as const },
+        position: { managers: { some: { id: user.id } } },
+      };
+}
+
 export async function getMyApplications(
   userId: string,
 ): Promise<MyApplicationListItem[]> {
@@ -155,13 +168,7 @@ export async function getApplications(
   user: { id: string; isAdmin: boolean },
   filters: ApplicationFilters,
 ): Promise<AdminApplicationListItem[]> {
-  const baseWhere = user.isAdmin
-    ? { deletedAt: null, status: { not: 'draft' as const } }
-    : {
-        deletedAt: null,
-        status: { not: 'draft' as const },
-        position: { managers: { some: { id: user.id } } },
-      };
+  const baseWhere = buildBaseWhere(user);
 
   // Build date-range clause when q looks like a year (e.g. "2026") or a
   // "Mon YYYY" string (e.g. "Jun 2026"). This lets reviewers search by date
@@ -294,22 +301,14 @@ export async function getMyRecentActivity(
 }
 
 // Caller-scoped unfiltered count of non-draft applications, used for the
-// toolbar "shown / total" display. Shares the same baseWhere scope as
-// getApplications (admins: all non-draft; managers: own positions only).
+// toolbar "shown / total" display. Shares the same scope as getApplications
+// via buildBaseWhere — the two always cover the same universe of rows.
 // No filters are applied — this is the denominator for the count display.
 export async function getApplicationsTotal(user: {
   id: string;
   isAdmin: boolean;
 }): Promise<number> {
-  const where = user.isAdmin
-    ? { deletedAt: null, status: { not: 'draft' as const } }
-    : {
-        deletedAt: null,
-        status: { not: 'draft' as const },
-        position: { managers: { some: { id: user.id } } },
-      };
-
-  return prisma.application.count({ where });
+  return prisma.application.count({ where: buildBaseWhere(user) });
 }
 
 // Returns positions the caller may review — used to populate the Position filter
