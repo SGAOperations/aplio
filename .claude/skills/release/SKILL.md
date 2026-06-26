@@ -109,12 +109,11 @@ The body is **minimal**: short bullets only, **ticket number first** (`- #169 sh
    - #115 react-day-picker → v10
 
    ### Testing plan
-   - [ ] App builds and boots — `npm run build`
-   - [ ] Checks pass — prettier / eslint / tsc
-   - [ ] Smoke-test the areas changed above
+   - [ ] <a concrete thing a user does in the app> → <what they should see>
+   - [ ] <another user-facing check> → <expected result>
    ```
 
-   The testing plan stays this minimal — three generic checkboxes; do **not** expand it per ticket.
+   Write **2–10** testing bullets, scaled to the release's size/risk (a single small fix → ~2; a large multi-feature release → up to 10). Every bullet is a **user-facing functional test** — an action a person actually performs in the app to confirm the change works (navigate, submit a form, edit, filter, check the result), each with its expected outcome. **Never** include build / lint / type-check / "checks pass" / CI bullets. Derive the bullets from the user-visible changes in this release.
 
 4. **Open (or update) the release PR** — a `dev → main` PR is long-lived, so reuse an open one:
    ```bash
@@ -138,10 +137,10 @@ You cannot finish until the human merges the release PR into `main`. Poll on a s
 2. **If `MERGED`** → go to **Phase B**.
 3. **If `CLOSED`** (not merged) → stop and report (release abandoned).
 4. **If `OPEN`** → schedule the next check and end the turn:
-   - Call **`ScheduleWakeup`** with `delaySeconds: 1800` (~30 min) and `prompt` set **exactly** to `/release <version>` (so the wake re-enters this command and re-detects state), and a `reason` like `watching release PR #<n> to merge into main`.
+   - Call **`ScheduleWakeup`** with `delaySeconds: 120` (~2 min — about how long the merge usually takes here) and `prompt` set **exactly** to `/release <version>` (so the wake re-enters this command and re-detects state), and a `reason` like `watching release PR #<n> to merge into main`.
    - Then stop for this turn. When the wake-up fires, this command runs again from "State detection" and either keeps waiting or moves to Phase B. **Do not** spin in a tight loop or block the turn waiting.
 
-(Merges are human-paced; 30 min between checks is the right cadence — never poll faster than a few minutes.)
+(~2 min between checks matches the typical merge time here; the wake-up re-enters the command, so each check is cheap.)
 
 ---
 
