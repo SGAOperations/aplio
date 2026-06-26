@@ -169,3 +169,16 @@ export const AVAILABILITY_VARIANTS: Record<PositionAvailability, BadgeVariant> =
 // and each legal page's cross-link footer. One edit when the URLs change.
 export const PRIVACY_HREF = '/privacy';
 export const TERMS_HREF = '/terms';
+
+// Maps badge variant to a design-token dot color used in stat cards and the
+// activity feed. Extracted from pipeline-summary.tsx so both consumers share
+// one source of truth (ENGINEERING §1: abstract at 2+).
+export const STATUS_BADGE_VARIANT_TO_DOT: Record<string, string> = {
+  info: 'bg-info',
+  warning: 'bg-warning',
+  success: 'bg-success',
+  destructive: 'bg-destructive',
+  secondary: 'bg-muted-foreground',
+  default: 'bg-primary',
+  outline: 'bg-border',
+};

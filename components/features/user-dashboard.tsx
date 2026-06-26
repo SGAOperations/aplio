@@ -1,5 +1,13 @@
 import { Suspense } from 'react';
 
+import {
+  ActivityFeedSkeleton,
+  ApplicantActivityFeed,
+} from '@/components/features/activity-feed';
+import {
+  ApplicantSummary,
+  ApplicantSummarySkeleton,
+} from '@/components/features/applicant-summary';
 import { MyApplicationsWidget } from '@/components/features/my-applications-widget';
 import { OpenPositionsWidget } from '@/components/features/open-positions-widget';
 import { ProfileCompletenessBanner } from '@/components/features/profile-completeness-banner';
@@ -25,12 +33,13 @@ function MyApplicationsWidgetSkeleton() {
       </CardHeader>
       <CardContent className="p-0">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="border-b px-4 py-3 last:border-0">
-            <div className="grid grid-cols-3 gap-4">
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-5 w-20 rounded-md" />
-              <Skeleton className="h-4 w-24" />
-            </div>
+          <div
+            key={i}
+            className="flex items-center gap-3 border-b px-4 py-3 last:border-0"
+          >
+            <Skeleton className="h-4 flex-1" />
+            <Skeleton className="h-5 w-20 rounded-md" />
+            <Skeleton className="h-4 w-20" />
           </div>
         ))}
       </CardContent>
@@ -82,12 +91,20 @@ export function UserDashboard({ userId, userName }: UserDashboardProps) {
         <ProfileCompletenessBanner userId={userId} />
       </Suspense>
 
+      <Suspense fallback={<ApplicantSummarySkeleton />}>
+        <ApplicantSummary userId={userId} />
+      </Suspense>
+
       <Suspense fallback={<MyApplicationsWidgetSkeleton />}>
-        <MyApplicationsWidget userId={userId} />
+        <MyApplicationsWidget userId={userId} limit={3} />
       </Suspense>
 
       <Suspense fallback={<OpenPositionsWidgetSkeleton />}>
-        <OpenPositionsWidget />
+        <OpenPositionsWidget limit={3} />
+      </Suspense>
+
+      <Suspense fallback={<ActivityFeedSkeleton />}>
+        <ApplicantActivityFeed userId={userId} />
       </Suspense>
     </div>
   );

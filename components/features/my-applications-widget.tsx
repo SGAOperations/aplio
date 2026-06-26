@@ -13,17 +13,10 @@ import { formatDate } from '@/lib/utils';
 
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 
 interface MyApplicationsWidgetProps {
   userId: string;
+  limit?: number;
 }
 
 function buildCountsSummary(counts: Partial<Record<string, number>>): string {
@@ -58,9 +51,10 @@ function buildCountsSummary(counts: Partial<Record<string, number>>): string {
 
 export async function MyApplicationsWidget({
   userId,
+  limit = 3,
 }: MyApplicationsWidgetProps) {
   const [applications, counts] = await Promise.all([
-    getRecentMyApplications(userId),
+    getRecentMyApplications(userId, limit),
     getMyApplicationStatusCounts(userId),
   ]);
 
@@ -81,9 +75,10 @@ export async function MyApplicationsWidget({
           </div>
           <Link
             href="/my-applications"
+            aria-label="See all applications"
             className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm transition-colors"
           >
-            View all
+            See all
             <ArrowRight className="size-3.5" aria-hidden="true" />
           </Link>
         </div>
@@ -103,47 +98,37 @@ export async function MyApplicationsWidget({
             </Link>
           </div>
         ) : (
-          <CompactApplicationTable applications={applications} />
+          <ApplicationList applications={applications} />
         )}
       </CardContent>
     </Card>
   );
 }
 
-function CompactApplicationTable({
+function ApplicationList({
   applications,
 }: {
   applications: MyApplicationListItem[];
 }) {
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Position</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Applied</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {applications.map((app) => (
-          <TableRow key={app.id}>
-            <TableCell>
-              <Link
-                href={`/positions/${app.positionId}`}
-                className="font-medium hover:underline"
-              >
-                {app.position.title}
-              </Link>
-            </TableCell>
-            <TableCell>
-              <ApplicationStatusBadge status={app.status} />
-            </TableCell>
-            <TableCell className="text-muted-foreground">
-              {app.status === 'draft' ? '—' : formatDate(app.submittedAt)}
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    <ul className="divide-y">
+      {applications.map((app) => (
+        <li
+          key={app.id}
+          className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3"
+        >
+          <Link
+            href={`/positions/${app.positionId}`}
+            className="min-w-0 flex-1 truncate text-sm font-medium hover:underline"
+          >
+            {app.position.title}
+          </Link>
+          <ApplicationStatusBadge status={app.status} />
+          <span className="text-muted-foreground shrink-0 text-xs">
+            {app.status === 'draft' ? '—' : formatDate(app.submittedAt)}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }

@@ -8,8 +8,14 @@ import { type OpenPositionSummaryItem } from '@/lib/types';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-export async function OpenPositionsSummary() {
-  const positions = await getOpenPositionsSummary();
+interface OpenPositionsSummaryProps {
+  take?: number;
+}
+
+export async function OpenPositionsSummary({
+  take = 3,
+}: OpenPositionsSummaryProps) {
+  const positions = await getOpenPositionsSummary(take);
 
   return (
     <Card className="gap-0 p-0">
@@ -20,9 +26,10 @@ export async function OpenPositionsSummary() {
           </CardTitle>
           <Link
             href="/positions"
+            aria-label="See all positions"
             className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm transition-colors"
           >
-            View all
+            See all
             <ArrowRight className="size-3.5" aria-hidden="true" />
           </Link>
         </div>

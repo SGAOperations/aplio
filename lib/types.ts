@@ -9,6 +9,8 @@ import type { Prisma } from '@/prisma/client';
 
 import type { REVIEWER_APPLICATION_STATUSES } from '@/lib/constants';
 
+import type { BadgeVariant } from '@/components/ui/badge';
+
 export type PositionWithQuestions = {
   id: string;
   title: string;
@@ -199,6 +201,16 @@ export type ApplicationForReview = Prisma.ApplicationGetPayload<{
     };
   };
 }>;
+
+// Activity feed item — role-agnostic shape produced by the applicant/admin
+// feed wrappers and consumed by the shared ActivityFeedList leaf.
+// statusVariant drives the dot color; sentence is pre-rendered safe copy.
+export type ActivityItem = {
+  id: string;
+  statusVariant: BadgeVariant;
+  sentence: string;
+  timestamp: Date;
+};
 
 // Identity shape passed to nav components so sidebar and mobile nav agree
 // on what to display in the user menu.

@@ -131,9 +131,10 @@ export async function getPositionAccess(
 
 // Admin-only: open positions with filtered non-draft application counts in a single query.
 // Returns cross-position data — must only be called from an admin-gated context.
-export async function getOpenPositionsSummary(): Promise<
-  OpenPositionSummaryItem[]
-> {
+// Optional `take` limits the result set; pass 3 for the compact dashboard widget.
+export async function getOpenPositionsSummary(
+  take?: number,
+): Promise<OpenPositionSummaryItem[]> {
   return prisma.position.findMany({
     where: { status: 'open', deletedAt: null },
     select: {
@@ -148,6 +149,7 @@ export async function getOpenPositionsSummary(): Promise<
       },
     },
     orderBy: { title: 'asc' },
+    ...(take !== undefined ? { take } : {}),
   });
 }
 
@@ -180,6 +182,18 @@ export async function getPositionDetail(
       managers: { select: { id: true } },
     },
   });
+}
+
+// Applicant-facing: count of positions currently accepting applications
+// (status open AND inside the date window). Date-window logic is delegated to
+// isAcceptingApplications to stay in sync with getPositionAvailability — a pure
+// DB count({ where: { status: 'open' } }) would include upcoming/closed-by-date.
+export async function getAcceptingPositionsCount(): Promise<number> {
+  const positions = await prisma.position.findMany({
+    where: { status: 'open', deletedAt: null },
+    select: { status: true, opensAt: true, closesAt: true },
+  });
+  return positions.filter((p) => isAcceptingApplications(p)).length;
 }
 
 export async function getPositionForEdit(
