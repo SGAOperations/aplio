@@ -1,5 +1,6 @@
 import { Briefcase } from 'lucide-react';
 
+import { getManagedPositionIds } from '@/prisma/data/managers';
 import { getPositions } from '@/prisma/data/positions';
 
 import { getOptionalUser } from '@/lib/auth/server';
@@ -13,6 +14,11 @@ export default async function PositionsPage() {
   const isAdmin = user?.isAdmin ?? false;
   const isAuthenticated = user !== null;
   const positions = await getPositions({ isAdmin, userId: user?.id ?? null });
+  const managedIds = isAdmin
+    ? new Set(positions.map((p) => p.id))
+    : user
+      ? await getManagedPositionIds(user.id)
+      : new Set<string>();
 
   return (
     <div className="flex flex-col gap-6">
@@ -40,7 +46,7 @@ export default async function PositionsPage() {
             <PositionCard
               key={position.id}
               position={position}
-              canManage={isAdmin}
+              canManage={managedIds.has(position.id)}
               isAuthenticated={isAuthenticated}
             />
           ))}
