@@ -5,7 +5,15 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTransition } from 'react';
 
-import { ChevronUp, LogOut, Monitor, Moon, Sun, SunMoon, UserCircle } from 'lucide-react';
+import {
+  ChevronUp,
+  LogOut,
+  Monitor,
+  Moon,
+  Sun,
+  SunMoon,
+  UserCircle,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 import { logoutBypassUser } from '@/prisma/services/dev-bypass';
