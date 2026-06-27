@@ -122,6 +122,22 @@ export const UNRESOLVED_APPLICATION_STATUSES = [
   'reviewing',
 ] as const satisfies $Enums.ApplicationStatus[];
 
+// Non-terminal application statuses — all statuses except 'accepted', 'rejected',
+// and 'withdrawn'. Intentionally includes 'draft' (unlike UNRESOLVED_APPLICATION_STATUSES),
+// because a managed position with a draft-only applicant still warrants attention.
+// Used to determine whether a managed position is still relevant for managers.
+export const NON_TERMINAL_APPLICATION_STATUSES = [
+  'draft',
+  'applied',
+  'reached_out',
+  'interview_scheduled',
+  'reviewing',
+] as const satisfies $Enums.ApplicationStatus[];
+
+// Window (in days) for the "Recently Closed" positions section.
+// Positions closed within this window appear in that section.
+export const RECENTLY_CLOSED_WINDOW_DAYS = 7;
+
 export const STATUS_OPTIONS: { value: PositionStatus; label: string }[] = [
   { value: 'draft', label: 'Draft' },
   { value: 'open', label: 'Open' },
