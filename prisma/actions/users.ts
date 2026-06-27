@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 
 import { z } from 'zod/v4';
 
-import { getCurrentUser } from '@/lib/auth/server';
+import { authServer, getCurrentUser } from '@/lib/auth/server';
 import { prisma } from '@/lib/prisma';
 
 const toggleAdminSchema = z.object({
@@ -40,7 +40,9 @@ export async function toggleUserAdmin(
   if (result.count === 0)
     throw new Error('User not found or already deactivated');
 
-  revalidatePath('/users');
+  // Bust all cached route segments so the affected user's gated layout re-runs
+  // getCurrentUser() on their next navigation — not just the admin's /users page.
+  revalidatePath('/', 'layout');
 }
 
 export async function deactivateUser(
@@ -58,14 +60,25 @@ export async function deactivateUser(
   if (userId === user.id)
     return { error: 'You cannot deactivate your own account.' };
 
-  const result = await prisma.user.updateMany({
+  // Single round-trip: update returns neonAuthId for the revocation step below.
+  // P2025 (record not found) propagates as an unexpected throw — not reachable
+  // from the freshly-rendered admin list where deletedAt was already null.
+  const updated = await prisma.user.update({
     where: { id: userId, deletedAt: null },
     data: { deletedAt: new Date(), deletedById: user.id },
+    select: { neonAuthId: true },
   });
 
-  // Not reachable from the freshly-rendered admin list → unexpected → throw.
-  if (result.count === 0)
-    throw new Error('User not found or already deactivated');
+  // Bust all cached route segments so the deactivated user's gated layout
+  // re-runs getCurrentUser() on their next navigation.
+  revalidatePath('/', 'layout');
 
-  revalidatePath('/users');
+  // Best-effort: revoke all Neon Auth sessions for the deactivated user so a
+  // hard reload can't ride a live session either. Swallow on failure — the
+  // revalidatePath + getCurrentUser block is the guaranteed enforcement.
+  try {
+    await authServer.admin.revokeUserSessions({ userId: updated.neonAuthId });
+  } catch (err) {
+    console.error('Session revocation failed for deactivated user:', err);
+  }
 }
