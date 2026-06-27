@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache';
 
 import { z } from 'zod/v4';
 
+import { Prisma } from '@/prisma/client';
+
 import { getCurrentUser } from '@/lib/auth/server';
 import { createUserSchema } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
@@ -82,17 +84,22 @@ export async function createUser(input: unknown): Promise<ActionError | void> {
 
   // Pre-invite: create an app-side row with email only (no Neon Auth call).
   // When the invitee completes OTP sign-up, resolveRealUser() links their neonAuthId.
-  const existing = await prisma.user.findFirst({ where: { email } });
-  if (existing) return { error: 'A user with this email already exists.' };
-
-  await prisma.user.create({
-    data: {
-      email,
-      ...(name?.trim() ? { name: name.trim() } : {}),
-      isAdmin: isAdmin ?? false,
-      createdById: admin.id,
-    },
-  });
+  // Catch P2002 on the email unique constraint instead of a prior findFirst so the
+  // duplicate check is atomic with the insert (no read-then-write race).
+  try {
+    await prisma.user.create({
+      data: {
+        email,
+        ...(name?.trim() ? { name: name.trim() } : {}),
+        isAdmin,
+        createdById: admin.id,
+      },
+    });
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002')
+      return { error: 'A user with this email already exists.' };
+    throw e;
+  }
 
   revalidatePath('/users');
 }
