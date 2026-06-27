@@ -16,6 +16,22 @@ What that means in practice:
 
 **If you ever enable Cache Components** (`cacheComponents: true`), the rules change substantially (PPR default, `use cache`/`cacheLife`/`cacheTag`, `updateTag`, "Uncached data accessed outside `<Suspense>`" build errors, `connection()` before non-deterministic ops). Read https://nextjs.org/docs/app/getting-started/caching first — and that is a deliberate architectural change, not a casual edit.
 
+## Proxy (formerly Middleware) — v16.0.0 breaking change
+
+`middleware.ts` is **deprecated** in Next.js 16. The file convention is now `proxy.ts` and the exported function must be named `proxy` (not `middleware`):
+
+```ts
+// proxy.ts — at the project root (or src/)
+export function proxy(request: NextRequest) { ... }
+export const config = { matcher: [...] }
+```
+
+- Rename `middleware.ts` → `proxy.ts`
+- Rename `export function middleware` → `export function proxy`
+- Type is `NextProxy` (not `NextMiddleware`)
+- Official codemod: `npx @next/codemod@canary middleware-to-proxy .`
+- `NextRequest`, `NextResponse`, `config.matcher` are all unchanged
+
 ## Stable rules (true regardless of caching model)
 
 - **Server vs Client Components** — server by default; `'use client'` only for interactivity/hooks/browser APIs, on the smallest leaf. Prisma/secrets never reach a client component. Ref: https://nextjs.org/docs/app/getting-started/server-and-client-components
