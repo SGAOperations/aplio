@@ -53,12 +53,15 @@ export async function POST(req: Request): Promise<Response> {
   const kidHeader = req.headers.get('X-Neon-Signature-Kid');
   const timestampHeader = req.headers.get('X-Neon-Timestamp');
 
+  console.log('[webhook] headers', { sig: signatureHeader?.slice(0, 20), kid: kidHeader, ts: timestampHeader });
+
   const { valid } = await verifyWebhookSignature(
     rawBody,
     signatureHeader,
     kidHeader,
     timestampHeader,
   );
+  console.log('[webhook] verify result', { valid });
   if (!valid) return badRequest();
 
   // Parse and validate the payload.
@@ -66,11 +69,15 @@ export async function POST(req: Request): Promise<Response> {
   try {
     parsed = JSON.parse(rawBody);
   } catch {
+    console.error('[webhook] json parse failed');
     return badRequest();
   }
 
   const result = webhookEventSchema.safeParse(parsed);
-  if (!result.success) return badRequest();
+  if (!result.success) {
+    console.error('[webhook] schema invalid', result.error.issues);
+    return badRequest();
+  }
 
   const event = result.data;
 
