@@ -33,7 +33,7 @@ enum QuestionType {
 
 model User {
   id          String    @id @default(uuid(7))
-  neonAuthId  String?   @unique
+  neonAuthId  String    @unique
   email       String    @unique
   name        String?
   isAdmin     Boolean   @default(false)

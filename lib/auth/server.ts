@@ -7,45 +7,23 @@ import { prisma } from '@/lib/prisma';
 
 export const authServer = createAuthServer();
 
-// Provision-on-first-auth: creates or links the app User row when a real Neon
-// session has no matching row yet, then returns it.
-// Pre-invited users (created by an admin before they sign up) are matched by
-// email and linked to the session's neonAuthId on first login.
-// Deactivated users (#153) are blocked by the post-lookup guard below.
+// Provision-on-first-auth: create the app User row when a real Neon session
+// has no matching row yet, then return it. Create-only (empty update {}) so an
+// existing row is returned without any write.
+// Keyed on the unique neonAuthId → race-safe via the DB unique constraint + upsert.
+// name omitted when falsy (OTP identities often supply an empty string → store null).
+// Deactivated users (#153) are blocked by the post-upsert guard below.
 async function resolveRealUser() {
   const { data: session } = await authServer.getSession();
   if (!session?.user) return null;
 
   const { id: neonAuthId, email, name } = session.user;
 
-  // 1. Existing user already linked by neonAuthId
-  let row = await prisma.user.findUnique({ where: { neonAuthId } });
-
-  // 2. Pre-invited user — match by email, link neonAuthId on first sign-in
-  if (!row) {
-    const pending = await prisma.user.findFirst({
-      where: { email, neonAuthId: null },
-    });
-    if (pending) {
-      row = await prisma.user.update({
-        where: { id: pending.id },
-        data: { neonAuthId, ...(name?.trim() ? { name: name.trim() } : {}) },
-      });
-    }
-  }
-
-  // 3. Brand-new user — create app row
-  if (!row) {
-    row = await prisma.user.create({
-      data: {
-        neonAuthId,
-        email,
-        ...(name?.trim() ? { name: name.trim() } : {}),
-        isAdmin: false,
-      },
-    });
-  }
-
+  const row = await prisma.user.upsert({
+    where: { neonAuthId },
+    update: {},
+    create: { neonAuthId, email, ...(name ? { name } : {}), isAdmin: false },
+  });
   if (row.deletedAt) return null;
   return row;
 }

@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 
 import { z } from 'zod/v4';
 
-import { getCurrentUser } from '@/lib/auth/server';
+import { authServer, getCurrentUser } from '@/lib/auth/server';
 import { createUserSchema } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 
@@ -71,6 +71,16 @@ export async function deactivateUser(
   revalidatePath('/users');
 }
 
+// Type guard for Better Auth error responses — avoids unsafe `as` casts.
+function hasCode(e: unknown): e is { code: string } {
+  return (
+    typeof e === 'object' &&
+    e !== null &&
+    'code' in e &&
+    typeof (e as Record<string, unknown>).code === 'string'
+  );
+}
+
 export async function createUser(input: unknown): Promise<ActionError | void> {
   const admin = await getCurrentUser();
   if (!admin.isAdmin) return { error: 'Unauthorized' };
@@ -80,11 +90,32 @@ export async function createUser(input: unknown): Promise<ActionError | void> {
 
   const { email, name, isAdmin } = parsed.data;
 
-  const existing = await prisma.user.findFirst({ where: { email } });
-  if (existing) return { error: 'A user with this email already exists.' };
+  // Pre-create the Neon Auth account so the user can sign in via OTP immediately.
+  // A random password satisfies the required field; OTP is the actual sign-in method.
+  const authResult = await authServer.admin.createUser({
+    email,
+    name: name?.trim() ?? '',
+    password: crypto.randomUUID() + crypto.randomUUID(),
+  });
+
+  if (authResult.error) {
+    if (
+      hasCode(authResult.error) &&
+      (authResult.error.code === 'USER_ALREADY_EXISTS' ||
+        authResult.error.code === 'USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL')
+    )
+      return { error: 'A user with this email already exists.' };
+    throw new Error(`Neon Auth createUser failed: ${String(authResult.error)}`);
+  }
+
+  if (!authResult.data?.user.id)
+    throw new Error('Neon Auth createUser returned no user id');
+
+  const neonAuthId = authResult.data.user.id;
 
   await prisma.user.create({
     data: {
+      neonAuthId,
       email,
       ...(name?.trim() ? { name: name.trim() } : {}),
       isAdmin: isAdmin ?? false,
