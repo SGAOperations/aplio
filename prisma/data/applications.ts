@@ -2,7 +2,7 @@ import 'server-only';
 
 import { $Enums } from '@/prisma/client';
 
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import {
   type AdminApplicationListItem,
   type ApplicationFilters,

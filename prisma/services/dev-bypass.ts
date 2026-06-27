@@ -3,7 +3,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 
 export type BypassRole = 'admin' | 'applicant' | 'position-manager';
 

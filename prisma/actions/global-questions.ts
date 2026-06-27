@@ -6,7 +6,7 @@ import { z } from 'zod/v4';
 
 import { getCurrentUser } from '@/lib/auth/server';
 import { CHOICE_TYPES, baseQuestionSchema } from '@/lib/constants';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 
 function validateOptions(
   data: { type: string; options: string[] },

@@ -15,7 +15,7 @@ import type {
 
 import { getCurrentUser } from '@/lib/auth/server';
 import { REVIEWER_APPLICATION_STATUSES } from '@/lib/constants';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { type DraftApplication } from '@/lib/types';
 import {
   type ResponseType,

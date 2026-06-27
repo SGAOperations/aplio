@@ -3,7 +3,7 @@ import 'server-only';
 import { cache } from 'react';
 
 import { UNRESOLVED_APPLICATION_STATUSES } from '@/lib/constants';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import {
   type OpenPositionSummaryItem,
   type PositionDetail,

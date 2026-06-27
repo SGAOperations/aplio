@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod/v4';
 
 import { getCurrentUser } from '@/lib/auth/server';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 
 const toggleAdminSchema = z.object({
   userId: z.string().min(1),

@@ -2,7 +2,7 @@ import 'server-only';
 
 import type { GlobalAnswer, GlobalQuestion } from '@/prisma/client';
 
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { type ProfileCompleteness } from '@/lib/types';
 
 export async function getProfileData(
