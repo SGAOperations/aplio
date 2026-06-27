@@ -89,22 +89,48 @@ export async function createUser(input: unknown): Promise<ActionError | void> {
 
   const { email, name, isAdmin } = parsed.data;
 
+  // The admin plugin may not be enabled — guard before calling to surface a
+  // user-facing message instead of an unhandled property-access throw.
+  if (!authServer.admin?.createUser)
+    return { error: 'User creation is not available.' };
+
   // Generate a strong random password to satisfy the better-auth API.
   // The created user never uses this password — they sign in via email OTP.
   const password = `${crypto.randomUUID()}-${crypto.randomUUID()}`;
 
-  const { data: authData, error: authError } =
-    await authServer.admin.createUser({ email, name: name ?? '', password });
+  let authData: { user?: { id?: string } } | null | undefined;
+  try {
+    const result = await authServer.admin.createUser({
+      email,
+      name: name ?? '',
+      password,
+    });
 
-  if (authError) {
-    // Duplicate email codes from the better-auth admin plugin.
-    if (
-      hasCode(authError) &&
-      (authError.code === 'USER_ALREADY_EXISTS' ||
-        authError.code === 'USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL')
-    )
-      return { error: 'A user with this email already exists.' };
-    // Anything else is unexpected (network failure, auth config, etc.) → throw.
+    if (result.error) {
+      // Duplicate email codes from the better-auth admin plugin.
+      if (
+        hasCode(result.error) &&
+        (result.error.code === 'USER_ALREADY_EXISTS' ||
+          result.error.code === 'USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL')
+      )
+        return { error: 'A user with this email already exists.' };
+      // Other known error — log context, then throw so the dialog shows a generic toast.
+      console.error(
+        '[createUser] auth backend rejected user creation:',
+        result.error,
+      );
+      throw new Error('Failed to create auth user');
+    }
+
+    authData = result.data;
+  } catch (err) {
+    // Re-throw errors we already threw above; wrap unexpected throws from the SDK.
+    if (err instanceof Error && err.message === 'Failed to create auth user')
+      throw err;
+    console.error(
+      '[createUser] unexpected error from authServer.admin.createUser:',
+      err,
+    );
     throw new Error('Failed to create auth user');
   }
 
