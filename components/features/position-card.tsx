@@ -115,10 +115,10 @@ export function PositionCard({
         <div
           className={cn(
             'flex items-center gap-2',
-            applicationStats && 'justify-between',
+            !applicationStats && 'justify-between',
           )}
         >
-          <CardTitle className="text-base font-semibold">
+          <CardTitle className="text-lg leading-snug">
             {position.title}
           </CardTitle>
           <PositionStatusBadge position={position} />
