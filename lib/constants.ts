@@ -138,6 +138,11 @@ export const NON_TERMINAL_APPLICATION_STATUSES = [
 // Positions closed within this window appear in that section.
 export const RECENTLY_CLOSED_WINDOW_DAYS = 7;
 
+// Window (in days) for the managed/admin positions visibility filter.
+// Closed positions remain visible to managers and admins for longer than the
+// public "Recently Closed" section so they retain oversight during wrap-up.
+export const MANAGED_POSITIONS_WINDOW_DAYS = 30;
+
 export const STATUS_OPTIONS: { value: PositionStatus; label: string }[] = [
   { value: 'draft', label: 'Draft' },
   { value: 'open', label: 'Open' },

@@ -3,6 +3,7 @@ import 'server-only';
 import { cache } from 'react';
 
 import {
+  MANAGED_POSITIONS_WINDOW_DAYS,
   NON_TERMINAL_APPLICATION_STATUSES,
   RECENTLY_CLOSED_WINDOW_DAYS,
   UNRESOLVED_APPLICATION_STATUSES,
@@ -106,7 +107,7 @@ export async function getManagedPositions(
   userId: string,
 ): Promise<PositionWithQuestions[]> {
   const cutoff30 = new Date();
-  cutoff30.setDate(cutoff30.getDate() - 30);
+  cutoff30.setDate(cutoff30.getDate() - MANAGED_POSITIONS_WINDOW_DAYS);
 
   return prisma.position.findMany({
     where: {
@@ -144,7 +145,7 @@ export async function getManagedPositions(
 // Returns cross-position data — must only be called from an admin-gated context.
 export async function getAdminPositions(): Promise<PositionWithQuestions[]> {
   const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 30);
+  cutoff.setDate(cutoff.getDate() - MANAGED_POSITIONS_WINDOW_DAYS);
 
   return prisma.position.findMany({
     where: {
