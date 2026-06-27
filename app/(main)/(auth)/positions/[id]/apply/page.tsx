@@ -68,7 +68,7 @@ export default async function ApplyPage({
       </div>
 
       {!application ? (
-        <Card>
+        <Card className="gap-0 p-0">
           <CardContent className="flex flex-col gap-4 p-4">
             <div>
               <p className="font-medium">Complete your profile first</p>

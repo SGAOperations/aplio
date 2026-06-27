@@ -21,7 +21,7 @@ export async function ProfileCompletenessBanner({
   const questionWord = missingCount === 1 ? 'question' : 'questions';
 
   return (
-    <Card className="border-warning bg-warning/5">
+    <Card className="border-warning bg-warning/5 gap-0 p-0">
       <CardContent className="flex items-start gap-3 p-4">
         <CircleAlert
           className="text-warning mt-0.5 size-5 shrink-0"
