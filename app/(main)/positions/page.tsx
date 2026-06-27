@@ -69,6 +69,28 @@ export default async function PositionsPage() {
     <div className="flex flex-col gap-8">
       <h1 className="text-2xl font-semibold tracking-tight">Positions</h1>
 
+      {/* My Positions — shown first for managers; omitted when empty (non-manager or no relevant positions) */}
+      {showManagedSection && (
+        <section
+          aria-labelledby="my-positions-heading"
+          className="flex flex-col gap-4"
+        >
+          <h2 id="my-positions-heading" className="text-lg font-semibold">
+            My Positions
+          </h2>
+          <div className="flex flex-col gap-4">
+            {managedPositions.map((position) => (
+              <PositionCard
+                key={position.id}
+                position={position}
+                canManage={true}
+                isAuthenticated={isAuthenticated}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Open Positions — always rendered, even when empty */}
       <section
         aria-labelledby="open-positions-heading"
@@ -112,28 +134,6 @@ export default async function PositionsPage() {
                 key={position.id}
                 position={position}
                 canManage={managedIds.has(position.id)}
-                isAuthenticated={isAuthenticated}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Positions I Manage — omitted when empty (non-manager or no relevant positions) */}
-      {showManagedSection && (
-        <section
-          aria-labelledby="managed-positions-heading"
-          className="flex flex-col gap-4"
-        >
-          <h2 id="managed-positions-heading" className="text-lg font-semibold">
-            Positions I Manage
-          </h2>
-          <div className="flex flex-col gap-4">
-            {managedPositions.map((position) => (
-              <PositionCard
-                key={position.id}
-                position={position}
-                canManage={true}
                 isAuthenticated={isAuthenticated}
               />
             ))}
