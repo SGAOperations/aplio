@@ -159,12 +159,13 @@ Runs once `main` is at `<version>` / the release PR is merged. The notes here ar
    git log --oneline --no-merges <prev-tag>..origin/main
    ```
    Resolve `#<n>` to PR titles/labels with `gh pr view` (as in Part 2). **Keep only user-visible features and fixes.** Drop anything internal/behind-the-scenes (Dependabot, `.claude`/pipeline/tooling/CI/docs/test-only/refactor/chore). When unsure whether a change is user-relevant, **leave it out** — these notes are for users, not maintainers.
-4. **Draft the notes** to `.temp/release-notes.md` (Write tool) — bullets only, each one short and in plain user language:
+4. **Draft the notes** to `.temp/release-notes.md` (Write tool) — bullets only, each one short and in plain user language. **The last bullet is always exactly `- Minor enhancements and bug fixes`**, appended after the user-facing change bullets:
    ```
    - Plain description of a user-visible change
    - Another user-visible change
+   - Minor enhancements and bug fixes
    ```
-   (No heading — the release title is `v<version>`. No ticket numbers, no internal items. If nothing is user-facing, use a single line like `- Maintenance and dependency updates`.)
+   (No heading — the release title is `v<version>`. No ticket numbers, no internal items. If nothing is user-facing, the single `- Minor enhancements and bug fixes` bullet stands alone.)
 5. **Get approval — required before creating anything.** Present the drafted notes to the human verbatim (an `AskUserQuestion`, or just show the draft and ask them to approve or edit). Apply any edits and re-show. **Do not run `gh release create` until the human explicitly approves.**
 6. **Create the release + tag** (this creates the `v<version>` tag at `main`'s HEAD):
    ```bash

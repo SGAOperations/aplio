@@ -34,12 +34,12 @@ export default async function SignInPage({
   const isDev = process.env.VERCEL_ENV !== 'production';
 
   return (
-    <div className="flex w-full flex-col items-center gap-4">
+    <div className="flex w-full max-w-sm flex-col items-center gap-4">
       <AuthView
         path="SIGN_IN"
         redirectTo={safeTo}
         classNames={{
-          base: 'max-w-xl',
+          base: 'w-full',
           content: 'w-full',
           form: { base: 'w-full', otpInputContainer: 'justify-center' },
         }}
@@ -60,7 +60,7 @@ export default async function SignInPage({
               }
             : {
                 SIGN_IN_DESCRIPTION:
-                  "Enter your email to sign in. We'll send you a one-time code.",
+                  "Enter your email to sign in or create an account. We'll send you a one-time code.",
                 EMAIL_OTP: '',
               }
         }

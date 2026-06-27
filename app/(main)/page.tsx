@@ -1,10 +1,13 @@
-import { getCurrentUser } from '@/lib/auth/server';
+import { redirect } from 'next/navigation';
+
+import { getOptionalUser } from '@/lib/auth/server';
 
 import { AdminDashboard } from '@/components/features/admin-dashboard';
 import { UserDashboard } from '@/components/features/user-dashboard';
 
 export default async function Home() {
-  const user = await getCurrentUser();
+  const user = await getOptionalUser();
+  if (!user) redirect('/positions');
 
   if (user.isAdmin) return <AdminDashboard />;
 

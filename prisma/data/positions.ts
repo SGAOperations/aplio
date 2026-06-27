@@ -2,15 +2,20 @@ import 'server-only';
 
 import { cache } from 'react';
 
-import { UNRESOLVED_APPLICATION_STATUSES } from '@/lib/constants';
-import prisma from '@/lib/prisma';
+import {
+  MANAGED_POSITIONS_WINDOW_DAYS,
+  NON_TERMINAL_APPLICATION_STATUSES,
+  RECENTLY_CLOSED_WINDOW_DAYS,
+  UNRESOLVED_APPLICATION_STATUSES,
+} from '@/lib/constants';
+import { prisma } from '@/lib/prisma';
 import {
   type OpenPositionSummaryItem,
   type PositionDetail,
   type PositionForEdit,
   type PositionWithQuestions,
 } from '@/lib/types';
-import { isAcceptingApplications } from '@/lib/utils';
+import { getPositionAvailability, isAcceptingApplications } from '@/lib/utils';
 
 // Shared select shape for PositionWithQuestions queries — extracted once so
 // every function returns the same type without duplicating the object literal.
@@ -35,28 +40,98 @@ const positionWithQuestionsSelect = {
   },
 } as const;
 
-// Manager-aware positions query.
-// Admin: all non-deleted positions.
-// Non-admin with userId: open positions ∪ positions the user manages (including drafts).
-// Non-admin without userId (public/anonymous): open positions only.
-export async function getPositions({
-  isAdmin,
-  userId,
-}: {
-  isAdmin: boolean;
-  userId: string | null;
-}): Promise<PositionWithQuestions[]> {
-  return prisma.position.findMany({
-    where: isAdmin
-      ? { deletedAt: null }
-      : userId
-        ? {
-            deletedAt: null,
-            OR: [{ status: 'open' }, { managers: { some: { id: userId } } }],
-          }
-        : { deletedAt: null, status: 'open' },
+// Public: positions currently accepting applications (status 'open', non-deleted).
+// Post-fetch filter via isAcceptingApplications drops 'upcoming' and 'closed_by_date'
+// rows — the end-of-day-inclusive closesAt math cannot be expressed cleanly in a
+// Prisma where clause, so filtering post-fetch keeps one source of truth.
+export async function getOpenPositions(): Promise<PositionWithQuestions[]> {
+  const positions = await prisma.position.findMany({
+    where: { status: 'open', deletedAt: null },
     select: positionWithQuestionsSelect,
     orderBy: { title: 'asc' },
+  });
+  return positions.filter((p) => isAcceptingApplications(p));
+}
+
+// Public: positions closed within the last RECENTLY_CLOSED_WINDOW_DAYS days.
+// Three OR branches cover the different ways a position can be "recently closed":
+//   1. status:'closed' with an explicit closesAt within the window
+//   2. status:'closed' with no closesAt — fall back to updatedAt recency
+//   3. status:'open' with a closesAt in the past (within the window) — closed_by_date
+// Post-fetch filter keeps only rows that are actually closed (status:'closed' or
+// availability:'closed_by_date') so a still-accepting or upcoming open row never lands here.
+export async function getRecentlyClosedPositions(): Promise<
+  PositionWithQuestions[]
+> {
+  const now = new Date();
+  const cutoff = new Date(now);
+  cutoff.setDate(cutoff.getDate() - RECENTLY_CLOSED_WINDOW_DAYS);
+
+  const positions = await prisma.position.findMany({
+    where: {
+      deletedAt: null,
+      OR: [
+        // Explicitly closed, close date within the window
+        { status: 'closed', closesAt: { gte: cutoff } },
+        // Closed without an explicit close date — use updatedAt as a proxy
+        { status: 'closed', closesAt: null, updatedAt: { gte: cutoff } },
+        // Still 'open' in the DB but past its closesAt within the window
+        { status: 'open', closesAt: { gte: cutoff, lte: now } },
+      ],
+    },
+    select: positionWithQuestionsSelect,
+    orderBy: [{ closesAt: 'desc' }, { title: 'asc' }],
+  });
+
+  // Keep only rows that are genuinely closed — drops any open row that is
+  // still accepting or upcoming (should not happen given the where, but
+  // ensures correctness if closesAt end-of-day math creates an edge case).
+  return positions.filter((p) => {
+    if (p.status === 'closed') return true;
+    const availability = getPositionAvailability(p);
+    return availability === 'closed_by_date';
+  });
+}
+
+// Manager-facing: positions the user manages that still warrant attention.
+// A managed position is included when any of these hold:
+//   - status is 'open' (always active)
+//   - status is 'closed' and closesAt is within the last 30 days
+//   - status is 'closed' and closesAt is null, but updatedAt is within 30 days
+//   - has at least one application in a non-terminal status (including 'draft')
+// Long-dead managed positions (closed >30 days ago, all applications resolved) are hidden.
+// The 30-day window deliberately differs from RECENTLY_CLOSED_WINDOW_DAYS (7 days)
+// so managers retain visibility for longer while the public "Recently Closed" section
+// stays concise.
+export async function getManagedPositions(
+  userId: string,
+): Promise<PositionWithQuestions[]> {
+  const cutoff30 = new Date();
+  cutoff30.setDate(cutoff30.getDate() - MANAGED_POSITIONS_WINDOW_DAYS);
+
+  return prisma.position.findMany({
+    where: {
+      managers: { some: { id: userId } },
+      deletedAt: null,
+      OR: [
+        { status: 'open' },
+        // Recently closed via explicit close date (30-day window)
+        { status: 'closed', closesAt: { gte: cutoff30 } },
+        // Recently closed fallback when closesAt is null — use updatedAt recency
+        { status: 'closed', closesAt: null, updatedAt: { gte: cutoff30 } },
+        // Closed but still has non-terminal applications
+        {
+          applications: {
+            some: {
+              deletedAt: null,
+              status: { in: [...NON_TERMINAL_APPLICATION_STATUSES] },
+            },
+          },
+        },
+      ],
+    },
+    select: positionWithQuestionsSelect,
+    orderBy: [{ status: 'asc' }, { title: 'asc' }],
   });
 }
 
@@ -70,7 +145,7 @@ export async function getPositions({
 // Returns cross-position data — must only be called from an admin-gated context.
 export async function getAdminPositions(): Promise<PositionWithQuestions[]> {
   const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 30);
+  cutoff.setDate(cutoff.getDate() - MANAGED_POSITIONS_WINDOW_DAYS);
 
   return prisma.position.findMany({
     where: {

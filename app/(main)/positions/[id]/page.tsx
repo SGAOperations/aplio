@@ -91,7 +91,7 @@ export default async function PublicPositionDetailPage({
             ) : (
               <Button asChild>
                 <Link href={`/login?redirectTo=/positions/${id}/apply`}>
-                  Sign in to apply
+                  Apply
                 </Link>
               </Button>
             )}

@@ -85,7 +85,7 @@ export function PositionCard({
                     <Link
                       href={`/login?redirectTo=/positions/${position.id}/apply`}
                     >
-                      Sign in to apply
+                      Apply
                     </Link>
                   )}
                 </Button>

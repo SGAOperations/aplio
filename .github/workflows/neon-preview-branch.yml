@@ -16,6 +16,8 @@ name: Neon Preview Branch
 on:
   pull_request:
     types: [opened, synchronize, reopened, closed]
+    branches:
+      - dev
 
 # Cancel in-progress runs for the same PR so rapid pushes don't race on the
 # same Neon branch (create-vs-migrate overlap).
@@ -174,7 +176,7 @@ jobs:
 
           # A non-2xx from a configured Vercel integration is a real error — fail the job.
           if [[ "$HTTP_STATUS" -lt 200 || "$HTTP_STATUS" -ge 300 ]]; then
-            echo "Vercel API returned HTTP $HTTP_STATUS; failing job."
+            echo "::error::Vercel API returned HTTP $HTTP_STATUS for branch $GIT_BRANCH; failing job."
             exit 1
           fi
 
@@ -198,6 +200,17 @@ jobs:
           project_id: ${{ secrets.NEON_PROJECT_ID }}
           branch: preview/${{ github.head_ref }}
           api_key: ${{ secrets.NEON_API_KEY }}
+
+      - name: Log Neon branch teardown result
+        # Surfaces the outcome regardless of continue-on-error so teardown is
+        # auditable in the run log. A failed delete is non-fatal (stale branches
+        # can be cleaned up manually), but it should be visible.
+        run: |
+          if [ "${{ steps.delete_branch.outcome }}" = "success" ]; then
+            echo "Neon branch preview/${{ github.head_ref }} deleted successfully."
+          else
+            echo "::warning::Neon branch preview/${{ github.head_ref }} delete failed or was already absent (outcome: ${{ steps.delete_branch.outcome }})."
+          fi
 
       # ── Vercel cleanup (resilient — skipped if secrets absent) ─────────────
 
@@ -242,7 +255,7 @@ jobs:
             "https://api.vercel.com/v10/projects/$VERCEL_PROJECT_ID/env/$EXISTING_ID?teamId=$VERCEL_ORG_ID")
 
           if [[ "$HTTP_STATUS" -lt 200 || "$HTTP_STATUS" -ge 300 ]]; then
-            echo "Vercel DELETE returned HTTP $HTTP_STATUS; failing job."
+            echo "::error::Vercel DELETE returned HTTP $HTTP_STATUS for branch $GIT_BRANCH; failing job."
             exit 1
           fi
-          echo "Removed branch-scoped DATABASE_URL for branch $GIT_BRANCH."
+          echo "Removed branch-scoped DATABASE_URL for Vercel preview branch $GIT_BRANCH."
