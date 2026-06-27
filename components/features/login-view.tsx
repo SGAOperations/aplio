@@ -66,9 +66,7 @@ export function LoginView({ redirectTo, copy }: LoginViewProps) {
     });
 
     if (result.error) {
-      const message =
-        result.error.message ?? "Couldn't send the code. Please try again.";
-      toast.error(message);
+      toast.error("Couldn't send the code. Please try again.");
       return;
     }
 
@@ -166,13 +164,14 @@ export function LoginView({ redirectTo, copy }: LoginViewProps) {
           </form>
         </Form>
 
-        <button
+        <Button
+          variant="link"
           type="button"
           onClick={handleBack}
-          className="text-muted-foreground hover:text-foreground focus-visible:outline-ring text-sm underline focus-visible:rounded-sm focus-visible:outline-2"
+          className="text-muted-foreground h-auto p-0 text-sm underline"
         >
           Use a different email
-        </button>
+        </Button>
       </div>
     );
   }
