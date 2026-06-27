@@ -2,9 +2,7 @@ import Link from 'next/link';
 
 import { ArrowRight, Briefcase } from 'lucide-react';
 
-import { getPositions } from '@/prisma/data/positions';
-
-import { formatDate, getPositionAvailability } from '@/lib/utils';
+import { getOpenPositions } from '@/prisma/data/positions';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,9 +14,8 @@ interface OpenPositionsWidgetProps {
 export async function OpenPositionsWidget({
   limit = 3,
 }: OpenPositionsWidgetProps) {
-  // isAdmin:false + userId:null → open-only positions; does not surface a
-  // manager's draft/closed positions in this "Open Positions" widget context.
-  const positions = await getPositions({ isAdmin: false, userId: null });
+  // getOpenPositions() returns only accepting positions (no upcoming/closed_by_date).
+  const positions = await getOpenPositions();
   const displayed = positions.slice(0, limit);
 
   return (
@@ -55,39 +52,26 @@ export async function OpenPositionsWidget({
           </div>
         ) : (
           <ul className="divide-y">
-            {displayed.map((position) => {
-              const availability = getPositionAvailability(position);
-              const isAccepting = availability === 'accepting';
-              return (
-                <li key={position.id} className="flex flex-col gap-1.5 p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">
-                        {position.title}
+            {displayed.map((position) => (
+              <li key={position.id} className="flex flex-col gap-1.5 p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">
+                      {position.title}
+                    </p>
+                    {position.description && (
+                      <p className="text-muted-foreground mt-0.5 line-clamp-2 text-xs">
+                        {position.description}
                       </p>
-                      {position.description && (
-                        <p className="text-muted-foreground mt-0.5 line-clamp-2 text-xs">
-                          {position.description}
-                        </p>
-                      )}
-                    </div>
-                    {isAccepting ? (
-                      <Button asChild size="sm" className="shrink-0">
-                        <Link href={`/positions/${position.id}/apply`}>
-                          Apply
-                        </Link>
-                      </Button>
-                    ) : (
-                      <span className="text-muted-foreground shrink-0 text-xs">
-                        {availability === 'upcoming' && position.opensAt
-                          ? `Opens ${formatDate(position.opensAt)}`
-                          : 'Closed'}
-                      </span>
                     )}
                   </div>
-                </li>
-              );
-            })}
+                  {/* All positions from getOpenPositions() are accepting — always show Apply */}
+                  <Button asChild size="sm" className="shrink-0">
+                    <Link href={`/positions/${position.id}/apply`}>Apply</Link>
+                  </Button>
+                </div>
+              </li>
+            ))}
           </ul>
         )}
       </CardContent>
