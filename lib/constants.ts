@@ -203,3 +203,14 @@ export const STATUS_BADGE_VARIANT_TO_DOT: Record<string, string> = {
   default: 'bg-primary',
   outline: 'bg-border',
 };
+
+// The four application statuses surfaced on position cards for admins/managers.
+// Ordered: Applied → Interview scheduled → Accepted → Rejected.
+// Shared between PositionStatCluster and any future per-position stat consumer
+// so the displayed set is a single source of truth (ENGINEERING §1: abstract at 2+).
+export const POSITION_CARD_STAT_STATUSES = [
+  'applied',
+  'interview_scheduled',
+  'accepted',
+  'rejected',
+] as const satisfies $Enums.ApplicationStatus[];

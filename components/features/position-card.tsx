@@ -2,7 +2,16 @@ import Link from 'next/link';
 
 import { Inbox, Pencil } from 'lucide-react';
 
-import type { PositionWithQuestions } from '@/lib/types';
+import {
+  APPLICATION_STATUS_BADGE_VARIANT,
+  APPLICATION_STATUS_LABELS,
+  POSITION_CARD_STAT_STATUSES,
+  STATUS_BADGE_VARIANT_TO_DOT,
+} from '@/lib/constants';
+import type {
+  PositionApplicationStats,
+  PositionWithQuestions,
+} from '@/lib/types';
 import { formatDate, getPositionAvailability } from '@/lib/utils';
 
 import { PositionStatusBadge } from '@/components/features/status-badge';
@@ -13,14 +22,78 @@ interface PositionCardProps {
   position: PositionWithQuestions;
   canManage?: boolean;
   isAuthenticated?: boolean;
+  applicationStats?: PositionApplicationStats;
 }
 
-// Server component — accordion removed; flat summary card with always-visible
-// truncated description and a CTA row linking into the detail page.
+interface PositionStatClusterProps {
+  stats: PositionApplicationStats;
+}
+
+// Co-located server sub-component — compact count+label tiles for managed position cards.
+// Renders a "Total" lead tile and a 2x2 grid of the four key pipeline statuses.
+// Zero-count tiles are dimmed rather than hidden so the cluster shape is stable.
+function PositionStatCluster({ stats }: PositionStatClusterProps) {
+  return (
+    <div aria-label="Application stats" className="shrink-0">
+      {/* Total tile — col-span-2 lead row with hairline divider below */}
+      <div className="border-border mb-2 border-b pb-2">
+        <div className="flex items-center gap-1.5">
+          <span
+            className="bg-primary size-2 shrink-0 rounded-full"
+            aria-hidden="true"
+          />
+          <p className="text-muted-foreground text-[11px] leading-tight">
+            Total
+          </p>
+        </div>
+        <p className="mt-1 text-xl leading-none font-semibold tabular-nums">
+          {stats.total}
+        </p>
+      </div>
+
+      {/* 2x2 grid of key pipeline statuses */}
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+        {POSITION_CARD_STAT_STATUSES.map((status) => {
+          const count = stats.counts[status] ?? 0;
+          const isDimmed = count === 0;
+          const variant = APPLICATION_STATUS_BADGE_VARIANT[status];
+          const dotClass =
+            STATUS_BADGE_VARIANT_TO_DOT[variant] ?? 'bg-muted-foreground';
+
+          return (
+            <div key={status}>
+              <div className="flex items-center gap-1.5">
+                <span
+                  className={`size-1.5 shrink-0 rounded-full ${dotClass} ${isDimmed ? 'opacity-40' : ''}`}
+                  aria-hidden="true"
+                />
+                <p
+                  className={`text-[11px] leading-tight ${isDimmed ? 'text-muted-foreground/60' : 'text-muted-foreground'}`}
+                >
+                  {APPLICATION_STATUS_LABELS[status]}
+                </p>
+              </div>
+              <p
+                className={`mt-0.5 text-xl leading-none font-semibold tabular-nums ${isDimmed ? 'text-muted-foreground/60' : ''}`}
+              >
+                {count}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Server component — flat summary card with always-visible truncated description
+// and a CTA row linking into the detail page. Managed cards (canManage=true) also
+// show a right-anchored application stats cluster when applicationStats is passed.
 export function PositionCard({
   position,
   canManage = false,
   isAuthenticated = false,
+  applicationStats,
 }: PositionCardProps) {
   const availability = getPositionAvailability(position);
   const isAccepting = availability === 'accepting';
@@ -48,13 +121,22 @@ export function PositionCard({
       </CardHeader>
 
       <CardContent className="flex flex-col gap-3 px-4 pb-4">
-        <p className="text-muted-foreground line-clamp-2 text-sm">
-          {position.description}
-        </p>
+        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
+          {/* Left: description + date — takes remaining width, truncates */}
+          <div className="min-w-0 flex-1">
+            <p className="text-muted-foreground line-clamp-2 text-sm">
+              {position.description}
+            </p>
+            {dateLabel && (
+              <p className="text-muted-foreground mt-1 text-xs">{dateLabel}</p>
+            )}
+          </div>
 
-        {dateLabel && (
-          <p className="text-muted-foreground text-xs">{dateLabel}</p>
-        )}
+          {/* Right: stats cluster — only for managed cards */}
+          {canManage && applicationStats && (
+            <PositionStatCluster stats={applicationStats} />
+          )}
+        </div>
 
         <div className="flex flex-wrap items-center gap-2 pt-1">
           {canManage ? (
