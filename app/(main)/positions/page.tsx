@@ -9,6 +9,7 @@ import {
 } from '@/prisma/data/positions';
 
 import { getOptionalUser } from '@/lib/auth/server';
+import type { PositionApplicationStats } from '@/lib/types';
 
 import { PositionCard } from '@/components/features/position-card';
 import { PositionCreateDialog } from '@/components/features/position-create-dialog';
@@ -24,7 +25,7 @@ export default async function PositionsPage() {
     const adminStatsByPosition =
       positions.length > 0
         ? await getPositionApplicationStats(positions.map((p) => p.id))
-        : new Map<string, import('@/lib/types').PositionApplicationStats>();
+        : new Map<string, PositionApplicationStats>();
     return (
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between gap-4">
@@ -72,7 +73,7 @@ export default async function PositionsPage() {
   const statsByPosition =
     managedIds.size > 0
       ? await getPositionApplicationStats([...managedIds])
-      : new Map<string, import('@/lib/types').PositionApplicationStats>();
+      : new Map<string, PositionApplicationStats>();
 
   // Show "Positions I Manage" only when the user actually manages at least one
   // relevant position — non-managers get an empty array, so the section is omitted.
