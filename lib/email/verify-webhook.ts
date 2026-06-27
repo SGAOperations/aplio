@@ -1,19 +1,20 @@
 import 'server-only';
 
-import { createPublicKey, verify as cryptoVerify } from 'crypto';
+import { compactVerify, importJWK } from 'jose';
 
-// EdDSA (Ed25519) signature verification for Neon Auth webhook requests.
+// Neon Auth webhook signature verification.
 //
-// Neon signs each webhook request and includes three headers:
-//   X-Neon-Signature      — detached JWS: headerB64..signatureB64 (empty payload section)
-//   X-Neon-Signature-Kid  — key ID matching a JWK in the JWKS endpoint
-//   X-Neon-Timestamp      — Unix timestamp (ms) of when the request was signed
+// Neon signs webhook requests using EdDSA (Ed25519) with a detached JWS format:
+//   X-Neon-Signature     — detached JWS: headerB64..signatureB64 (empty middle section)
+//   X-Neon-Signature-Kid — key ID matching a JWK in the JWKS endpoint
+//   X-Neon-Timestamp     — Unix timestamp (ms) when the request was signed
 //
-// Signing input: headerB64 + "." + base64url(timestamp + "." + base64url(rawBody))
+// The signing input is reconstructed as a compact JWS by filling in the detached
+// payload: headerB64.base64url(timestamp + "." + base64url(rawBody)).signatureB64
 //
-// The JWKS is fetched once and cached in-module (process lifetime) to avoid
-// a network round-trip per webhook. The cache is busted only on a kid miss,
-// which handles key rotation without unbounded cache lifetimes.
+// jose is used for key import and verification rather than Node's crypto.createPublicKey
+// because the latter delegates Ed25519 JWK handling to Web Crypto internally and throws
+// InvalidCharacterError in the Next.js runtime despite the key being valid.
 
 interface JWK {
   kid: string;
@@ -38,8 +39,6 @@ async function fetchJwks(bustCache = false): Promise<JWKSResponse> {
   if (!baseUrl) throw new Error('NEON_AUTH_BASE_URL is not configured');
 
   const res = await fetch(`${baseUrl}/.well-known/jwks.json`, {
-    // Always fetch fresh from the network — no Next.js data cache here, this is
-    // a server-only module called from an API route, not a Server Component.
     cache: 'no-store',
   });
   if (!res.ok)
@@ -60,9 +59,6 @@ export async function verifyWebhookSignature(
   kidHeader: string | null,
   timestampHeader: string | null,
 ): Promise<VerifyWebhookResult> {
-  // Skip Ed25519 signature verification in local dev when the flag is set.
-  // The production guard ensures this bypass cannot be deployed accidentally —
-  // NODE_ENV=production is always set by Next.js in a production build.
   if (process.env.SKIP_WEBHOOK_VERIFICATION) {
     if (process.env.NODE_ENV === 'production')
       throw new Error('SKIP_WEBHOOK_VERIFICATION cannot be set in production');
@@ -78,44 +74,36 @@ export async function verifyWebhookSignature(
 
   // Parse the detached JWS: headerB64..signatureB64 (empty middle section).
   const parts = signatureHeader.split('.');
-  if (parts.length !== 3) return { valid: false };
+  if (parts.length !== 3 || parts[1] !== '') return { valid: false };
   const [headerB64, , signatureB64] = parts;
 
-  // Build the signing input per Neon's spec:
-  //   headerB64 + "." + base64url(timestamp + "." + base64url(rawBody))
+  // Reconstruct the compact JWS by filling in the detached payload.
   const payloadB64 = Buffer.from(rawBody).toString('base64url');
-  const signingInput =
-    headerB64 +
-    '.' +
-    Buffer.from(timestampHeader + '.' + payloadB64).toString('base64url');
-  const sigBuffer = Buffer.from(signatureB64, 'base64url');
+  const reconstructedPayloadB64 = Buffer.from(
+    `${timestampHeader}.${payloadB64}`,
+  ).toString('base64url');
+  const compactJws = `${headerB64}.${reconstructedPayloadB64}.${signatureB64}`;
 
-  // Attempt verification; if the kid is not in the cache, bust it and retry
-  // once to handle key rotation.
   for (let attempt = 0; attempt < 2; attempt++) {
     const jwks = await fetchJwks(attempt === 1);
     const jwk = jwks.keys.find(
       (k) => k.kid === kidHeader && k.kty === 'OKP' && k.crv === 'Ed25519',
     );
     if (!jwk) {
-      if (attempt === 0) continue; // retry with fresh JWKS
+      if (attempt === 0) continue; // retry with fresh JWKS on kid miss
       return { valid: false };
     }
 
-    // Import the Ed25519 public key from JWK via Node's crypto module.
-    // crypto.createPublicKey handles OKP/Ed25519 JWKs more reliably than
-    // crypto.subtle across Node versions and is synchronous.
-    const publicKey = createPublicKey({
-      key: jwk as JsonWebKey,
-      format: 'jwk',
-    });
-    const valid = cryptoVerify(
-      null,
-      Buffer.from(signingInput),
-      publicKey,
-      sigBuffer,
-    );
-    return { valid };
+    try {
+      const key = await importJWK(
+        { kty: jwk.kty, crv: jwk.crv, x: jwk.x, alg: jwk.alg },
+        'EdDSA',
+      );
+      await compactVerify(compactJws, key);
+      return { valid: true };
+    } catch {
+      return { valid: false };
+    }
   }
 
   return { valid: false };
