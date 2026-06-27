@@ -18,9 +18,13 @@ export default async function PositionsPage() {
   const user = await getOptionalUser();
   const isAdmin = user?.isAdmin ?? false;
 
-  // Admin branch: unchanged layout — flat list with create action.
+  // Admin branch: flat list with create action and application stats on every card.
   if (isAdmin) {
     const positions = await getAdminPositions();
+    const adminStatsByPosition =
+      positions.length > 0
+        ? await getPositionApplicationStats(positions.map((p) => p.id))
+        : new Map<string, import('@/lib/types').PositionApplicationStats>();
     return (
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between gap-4">
@@ -42,6 +46,7 @@ export default async function PositionsPage() {
                 position={position}
                 canManage={true}
                 isAuthenticated={true}
+                applicationStats={adminStatsByPosition.get(position.id)}
               />
             ))}
           </div>
@@ -122,6 +127,11 @@ export default async function PositionsPage() {
                 position={position}
                 canManage={managedIds.has(position.id)}
                 isAuthenticated={isAuthenticated}
+                applicationStats={
+                  managedIds.has(position.id)
+                    ? statsByPosition.get(position.id)
+                    : undefined
+                }
               />
             ))}
           </div>
@@ -144,6 +154,11 @@ export default async function PositionsPage() {
                 position={position}
                 canManage={managedIds.has(position.id)}
                 isAuthenticated={isAuthenticated}
+                applicationStats={
+                  managedIds.has(position.id)
+                    ? statsByPosition.get(position.id)
+                    : undefined
+                }
               />
             ))}
           </div>
