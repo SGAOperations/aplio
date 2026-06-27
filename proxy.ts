@@ -7,7 +7,7 @@ import { applyRateLimit } from '@/lib/rate-limit';
 // unauthenticated visitors to /login (prod) or /login/bypass (dev) via getCurrentUser().
 // Middleware only handles the Neon OAuth callback — the token exchange must run before
 // any page renders, but only fires when the verifier param is present.
-export function proxy(request: NextRequest): NextResponse {
+export async function proxy(request: NextRequest): Promise<NextResponse> {
   // Rate limiting only applies outside development: in dev there is no proxy to set
   // x-forwarded-for/x-real-ip, so every request maps to 'unknown' and all local
   // traffic to a capped route would share one bucket.

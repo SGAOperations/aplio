@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Three-tier rate limit caps (requests per minute per IP).
+// Per-tier rate limit caps (requests per minute per IP).
+// Webhook is matched before the /api/auth prefix so it gets the higher cap.
 const LIMITS = {
-  api: { windowMs: 60_000, max: 60 },
-  public: { windowMs: 60_000, max: 30 },
+  webhook: { windowMs: 60_000, max: 100 },
+  api: { windowMs: 60_000, max: 20 },
+  public: { windowMs: 60_000, max: 10 },
   private: { windowMs: 60_000, max: 120 },
 };
 
 function getLimit(pathname: string): { windowMs: number; max: number } {
+  if (pathname === '/api/auth/webhook') return LIMITS.webhook;
   if (pathname.startsWith('/api/')) return LIMITS.api;
   if (pathname === '/login' || pathname === '/') return LIMITS.public;
   return LIMITS.private;
@@ -41,6 +44,7 @@ function getClientIp(request: NextRequest): string {
 }
 
 function tierKey(pathname: string): string {
+  if (pathname === '/api/auth/webhook') return 'webhook';
   if (pathname.startsWith('/api/')) return 'api';
   if (pathname === '/login' || pathname === '/') return 'public';
   return 'private';
