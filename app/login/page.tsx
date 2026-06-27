@@ -42,7 +42,7 @@ export default async function SignInPage({
   return (
     <div className="flex w-full max-w-sm flex-col items-center gap-4">
       {user ? (
-        <NameField defaultName={user.name ?? ''} />
+        <NameField defaultName={user.name ?? ''} redirectTo={safeTo} />
       ) : (
         <AuthView
           path="SIGN_IN"
