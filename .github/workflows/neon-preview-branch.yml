@@ -176,7 +176,7 @@ jobs:
 
           # A non-2xx from a configured Vercel integration is a real error — fail the job.
           if [[ "$HTTP_STATUS" -lt 200 || "$HTTP_STATUS" -ge 300 ]]; then
-            echo "Vercel API returned HTTP $HTTP_STATUS; failing job."
+            echo "::error::Vercel API returned HTTP $HTTP_STATUS for branch $GIT_BRANCH; failing job."
             exit 1
           fi
 
