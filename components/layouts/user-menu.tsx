@@ -65,8 +65,8 @@ export function UserMenu({
 
   const triggerClassName =
     variant === 'header'
-      ? 'flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition-colors bg-transparent hover:bg-muted'
-      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition-colors';
+      ? 'group flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition-colors bg-transparent hover:bg-muted'
+      : 'group flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground';
 
   function handleLogout() {
     startTransition(async () => {
@@ -97,7 +97,7 @@ export function UserMenu({
             <p className="text-muted-foreground text-xs">{roleLabel}</p>
           </div>
           <ChevronUp
-            className="text-muted-foreground size-4 shrink-0"
+            className="text-muted-foreground size-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180"
             aria-hidden
           />
         </button>
