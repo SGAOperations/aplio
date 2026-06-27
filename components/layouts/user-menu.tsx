@@ -140,9 +140,10 @@ export function UserMenu({
         </DropdownMenuSub>
         <DropdownMenuSeparator />
         <DropdownMenuItem
+          variant="destructive"
           disabled={pending}
           onSelect={handleLogout}
-          className="text-destructive cursor-pointer text-sm"
+          className="cursor-pointer text-sm"
         >
           <LogOut className="size-4" aria-hidden />
           Log out
