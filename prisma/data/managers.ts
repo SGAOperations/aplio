@@ -1,6 +1,6 @@
 import 'server-only';
 
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 
 // Single source of truth for global manager detection.
 // Returns true if the user manages at least one non-deleted position.

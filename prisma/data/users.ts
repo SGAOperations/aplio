@@ -1,6 +1,6 @@
 import 'server-only';
 
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import type { AdminUserListItem } from '@/lib/types';
 
 // Returns all active (non-deactivated) users for the admin /users page.

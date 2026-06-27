@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
 import { getCurrentUser, getIsBypass } from '@/lib/auth/server';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import type { NavIdentity } from '@/lib/types';
 
 import { AppFooter } from '@/components/layouts/app-footer';

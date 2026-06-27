@@ -7,7 +7,7 @@ import { z } from 'zod/v4';
 import { checkPositionAccess } from '@/prisma/data/managers';
 
 import { getCurrentUser } from '@/lib/auth/server';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 
 const questionTypeSchema = z.enum([
   'short_answer',

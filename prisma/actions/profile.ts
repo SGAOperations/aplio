@@ -7,7 +7,7 @@ import { z } from 'zod';
 import type { GlobalAnswer } from '@/prisma/client';
 
 import { getCurrentUser } from '@/lib/auth/server';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { type ResponseType } from '@/lib/utils';
 
 const updateGlobalAnswerSchema = z.object({

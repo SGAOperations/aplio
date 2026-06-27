@@ -8,7 +8,7 @@ import { z } from 'zod/v4';
 import { checkPositionAccess, isManager } from '@/prisma/data/managers';
 
 import { getCurrentUser } from '@/lib/auth/server';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 
 // description is optional at the server boundary (defaults to '') to support creating
 // draft positions quickly; the plan spec intended required but UI allows empty drafts.
