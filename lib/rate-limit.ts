@@ -1,24 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const WINDOW_MS = 60_000;
+// Three-tier rate limit caps (requests per minute per IP).
+const LIMITS = {
+  api: { windowMs: 60_000, max: 60 },
+  public: { windowMs: 60_000, max: 30 },
+  private: { windowMs: 60_000, max: 120 },
+};
 
-// Per-route caps (requests per WINDOW_MS per IP).
-// Order matters for route matching: more specific patterns must come first.
-const ROUTE_LIMITS: {
-  key: string;
-  limit: number;
-  matcher: (p: string) => boolean;
-}[] = [
-  {
-    key: '/api/auth/webhook',
-    limit: 100,
-    matcher: (p) => p === '/api/auth/webhook',
-  },
-  { key: '/api/auth', limit: 20, matcher: (p) => p.startsWith('/api/auth') },
-  { key: '/login', limit: 10, matcher: (p) => p === '/login' },
-];
+function getLimit(pathname: string): { windowMs: number; max: number } {
+  if (pathname.startsWith('/api/')) return LIMITS.api;
+  if (pathname === '/login' || pathname === '/') return LIMITS.public;
+  return LIMITS.private;
+}
 
-// Module-level hit store: `${routeKey}:${ip}` → sorted array of request timestamps.
+// Module-level hit store: `${tier}:${ip}` → sorted array of request timestamps.
 // Reused across middleware invocations within a single worker instance.
 // Not shared across instances — see PR notes for the per-instance limitation.
 const hits = new Map<string, number[]>();
@@ -45,44 +40,47 @@ function getClientIp(request: NextRequest): string {
   return 'unknown';
 }
 
-function selectRoute(pathname: string): { key: string; limit: number } | null {
-  for (const route of ROUTE_LIMITS) {
-    if (route.matcher(pathname)) return { key: route.key, limit: route.limit };
-  }
-  return null;
+function tierKey(pathname: string): string {
+  if (pathname.startsWith('/api/')) return 'api';
+  if (pathname === '/login' || pathname === '/') return 'public';
+  return 'private';
 }
+
+// Max window across all tiers — used to evict buckets that are stale for any tier.
+const MAX_WINDOW_MS = Math.max(...Object.values(LIMITS).map((l) => l.windowMs));
 
 function maybeSweep(now: number): void {
   if (hits.size < SWEEP_THRESHOLD) return;
   for (const [bucket, timestamps] of hits) {
     const newest = timestamps.at(-1);
-    if (newest === undefined || newest < now - WINDOW_MS) hits.delete(bucket);
+    if (newest === undefined || newest < now - MAX_WINDOW_MS)
+      hits.delete(bucket);
   }
 }
 
 export function applyRateLimit(request: NextRequest): NextResponse | null {
   try {
     const { pathname } = request.nextUrl;
-    const route = selectRoute(pathname);
-    if (!route) return null;
+    const tier = tierKey(pathname);
+    const limit = getLimit(pathname);
 
     const ip = getClientIp(request);
-    const bucket = `${route.key}:${ip}`;
+    const bucket = `${tier}:${ip}`;
     const now = Date.now();
 
     maybeSweep(now);
 
     const timestamps = hits.get(bucket) ?? [];
     // Prune entries outside the current window.
-    const windowStart = now - WINDOW_MS;
+    const windowStart = now - limit.windowMs;
     const recent = timestamps.filter((t) => t >= windowStart);
 
-    if (recent.length >= route.limit) {
+    if (recent.length >= limit.max) {
       // Oldest timestamp in the current window determines when a slot next frees.
       const oldest = recent[0]!;
       const retryAfter = Math.max(
         1,
-        Math.ceil((oldest + WINDOW_MS - now) / 1000),
+        Math.ceil((oldest + limit.windowMs - now) / 1000),
       );
       return NextResponse.json(
         { error: 'Too many requests' },
@@ -90,7 +88,7 @@ export function applyRateLimit(request: NextRequest): NextResponse | null {
           status: 429,
           headers: {
             'Retry-After': String(retryAfter),
-            'X-RateLimit-Limit': String(route.limit),
+            'X-RateLimit-Limit': String(limit.max),
             'X-RateLimit-Remaining': '0',
           },
         },
