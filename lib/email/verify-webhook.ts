@@ -94,8 +94,13 @@ export async function verifyWebhookSignature(
   kidHeader: string | null,
 ): Promise<VerifyWebhookResult> {
   // Skip verification in local dev when the sentinel is set.
-  if (process.env.NEON_AUTH_WEBHOOK_SECRET === DEV_SENTINEL)
+  // The production guard prevents this bypass if the sentinel is accidentally
+  // deployed — NODE_ENV=production is always set by Next.js in a production build.
+  if (process.env.NEON_AUTH_WEBHOOK_SECRET === DEV_SENTINEL) {
+    if (process.env.NODE_ENV === 'production')
+      throw new Error('DEV_SENTINEL cannot be used in production');
     return { valid: true };
+  }
 
   if (!signatureHeader || !kidHeader) return { valid: false };
 

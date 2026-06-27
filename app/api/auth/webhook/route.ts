@@ -42,7 +42,7 @@ const webhookEventSchema = z.discriminatedUnion('type', [
   magicLinkEventSchema,
 ]);
 
-const BAD_REQUEST = new Response(null, { status: 400 });
+const badRequest = () => new Response(null, { status: 400 });
 
 export async function POST(req: Request): Promise<Response> {
   // Read the raw body once — needed both for signature verification and JSON parsing.
@@ -57,18 +57,18 @@ export async function POST(req: Request): Promise<Response> {
     signatureHeader,
     kidHeader,
   );
-  if (!valid) return BAD_REQUEST;
+  if (!valid) return badRequest();
 
   // Parse and validate the payload.
   let parsed: unknown;
   try {
     parsed = JSON.parse(rawBody);
   } catch {
-    return BAD_REQUEST;
+    return badRequest();
   }
 
   const result = webhookEventSchema.safeParse(parsed);
-  if (!result.success) return BAD_REQUEST;
+  if (!result.success) return badRequest();
 
   const event = result.data;
 
@@ -95,7 +95,7 @@ export async function POST(req: Request): Promise<Response> {
         // TypeScript exhaustiveness guard — unreachable if zod schema is complete.
         const _exhaustive: never = event;
         void _exhaustive;
-        return BAD_REQUEST;
+        return badRequest();
       }
     }
   } catch (err) {
