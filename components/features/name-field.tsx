@@ -69,7 +69,7 @@ export function NameField({ defaultName }: NameFieldProps) {
         );
       else toast.success('Name saved');
 
-      router.refresh();
+      router.replace('/');
     });
   }
 
