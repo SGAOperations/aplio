@@ -88,7 +88,7 @@ function PositionStatCluster({ stats }: PositionStatClusterProps) {
 
 // Server component — flat summary card with always-visible truncated description
 // and a CTA row linking into the detail page. Managed cards (canManage=true) also
-// show a right-anchored application stats cluster when applicationStats is passed.
+// show a right-anchored application stats cluster on the same row as the buttons.
 export function PositionCard({
   position,
   canManage = false,
@@ -112,7 +112,8 @@ export function PositionCard({
   return (
     <Card className="flex flex-col gap-0 p-0">
       <CardHeader className="p-4 pb-2">
-        <div className="flex items-start justify-between gap-2">
+        {/* Title row: status badge sits inline to the right of the title */}
+        <div className="flex items-center gap-2">
           <CardTitle className="text-lg leading-snug">
             {position.title}
           </CardTitle>
@@ -121,61 +122,64 @@ export function PositionCard({
       </CardHeader>
 
       <CardContent className="flex flex-col gap-3 px-4 pb-4">
-        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
-          {/* Left: description + date — takes remaining width, truncates */}
-          <div className="min-w-0 flex-1">
-            <p className="text-muted-foreground line-clamp-2 text-sm">
-              {position.description}
-            </p>
-            {dateLabel && (
-              <p className="text-muted-foreground mt-1 text-xs">{dateLabel}</p>
-            )}
-          </div>
-
-          {/* Right: stats cluster — only for managed cards */}
-          {canManage && applicationStats && (
-            <PositionStatCluster stats={applicationStats} />
+        {/* Description + date — unchanged, no stat cluster here */}
+        <div className="min-w-0">
+          <p className="text-muted-foreground line-clamp-2 text-sm">
+            {position.description}
+          </p>
+          {dateLabel && (
+            <p className="text-muted-foreground mt-1 text-xs">{dateLabel}</p>
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 pt-1">
-          {canManage ? (
-            <>
-              <Button asChild variant="outline" size="sm">
-                <Link href={`/positions/${position.id}`}>View Details</Link>
-              </Button>
-              <Button asChild variant="outline" size="sm">
-                <Link href={`/positions/${position.id}/edit`}>
-                  <Pencil className="size-4" />
-                  Edit
-                </Link>
-              </Button>
-              <Button asChild variant="outline" size="sm">
-                <Link href={`/applications?positionId=${position.id}`}>
-                  <Inbox className="size-4" />
-                  Applications
-                </Link>
-              </Button>
-            </>
-          ) : (
-            <>
-              {isAccepting && (
-                <Button asChild size="sm">
-                  {isAuthenticated ? (
-                    <Link href={`/positions/${position.id}/apply`}>Apply</Link>
-                  ) : (
-                    <Link
-                      href={`/login?redirectTo=/positions/${position.id}/apply`}
-                    >
-                      Apply
-                    </Link>
-                  )}
+        {/* Bottom row: action buttons on the left, stat cluster on the far right */}
+        <div className="flex items-center justify-between gap-4 pt-1">
+          <div className="flex flex-wrap items-center gap-2">
+            {canManage ? (
+              <>
+                <Button asChild variant="outline" size="sm">
+                  <Link href={`/positions/${position.id}`}>View Details</Link>
                 </Button>
-              )}
-              <Button asChild variant="outline" size="sm">
-                <Link href={`/positions/${position.id}`}>View Details</Link>
-              </Button>
-            </>
+                <Button asChild variant="outline" size="sm">
+                  <Link href={`/positions/${position.id}/edit`}>
+                    <Pencil className="size-4" />
+                    Edit
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" size="sm">
+                  <Link href={`/applications?positionId=${position.id}`}>
+                    <Inbox className="size-4" />
+                    Applications
+                  </Link>
+                </Button>
+              </>
+            ) : (
+              <>
+                {isAccepting && (
+                  <Button asChild size="sm">
+                    {isAuthenticated ? (
+                      <Link href={`/positions/${position.id}/apply`}>
+                        Apply
+                      </Link>
+                    ) : (
+                      <Link
+                        href={`/login?redirectTo=/positions/${position.id}/apply`}
+                      >
+                        Apply
+                      </Link>
+                    )}
+                  </Button>
+                )}
+                <Button asChild variant="outline" size="sm">
+                  <Link href={`/positions/${position.id}`}>View Details</Link>
+                </Button>
+              </>
+            )}
+          </div>
+
+          {/* Stat cluster — far right of bottom row, beside buttons (managed only) */}
+          {canManage && applicationStats && (
+            <PositionStatCluster stats={applicationStats} />
           )}
         </div>
       </CardContent>
