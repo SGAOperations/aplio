@@ -41,9 +41,10 @@ type NameFormValues = z.infer<typeof nameSchema>;
 
 interface NameFieldProps {
   defaultName: string;
+  redirectTo: string;
 }
 
-export function NameField({ defaultName }: NameFieldProps) {
+export function NameField({ defaultName, redirectTo }: NameFieldProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -69,7 +70,7 @@ export function NameField({ defaultName }: NameFieldProps) {
         );
       else toast.success('Name saved');
 
-      router.replace('/');
+      router.replace(redirectTo);
     });
   }
 
