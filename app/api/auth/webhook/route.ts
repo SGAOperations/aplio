@@ -75,7 +75,7 @@ export async function POST(req: Request): Promise<Response> {
 
   const result = webhookEventSchema.safeParse(parsed);
   if (!result.success) {
-    console.error('[webhook] schema invalid', result.error.issues);
+    console.error('[webhook] schema invalid', JSON.stringify(parsed), result.error.issues);
     return badRequest();
   }
 
