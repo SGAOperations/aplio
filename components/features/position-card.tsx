@@ -12,7 +12,7 @@ import type {
   PositionApplicationStats,
   PositionWithQuestions,
 } from '@/lib/types';
-import { formatDate, getPositionAvailability } from '@/lib/utils';
+import { cn, formatDate, getPositionAvailability } from '@/lib/utils';
 
 import { PositionStatusBadge } from '@/components/features/status-badge';
 import { Button } from '@/components/ui/button';
@@ -112,8 +112,13 @@ export function PositionCard({
   return (
     <Card className="flex flex-col gap-0 p-0">
       <CardHeader className="p-4 pb-2">
-        <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-lg leading-snug">
+        <div
+          className={cn(
+            'flex items-center gap-2',
+            applicationStats && 'justify-between',
+          )}
+        >
+          <CardTitle className="text-base font-semibold">
             {position.title}
           </CardTitle>
           <PositionStatusBadge position={position} />
