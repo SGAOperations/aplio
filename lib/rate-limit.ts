@@ -27,6 +27,13 @@ const hits = new Map<string, number[]>();
 // abandoned IPs don't accumulate memory over the lifetime of the worker.
 const SWEEP_THRESHOLD = 5_000;
 
+// NOTE — Vercel deployment prerequisite: Vercel's infrastructure overwrites
+// x-forwarded-for before it reaches the middleware, preventing spoofing.
+// On non-Vercel proxies (staging tunnels, custom reverse proxies) a client can
+// set x-forwarded-for to an arbitrary IP and bypass per-IP limiting entirely.
+// If this middleware is ever deployed behind a non-Vercel proxy, add header-
+// trust validation (e.g. only trust the rightmost IP, or use a separate trusted
+// header set by the proxy) before relying on the rate-limit for security.
 function getClientIp(request: NextRequest): string {
   const forwarded = request.headers.get('x-forwarded-for');
   if (forwarded) {
