@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 
 import { toast } from 'sonner';
+import type { z } from 'zod/v4';
 
 import { createUser } from '@/prisma/actions/users';
 
@@ -19,7 +20,7 @@ import {
 import { FormDialog } from '@/components/ui/form-dialog';
 import { Input } from '@/components/ui/input';
 
-type CreateUserFormValues = { email: string; name?: string; isAdmin: boolean };
+type CreateUserFormValues = z.infer<typeof createUserSchema>;
 
 const defaultValues: CreateUserFormValues = {
   email: '',
@@ -88,7 +89,7 @@ export function CreateUserDialog({ trigger }: CreateUserDialogProps) {
           <FormItem className="flex flex-row items-center gap-3">
             <FormControl>
               <Checkbox
-                checked={field.value as boolean}
+                checked={field.value}
                 onCheckedChange={field.onChange}
               />
             </FormControl>
