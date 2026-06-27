@@ -17,32 +17,44 @@ import { verifyWebhookSignature } from '@/lib/email/verify-webhook';
 // Static segment "webhook" takes precedence over the [...path] catch-all beside it,
 // so existing auth routes (login, callback, etc.) are unaffected.
 
+// Neon uses event_type (not type) as the discriminator, and nests the recipient
+// under user.email and event-specific fields under event_data.
+const userSchema = z.object({
+  email: z.string().email().optional(),
+});
+
 const otpEventSchema = z.object({
-  type: z.literal('send.otp'),
-  data: z.object({
-    email: z.string().email(),
-    otp: z.string(),
+  event_type: z.literal('send.otp'),
+  user: userSchema,
+  event_data: z.object({
+    otp_code: z.string(),
     expires_at: z.string().optional(),
-    expires_in_minutes: z.number().optional(),
   }),
 });
 
 const magicLinkEventSchema = z.object({
-  type: z.literal('send.magic_link'),
-  data: z.object({
-    email: z.string().email(),
-    magic_link: z.string().url(),
+  event_type: z.literal('send.magic_link'),
+  user: userSchema,
+  event_data: z.object({
+    link_url: z.string().url(),
     expires_at: z.string().optional(),
-    expires_in_minutes: z.number().optional(),
   }),
 });
 
-const webhookEventSchema = z.discriminatedUnion('type', [
+const webhookEventSchema = z.discriminatedUnion('event_type', [
   otpEventSchema,
   magicLinkEventSchema,
 ]);
 
 const badRequest = () => new Response(null, { status: 400 });
+
+function minutesUntil(isoString: string | undefined): number | undefined {
+  if (!isoString) return undefined;
+  const mins = Math.round(
+    (new Date(isoString).getTime() - Date.now()) / 60_000,
+  );
+  return mins > 0 ? mins : undefined;
+}
 
 export async function POST(req: Request): Promise<Response> {
   // Read the raw body once — needed both for signature verification and JSON parsing.
@@ -53,15 +65,12 @@ export async function POST(req: Request): Promise<Response> {
   const kidHeader = req.headers.get('X-Neon-Signature-Kid');
   const timestampHeader = req.headers.get('X-Neon-Timestamp');
 
-  console.log('[webhook] headers', { sig: signatureHeader?.slice(0, 20), kid: kidHeader, ts: timestampHeader });
-
   const { valid } = await verifyWebhookSignature(
     rawBody,
     signatureHeader,
     kidHeader,
     timestampHeader,
   );
-  console.log('[webhook] verify result', { valid });
   if (!valid) return badRequest();
 
   // Parse and validate the payload.
@@ -69,35 +78,33 @@ export async function POST(req: Request): Promise<Response> {
   try {
     parsed = JSON.parse(rawBody);
   } catch {
-    console.error('[webhook] json parse failed');
     return badRequest();
   }
 
   const result = webhookEventSchema.safeParse(parsed);
-  if (!result.success) {
-    console.error('[webhook] schema invalid', JSON.stringify(parsed), result.error.issues);
-    return badRequest();
-  }
+  if (!result.success) return badRequest();
 
   const event = result.data;
+  const email = event.user.email;
+  if (!email) return badRequest();
 
   // Dispatch by event type and send the branded email.
   try {
-    switch (event.type) {
+    switch (event.event_type) {
       case 'send.otp': {
         const template = otpEmail({
-          code: event.data.otp,
-          expiresInMinutes: event.data.expires_in_minutes,
+          code: event.event_data.otp_code,
+          expiresInMinutes: minutesUntil(event.event_data.expires_at),
         });
-        await sendEmail({ to: event.data.email, ...template });
+        await sendEmail({ to: email, ...template });
         break;
       }
       case 'send.magic_link': {
         const template = magicLinkEmail({
-          url: event.data.magic_link,
-          expiresInMinutes: event.data.expires_in_minutes,
+          url: event.event_data.link_url,
+          expiresInMinutes: minutesUntil(event.event_data.expires_at),
         });
-        await sendEmail({ to: event.data.email, ...template });
+        await sendEmail({ to: email, ...template });
         break;
       }
       default: {

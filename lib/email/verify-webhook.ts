@@ -65,25 +65,16 @@ export async function verifyWebhookSignature(
     return { valid: true };
   }
 
-  if (!signatureHeader || !kidHeader || !timestampHeader) {
-    console.error('[webhook-verify] missing headers', { signatureHeader: !!signatureHeader, kidHeader: !!kidHeader, timestampHeader: !!timestampHeader });
+  if (!signatureHeader || !kidHeader || !timestampHeader)
     return { valid: false };
-  }
 
   // Reject stale requests (replay-attack guard).
   const ts = parseInt(timestampHeader, 10);
-  const ageMs = Date.now() - ts;
-  if (isNaN(ts) || ageMs > 5 * 60 * 1000) {
-    console.error('[webhook-verify] stale timestamp', { timestampHeader, ts, ageMs, now: Date.now() });
-    return { valid: false };
-  }
+  if (isNaN(ts) || Date.now() - ts > 5 * 60 * 1000) return { valid: false };
 
   // Parse the detached JWS: headerB64..signatureB64 (empty middle section).
   const parts = signatureHeader.split('.');
-  if (parts.length !== 3 || parts[1] !== '') {
-    console.error('[webhook-verify] bad jws format', { parts: parts.length, middle: parts[1] });
-    return { valid: false };
-  }
+  if (parts.length !== 3 || parts[1] !== '') return { valid: false };
   const [headerB64, , signatureB64] = parts;
 
   // Reconstruct the compact JWS by filling in the detached payload.
