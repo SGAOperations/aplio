@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 
 import { z } from 'zod/v4';
 
-import { authServer, getCurrentUser } from '@/lib/auth/server';
+import { authServer, getCurrentUser, upsertAppUser } from '@/lib/auth/server';
 import { createUserSchema } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 
@@ -71,6 +71,15 @@ export async function deactivateUser(
   revalidatePath('/users');
 }
 
+function hasCode(e: unknown): e is { code: string } {
+  return (
+    typeof e === 'object' &&
+    e !== null &&
+    'code' in e &&
+    typeof (e as Record<string, unknown>).code === 'string'
+  );
+}
+
 export async function createUser(input: unknown): Promise<ActionError | void> {
   const admin = await getCurrentUser();
   if (!admin.isAdmin) return { error: 'Unauthorized' };
@@ -89,10 +98,10 @@ export async function createUser(input: unknown): Promise<ActionError | void> {
 
   if (authError) {
     // Duplicate email codes from the better-auth admin plugin.
-    const code = (authError as { code?: string }).code;
     if (
-      code === 'USER_ALREADY_EXISTS' ||
-      code === 'USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL'
+      hasCode(authError) &&
+      (authError.code === 'USER_ALREADY_EXISTS' ||
+        authError.code === 'USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL')
     )
       return { error: 'A user with this email already exists.' };
     // Anything else is unexpected (network failure, auth config, etc.) → throw.
@@ -105,17 +114,11 @@ export async function createUser(input: unknown): Promise<ActionError | void> {
   const neonAuthId = authData.user.id;
 
   await prisma.$transaction(async (tx) => {
-    const appUser = await tx.user.upsert({
-      where: { neonAuthId },
-      update: {},
-      create: {
-        neonAuthId,
-        email,
-        ...(name ? { name } : {}),
-        isAdmin: false,
-        createdById: admin.id,
-      },
-    });
+    const appUser = await upsertAppUser(
+      { neonAuthId, email, name },
+      admin.id,
+      tx,
+    );
 
     if (isAdmin)
       await tx.user.update({

@@ -3,6 +3,8 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
 
+import type { Prisma } from '@/prisma/client';
+
 import { prisma } from '@/lib/prisma';
 
 export const authServer = createAuthServer();
@@ -11,6 +13,8 @@ export const authServer = createAuthServer();
 // Create-only (empty update {}) so an existing row is returned without any write
 // on sign-in. Keyed on neonAuthId — race-safe via the DB unique constraint.
 // name omitted when falsy (OTP identities often supply an empty string → store null).
+// Accepts an optional Prisma transaction client so callers inside $transaction can
+// share the same unit of work without duplicating the upsert definition.
 export async function upsertAppUser(
   {
     neonAuthId,
@@ -18,8 +22,10 @@ export async function upsertAppUser(
     name,
   }: { neonAuthId: string; email: string; name?: string | null },
   createdById?: string,
+  tx?: Prisma.TransactionClient,
 ) {
-  return prisma.user.upsert({
+  const client = tx ?? prisma;
+  return client.user.upsert({
     where: { neonAuthId },
     update: {},
     create: {
