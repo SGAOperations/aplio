@@ -9,7 +9,7 @@ import type { GlobalAnswer } from '@/prisma/client';
 import { getCurrentUser } from '@/lib/auth/server';
 import { NAME_MAX_LENGTH } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
-import { type ResponseType } from '@/lib/utils';
+import { type ErrorType, type ResponseType } from '@/lib/utils';
 
 const updateGlobalAnswerSchema = z.object({
   questionId: z.string().min(1),
@@ -27,9 +27,7 @@ const setUserNameSchema = z.object({
     ),
 });
 
-type ActionError = { error: string };
-
-export async function setUserName(input: unknown): Promise<ActionError | void> {
+export async function setUserName(input: unknown): Promise<ErrorType | void> {
   const user = await getCurrentUser();
 
   const parsed = setUserNameSchema.safeParse(input);
