@@ -60,7 +60,7 @@ export default async function SignInPage({
               }
             : {
                 SIGN_IN_DESCRIPTION:
-                  "Enter your email to sign in. We'll send you a one-time code.",
+                  "Enter your email to sign in or create an account. We'll send you a one-time code.",
                 EMAIL_OTP: '',
               }
         }
