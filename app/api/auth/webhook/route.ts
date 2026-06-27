@@ -51,11 +51,13 @@ export async function POST(req: Request): Promise<Response> {
   // Verify the Neon Auth signature before doing anything else.
   const signatureHeader = req.headers.get('X-Neon-Signature');
   const kidHeader = req.headers.get('X-Neon-Signature-Kid');
+  const timestampHeader = req.headers.get('X-Neon-Timestamp');
 
   const { valid } = await verifyWebhookSignature(
     rawBody,
     signatureHeader,
     kidHeader,
+    timestampHeader,
   );
   if (!valid) return badRequest();
 

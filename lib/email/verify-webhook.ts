@@ -1,10 +1,15 @@
 import 'server-only';
 
+import { createPublicKey, verify as cryptoVerify } from 'crypto';
+
 // EdDSA (Ed25519) signature verification for Neon Auth webhook requests.
 //
-// Neon signs each webhook request with an Ed25519 private key and includes:
-//   X-Neon-Signature      — base64url-encoded signature over the raw body bytes
+// Neon signs each webhook request and includes three headers:
+//   X-Neon-Signature      — detached JWS: headerB64..signatureB64 (empty payload section)
 //   X-Neon-Signature-Kid  — key ID matching a JWK in the JWKS endpoint
+//   X-Neon-Timestamp      — Unix timestamp (ms) of when the request was signed
+//
+// Signing input: headerB64 + "." + base64url(timestamp + "." + base64url(rawBody))
 //
 // The JWKS is fetched once and cached in-module (process lifetime) to avoid
 // a network round-trip per webhook. The cache is busted only on a kid miss,
@@ -45,40 +50,6 @@ async function fetchJwks(bustCache = false): Promise<JWKSResponse> {
   return data;
 }
 
-async function importEd25519Key(jwk: JWK): Promise<CryptoKey> {
-  // Ed25519 JWKs have kty=OKP, crv=Ed25519, and a base64url-encoded public key x.
-  return crypto.subtle.importKey(
-    'jwk',
-    {
-      kty: jwk.kty,
-      crv: jwk.crv,
-      x: jwk.x,
-      use: jwk.use ?? 'sig',
-      alg: jwk.alg ?? 'EdDSA',
-    },
-    { name: 'Ed25519' },
-    false,
-    ['verify'],
-  );
-}
-
-function base64UrlDecode(input: string): Uint8Array<ArrayBuffer> {
-  // Convert base64url → base64, then decode.
-  const base64 = input.replace(/-/g, '+').replace(/_/g, '/');
-  const padded = base64.padEnd(
-    base64.length + ((4 - (base64.length % 4)) % 4),
-    '=',
-  );
-  const binary = atob(padded);
-  // Explicit ArrayBuffer allocation so the resulting Uint8Array is
-  // Uint8Array<ArrayBuffer> (not Uint8Array<ArrayBufferLike>) — required by
-  // crypto.subtle.verify's BufferSource parameter in strict TypeScript.
-  const buffer = new ArrayBuffer(binary.length);
-  const bytes = new Uint8Array(buffer);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-
 export interface VerifyWebhookResult {
   valid: boolean;
 }
@@ -87,6 +58,7 @@ export async function verifyWebhookSignature(
   rawBody: string,
   signatureHeader: string | null,
   kidHeader: string | null,
+  timestampHeader: string | null,
 ): Promise<VerifyWebhookResult> {
   // Skip Ed25519 signature verification in local dev when the flag is set.
   // The production guard ensures this bypass cannot be deployed accidentally —
@@ -97,7 +69,26 @@ export async function verifyWebhookSignature(
     return { valid: true };
   }
 
-  if (!signatureHeader || !kidHeader) return { valid: false };
+  if (!signatureHeader || !kidHeader || !timestampHeader)
+    return { valid: false };
+
+  // Reject stale requests (replay-attack guard).
+  const ts = parseInt(timestampHeader, 10);
+  if (isNaN(ts) || Date.now() - ts > 5 * 60 * 1000) return { valid: false };
+
+  // Parse the detached JWS: headerB64..signatureB64 (empty middle section).
+  const parts = signatureHeader.split('.');
+  if (parts.length !== 3) return { valid: false };
+  const [headerB64, , signatureB64] = parts;
+
+  // Build the signing input per Neon's spec:
+  //   headerB64 + "." + base64url(timestamp + "." + base64url(rawBody))
+  const payloadB64 = Buffer.from(rawBody).toString('base64url');
+  const signingInput =
+    headerB64 +
+    '.' +
+    Buffer.from(timestampHeader + '.' + payloadB64).toString('base64url');
+  const sigBuffer = Buffer.from(signatureB64, 'base64url');
 
   // Attempt verification; if the kid is not in the cache, bust it and retry
   // once to handle key rotation.
@@ -111,15 +102,18 @@ export async function verifyWebhookSignature(
       return { valid: false };
     }
 
-    const key = await importEd25519Key(jwk);
-    const bodyBytes = new TextEncoder().encode(rawBody);
-    const sigBytes = base64UrlDecode(signatureHeader);
-
-    const valid = await crypto.subtle.verify(
-      'Ed25519',
-      key,
-      sigBytes,
-      bodyBytes,
+    // Import the Ed25519 public key from JWK via Node's crypto module.
+    // crypto.createPublicKey handles OKP/Ed25519 JWKs more reliably than
+    // crypto.subtle across Node versions and is synchronous.
+    const publicKey = createPublicKey({
+      key: jwk as JsonWebKey,
+      format: 'jwk',
+    });
+    const valid = cryptoVerify(
+      null,
+      Buffer.from(signingInput),
+      publicKey,
+      sigBuffer,
     );
     return { valid };
   }
