@@ -239,6 +239,34 @@ export type PositionApplicationStats = {
   total: number;
 };
 
+// Neon Auth webhook event discriminated union — parsed by zod in the webhook route.
+// The `data` field shapes match what Neon sends for each event type; expiry fields
+// are optional because Neon may omit them for certain configurations.
+export type NeonAuthWebhookOtpEvent = {
+  type: 'send.otp';
+  data: {
+    email: string;
+    otp: string;
+    expires_at?: string;
+    expires_in_minutes?: number;
+  };
+};
+
+export type NeonAuthWebhookMagicLinkEvent = {
+  type: 'send.magic_link';
+  data: {
+    email: string;
+    magic_link: string;
+    expires_at?: string;
+    expires_in_minutes?: number;
+  };
+};
+
+export type NeonAuthWebhookEvent =
+  | NeonAuthWebhookOtpEvent
+  | NeonAuthWebhookMagicLinkEvent;
+
+
 // Identity shape passed to nav components so sidebar and mobile nav agree
 // on what to display in the user menu.
 export interface NavIdentity {

@@ -30,12 +30,15 @@ cp .env.example .env.local
 
 Open `.env.local` and fill in the four required variables:
 
-| Variable                  | Description                                                                                        |
-| ------------------------- | -------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`            | Postgres connection string (pooled). Local Docker: `postgresql://admin:admin@localhost:5432/aplio` |
-| `DIRECT_URL`              | Direct (non-pooled) connection string. Local Docker: same as `DATABASE_URL`                        |
-| `NEON_AUTH_BASE_URL`      | Stack Auth base URL from your Neon Auth project                                                    |
-| `NEON_AUTH_COOKIE_SECRET` | Stack Auth cookie secret                                                                           |
+| Variable                   | Description                                                                                                                       |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`             | Postgres connection string (pooled). Local Docker: `postgresql://admin:admin@localhost:5432/aplio`                                |
+| `DIRECT_URL`               | Direct (non-pooled) connection string. Local Docker: same as `DATABASE_URL`                                                       |
+| `NEON_AUTH_BASE_URL`       | Stack Auth base URL from your Neon Auth project                                                                                   |
+| `NEON_AUTH_COOKIE_SECRET`  | Stack Auth cookie secret                                                                                                          |
+| `RESEND_API_KEY`           | Resend API key for transactional email delivery                                                                                   |
+| `RESEND_FROM_EMAIL`        | Verified sender address in Resend (e.g. `noreply@yourdomain.com`)                                                                 |
+| `NEON_AUTH_WEBHOOK_SECRET` | Signing secret from the Neon console — used to verify webhook signatures. Set to `dev` to skip verification in local development. |
 
 > **Note:** Prisma CLI commands (`prisma:migrate`, `prisma:seed`) read from `.env`; Next.js reads `.env.local`. Both files are gitignored. For local development you can keep the same values in both.
 
