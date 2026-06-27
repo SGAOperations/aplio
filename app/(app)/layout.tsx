@@ -8,6 +8,11 @@ import { AppFooter } from '@/components/layouts/app-footer';
 import { MobileNav } from '@/components/layouts/mobile-nav';
 import { Sidebar } from '@/components/layouts/sidebar';
 
+// Force every route under this layout to re-render on each request so that
+// auth state changes (deactivation, admin toggle) take effect on the affected
+// user's very next navigation — no 30-second router-cache window.
+export const dynamic = 'force-dynamic';
+
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const user = await getCurrentUser();
 
