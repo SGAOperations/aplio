@@ -34,7 +34,7 @@ interface PositionStatClusterProps {
 // Zero-count tiles are dimmed rather than hidden so the cluster shape is stable.
 function PositionStatCluster({ stats }: PositionStatClusterProps) {
   return (
-    <div aria-label="Application stats" className="shrink-0">
+    <div role="region" aria-label="Application stats" className="shrink-0">
       {/* Total tile — col-span-2 lead row with hairline divider below */}
       <div className="border-border mb-2 border-b pb-2">
         <div className="flex items-center gap-1.5">
