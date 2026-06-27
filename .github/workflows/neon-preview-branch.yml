@@ -16,6 +16,8 @@ name: Neon Preview Branch
 on:
   pull_request:
     types: [opened, synchronize, reopened, closed]
+    branches:
+      - dev
 
 # Cancel in-progress runs for the same PR so rapid pushes don't race on the
 # same Neon branch (create-vs-migrate overlap).
