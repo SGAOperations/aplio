@@ -16,7 +16,7 @@ function getResend(): Resend {
 function getSenderAddress(): string {
   if (!process.env.RESEND_FROM_EMAIL)
     throw new Error('RESEND_FROM_EMAIL is not configured');
-  return process.env.RESEND_FROM_EMAIL;
+  return `Aplio <${process.env.RESEND_FROM_EMAIL}>`;
 }
 
 export interface SendEmailParams {
