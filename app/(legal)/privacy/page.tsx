@@ -161,8 +161,8 @@ export default function PrivacyPolicyPage() {
           Terms of Service
         </Link>
         <span aria-hidden>·</span>
-        <Link href="/login" className="hover:text-foreground hover:underline">
-          Back to sign in
+        <Link href="/" className="hover:text-foreground hover:underline">
+          Back to home
         </Link>
       </footer>
     </article>
