@@ -124,7 +124,7 @@ export function PositionCard({
         {/* Two-column layout: left column grows and holds description + buttons pinned
             to the bottom; right column is the stat cluster anchored to the top.
             When applicationStats is absent the left column takes full width naturally. */}
-        <div className="flex flex-row items-stretch gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-stretch">
           {/* Left column — description, date label, then buttons pushed to the bottom */}
           <div className="flex min-w-0 flex-1 flex-col">
             <p className="text-muted-foreground line-clamp-2 text-sm">
