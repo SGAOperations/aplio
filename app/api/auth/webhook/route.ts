@@ -19,9 +19,7 @@ import { verifyWebhookSignature } from '@/lib/email/verify-webhook';
 
 // Neon uses event_type (not type) as the discriminator, and nests the recipient
 // under user.email and event-specific fields under event_data.
-const userSchema = z.object({
-  email: z.string().email().optional(),
-});
+const userSchema = z.object({ email: z.string().email().optional() });
 
 const otpEventSchema = z.object({
   event_type: z.literal('send.otp'),

@@ -46,11 +46,17 @@ function emailLayout({ title, content }: LayoutOptions): string {
           </tr>
           <!-- Card -->
           <tr>
-            <td style="background:#ffffff;border:1px solid #e4e4e7;border-radius:8px;overflow:hidden;">
-              <div style="height:4px;background:#D41B2C;"></div>
-              <div style="padding:32px;">
-                ${content}
-              </div>
+            <td>
+              <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e4e4e7;border-radius:8px;">
+                <tr>
+                  <td bgcolor="#D41B2C" style="background-color:#D41B2C;height:4px;padding:0;line-height:0;font-size:0;">&nbsp;</td>
+                </tr>
+                <tr>
+                  <td bgcolor="#ffffff" style="background-color:#ffffff;padding:32px;">
+                    ${content}
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
           <!-- Footer -->
@@ -91,9 +97,13 @@ export function otpEmail({
   const content = `
     <h1 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#09090b;">Your sign-in code</h1>
     <p style="margin:0 0 24px;font-size:14px;color:#71717a;">Use the code below to sign in to Aplio.</p>
-    <div style="border:2px solid #D41B2C;border-radius:6px;padding:20px;text-align:center;margin-bottom:24px;">
-      <span style="font-size:36px;font-weight:700;letter-spacing:0.2em;color:#09090b;font-family:'Courier New',monospace;">${safeCode}</span>
-    </div>
+    <table width="100%" cellpadding="0" cellspacing="0" style="border:2px solid #D41B2C;border-radius:6px;margin-bottom:24px;">
+      <tr>
+        <td style="padding:20px;text-align:center;">
+          <span style="font-size:36px;font-weight:700;letter-spacing:0.2em;color:#09090b;font-family:'Courier New',monospace;">${safeCode}</span>
+        </td>
+      </tr>
+    </table>
     ${expiryLine ? `<p style="margin:0;font-size:13px;color:#71717a;">${expiryLine}</p>` : ''}
   `;
 
@@ -131,7 +141,7 @@ export function magicLinkEmail({
     <h1 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#09090b;">Sign in to Aplio</h1>
     <p style="margin:0 0 24px;font-size:14px;color:#71717a;">Click the button below to sign in to your account.</p>
     <div style="text-align:center;margin-bottom:24px;">
-      <a href="${safeUrl}" style="display:inline-block;background:#D41B2C;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:6px;font-size:14px;font-weight:600;letter-spacing:0.01em;">Sign in to Aplio</a>
+      <a href="${safeUrl}" style="display:inline-block;background-color:#D41B2C;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:6px;font-size:14px;font-weight:600;letter-spacing:0.01em;">Sign in to Aplio</a>
     </div>
     ${expiryLine ? `<p style="margin:0 0 16px;font-size:13px;color:#71717a;">${expiryLine}</p>` : ''}
     <p style="margin:0;font-size:12px;color:#71717a;">Or copy this link into your browser:<br /><span style="color:#09090b;word-break:break-all;">${safeUrl}</span></p>
