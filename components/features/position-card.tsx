@@ -111,27 +111,38 @@ export function PositionCard({
 
   return (
     <Card className="flex flex-col gap-0 p-0">
-      <CardHeader className="p-4 pb-2">
+      {/* Two-column layout: when applicationStats is present the outer div becomes a
+          flex row at sm+, with CardHeader + CardContent in the left column and the
+          stat cluster in a right column that reaches the card's top edge.
+          One-column view (no applicationStats): wrapper and column divs add no classes,
+          card renders exactly as before. */}
+      <div className={cn(applicationStats && 'sm:flex sm:flex-row')}>
+        {/* Left column — header + content stacked; grows to fill available width */}
         <div
           className={cn(
-            'flex items-center gap-2',
-            !applicationStats && 'justify-between',
+            applicationStats && 'sm:flex sm:min-w-0 sm:flex-1 sm:flex-col',
           )}
         >
-          <CardTitle className="text-lg leading-snug">
-            {position.title}
-          </CardTitle>
-          <PositionStatusBadge position={position} />
-        </div>
-      </CardHeader>
+          <CardHeader className="p-4 pb-2">
+            <div
+              className={cn(
+                'flex items-center gap-2',
+                !applicationStats && 'justify-between',
+              )}
+            >
+              <CardTitle className="text-lg leading-snug">
+                {position.title}
+              </CardTitle>
+              <PositionStatusBadge position={position} />
+            </div>
+          </CardHeader>
 
-      <CardContent className="px-4 pb-4">
-        {/* Two-column layout: left column grows and holds description + buttons pinned
-            to the bottom; right column is the stat cluster anchored to the top.
-            When applicationStats is absent the left column takes full width naturally. */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-stretch">
-          {/* Left column — description, date label, then buttons pushed to the bottom */}
-          <div className="flex min-w-0 flex-1 flex-col">
+          <CardContent
+            className={cn(
+              'px-4 pb-4',
+              applicationStats && 'sm:flex sm:flex-1 sm:flex-col',
+            )}
+          >
             <p className="text-muted-foreground line-clamp-2 text-sm">
               {position.description}
             </p>
@@ -182,17 +193,17 @@ export function PositionCard({
                 </>
               )}
             </div>
-          </div>
-
-          {/* Right column — stat cluster anchored to the top-right of the card;
-              self-start keeps it at the natural top regardless of left-column height */}
-          {canManage && applicationStats && (
-            <div className="self-start">
-              <PositionStatCluster stats={applicationStats} />
-            </div>
-          )}
+          </CardContent>
         </div>
-      </CardContent>
+
+        {/* Right column — stat cluster top-aligned beside the full left column;
+            hidden on mobile so stats only appear in the wide two-column layout */}
+        {applicationStats && (
+          <div className="hidden sm:flex sm:shrink-0 sm:items-start sm:p-6 sm:pl-0">
+            <PositionStatCluster stats={applicationStats} />
+          </div>
+        )}
+      </div>
     </Card>
   );
 }
