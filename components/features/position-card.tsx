@@ -199,7 +199,7 @@ export function PositionCard({
         {/* Right column — stat cluster; stacks below left column on mobile,
             sits beside it at sm+ in a two-column layout */}
         {applicationStats && (
-          <div className="sm:flex sm:shrink-0 sm:items-start sm:p-6 sm:pl-0">
+          <div className="px-4 pb-4 sm:flex sm:shrink-0 sm:items-start sm:p-6 sm:pl-0">
             <PositionStatCluster stats={applicationStats} />
           </div>
         )}
