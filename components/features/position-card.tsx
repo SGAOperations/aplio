@@ -196,10 +196,10 @@ export function PositionCard({
           </CardContent>
         </div>
 
-        {/* Right column — stat cluster top-aligned beside the full left column;
-            hidden on mobile so stats only appear in the wide two-column layout */}
+        {/* Right column — stat cluster; stacks below left column on mobile,
+            sits beside it at sm+ in a two-column layout */}
         {applicationStats && (
-          <div className="hidden sm:flex sm:shrink-0 sm:items-start sm:p-6 sm:pl-0">
+          <div className="sm:flex sm:shrink-0 sm:items-start sm:p-6 sm:pl-0">
             <PositionStatCluster stats={applicationStats} />
           </div>
         )}
