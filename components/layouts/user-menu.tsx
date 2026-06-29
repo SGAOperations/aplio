@@ -2,7 +2,7 @@
 
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
-import { unstable_rethrow, useRouter } from 'next/navigation';
+import { unstable_rethrow } from 'next/navigation';
 import { useTransition } from 'react';
 
 import {
@@ -16,9 +16,9 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { signOutUser } from '@/prisma/actions/auth';
 import { logoutBypassUser } from '@/prisma/services/dev-bypass';
 
-import { authClient } from '@/lib/auth/client';
 import type { NavIdentity } from '@/lib/types';
 
 import {
@@ -50,7 +50,6 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
   const { name, email, roleLabel, isBypass } = identity;
   const displayName = name ?? email;
   const [pending, startTransition] = useTransition();
-  const router = useRouter();
   // next-themes is loaded with { ssr: false }; `theme` is undefined on first
   // render before the provider resolves. Default to 'system' to match
   // defaultTheme so the radio shows a selection without a flash.
@@ -72,14 +71,11 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
         }
         return;
       }
-      try {
-        await authClient.signOut();
-        toast.success('Signed out.');
-        router.push('/login');
-        router.refresh();
-      } catch {
-        toast.error('Could not sign out. Please try again.');
+      const result = await signOutUser();
+      if (result && 'error' in result) {
+        toast.error(result.error);
       }
+      // On success the server action redirects to /login — no client navigation needed.
     });
   }
 
