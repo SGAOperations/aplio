@@ -7,6 +7,8 @@ import { AuthView } from '@neondatabase/auth/react/ui';
 import { getOptionalUser } from '@/lib/auth/server';
 import { PRIVACY_HREF, TERMS_HREF } from '@/lib/constants';
 
+import { NameField } from '@/components/features/name-field';
+
 export const metadata: Metadata = { title: 'Sign In' };
 
 // Constrain redirectTo to a same-origin relative path — accept only values
@@ -32,42 +34,48 @@ export default async function SignInPage({
   const applyContext = isApplyRedirect(safeTo);
 
   const user = await getOptionalUser();
-  if (user) redirect(safeTo);
+  // Authenticated user with a name set — send them into the app.
+  if (user?.name?.trim()) redirect(safeTo);
+  // Authenticated user with no name — fall through to render the name form below.
 
   const isDev = process.env.VERCEL_ENV !== 'production';
 
   return (
     <div className="flex w-full max-w-sm flex-col items-center gap-4">
-      <AuthView
-        path="SIGN_IN"
-        redirectTo={safeTo}
-        classNames={{
-          base: 'w-full',
-          content: 'w-full',
-          form: { base: 'w-full', otpInputContainer: 'justify-center' },
-        }}
-        localization={
-          applyContext
-            ? {
-                SIGN_IN: 'Continue Your Application',
-                SIGN_IN_DESCRIPTION:
-                  "Enter your email to continue your application. We'll send you a one-time code.",
-                SIGN_IN_ACTION: 'Continue',
-                EMAIL_OTP: '',
-                EMAIL_OTP_DESCRIPTION:
-                  'Enter your email to continue your application.',
-                SIGN_UP: 'Continue Your Application',
-                SIGN_UP_ACTION: 'Continue',
-                SIGN_UP_DESCRIPTION:
-                  "Enter your email to continue your application. We'll send you a one-time code.",
-              }
-            : {
-                SIGN_IN_DESCRIPTION:
-                  "Enter your email to sign in or create an account. We'll send you a one-time code.",
-                EMAIL_OTP: '',
-              }
-        }
-      />
+      {user ? (
+        <NameField defaultName={user.name ?? ''} redirectTo={safeTo} />
+      ) : (
+        <AuthView
+          path="SIGN_IN"
+          redirectTo={safeTo}
+          classNames={{
+            base: 'w-full',
+            content: 'w-full',
+            form: { base: 'w-full', otpInputContainer: 'justify-center' },
+          }}
+          localization={
+            applyContext
+              ? {
+                  SIGN_IN: 'Continue Your Application',
+                  SIGN_IN_DESCRIPTION:
+                    "Enter your email to continue your application. We'll send you a one-time code.",
+                  SIGN_IN_ACTION: 'Continue',
+                  EMAIL_OTP: '',
+                  EMAIL_OTP_DESCRIPTION:
+                    'Enter your email to continue your application.',
+                  SIGN_UP: 'Continue Your Application',
+                  SIGN_UP_ACTION: 'Continue',
+                  SIGN_UP_DESCRIPTION:
+                    "Enter your email to continue your application. We'll send you a one-time code.",
+                }
+              : {
+                  SIGN_IN_DESCRIPTION:
+                    "Enter your email to sign in or create an account. We'll send you a one-time code.",
+                  EMAIL_OTP: '',
+                }
+          }
+        />
+      )}
       {isDev && (
         <p className="text-muted-foreground text-center text-xs">
           Dev:{' '}

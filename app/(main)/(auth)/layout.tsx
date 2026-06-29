@@ -13,6 +13,9 @@ export default async function AuthGateLayout({
 }) {
   const user = await getCurrentUser();
 
+  // Name gate — nameless users must set their name before accessing any app route.
+  if (!user.name?.trim()) redirect('/login');
+
   if (user.isAdmin) return <>{children}</>;
 
   if (await isManager(user.id)) return <>{children}</>;
