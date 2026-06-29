@@ -1,17 +1,16 @@
 import 'server-only';
 
-import fs from 'fs';
-import path from 'path';
-
 // Email templates for Neon Auth webhook events.
 //
 // Tailwind classes are ignored by email clients, so inline styles are used here.
 // Logo is embedded as a base64 data URI so it renders without a hosted URL dependency.
 // Red accent #D41B2C matches the Aplio logo; zinc tokens match the app design system.
 
-const LOGO_DATA_URI = `data:image/svg+xml;base64,${Buffer.from(
-  fs.readFileSync(path.join(process.cwd(), 'public/logo-light.svg')),
-).toString('base64')}`;
+const LOGO_DATA_URI =
+  'data:image/svg+xml;base64,' +
+  Buffer.from(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"><rect width="512" height="512" rx="80" fill="#fbfbfb"/><path d="m93 156 100 100L93 356" stroke="#47191f" stroke-width="80" stroke-linecap="round" fill="none"/><path d="m206 156 100 100-100 100" stroke="#881924" stroke-width="80" stroke-linecap="round" fill="none"/><path d="m319 156 100 100-100 100" stroke="#d41b2c" stroke-width="80" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>',
+  ).toString('base64');
 
 // Prevent HTML injection in user-supplied values interpolated into email markup.
 function escapeHtml(s: string): string {

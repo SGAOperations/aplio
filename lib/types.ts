@@ -239,7 +239,6 @@ export type PositionApplicationStats = {
   total: number;
 };
 
-
 // Identity shape passed to nav components so sidebar and mobile nav agree
 // on what to display in the user menu.
 export interface NavIdentity {
