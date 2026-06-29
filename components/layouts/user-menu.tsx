@@ -19,6 +19,7 @@ import { signOutUser } from '@/prisma/actions/auth';
 import { logoutBypassUser } from '@/prisma/services/dev-bypass';
 
 import type { NavIdentity } from '@/lib/types';
+import { isError } from '@/lib/utils';
 
 import {
   DropdownMenu,
@@ -72,8 +73,11 @@ export function UserMenu({
         await logoutBypassUser();
         return;
       }
+      // Optimistic success toast — fires before the server redirect so it
+      // displays regardless of which path (redirect or error) completes first.
+      toast.success('Signed out.');
       const result = await signOutUser();
-      if (result && 'error' in result) {
+      if (isError(result)) {
         toast.error(result.error);
       }
       // On success the server action redirects to /login — no client navigation needed.

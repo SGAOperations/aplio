@@ -12,7 +12,8 @@ import type { ErrorType } from '@/lib/utils';
 // fragility that caused the 403 when sign-out was driven client-side.
 export async function signOutUser(): Promise<ErrorType | void> {
   const user = await getCurrentUser();
-  if (!user) redirect('/login');
+  // getCurrentUser() always redirects when unauthenticated; this throw is defense-in-depth.
+  if (!user) throw new Error('Unauthenticated');
 
   const result = await authServer.signOut();
 
