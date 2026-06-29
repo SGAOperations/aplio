@@ -14,22 +14,20 @@ import { PageHeader } from '@/components/layouts/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
+interface ApplyPageProps {
+  params: Promise<{ id: string }>;
+}
+
 export async function generateMetadata({
   params,
-}: {
-  params: Promise<{ id: string }>;
-}): Promise<Metadata> {
+}: ApplyPageProps): Promise<Metadata> {
   const { id } = await params;
   const position = await getPositionForApply(id);
   if (!position) return {};
   return { title: `Apply: ${position.title}` };
 }
 
-export default async function ApplyPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function ApplyPage({ params }: ApplyPageProps) {
   const { id } = await params;
   const user = await getCurrentUser();
   if (!user) redirect('/sign-in');
