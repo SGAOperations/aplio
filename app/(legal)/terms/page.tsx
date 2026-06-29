@@ -141,11 +141,10 @@ export default function TermsOfServicePage() {
           service without our permission.
         </p>
         <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
-          The Aplio source code is made publicly available under the MIT
-          License. Nothing in these Terms limits or overrides what the MIT
-          License permits you to do with the code. However, access to the
-          platform itself as a user is governed by these Terms, not the MIT
-          License.
+          The Aplio software is proprietary. Copyright &copy; 2026 Northeastern
+          University Student Government Association. All rights reserved. No
+          use, copying, modification, or distribution of this software is
+          permitted without prior written permission from the copyright holder.
         </p>
       </section>
 
