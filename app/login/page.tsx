@@ -6,6 +6,7 @@ import { AuthView } from '@neondatabase/auth/react/ui';
 
 import { getOptionalUser } from '@/lib/auth/server';
 import { PRIVACY_HREF, TERMS_HREF } from '@/lib/constants';
+
 import { NameField } from '@/components/features/name-field';
 
 export const metadata: Metadata = { title: 'Sign In' };
