@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
@@ -5,6 +6,8 @@ import { AuthView } from '@neondatabase/auth/react/ui';
 
 import { getOptionalUser } from '@/lib/auth/server';
 import { PRIVACY_HREF, TERMS_HREF } from '@/lib/constants';
+
+export const metadata: Metadata = { title: 'Sign In' };
 
 // Constrain redirectTo to a same-origin relative path — accept only values
 // starting with a single "/" and not "//" to prevent open-redirect attacks.
@@ -73,20 +76,16 @@ export default async function SignInPage({
           </Link>
         </p>
       )}
-      <p className="text-muted-foreground text-xs">
-        <Link
-          href={PRIVACY_HREF}
-          className="hover:text-foreground hover:underline"
-        >
+      <p className="text-muted-foreground text-center text-xs">
+        By creating an account, you agree to our{' '}
+        <Link href={TERMS_HREF} className="text-primary hover:underline">
+          Terms of Service
+        </Link>{' '}
+        and{' '}
+        <Link href={PRIVACY_HREF} className="text-primary hover:underline">
           Privacy Policy
         </Link>
-        {' · '}
-        <Link
-          href={TERMS_HREF}
-          className="hover:text-foreground hover:underline"
-        >
-          Terms of Service
-        </Link>
+        .
       </p>
     </div>
   );

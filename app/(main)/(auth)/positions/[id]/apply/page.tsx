@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
@@ -13,11 +14,20 @@ import { PageHeader } from '@/components/layouts/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
-export default async function ApplyPage({
-  params,
-}: {
+interface ApplyPageProps {
   params: Promise<{ id: string }>;
-}) {
+}
+
+export async function generateMetadata({
+  params,
+}: ApplyPageProps): Promise<Metadata> {
+  const { id } = await params;
+  const position = await getPositionForApply(id);
+  if (!position) return {};
+  return { title: `Apply: ${position.title}` };
+}
+
+export default async function ApplyPage({ params }: ApplyPageProps) {
   const { id } = await params;
   const user = await getCurrentUser();
   if (!user) redirect('/sign-in');
