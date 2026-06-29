@@ -4,7 +4,10 @@ import { revalidatePath } from 'next/cache';
 
 import { z } from 'zod/v4';
 
+import { Prisma } from '@/prisma/client';
+
 import { getCurrentUser } from '@/lib/auth/server';
+import { createUserSchema } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 
 const toggleAdminSchema = z.object({
@@ -66,6 +69,37 @@ export async function deactivateUser(
   // Not reachable from the freshly-rendered admin list → unexpected → throw.
   if (result.count === 0)
     throw new Error('User not found or already deactivated');
+
+  revalidatePath('/users');
+}
+
+export async function createUser(input: unknown): Promise<ActionError | void> {
+  const admin = await getCurrentUser();
+  if (!admin.isAdmin) return { error: 'Unauthorized' };
+
+  const parsed = createUserSchema.safeParse(input);
+  if (!parsed.success) return { error: 'Invalid input' };
+
+  const { email, name, isAdmin } = parsed.data;
+
+  // Pre-invite: create an app-side row with email only (no Neon Auth call).
+  // When the invitee completes OTP sign-up, resolveRealUser() links their neonAuthId.
+  // Catch P2002 on the email unique constraint instead of a prior findFirst so the
+  // duplicate check is atomic with the insert (no read-then-write race).
+  try {
+    await prisma.user.create({
+      data: {
+        email,
+        ...(name?.trim() ? { name: name.trim() } : {}),
+        isAdmin,
+        createdById: admin.id,
+      },
+    });
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002')
+      return { error: 'A user with this email already exists.' };
+    throw e;
+  }
 
   revalidatePath('/users');
 }

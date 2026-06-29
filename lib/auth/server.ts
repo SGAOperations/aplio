@@ -3,28 +3,68 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
 
+import { Prisma } from '@/prisma/client';
+
 import { prisma } from '@/lib/prisma';
 
 export const authServer = createAuthServer();
 
-// Provision-on-first-auth: create the app User row when a real Neon session
-// has no matching row yet, then return it. Create-only (empty update {}) so an
-// existing row is returned without any write.
-// Keyed on the unique neonAuthId → race-safe via the DB unique constraint + upsert.
+// Provision-on-first-auth: find or create the app User row for the authenticated
+// Neon session. Three-step lookup handles two cases:
+//   1. Already linked — fast path via unique neonAuthId lookup.
+//   2. Pre-invited — admin pre-created a row with email only; link neonAuthId on
+//      first sign-in so subsequent requests hit the fast path.
+//   3. Brand-new — create a fresh row; P2002 catch handles the concurrent sign-in
+//      race (both requests pass steps 1–2 simultaneously and one wins create).
 // name omitted when falsy (OTP identities often supply an empty string → store null).
-// Deactivated users (#153) are blocked by the post-upsert guard below.
+// Deactivated users are blocked by the post-lookup guard below.
 async function resolveRealUser() {
   const { data: session } = await authServer.getSession();
   if (!session?.user) return null;
 
   const { id: neonAuthId, email, name } = session.user;
 
-  const row = await prisma.user.upsert({
-    where: { neonAuthId },
-    update: {},
-    create: { neonAuthId, email, ...(name ? { name } : {}), isAdmin: false },
-  });
-  if (row.deletedAt) return null;
+  // 1. Already linked
+  let row = await prisma.user.findUnique({ where: { neonAuthId } });
+
+  // 2. Pre-invited by email — link neonAuthId on first sign-in
+  if (!row) {
+    const pending = await prisma.user.findFirst({
+      where: { email, neonAuthId: null },
+    });
+    if (pending) {
+      row = await prisma.user.update({
+        where: { id: pending.id },
+        data: { neonAuthId, ...(name?.trim() ? { name: name.trim() } : {}) },
+      });
+    }
+  }
+
+  // 3. Brand-new user — catch P2002 if two concurrent requests race to create
+  if (!row) {
+    try {
+      row = await prisma.user.create({
+        data: {
+          neonAuthId,
+          email,
+          ...(name?.trim() ? { name: name.trim() } : {}),
+          isAdmin: false,
+        },
+      });
+    } catch (e) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2002'
+      ) {
+        // Lost the race — the concurrent request created the row; fetch it
+        row = await prisma.user.findUnique({ where: { neonAuthId } });
+      } else {
+        throw e;
+      }
+    }
+  }
+
+  if (!row || row.deletedAt) return null;
   return row;
 }
 
