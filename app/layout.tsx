@@ -11,7 +11,7 @@ import './globals.css';
 const inter = Inter({ variable: '--font-sans', subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: { default: 'Aplio', template: 'Aplio - %s' },
+  title: { default: 'Aplio', template: 'Aplio • %s' },
   description: 'A student government application management system.',
   icons: [
     // Light-mode favicon: white/light background logo

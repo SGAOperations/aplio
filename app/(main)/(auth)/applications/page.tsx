@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
 import {
@@ -19,6 +20,8 @@ import type {
 
 import { ApplicationsTable } from '@/components/features/applications-table';
 import { ApplicationsToolbar } from '@/components/features/applications-toolbar';
+
+export const metadata: Metadata = { title: 'Applications' };
 
 interface ApplicationsPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;

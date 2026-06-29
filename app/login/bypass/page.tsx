@@ -1,8 +1,11 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { loginAsBypassUser } from '@/prisma/services/dev-bypass';
 
 import { Button } from '@/components/ui/button';
+
+export const metadata: Metadata = { title: 'Dev Login' };
 
 export default function BypassLoginPage() {
   return (

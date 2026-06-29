@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
 import { getUsersForAdmin } from '@/prisma/data/users';
@@ -6,6 +7,8 @@ import { getCurrentUser } from '@/lib/auth/server';
 
 import { UsersTable } from '@/components/features/users-table';
 import { PageHeader } from '@/components/layouts/page-header';
+
+export const metadata: Metadata = { title: 'Users' };
 
 export default async function UsersPage() {
   const user = await getCurrentUser();
