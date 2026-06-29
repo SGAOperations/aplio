@@ -3,14 +3,11 @@ import 'server-only';
 // Email templates for Neon Auth webhook events.
 //
 // Tailwind classes are ignored by email clients, so inline styles are used here.
-// Logo is embedded as a base64 data URI so it renders without a hosted URL dependency.
+// Logo is served from the hosted /logo-512.svg asset; VERCEL_URL is set automatically
+// in Vercel deployments and falls back to localhost:3000 for local dev.
 // Red accent #D41B2C matches the Aplio logo; zinc tokens match the app design system.
 
-const LOGO_DATA_URI =
-  'data:image/svg+xml;base64,' +
-  Buffer.from(
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"><rect width="512" height="512" rx="80" fill="#fbfbfb"/><path d="m93 156 100 100L93 356" stroke="#47191f" stroke-width="80" stroke-linecap="round" fill="none"/><path d="m206 156 100 100-100 100" stroke="#881924" stroke-width="80" stroke-linecap="round" fill="none"/><path d="m319 156 100 100-100 100" stroke="#d41b2c" stroke-width="80" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>',
-  ).toString('base64');
+const LOGO_URL = `https://${process.env.VERCEL_URL ?? 'localhost:3000'}/logo-512.svg`;
 
 // Prevent HTML injection in user-supplied values interpolated into email markup.
 function escapeHtml(s: string): string {
@@ -50,7 +47,7 @@ function emailLayout({ title, content }: LayoutOptions): string {
                     <table cellpadding="0" cellspacing="0">
                       <tr>
                         <td style="vertical-align:middle;padding-right:10px;">
-                          <img src="${LOGO_DATA_URI}" width="34" height="34" alt="" style="display:block;border-radius:6px;" />
+                          <img src="${LOGO_URL}" width="34" height="34" alt="" style="display:block;border-radius:6px;" />
                         </td>
                         <td style="vertical-align:middle;">
                           <span style="font-size:17px;font-weight:700;color:#ffffff;letter-spacing:-0.01em;">Aplio</span>
