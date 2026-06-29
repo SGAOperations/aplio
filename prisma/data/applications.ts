@@ -9,6 +9,7 @@ import {
   type ApplicationForReview,
   type MyApplicationListItem,
   type PositionApplicationListItem,
+  type PositionApplicationStats,
 } from '@/lib/types';
 
 const applicationSelect = {
@@ -326,4 +327,44 @@ export async function getReviewablePositions(user: {
     select: { id: true, title: true },
     orderBy: { title: 'asc' },
   });
+}
+
+// Returns non-draft/non-withdrawn application counts per status for a set of
+// position IDs, keyed by positionId. Returns cross-user aggregate data —
+// must be called with caller-managed position IDs only (admin = all positions;
+// manager = their assigned positions). Never call with arbitrary IDs from the client.
+export async function getPositionApplicationStats(
+  positionIds: string[],
+): Promise<Map<string, PositionApplicationStats>> {
+  if (positionIds.length === 0) return new Map();
+
+  const rows = await prisma.application.groupBy({
+    by: ['positionId', 'status'],
+    where: {
+      positionId: { in: positionIds },
+      deletedAt: null,
+      status: { notIn: ['draft', 'withdrawn'] },
+    },
+    _count: true,
+  });
+
+  const map = new Map<string, PositionApplicationStats>();
+
+  for (const row of rows) {
+    const existing = map.get(row.positionId) ?? {
+      positionId: row.positionId,
+      counts: {} as Partial<Record<$Enums.ApplicationStatus, number>>,
+      total: 0,
+    };
+    existing.counts[row.status] = row._count;
+    existing.total += row._count;
+    map.set(row.positionId, existing);
+  }
+
+  // Ensure every requested position has an entry (zero-count positions get an empty stats object).
+  for (const id of positionIds) {
+    if (!map.has(id)) map.set(id, { positionId: id, counts: {}, total: 0 });
+  }
+
+  return map;
 }

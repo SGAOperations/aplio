@@ -1,5 +1,6 @@
 import { Briefcase } from 'lucide-react';
 
+import { getPositionApplicationStats } from '@/prisma/data/applications';
 import {
   getAdminPositions,
   getManagedPositions,
@@ -8,6 +9,7 @@ import {
 } from '@/prisma/data/positions';
 
 import { getOptionalUser } from '@/lib/auth/server';
+import type { PositionApplicationStats } from '@/lib/types';
 
 import { PositionCard } from '@/components/features/position-card';
 import { PositionCreateDialog } from '@/components/features/position-create-dialog';
@@ -17,9 +19,13 @@ export default async function PositionsPage() {
   const user = await getOptionalUser();
   const isAdmin = user?.isAdmin ?? false;
 
-  // Admin branch: unchanged layout — flat list with create action.
+  // Admin branch: flat list with create action and application stats on every card.
   if (isAdmin) {
     const positions = await getAdminPositions();
+    const adminStatsByPosition =
+      positions.length > 0
+        ? await getPositionApplicationStats(positions.map((p) => p.id))
+        : new Map<string, PositionApplicationStats>();
     return (
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between gap-4">
@@ -41,6 +47,7 @@ export default async function PositionsPage() {
                 position={position}
                 canManage={true}
                 isAuthenticated={true}
+                applicationStats={adminStatsByPosition.get(position.id)}
               />
             ))}
           </div>
@@ -60,6 +67,13 @@ export default async function PositionsPage() {
 
   // Build a set of managed IDs so canManage can be derived in O(1) per card.
   const managedIds = new Set(managedPositions.map((p) => p.id));
+
+  // Fetch application stats for managed positions — stats are cross-user aggregates
+  // safe to show to managers (see getPositionApplicationStats() for the invariant).
+  const statsByPosition =
+    managedIds.size > 0
+      ? await getPositionApplicationStats([...managedIds])
+      : new Map<string, PositionApplicationStats>();
 
   // Show "Positions I Manage" only when the user actually manages at least one
   // relevant position — non-managers get an empty array, so the section is omitted.
@@ -85,6 +99,7 @@ export default async function PositionsPage() {
                 position={position}
                 canManage={true}
                 isAuthenticated={isAuthenticated}
+                applicationStats={statsByPosition.get(position.id)}
               />
             ))}
           </div>
@@ -113,6 +128,11 @@ export default async function PositionsPage() {
                 position={position}
                 canManage={managedIds.has(position.id)}
                 isAuthenticated={isAuthenticated}
+                applicationStats={
+                  managedIds.has(position.id)
+                    ? statsByPosition.get(position.id)
+                    : undefined
+                }
               />
             ))}
           </div>
@@ -135,6 +155,11 @@ export default async function PositionsPage() {
                 position={position}
                 canManage={managedIds.has(position.id)}
                 isAuthenticated={isAuthenticated}
+                applicationStats={
+                  managedIds.has(position.id)
+                    ? statsByPosition.get(position.id)
+                    : undefined
+                }
               />
             ))}
           </div>

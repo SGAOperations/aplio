@@ -73,20 +73,16 @@ export default async function SignInPage({
           </Link>
         </p>
       )}
-      <p className="text-muted-foreground text-xs">
-        <Link
-          href={PRIVACY_HREF}
-          className="hover:text-foreground hover:underline"
-        >
+      <p className="text-muted-foreground text-center text-xs">
+        By creating an account, you agree to our{' '}
+        <Link href={TERMS_HREF} className="text-primary hover:underline">
+          Terms of Service
+        </Link>{' '}
+        and{' '}
+        <Link href={PRIVACY_HREF} className="text-primary hover:underline">
           Privacy Policy
         </Link>
-        {' · '}
-        <Link
-          href={TERMS_HREF}
-          className="hover:text-foreground hover:underline"
-        >
-          Terms of Service
-        </Link>
+        .
       </p>
     </div>
   );
