@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
@@ -5,6 +6,8 @@ import { AuthView } from '@neondatabase/auth/react/ui';
 
 import { getOptionalUser } from '@/lib/auth/server';
 import { PRIVACY_HREF, TERMS_HREF } from '@/lib/constants';
+
+export const metadata: Metadata = { title: 'Sign In' };
 
 // Constrain redirectTo to a same-origin relative path — accept only values
 // starting with a single "/" and not "//" to prevent open-redirect attacks.

@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
@@ -12,6 +13,17 @@ import { ApplicationStepper } from '@/components/features/application-stepper';
 import { PageHeader } from '@/components/layouts/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const position = await getPositionForApply(id);
+  if (!position) return {};
+  return { title: `Apply: ${position.title}` };
+}
 
 export default async function ApplyPage({
   params,
