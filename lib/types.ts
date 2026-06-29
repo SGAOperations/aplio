@@ -5,7 +5,7 @@ import type {
   PositionStatus,
   QuestionType,
 } from '@/prisma/client';
-import type { Prisma } from '@/prisma/client';
+import type { $Enums, Prisma } from '@/prisma/client';
 
 import type { REVIEWER_APPLICATION_STATUSES } from '@/lib/constants';
 
@@ -229,6 +229,15 @@ export type AdminUserListItem = Prisma.UserGetPayload<{
     };
   };
 }>;
+
+// Per-position application stats for admin/manager position cards.
+// Aggregate read-only shape — never exposes individual applicant identity.
+// Must only be passed to cards for positions the caller manages.
+export type PositionApplicationStats = {
+  positionId: string;
+  counts: Partial<Record<$Enums.ApplicationStatus, number>>;
+  total: number;
+};
 
 // Identity shape passed to nav components so sidebar and mobile nav agree
 // on what to display in the user menu.
