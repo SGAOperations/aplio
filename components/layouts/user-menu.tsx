@@ -2,7 +2,7 @@
 
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
-import { unstable_rethrow } from 'next/navigation';
+import { unstable_rethrow, useRouter } from 'next/navigation';
 import { useTransition } from 'react';
 
 import {
@@ -50,6 +50,7 @@ const THEME_OPTIONS = [
 export function UserMenu({ identity, onNavigate }: UserMenuProps) {
   const { name, email, roleLabel, isBypass } = identity;
   const displayName = name ?? email;
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   // next-themes is loaded with { ssr: false }; `theme` is undefined on first
   // render before the provider resolves. Default to 'system' to match
@@ -72,13 +73,20 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
         }
         return;
       }
-      const result = await signOutUser();
-      if (isError(result)) {
-        toast.error(result.error);
-      } else {
+      try {
+        const result = await signOutUser();
+        if (isError(result)) {
+          toast.error(result.error);
+          return;
+        }
         toast.success('Signed out.');
+        router.push('/login');
+      } catch (error) {
+        // signOutUser() no longer calls redirect() itself (see its comment), so
+        // reaching here means an unexpected throw, not the normal success path.
+        console.error('Sign-out failed unexpectedly', error);
+        toast.error('Something went wrong. Please try again.');
       }
-      // On success the server action redirects to /login — no client navigation needed.
     });
   }
 
