@@ -2,10 +2,10 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
-import { AuthView } from '@neondatabase/auth/react/ui';
-
 import { getOptionalUser } from '@/lib/auth/server';
 import { PRIVACY_HREF, TERMS_HREF } from '@/lib/constants';
+
+import { LoginView } from '@/components/features/login-view';
 
 export const metadata: Metadata = { title: 'Sign In' };
 
@@ -36,38 +36,24 @@ export default async function SignInPage({
 
   const isDev = process.env.VERCEL_ENV !== 'production';
 
+  const copy = applyContext
+    ? {
+        title: 'Continue Your Application',
+        description:
+          "Enter your email to continue your application. We'll send you a one-time code.",
+        sentDescription:
+          'Check your inbox for a one-time code to continue your application.',
+      }
+    : {
+        title: 'Sign in',
+        description:
+          "Enter your email to sign in or create an account. We'll send you a one-time code.",
+        sentDescription: 'Check your inbox for a one-time code.',
+      };
+
   return (
     <div className="flex w-full max-w-sm flex-col items-center gap-4">
-      <AuthView
-        path="SIGN_IN"
-        redirectTo={safeTo}
-        classNames={{
-          base: 'w-full',
-          content: 'w-full',
-          form: { base: 'w-full', otpInputContainer: 'justify-center' },
-        }}
-        localization={
-          applyContext
-            ? {
-                SIGN_IN: 'Continue Your Application',
-                SIGN_IN_DESCRIPTION:
-                  "Enter your email to continue your application. We'll send you a one-time code.",
-                SIGN_IN_ACTION: 'Continue',
-                EMAIL_OTP: '',
-                EMAIL_OTP_DESCRIPTION:
-                  'Enter your email to continue your application.',
-                SIGN_UP: 'Continue Your Application',
-                SIGN_UP_ACTION: 'Continue',
-                SIGN_UP_DESCRIPTION:
-                  "Enter your email to continue your application. We'll send you a one-time code.",
-              }
-            : {
-                SIGN_IN_DESCRIPTION:
-                  "Enter your email to sign in or create an account. We'll send you a one-time code.",
-                EMAIL_OTP: '',
-              }
-        }
-      />
+      <LoginView redirectTo={safeTo} copy={copy} />
       {isDev && (
         <p className="text-muted-foreground text-center text-xs">
           Dev:{' '}
@@ -76,16 +62,20 @@ export default async function SignInPage({
           </Link>
         </p>
       )}
-      <p className="text-muted-foreground text-center text-xs">
-        By creating an account, you agree to our{' '}
-        <Link href={TERMS_HREF} className="text-primary hover:underline">
-          Terms of Service
-        </Link>{' '}
-        and{' '}
-        <Link href={PRIVACY_HREF} className="text-primary hover:underline">
+      <p className="text-muted-foreground text-xs">
+        <Link
+          href={PRIVACY_HREF}
+          className="hover:text-foreground hover:underline"
+        >
           Privacy Policy
         </Link>
-        .
+        {' · '}
+        <Link
+          href={TERMS_HREF}
+          className="hover:text-foreground hover:underline"
+        >
+          Terms of Service
+        </Link>
       </p>
     </div>
   );
