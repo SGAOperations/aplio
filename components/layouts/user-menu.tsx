@@ -72,12 +72,11 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
         }
         return;
       }
-      // Optimistic success toast — fires before the server redirect so it
-      // displays regardless of which path (redirect or error) completes first.
-      toast.success('Signed out.');
       const result = await signOutUser();
       if (isError(result)) {
         toast.error(result.error);
+      } else {
+        toast.success('Signed out.');
       }
       // On success the server action redirects to /login — no client navigation needed.
     });
