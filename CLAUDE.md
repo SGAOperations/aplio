@@ -56,7 +56,7 @@ Never push with known failures. Run Prisma via the **`npm run prisma:*` scripts*
 
 - Pipeline agents get their own isolated worktree automatically (`isolation: worktree`) — they handle setup; see `.claude/docs/PIPELINE.md`. Do not script worktree creation for them.
 - For manual local work in a worktree, install deps with `npm ci` (then `npm run prisma:generate`). **Do not `ln -s node_modules` — symlinks fall back to copies on Windows here.** Sync before resuming: `git fetch origin && git rebase origin/dev`.
-- **`npm ci` is what activates Git hooks** — it runs `prepare` (`husky`), which regenerates the untracked `.husky/_` bootstrap dir and sets `core.hooksPath`. Each worktree/clone needs its own `npm ci` for hooks to fire there. If hooks stop firing, re-run `npm ci` (or `npm run prepare`) and verify with `npm run hooks:check`.
+- **`npm ci` is what activates Git hooks** — it runs `prepare` (`husky && npm run hooks:check`), which regenerates the untracked `.husky/_` bootstrap dir, sets `core.hooksPath`, and fails `npm ci` itself if activation didn't take. Each worktree/clone needs its own `npm ci` for hooks to fire there. If hooks stop firing, re-run `npm ci` (or `npm run prepare`) and verify with `npm run hooks:check`.
 
 ## Design Specs
 

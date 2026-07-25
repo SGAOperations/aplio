@@ -18,8 +18,8 @@
     "db:start": "docker compose up -d",
     "db:stop": "docker compose down",
     "db:reset": "prisma migrate reset",
-    "prepare": "husky",
-    "hooks:check": "sh -c 'hp=$(git config core.hookspath); if [ -z \"$hp\" ] || [ ! -f \"$hp/husky.sh\" ]; then echo \"hooks:check: git hooks are inactive (core.hooksPath=$hp missing or incomplete). Run npm ci or npm run prepare to activate.\" >&2; exit 1; fi; echo \"hooks:check: hooks active ($hp)\"'"
+    "prepare": "husky && npm run hooks:check",
+    "hooks:check": "node scripts/check-hooks.mjs"
   },
   "prisma": {
     "seed": "npx tsx --env-file=.env prisma/seed.ts"
