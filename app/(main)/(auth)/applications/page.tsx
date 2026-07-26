@@ -44,7 +44,6 @@ export default async function ApplicationsPage({
 
   const sp = await searchParams;
 
-  // Parse filters from searchParams — unknown/invalid values are ignored.
   const rawStatus = typeof sp.status === 'string' ? sp.status : undefined;
   const validStatus: ReviewerStatus | undefined =
     rawStatus &&
@@ -52,7 +51,6 @@ export default async function ApplicationsPage({
       ? (rawStatus as ReviewerStatus)
       : undefined;
 
-  // Parse sort from "field:direction" param (e.g. "date:desc").
   const rawSort = typeof sp.sort === 'string' ? sp.sort : undefined;
   let validSort: ApplicationSort | undefined;
   if (rawSort) {

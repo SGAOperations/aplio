@@ -21,9 +21,8 @@ const applicationSelect = {
   position: { select: { id: true, title: true } },
 } as const;
 
-// Shared scope guard: admins see all non-draft; managers see only their positions.
-// Used by both getApplications (filtered list) and getApplicationsTotal (denominator)
-// so the two always cover the same universe of rows.
+// Shared by getApplications and getApplicationsTotal so the two always cover
+// the same universe of rows (list and denominator stay in sync).
 function buildBaseWhere(user: { id: string; isAdmin: boolean }) {
   return user.isAdmin
     ? { deletedAt: null, status: { not: 'draft' as const } }
@@ -126,8 +125,6 @@ export async function getMyApplicationStatusCounts(
   return Object.fromEntries(rows.map((r) => [r.status, r._count]));
 }
 
-// Admin-only: returns application counts grouped by status across all positions.
-// Excludes drafts and withdrawn applications — counts active pipeline statuses only.
 // Returns cross-user data — must only be called from an admin-gated context.
 export async function getApplicationStatusCounts(): Promise<
   Partial<Record<$Enums.ApplicationStatus, number>>
@@ -141,8 +138,8 @@ export async function getApplicationStatusCounts(): Promise<
   return Object.fromEntries(rows.map((r) => [r.status, r._count]));
 }
 
-// Admin-only: returns the most recent non-draft, non-withdrawn applications across all positions.
-// Returns cross-user data (applicant name/email) — must only be called from an admin-gated context.
+// Returns cross-user data (applicant name/email) — must only be called from
+// an admin-gated context.
 export async function getRecentApplications(
   take = 10,
 ): Promise<AdminApplicationListItem[]> {
@@ -160,13 +157,9 @@ export async function getRecentApplications(
   });
 }
 
-// Returns all non-draft applications the caller may review, with optional
-// filters applied on top of the caller-scoped where clause (no IDOR).
-// Admins see all; managers see only their positions'. Returns cross-user data
-// (applicant identity + position) — must only be called from a reviewer-gated context.
-// Capped at 100 rows as a query-cost guard (fetches 101 so the caller can
-// detect truncation vs. an exact 100-row match — see page.tsx); full
-// pagination is a future follow-up.
+// Caller-scoped (no IDOR) — must only be called from a reviewer-gated
+// context; returns cross-user data (applicant identity + position). Capped
+// at 100 rows as a query-cost guard; full pagination is a future follow-up.
 export async function getApplications(
   user: { id: string; isAdmin: boolean },
   filters: ApplicationFilters,
@@ -221,9 +214,8 @@ export async function getApplications(
     }
   }
 
-  // Text search covers applicant name, email, and position title.
-  // When the query also resolves to a date range the full clause is an OR
-  // so that typing "Jun 2026" finds both date-matched and name/title-matched rows.
+  // OR'd with the date range (when present) so "Jun 2026" matches both
+  // date-matched and name/title-matched rows.
   const textWhere = filters.q
     ? {
         OR: [
@@ -283,7 +275,6 @@ export async function getApplications(
   });
 }
 
-// Applicant-scoped: count of non-draft applications for the stat card.
 // Uses a direct count rather than re-fetching the full groupBy result to keep it cheap.
 export async function getMySubmittedCount(userId: string): Promise<number> {
   return prisma.application.count({
@@ -291,8 +282,6 @@ export async function getMySubmittedCount(userId: string): Promise<number> {
   });
 }
 
-// Applicant-scoped: most recent non-draft applications ordered by last update,
-// used for the applicant activity feed. Reuses applicationSelect which includes updatedAt.
 export async function getMyRecentActivity(
   userId: string,
   take = 10,
@@ -305,10 +294,6 @@ export async function getMyRecentActivity(
   });
 }
 
-// Caller-scoped unfiltered count of non-draft applications, used for the
-// toolbar "shown / total" display. Shares the same scope as getApplications
-// via buildBaseWhere — the two always cover the same universe of rows.
-// No filters are applied — this is the denominator for the count display.
 export async function getApplicationsTotal(user: {
   id: string;
   isAdmin: boolean;
@@ -316,8 +301,6 @@ export async function getApplicationsTotal(user: {
   return prisma.application.count({ where: buildBaseWhere(user) });
 }
 
-// Returns positions the caller may review — used to populate the Position filter
-// Select on /applications. Admins see all non-deleted; managers see their positions.
 export async function getReviewablePositions(user: {
   id: string;
   isAdmin: boolean;
@@ -333,10 +316,9 @@ export async function getReviewablePositions(user: {
   });
 }
 
-// Returns non-draft/non-withdrawn application counts per status for a set of
-// position IDs, keyed by positionId. Returns cross-user aggregate data —
-// must be called with caller-managed position IDs only (admin = all positions;
-// manager = their assigned positions). Never call with arbitrary IDs from the client.
+// Returns cross-user aggregate data — must be called with caller-managed
+// position IDs only (admin = all positions; manager = their assigned
+// positions). Never call with arbitrary IDs from the client.
 export async function getPositionApplicationStats(
   positionIds: string[],
 ): Promise<Map<string, PositionApplicationStats>> {
@@ -365,7 +347,6 @@ export async function getPositionApplicationStats(
     map.set(row.positionId, existing);
   }
 
-  // Ensure every requested position has an entry (zero-count positions get an empty stats object).
   for (const id of positionIds) {
     if (!map.has(id)) map.set(id, { positionId: id, counts: {}, total: 0 });
   }

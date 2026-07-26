@@ -41,7 +41,6 @@ function compareValues(
       numeric: true,
     });
 
-  // Fallback for mixed types — convert to string.
   return String(a).localeCompare(String(b), undefined, {
     sensitivity: 'base',
     numeric: true,
@@ -69,8 +68,8 @@ export function useSortableTable<T>(
   const defaultSortKey = options?.defaultSort?.key;
   const defaultSortDirection = options?.defaultSort?.direction;
 
-  // Resolve sort state: URL params take precedence; fall back to defaultSort.
-  // Primitive deps prevent recomputing when an inline defaultSort object is passed.
+  // Primitive deps (not `options?.defaultSort`) prevent recomputing every
+  // render when an inline defaultSort object is passed.
   const sort: SortState = useMemo(() => {
     if (params.sort !== null)
       return { key: params.sort, direction: params.dir ?? 'asc' };
@@ -79,19 +78,18 @@ export function useSortableTable<T>(
     return { key: null, direction: 'asc' };
   }, [params.sort, params.dir, defaultSortKey, defaultSortDirection]);
 
+  // Cycles a column through asc → desc → cleared (back to defaultSort) on
+  // repeated clicks.
   const toggle = useCallback(
     (key: string) => {
       if (params.sort !== key) {
-        // No explicit URL sort on this column → begin cycle at asc.
         void setParams({ sort: key as (typeof validKeys)[number], dir: 'asc' });
       } else if (params.dir !== 'desc') {
-        // Explicitly sorted asc (or no dir param, which defaults to asc) → desc.
         void setParams({
           sort: key as (typeof validKeys)[number],
           dir: 'desc',
         });
       } else {
-        // Explicitly sorted desc → clear (return to default order).
         void setParams({ sort: null, dir: null });
       }
     },
