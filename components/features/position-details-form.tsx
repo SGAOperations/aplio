@@ -1,18 +1,27 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useForm } from 'react-hook-form';
 
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import type { z } from 'zod/v4';
 
 import { updatePosition } from '@/prisma/actions/position-actions';
 import type { PositionStatus } from '@/prisma/client';
 
-import { STATUS_OPTIONS } from '@/lib/constants';
+import { STATUS_OPTIONS, positionFormSchema } from '@/lib/constants';
 
 import { Button } from '@/components/ui/button';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -33,110 +42,152 @@ interface PositionDetailsFormProps {
   };
 }
 
+type PositionFormValues = z.infer<typeof positionFormSchema>;
+
+function formatDateForInput(iso: string | null): string {
+  if (!iso) return '';
+  return iso.slice(0, 16);
+}
+
+// Always-visible inline edit form on the position edit page (no Dialog), so
+// this uses the shadcn Form primitives directly rather than FormDialog.
+// Shares positionFormSchema with PositionCreateDialog (ENGINEERING §1).
 export function PositionDetailsForm({ position }: PositionDetailsFormProps) {
-  const [isPending, startTransition] = useTransition();
+  const form = useForm<PositionFormValues>({
+    resolver: zodResolver(positionFormSchema),
+    defaultValues: {
+      title: position.title,
+      description: position.description,
+      status: position.status,
+      opensAt: formatDateForInput(position.opensAt),
+      closesAt: formatDateForInput(position.closesAt),
+    },
+  });
+  const isSubmitting = form.formState.isSubmitting;
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const title = formData.get('title') as string;
-    const description = formData.get('description') as string;
-    const status = formData.get('status') as PositionStatus;
-    const opensAt = formData.get('opensAt') as string;
-    const closesAt = formData.get('closesAt') as string;
-
-    startTransition(async () => {
-      const result = await updatePosition({
-        id: position.id,
-        title,
-        description,
-        status,
-        opensAt: opensAt || undefined,
-        closesAt: closesAt || undefined,
-      });
-
-      if (result && 'error' in result) {
-        toast.error(result.error);
-      } else {
-        toast.success('Position updated');
-      }
+  async function onSubmit(data: PositionFormValues) {
+    const result = await updatePosition({
+      id: position.id,
+      ...data,
+      opensAt: data.opensAt || undefined,
+      closesAt: data.closesAt || undefined,
     });
+
+    if (result && 'error' in result) {
+      toast.error(result.error);
+    } else {
+      toast.success('Position updated');
+    }
   }
 
-  const formatDateForInput = (iso: string | null) => {
-    if (!iso) return '';
-    return iso.slice(0, 16);
-  };
-
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <div className="grid gap-2">
-        <Label htmlFor="title">Title</Label>
-        <Input
-          id="title"
+    <Form {...form}>
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="flex flex-col gap-4"
+      >
+        <FormField
+          control={form.control}
           name="title"
-          defaultValue={position.title}
-          required
-          disabled={isPending}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Title</FormLabel>
+              <FormControl>
+                <Input disabled={isSubmitting} {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="description">Description</Label>
-        <Textarea
-          id="description"
+
+        <FormField
+          control={form.control}
           name="description"
-          defaultValue={position.description}
-          rows={4}
-          disabled={isPending}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Description</FormLabel>
+              <FormControl>
+                <Textarea rows={4} disabled={isSubmitting} {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="status">Status</Label>
-        <Select
-          defaultValue={position.status}
+
+        <FormField
+          control={form.control}
           name="status"
-          disabled={isPending}
-        >
-          <SelectTrigger id="status">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {STATUS_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="grid gap-2 sm:grid-cols-2">
-        <div className="grid gap-2">
-          <Label htmlFor="opensAt">Opens At</Label>
-          <Input
-            id="opensAt"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Status</FormLabel>
+              <Select
+                onValueChange={field.onChange}
+                value={field.value}
+                disabled={isSubmitting}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {STATUS_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="grid gap-2 sm:grid-cols-2">
+          <FormField
+            control={form.control}
             name="opensAt"
-            type="datetime-local"
-            defaultValue={formatDateForInput(position.opensAt)}
-            disabled={isPending}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Opens At</FormLabel>
+                <FormControl>
+                  <Input
+                    type="datetime-local"
+                    disabled={isSubmitting}
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="closesAt">Closes At</Label>
-          <Input
-            id="closesAt"
+
+          <FormField
+            control={form.control}
             name="closesAt"
-            type="datetime-local"
-            defaultValue={formatDateForInput(position.closesAt)}
-            disabled={isPending}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Closes At</FormLabel>
+                <FormControl>
+                  <Input
+                    type="datetime-local"
+                    disabled={isSubmitting}
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
         </div>
-      </div>
-      <div>
-        <Button type="submit" disabled={isPending}>
-          {isPending && <Loader2 className="animate-spin" />}
-          Save Changes
-        </Button>
-      </div>
-    </form>
+
+        <div>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="animate-spin" />}
+            Save Changes
+          </Button>
+        </div>
+      </form>
+    </Form>
   );
 }

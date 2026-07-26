@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 
 import { Menu } from 'lucide-react';
@@ -10,15 +9,15 @@ import type { NavIdentity } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 import { Logo } from '@/components/layouts/logo';
-import {
-  adminOnlyNavItems,
-  anonymousNavItems,
-  baseNavItems,
-  reviewerNavItems,
-} from '@/components/layouts/nav-items';
+import { useNavItems } from '@/components/layouts/use-nav-items';
 import { UserMenu } from '@/components/layouts/user-menu';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
 
 interface MobileNavProps {
   isAdmin: boolean;
@@ -31,19 +30,12 @@ export function MobileNav({
   identity,
   canReviewApplications,
 }: MobileNavProps) {
-  const pathname = usePathname();
   const [open, setOpen] = useState(false);
-
-  const navItems = identity
-    ? [
-        ...baseNavItems,
-        ...(canReviewApplications ? reviewerNavItems : []),
-        ...(isAdmin ? adminOnlyNavItems : []),
-      ]
-    : anonymousNavItems;
-
-  // Anonymous visitors land on /positions; authenticated users go to the dashboard.
-  const logoHref = identity ? '/' : '/positions';
+  const { navItems, logoHref, isActive } = useNavItems({
+    identity,
+    isAdmin,
+    canReviewApplications,
+  });
 
   return (
     <header className="bg-sidebar border-sidebar-border flex h-14 items-center border-b px-4 md:hidden">
@@ -61,14 +53,11 @@ export function MobileNav({
 
       <div className="ml-auto">
         <Sheet open={open} onOpenChange={setOpen}>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Open menu"
-            onClick={() => setOpen(true)}
-          >
-            <Menu className="size-5" />
-          </Button>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" aria-label="Open menu">
+              <Menu className="size-5" />
+            </Button>
+          </SheetTrigger>
           <SheetContent side="left" className="flex flex-col p-0">
             <div className="border-sidebar-border flex h-14 items-center border-b px-4">
               <SheetTitle asChild>
@@ -93,25 +82,21 @@ export function MobileNav({
             </div>
 
             <nav className="flex flex-col gap-1 p-2">
-              {navItems.map(({ href, label, icon: Icon }) => {
-                const isActive =
-                  href === '/' ? pathname === '/' : pathname.startsWith(href);
-                return (
-                  <Link
-                    key={href}
-                    href={href}
-                    onClick={() => setOpen(false)}
-                    className={cn(
-                      'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                      isActive &&
-                        'bg-sidebar-accent text-sidebar-accent-foreground',
-                    )}
-                  >
-                    <Icon className="size-4 shrink-0" />
-                    {label}
-                  </Link>
-                );
-              })}
+              {navItems.map(({ href, label, icon: Icon }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setOpen(false)}
+                  className={cn(
+                    'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                    isActive(href) &&
+                      'bg-sidebar-accent text-sidebar-accent-foreground',
+                  )}
+                >
+                  <Icon className="size-4 shrink-0" />
+                  {label}
+                </Link>
+              ))}
             </nav>
 
             <div className="border-sidebar-border mt-auto border-t p-2">
