@@ -13,9 +13,9 @@ import {
 
 import {
   CHOICE_TYPES,
+  type ChoiceType,
   QUESTION_TYPE_LABELS,
   QUESTION_TYPE_VALUES,
-  type ChoiceType,
   questionFormSchema,
 } from '@/lib/constants';
 import type { GlobalQuestionListItem } from '@/lib/types';
