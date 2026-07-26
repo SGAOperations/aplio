@@ -9,13 +9,6 @@ const LIMITS = {
   private: { windowMs: 60_000, max: 120 },
 };
 
-function getLimit(pathname: string): { windowMs: number; max: number } {
-  if (pathname === '/api/auth/webhook') return LIMITS.webhook;
-  if (pathname.startsWith('/api/')) return LIMITS.api;
-  if (pathname === '/login' || pathname === '/') return LIMITS.public;
-  return LIMITS.private;
-}
-
 // Module-level hit store: `${tier}:${ip}` → sorted array of request timestamps.
 // Reused across middleware invocations within a single worker instance.
 // Not shared across instances — see PR notes for the per-instance limitation.
@@ -43,11 +36,18 @@ function getClientIp(request: NextRequest): string {
   return 'unknown';
 }
 
-function tierKey(pathname: string): string {
-  if (pathname === '/api/auth/webhook') return 'webhook';
-  if (pathname.startsWith('/api/')) return 'api';
-  if (pathname === '/login' || pathname === '/') return 'public';
-  return 'private';
+// Single source of truth for the pathname → tier routing rule — previously
+// duplicated between getLimit and tierKey (ENGINEERING §1: abstract at 2+).
+function classifyRequest(pathname: string): {
+  tier: string;
+  limit: { windowMs: number; max: number };
+} {
+  if (pathname === '/api/auth/webhook')
+    return { tier: 'webhook', limit: LIMITS.webhook };
+  if (pathname.startsWith('/api/')) return { tier: 'api', limit: LIMITS.api };
+  if (pathname === '/login' || pathname === '/')
+    return { tier: 'public', limit: LIMITS.public };
+  return { tier: 'private', limit: LIMITS.private };
 }
 
 // Max window across all tiers — used to evict buckets that are stale for any tier.
@@ -65,8 +65,7 @@ function maybeSweep(now: number): void {
 export function applyRateLimit(request: NextRequest): NextResponse | null {
   try {
     const { pathname } = request.nextUrl;
-    const tier = tierKey(pathname);
-    const limit = getLimit(pathname);
+    const { tier, limit } = classifyRequest(pathname);
 
     const ip = getClientIp(request);
     const bucket = `${tier}:${ip}`;
@@ -102,8 +101,11 @@ export function applyRateLimit(request: NextRequest): NextResponse | null {
     recent.push(now);
     hits.set(bucket, recent);
     return null;
-  } catch {
+  } catch (error) {
     // Fail open: an internal error in the gate must not block legitimate traffic.
+    // Still logged so a future regression here leaves a trace instead of
+    // silently degrading to "no rate limiting".
+    console.error('applyRateLimit failed, allowing request', error);
     return null;
   }
 }
