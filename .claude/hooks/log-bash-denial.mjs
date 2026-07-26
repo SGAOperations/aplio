@@ -16,7 +16,31 @@ try {
   if (!cmd) process.exit(0);
 
   // Mirror settings.json `permissions.allow` for Bash — these are NOT logged.
-  const allowed = [/^gh\s/, /^git\s/, /^npm\s/, /^npx\s+shadcn/];
+  const allowed = [
+    /^gh\s/,
+    /^git\s/,
+    /^npm\s/,
+    /^npx\s+shadcn/,
+    /^grep(\s|$)/,
+    /^egrep(\s|$)/,
+    /^rg(\s|$)/,
+    /^find(\s|$)/,
+    /^ls(\s|$)/,
+    /^cat(\s|$)/,
+    /^wc(\s|$)/,
+    /^head(\s|$)/,
+    /^tail(\s|$)/,
+    /^sort(\s|$)/,
+    /^uniq(\s|$)/,
+    /^cut(\s|$)/,
+    /^diff(\s|$)/,
+    /^stat(\s|$)/,
+    /^file(\s|$)/,
+    /^echo(\s|$)/,
+    /^pwd(\s|$)/,
+    /^true(\s|$)/,
+    /^mkdir\s+-p\s/,
+  ];
   if (allowed.some((re) => re.test(cmd))) process.exit(0);
 
   // Resolve the base repo root from any worktree so the cockpit reads one log.

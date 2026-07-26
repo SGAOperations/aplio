@@ -74,7 +74,7 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "needs revision
 
 3. **Apply fixes** per the review's findings. Fix **every finding the review flagged at this cycle's bar** (the review uses an escalating bar — on an early cycle that includes Low/Nit; fix them rather than deferring), all **introduced in this PR**. Skip a flagged item only if it's genuinely not an issue (explain the skip). **Preexisting** findings of any severity: do not fix — note them as suggested future tickets in the summary. No scope creep beyond the review.
 
-4. **CI checks** (fix everything; never `eslint-disable`):
+4. **CI checks** (fix everything; never `eslint-disable`). Issue each line below as its own separate Bash call — never prefixed with `cd`, never pasted together as one multi-line script, and never with an extra `npx prettier`/`npx tsc` line appended:
 
    ```bash
    npm run prettier:check   # fix: npm run prettier:fix
