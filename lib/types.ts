@@ -56,16 +56,29 @@ export type PositionQuestionForEdit = Prisma.PositionQuestionGetPayload<{
 
 // Only the six position fields consumed on the edit page; audit columns are
 // excluded so they are never serialized across the server/client boundary.
-export type PositionForEdit = {
-  id: string;
-  title: string;
-  description: string;
-  status: PositionStatus;
-  opensAt: Date | null;
-  closesAt: Date | null;
-  questions: PositionQuestionForEdit[];
-  managers: PositionManager[];
-};
+// Matches getPositionForEdit's select exactly.
+export type PositionForEdit = Prisma.PositionGetPayload<{
+  select: {
+    id: true;
+    title: true;
+    description: true;
+    status: true;
+    opensAt: true;
+    closesAt: true;
+    questions: {
+      select: {
+        id: true;
+        positionId: true;
+        label: true;
+        type: true;
+        required: true;
+        options: true;
+        order: true;
+      };
+    };
+    managers: { select: { id: true; name: true; email: true } };
+  };
+}>;
 
 // Matches createDraftApplication's query in prisma/actions/applications.ts.
 export type DraftApplication = Prisma.ApplicationGetPayload<{
