@@ -16,13 +16,12 @@ export default function AppError({ reset }: ErrorPageProps) {
         Something went wrong
       </h1>
       <p className="text-muted-foreground text-sm">
-        An unexpected error occurred. You can try again or go back to the
-        dashboard.
+        An unexpected error occurred. You can try again or go home.
       </p>
       <div className="flex gap-2">
         <Button onClick={reset}>Try again</Button>
         <Button variant="outline" asChild>
-          <Link href="/dashboard">Go to dashboard</Link>
+          <Link href="/">Go home</Link>
         </Button>
       </div>
     </div>

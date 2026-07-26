@@ -119,7 +119,7 @@ export default async function PublicPositionDetailPage({
               </Link>
             </Button>
             <Button asChild variant="outline">
-              <Link href={`/positions/${id}/applications`}>
+              <Link href={`/applications?positionId=${id}`}>
                 <Inbox className="size-4" />
                 Applications
               </Link>
