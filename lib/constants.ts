@@ -36,6 +36,33 @@ export const baseQuestionSchema = z.object({
   options: z.array(z.string()),
 });
 
+// Enforces that choice-type questions carry at least one option and non-choice
+// questions carry none — prevents orphaned option data. Shared by the global-question
+// and position-question schemas (client and server) so there is one implementation
+// (ENGINEERING §1: abstract at 2+).
+export function validateOptions(
+  data: { type: string; options: string[] },
+  ctx: z.RefinementCtx,
+) {
+  const isChoice = CHOICE_TYPES.includes(
+    data.type as (typeof CHOICE_TYPES)[number],
+  );
+  if (isChoice && data.options.length === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['options'],
+      message: 'At least one option is required for choice questions',
+    });
+  }
+  if (!isChoice && data.options.length > 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['options'],
+      message: 'Options are not allowed for this question type',
+    });
+  }
+}
+
 // Human-readable labels for each application status.
 // Keyed on the generated ApplicationStatus enum for build-time exhaustiveness.
 export const APPLICATION_STATUS_LABELS: Record<
@@ -109,6 +136,16 @@ export const REVIEWER_APPLICATION_STATUSES = [
 // Reviewer-facing Select options — draft excluded.
 export const REVIEWER_APPLICATION_STATUS_OPTIONS =
   APPLICATION_STATUS_OPTIONS.filter((o) => o.value !== 'draft');
+
+// Statuses a reviewer may not act on — 'draft' (unsubmitted, applicant-owned) and
+// 'withdrawn' (applicant-owned lifecycle action). Distinct from
+// REVIEWER_APPLICATION_STATUSES above, which is the set a reviewer may set a
+// record *to*; this is the set a reviewer may not act *on*. Shared by the single-
+// and bulk-update actions so both enforce the same exclusion (ENGINEERING §1).
+export const NON_REVIEWABLE_APPLICATION_STATUSES = [
+  'draft',
+  'withdrawn',
+] as const satisfies $Enums.ApplicationStatus[];
 
 // Submitted-but-not-concluded application statuses. Excludes 'draft' (unsubmitted,
 // applicant-owned), 'accepted'/'rejected' (terminal), and 'withdrawn' (resolved).

@@ -9,6 +9,7 @@ import { checkPositionAccess, isManager } from '@/prisma/data/managers';
 
 import { getCurrentUser } from '@/lib/auth/server';
 import { prisma } from '@/lib/prisma';
+import { type ResponseType } from '@/lib/utils';
 
 // description is optional at the server boundary (defaults to '') to support creating
 // draft positions quickly; the plan spec intended required but UI allows empty drafts.
@@ -33,12 +34,12 @@ const deletePositionSchema = z.object({ id: z.string().min(1) });
 
 const addPositionManagerSchema = z.object({
   positionId: z.string().min(1),
-  userId: z.string().cuid(),
+  userId: z.string().min(1),
 });
 
 const removePositionManagerSchema = z.object({
   positionId: z.string().min(1),
-  userId: z.string().cuid(),
+  userId: z.string().min(1),
 });
 
 export async function createPosition(
@@ -199,12 +200,16 @@ const searchUsersSchema = z.object({ query: z.string().max(200) });
 // Authenticated directory lookup used to assign position managers.
 // Intentionally exposes name+email to any logged-in user — only id/displayName/email
 // are returned (no sensitive/internal fields). Capped at 10 results.
-export async function searchUsers(input: unknown) {
+export async function searchUsers(
+  input: unknown,
+): Promise<
+  ResponseType<{ id: string; displayName: string; primaryEmail: string }[]>
+> {
   // getCurrentUser redirects if unauthenticated; no further role check needed.
   await getCurrentUser();
 
   const parsed = searchUsersSchema.safeParse(input);
-  if (!parsed.success) return [];
+  if (!parsed.success) return { error: 'Invalid search query' };
 
   const { query } = parsed.data;
 

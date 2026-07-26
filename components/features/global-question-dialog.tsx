@@ -16,6 +16,7 @@ import {
   QUESTION_TYPE_LABELS,
   QUESTION_TYPE_VALUES,
   baseQuestionSchema,
+  validateOptions,
 } from '@/lib/constants';
 import type { GlobalQuestionListItem } from '@/lib/types';
 
@@ -39,25 +40,7 @@ import {
 
 type ChoiceType = (typeof CHOICE_TYPES)[number];
 
-const questionSchema = baseQuestionSchema.superRefine((data, ctx) => {
-  const isChoice = CHOICE_TYPES.includes(data.type as ChoiceType);
-  // Choice-type questions must have at least one option.
-  if (isChoice && data.options.length === 0) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['options'],
-      message: 'At least one option is required for choice questions',
-    });
-  }
-  // Non-choice questions must not carry options — prevents orphaned data (R3-M1).
-  if (!isChoice && data.options.length > 0) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['options'],
-      message: 'Options are not allowed for this question type',
-    });
-  }
-});
+const questionSchema = baseQuestionSchema.superRefine(validateOptions);
 
 type QuestionFormValues = z.infer<typeof questionSchema>;
 
