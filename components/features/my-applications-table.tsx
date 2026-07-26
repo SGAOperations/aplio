@@ -38,7 +38,10 @@ const COLUMNS: SortableColumn<MyApplicationListItem>[] = [
   // submittedAt defaults to createdAt for drafts too (#306 — schema can't express
   // a conditional default without a migration), so its value is meaningless for a
   // draft row. Every display site must keep gating on status, not on null-ness.
-  { key: 'applied', accessor: (a) => a.submittedAt },
+  {
+    key: 'applied',
+    accessor: (a) => (a.status === 'draft' ? null : a.submittedAt),
+  },
 ];
 
 export function MyApplicationsTable({
