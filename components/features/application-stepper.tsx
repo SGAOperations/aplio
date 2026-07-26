@@ -43,17 +43,25 @@ interface QuestionListProps {
   readOnly?: boolean;
   profileAnswers?: GlobalAnswer[];
   formValues?: StepperFormValues;
+  missingGlobalIds?: Set<string>;
 }
 
 function ReadOnlyQuestionCard({
   question,
   displayValue,
+  isMissing,
 }: {
   question: NarrowQuestion;
   displayValue: string[];
+  isMissing?: boolean;
 }) {
   return (
-    <div className="bg-card rounded-lg border p-4 shadow-sm">
+    <div
+      className={cn(
+        'bg-card rounded-lg border p-4 shadow-sm',
+        isMissing && 'border-destructive',
+      )}
+    >
       <p className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase">
         {question.label}
         {question.required && <span className="text-destructive ml-1">*</span>}
@@ -76,6 +84,9 @@ function ReadOnlyQuestionCard({
           {displayValue[0]}
         </p>
       )}
+      {isMissing && (
+        <p className="text-destructive mt-2 text-xs">This field is required</p>
+      )}
     </div>
   );
 }
@@ -88,6 +99,7 @@ function QuestionList({
   readOnly,
   profileAnswers,
   formValues,
+  missingGlobalIds,
 }: QuestionListProps) {
   if (questions.length === 0)
     return (
@@ -110,6 +122,7 @@ function QuestionList({
               key={question.id}
               question={question}
               displayValue={displayValue}
+              isMissing={missingGlobalIds?.has(question.id)}
             />
           );
         }
@@ -168,11 +181,16 @@ export function ApplicationStepper({
   const router = useRouter();
   const [step, setStep] = useState<1 | 2>(1);
   const [isCustomizing, setIsCustomizing] = useState(false);
+  const [isReverting, setIsReverting] = useState(false);
+  const [missingGlobalIds, setMissingGlobalIds] = useState<Set<string>>(
+    new Set(),
+  );
   const hasPositionQuestions = positionQuestions.length > 0;
 
   const {
     control,
     trigger,
+    setValue,
     handleSubmit,
     setError,
     clearErrors,
@@ -204,13 +222,93 @@ export function ApplicationStepper({
   });
 
   async function handleNext() {
-    const valid = await trigger(globalQuestions.map((q) => `g_${q.id}`));
-    if (!valid) return;
+    if (isCustomizing) {
+      const valid = await trigger(globalQuestions.map((q) => `g_${q.id}`));
+      if (!valid) return;
+      setMissingGlobalIds(new Set());
+      clearErrors('root');
+      setStep(2);
+      return;
+    }
+
+    // Read-only mode never registers Controllers for global fields, so
+    // `trigger` can't validate them — check required-ness against the
+    // profile's actual answers instead.
+    const missing = new Set(
+      globalQuestions
+        .filter(
+          (q) =>
+            q.required &&
+            toStringArray(
+              globalAnswers.find(
+                (a: GlobalAnswer) => a.globalQuestionId === q.id,
+              )?.value,
+            ).length === 0,
+        )
+        .map((q) => q.id),
+    );
+
+    if (missing.size > 0) {
+      setMissingGlobalIds(missing);
+      setError('root', {
+        message:
+          'Please answer all required profile questions before continuing. Click Customize to add them here, or update your profile.',
+      });
+      return;
+    }
+
+    setMissingGlobalIds(new Set());
     clearErrors('root');
     setStep(2);
   }
 
   const watchedValues = useWatch({ control }) as StepperFormValues;
+
+  async function handleToggleCustomize() {
+    if (!isCustomizing) {
+      setIsCustomizing(true);
+      setMissingGlobalIds(new Set());
+      clearErrors('root');
+      return;
+    }
+
+    setIsReverting(true);
+    try {
+      const results = await Promise.all(
+        globalQuestions.map(async (q) => {
+          const profileValue = toStringArray(
+            globalAnswers.find((a: GlobalAnswer) => a.globalQuestionId === q.id)
+              ?.value,
+          );
+          const current = toStringArray(watchedValues[`g_${q.id}`]);
+          if (JSON.stringify(current) === JSON.stringify(profileValue))
+            return null;
+
+          const result = await createOrUpdateApplicationAnswer({
+            applicationId: application.id,
+            questionId: q.id,
+            questionLabel: q.label,
+            value: profileValue,
+            isGlobal: true,
+          });
+          // Only reflect the revert in the form once it's actually persisted —
+          // a failed field keeps whatever was last successfully saved rather
+          // than showing a value the server never accepted.
+          if (!isError(result)) setValue(`g_${q.id}`, profileValue);
+          return result;
+        }),
+      );
+
+      const hasError = results.some((r) => r !== null && isError(r));
+      if (hasError) toast.error('Failed to revert some answers');
+      else toast.success('Reverted to profile answers');
+    } catch {
+      toast.error('Failed to revert some answers');
+    } finally {
+      setIsReverting(false);
+      setIsCustomizing(false);
+    }
+  }
 
   const onSubmit = handleSubmit(async () => {
     const result = await submitApplication(application.id);
@@ -266,9 +364,14 @@ export function ApplicationStepper({
               variant={isCustomizing ? 'default' : 'outline'}
               size="sm"
               className="mt-0.5 shrink-0"
-              onClick={() => setIsCustomizing(!isCustomizing)}
+              onClick={handleToggleCustomize}
+              disabled={isReverting}
             >
-              {isCustomizing ? 'Use profile answers' : 'Customize'}
+              {isCustomizing
+                ? isReverting
+                  ? 'Reverting...'
+                  : 'Use profile answers'
+                : 'Customize'}
             </Button>
           </div>
 
@@ -291,6 +394,7 @@ export function ApplicationStepper({
             readOnly={!isCustomizing}
             profileAnswers={globalAnswers}
             formValues={watchedValues}
+            missingGlobalIds={missingGlobalIds}
           />
 
           {errors.root && (
