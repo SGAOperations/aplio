@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { type RefObject, useRef, useState } from 'react';
 import { type Control, Controller, useForm, useWatch } from 'react-hook-form';
 
 import { CheckIcon } from 'lucide-react';
@@ -43,17 +43,30 @@ interface QuestionListProps {
   readOnly?: boolean;
   profileAnswers?: GlobalAnswer[];
   formValues?: StepperFormValues;
+  missingGlobalIds?: Set<string>;
+  // Keyed by question id — lets the "Use profile answers" revert wait for any
+  // in-flight blur autosave on the same field before writing over it, so the
+  // revert (issued later) is always the last write and what's displayed
+  // matches what's persisted.
+  pendingSavesRef?: RefObject<Map<string, Promise<unknown>>>;
 }
 
 function ReadOnlyQuestionCard({
   question,
   displayValue,
+  isMissing,
 }: {
   question: NarrowQuestion;
   displayValue: string[];
+  isMissing?: boolean;
 }) {
   return (
-    <div className="bg-card rounded-lg border p-4 shadow-sm">
+    <div
+      className={cn(
+        'bg-card rounded-lg border p-4 shadow-sm',
+        isMissing && 'border-destructive',
+      )}
+    >
       <p className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase">
         {question.label}
         {question.required && <span className="text-destructive ml-1">*</span>}
@@ -76,6 +89,9 @@ function ReadOnlyQuestionCard({
           {displayValue[0]}
         </p>
       )}
+      {isMissing && (
+        <p className="text-destructive mt-2 text-xs">This field is required</p>
+      )}
     </div>
   );
 }
@@ -88,6 +104,8 @@ function QuestionList({
   readOnly,
   profileAnswers,
   formValues,
+  missingGlobalIds,
+  pendingSavesRef,
 }: QuestionListProps) {
   if (questions.length === 0)
     return (
@@ -110,6 +128,7 @@ function QuestionList({
               key={question.id}
               question={question}
               displayValue={displayValue}
+              isMissing={missingGlobalIds?.has(question.id)}
             />
           );
         }
@@ -134,14 +153,26 @@ function QuestionList({
                 field={field}
                 error={fieldState.error?.message}
                 onSave={async (value) => {
-                  const result = await createOrUpdateApplicationAnswer({
-                    applicationId,
-                    questionId: question.id,
-                    questionLabel: question.label,
-                    value,
-                    isGlobal,
-                  });
-                  if (isError(result)) throw new Error(result.error);
+                  const save = (async () => {
+                    const result = await createOrUpdateApplicationAnswer({
+                      applicationId,
+                      questionId: question.id,
+                      questionLabel: question.label,
+                      value,
+                      isGlobal,
+                    });
+                    if (isError(result)) throw new Error(result.error);
+                  })();
+                  // Track this in-flight save so a concurrent "Use profile
+                  // answers" revert on the same field can wait for it and
+                  // write last, rather than racing it (see revert loop).
+                  pendingSavesRef?.current.set(question.id, save);
+                  try {
+                    await save;
+                  } finally {
+                    if (pendingSavesRef?.current.get(question.id) === save)
+                      pendingSavesRef.current.delete(question.id);
+                  }
                 }}
               />
             )}
@@ -168,11 +199,18 @@ export function ApplicationStepper({
   const router = useRouter();
   const [step, setStep] = useState<1 | 2>(1);
   const [isCustomizing, setIsCustomizing] = useState(false);
+  const [isReverting, setIsReverting] = useState(false);
+  const [missingGlobalIds, setMissingGlobalIds] = useState<Set<string>>(
+    new Set(),
+  );
   const hasPositionQuestions = positionQuestions.length > 0;
+  // Keyed by question id — see QuestionListProps.pendingSavesRef.
+  const pendingSavesRef = useRef<Map<string, Promise<unknown>>>(new Map());
 
   const {
     control,
     trigger,
+    setValue,
     handleSubmit,
     setError,
     clearErrors,
@@ -204,13 +242,99 @@ export function ApplicationStepper({
   });
 
   async function handleNext() {
-    const valid = await trigger(globalQuestions.map((q) => `g_${q.id}`));
-    if (!valid) return;
+    if (isCustomizing) {
+      const valid = await trigger(globalQuestions.map((q) => `g_${q.id}`));
+      if (!valid) return;
+      setMissingGlobalIds(new Set());
+      clearErrors('root');
+      setStep(2);
+      return;
+    }
+
+    // Read-only mode never registers Controllers for global fields, so
+    // `trigger` can't validate them — check required-ness against the
+    // profile's actual answers instead.
+    const missing = new Set(
+      globalQuestions
+        .filter(
+          (q) =>
+            q.required &&
+            toStringArray(
+              globalAnswers.find(
+                (a: GlobalAnswer) => a.globalQuestionId === q.id,
+              )?.value,
+            ).length === 0,
+        )
+        .map((q) => q.id),
+    );
+
+    if (missing.size > 0) {
+      setMissingGlobalIds(missing);
+      setError('root', {
+        message:
+          'Please answer all required profile questions before continuing. Click Customize to add them here, or update your profile.',
+      });
+      return;
+    }
+
+    setMissingGlobalIds(new Set());
     clearErrors('root');
     setStep(2);
   }
 
   const watchedValues = useWatch({ control }) as StepperFormValues;
+
+  async function handleToggleCustomize() {
+    if (!isCustomizing) {
+      setIsCustomizing(true);
+      setMissingGlobalIds(new Set());
+      clearErrors('root');
+      return;
+    }
+
+    setIsReverting(true);
+    try {
+      const results = await Promise.all(
+        globalQuestions.map(async (q) => {
+          const profileValue = toStringArray(
+            globalAnswers.find((a: GlobalAnswer) => a.globalQuestionId === q.id)
+              ?.value,
+          );
+          const current = toStringArray(watchedValues[`g_${q.id}`]);
+          if (JSON.stringify(current) === JSON.stringify(profileValue))
+            return null;
+
+          // Let any blur-triggered autosave already in flight for this field
+          // settle first, so the revert write is issued last and the value
+          // that ends up persisted matches what we're about to display.
+          const pending = pendingSavesRef.current.get(q.id);
+          if (pending) await pending.catch(() => {});
+
+          const result = await createOrUpdateApplicationAnswer({
+            applicationId: application.id,
+            questionId: q.id,
+            questionLabel: q.label,
+            value: profileValue,
+            isGlobal: true,
+          });
+          // Only reflect the revert in the form once it's actually persisted —
+          // a failed field keeps whatever was last successfully saved rather
+          // than showing a value the server never accepted.
+          if (!isError(result)) setValue(`g_${q.id}`, profileValue);
+          return result;
+        }),
+      );
+
+      const hasError = results.some((r) => r !== null && isError(r));
+      if (hasError) toast.error('Failed to revert some answers');
+      else toast.success('Reverted to profile answers');
+    } catch {
+      toast.error('Failed to revert some answers');
+    } finally {
+      setIsReverting(false);
+      setIsCustomizing(false);
+    }
+  }
 
   const onSubmit = handleSubmit(async () => {
     const result = await submitApplication(application.id);
@@ -266,9 +390,14 @@ export function ApplicationStepper({
               variant={isCustomizing ? 'default' : 'outline'}
               size="sm"
               className="mt-0.5 shrink-0"
-              onClick={() => setIsCustomizing(!isCustomizing)}
+              onClick={handleToggleCustomize}
+              disabled={isReverting}
             >
-              {isCustomizing ? 'Use profile answers' : 'Customize'}
+              {isCustomizing
+                ? isReverting
+                  ? 'Reverting...'
+                  : 'Use profile answers'
+                : 'Customize'}
             </Button>
           </div>
 
@@ -291,6 +420,8 @@ export function ApplicationStepper({
             readOnly={!isCustomizing}
             profileAnswers={globalAnswers}
             formValues={watchedValues}
+            missingGlobalIds={missingGlobalIds}
+            pendingSavesRef={pendingSavesRef}
           />
 
           {errors.root && (

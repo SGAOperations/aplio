@@ -4,6 +4,7 @@ import type { GlobalAnswer, GlobalQuestion } from '@/prisma/client';
 
 import { prisma } from '@/lib/prisma';
 import { type ProfileCompleteness } from '@/lib/types';
+import { toStringArray } from '@/lib/utils';
 
 export async function getProfileData(
   userId: string,
@@ -39,9 +40,15 @@ export async function getProfileCompleteness(
       globalQuestionId: { in: requiredQuestions.map((q) => q.id) },
       deletedAt: null,
     },
-    select: { id: true },
+    select: { globalQuestionId: true, value: true },
   });
 
-  const missingCount = requiredCount - answers.length;
+  // Match submitApplication's check: a required question only counts as
+  // answered when its value is non-empty, not merely when a row exists.
+  const answeredCount = answers.filter(
+    (a) => toStringArray(a.value).length > 0,
+  ).length;
+
+  const missingCount = requiredCount - answeredCount;
   return { complete: missingCount === 0, missingCount, requiredCount };
 }
