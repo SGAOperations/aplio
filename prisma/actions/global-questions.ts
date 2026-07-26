@@ -53,7 +53,6 @@ export async function createGlobalQuestion(
   });
 
   revalidatePath('/global-questions');
-  // /profile will consume global questions once the profile route is built (#TODO).
   revalidatePath('/profile');
 }
 
@@ -81,7 +80,6 @@ export async function updateGlobalQuestion(
   });
 
   revalidatePath('/global-questions');
-  // /profile will consume global questions once the profile route is built (#TODO).
   revalidatePath('/profile');
 }
 
@@ -108,6 +106,5 @@ export async function deleteGlobalQuestion(
   });
 
   revalidatePath('/global-questions');
-  // /profile will consume global questions once the profile route is built (#TODO).
   revalidatePath('/profile');
 }

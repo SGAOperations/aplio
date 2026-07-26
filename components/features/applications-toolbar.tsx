@@ -35,7 +35,7 @@ export function ApplicationsToolbar({
   shown,
   total,
   shownCapped,
-  hasActiveFilters: hasActiveFiltersProp,
+  hasActiveFilters,
 }: ApplicationsToolbarProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -57,8 +57,6 @@ export function ApplicationsToolbar({
   // current input value both on initial page load (from URL param) and after
   // typing (without waiting for the debounce to update the URL).
   const [searchValue, setSearchValue] = useState(filters.q ?? '');
-
-  const hasActiveFilters = hasActiveFiltersProp;
 
   function updateParam(key: string, value: string | undefined) {
     const params = new URLSearchParams(searchParams.toString());

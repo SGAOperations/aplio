@@ -50,7 +50,6 @@ export async function createDraftApplication(
   positionId: string,
 ): Promise<ResponseType<DraftApplication>> {
   const currentUser = await getCurrentUser();
-  if (!currentUser) return { error: 'Unauthorized' };
 
   const parsed = createDraftApplicationSchema.safeParse({ positionId });
   if (!parsed.success) return { error: 'Invalid input' };
@@ -119,7 +118,6 @@ export async function createOrUpdateApplicationAnswer(params: {
   isGlobal: boolean;
 }): Promise<ResponseType<GlobalApplicationAnswer | PositionApplicationAnswer>> {
   const currentUser = await getCurrentUser();
-  if (!currentUser) return { error: 'Unauthorized' };
 
   const parsed = createOrUpdateApplicationAnswerSchema.safeParse(params);
   if (!parsed.success) return { error: 'Invalid input' };
@@ -182,7 +180,6 @@ export async function submitApplication(
   applicationId: string,
 ): Promise<ResponseType<Application>> {
   const currentUser = await getCurrentUser();
-  if (!currentUser) return { error: 'Unauthorized' };
 
   const parsed = submitApplicationSchema.safeParse({ applicationId });
   if (!parsed.success) return { error: 'Invalid input' };
@@ -358,7 +355,6 @@ export async function withdrawApplication(
   applicationId: string,
 ): Promise<ResponseType<void>> {
   const currentUser = await getCurrentUser();
-  if (!currentUser) throw new Error('Unauthenticated');
 
   const parsed = applicationIdSchema.safeParse({ applicationId });
   if (!parsed.success) throw new Error('Invalid input');
@@ -385,7 +381,6 @@ export async function reopenApplication(
   applicationId: string,
 ): Promise<ResponseType<void>> {
   const currentUser = await getCurrentUser();
-  if (!currentUser) throw new Error('Unauthenticated');
 
   const parsed = applicationIdSchema.safeParse({ applicationId });
   if (!parsed.success) throw new Error('Invalid input');
@@ -412,7 +407,6 @@ export async function deleteDraftApplication(
   applicationId: string,
 ): Promise<ResponseType<void>> {
   const currentUser = await getCurrentUser();
-  if (!currentUser) throw new Error('Unauthenticated');
 
   const parsed = applicationIdSchema.safeParse({ applicationId });
   if (!parsed.success) throw new Error('Invalid input');
