@@ -18,7 +18,8 @@
     "db:start": "docker compose up -d",
     "db:stop": "docker compose down",
     "db:reset": "prisma migrate reset",
-    "prepare": "husky"
+    "prepare": "husky && npm run hooks:check",
+    "hooks:check": "node scripts/check-hooks.mjs"
   },
   "prisma": {
     "seed": "npx tsx --env-file=.env prisma/seed.ts"
