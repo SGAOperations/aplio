@@ -34,7 +34,9 @@ export default async function SignInPage({
   const user = await getOptionalUser();
   if (user) redirect(safeTo);
 
-  const isDev = process.env.VERCEL_ENV !== 'production';
+  // Must match the NODE_ENV guard in loginAsBypassUser/logoutBypassUser
+  // (prisma/services/dev-bypass.ts) so the affordance and the action agree.
+  const isDev = process.env.NODE_ENV === 'development';
 
   const copy = applyContext
     ? {
