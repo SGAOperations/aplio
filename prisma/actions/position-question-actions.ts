@@ -29,7 +29,8 @@ export async function createPositionQuestion(
   const user = await getCurrentUser();
 
   const parsed = createPositionQuestionSchema.safeParse(input);
-  if (!parsed.success) return { error: 'Invalid input' };
+  if (!parsed.success)
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid input' };
 
   const { positionId, label, type, required, options } = parsed.data;
 
@@ -72,7 +73,8 @@ export async function updatePositionQuestion(
   const user = await getCurrentUser();
 
   const parsed = updatePositionQuestionSchema.safeParse(input);
-  if (!parsed.success) return { error: 'Invalid input' };
+  if (!parsed.success)
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid input' };
 
   const { id, positionId, label, type, required, options } = parsed.data;
 

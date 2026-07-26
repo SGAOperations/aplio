@@ -59,6 +59,7 @@ export function QuestionForm({
   const [required, setRequired] = useState(question?.required ?? true);
   // Options are tracked as a plain string array; UUIDs are not needed with badge input.
   const [options, setOptions] = useState<string[]>(question?.options ?? []);
+  const [optionsError, setOptionsError] = useState<string | null>(null);
   const optionInputRef = useRef<HTMLInputElement>(null);
 
   const isChoiceType = CHOICE_TYPES.includes(type);
@@ -67,6 +68,7 @@ export function QuestionForm({
     const trimmed = value.trim();
     if (!trimmed || options.includes(trimmed)) return;
     setOptions((prev) => [...prev, trimmed]);
+    setOptionsError(null);
   }
 
   function removeOption(opt: string) {
@@ -76,6 +78,14 @@ export function QuestionForm({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const filteredOptions = isChoiceType ? options : [];
+
+    // Mirror the server's validateOptions rule client-side so a choice question
+    // with no options fails inline instead of via the generic action toast.
+    if (isChoiceType && filteredOptions.length === 0) {
+      setOptionsError('At least one option is required for choice questions');
+      return;
+    }
+    setOptionsError(null);
 
     startTransition(async () => {
       if (question) {
@@ -150,6 +160,7 @@ export function QuestionForm({
             setType(v as QuestionType);
             // Clear options when switching away from a choice type
             if (!CHOICE_TYPES.includes(v as QuestionType)) setOptions([]);
+            setOptionsError(null);
           }}
           disabled={isPending}
         >
@@ -210,6 +221,9 @@ export function QuestionForm({
               }
             }}
           />
+          {optionsError && (
+            <p className="text-destructive text-sm">{optionsError}</p>
+          )}
         </div>
       )}
       <div className="flex gap-2">

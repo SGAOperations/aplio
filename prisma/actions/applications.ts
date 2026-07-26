@@ -285,17 +285,13 @@ export async function updateApplicationStatus(
 
   const application = await prisma.application.findFirst({
     where,
-    select: { id: true, status: true, positionId: true },
+    select: { id: true },
   });
 
   // Null here means non-existent, soft-deleted, withdrawn, or the caller has no
   // right to this application ID — an IDOR-style miss that should not be
   // reachable from the UI, so we throw rather than returning a user-facing error.
   if (!application) throw new Error('Application not found or not authorized');
-
-  // Prevent updating a draft that has not been submitted yet.
-  if (application.status === 'draft')
-    return { error: 'This application has not been submitted yet.' };
 
   await prisma.application.update({
     where: { id: applicationId },
