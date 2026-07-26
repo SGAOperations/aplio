@@ -63,6 +63,14 @@ export function validateOptions(
   }
 }
 
+// Client-side question form schema — reuses validateOptions as its single
+// source of truth so RHF surfaces the same rule as field errors, rather than
+// re-inlining the choice-type constraint. Shared between GlobalQuestionDialog
+// and the position QuestionForm (ENGINEERING §1).
+export const questionFormSchema = baseQuestionSchema.superRefine(
+  validateOptions,
+);
+
 // Human-readable labels for each application status.
 // Keyed on the generated ApplicationStatus enum for build-time exhaustiveness.
 export const APPLICATION_STATUS_LABELS: Record<
@@ -94,8 +102,10 @@ export const APPLICATION_STATUS_BADGE_VARIANT: Record<
   withdrawn: 'outline',
 };
 
-// Tuple of all ApplicationStatus values — shared between zod enum (action) and
-// the Select options (control) so both stay in sync with the DB enum.
+// Tuple of all ApplicationStatus values EXCEPT 'withdrawn' — shared between zod
+// enum (action) and the Select options (control) so both stay in sync with the
+// DB enum. 'withdrawn' is intentionally excluded: no consumer today needs the
+// full unfiltered status list (mirrors REVIEWER_APPLICATION_STATUSES's doc style).
 export const APPLICATION_STATUS_VALUES = [
   'draft',
   'applied',
@@ -180,11 +190,13 @@ export const RECENTLY_CLOSED_WINDOW_DAYS = 7;
 // public "Recently Closed" section so they retain oversight during wrap-up.
 export const MANAGED_POSITIONS_WINDOW_DAYS = 30;
 
-export const STATUS_OPTIONS: { value: PositionStatus; label: string }[] = [
-  { value: 'draft', label: 'Draft' },
-  { value: 'open', label: 'Open' },
-  { value: 'closed', label: 'Closed' },
-];
+// Tuple of all PositionStatus values — STATUS_OPTIONS derives from this + STATUS_LABELS
+// so the label text has a single source of truth.
+export const STATUS_VALUES = [
+  'draft',
+  'open',
+  'closed',
+] as const satisfies PositionStatus[];
 
 export const STATUS_LABELS: Record<PositionStatus, string> = {
   draft: 'Draft',
@@ -192,18 +204,31 @@ export const STATUS_LABELS: Record<PositionStatus, string> = {
   closed: 'Closed',
 };
 
+export const STATUS_OPTIONS: { value: PositionStatus; label: string }[] =
+  STATUS_VALUES.map((value) => ({ value, label: STATUS_LABELS[value] }));
+
+// Client-side position form schema, mirroring createPositionSchema/
+// updatePositionSchema's shape. Shared between PositionCreateDialog and
+// PositionDetailsForm (ENGINEERING §1).
+export const positionFormSchema = z.object({
+  title: z.string().min(1, 'Title is required'),
+  description: z.string(),
+  status: z.enum(STATUS_VALUES),
+  opensAt: z.string().optional(),
+  closesAt: z.string().optional(),
+});
+
 export const STATUS_VARIANTS: Record<PositionStatus, BadgeVariant> = {
   draft: 'secondary',
   open: 'default',
   closed: 'outline',
 };
 
-export const QUESTION_TYPE_OPTIONS: { value: QuestionType; label: string }[] = [
-  { value: 'short_answer', label: 'Short Answer' },
-  { value: 'long_answer', label: 'Long Answer' },
-  { value: 'single_choice', label: 'Single Choice' },
-  { value: 'multiple_choice', label: 'Multiple Choice' },
-];
+export const QUESTION_TYPE_OPTIONS: { value: QuestionType; label: string }[] =
+  QUESTION_TYPE_VALUES.map((value) => ({
+    value,
+    label: QUESTION_TYPE_LABELS[value],
+  }));
 
 // Human-readable labels for each computed availability state.
 // 'accepting'/'closed_by_date' intentionally mirror STATUS_LABELS 'open'/'closed' so
@@ -231,7 +256,7 @@ export const TERMS_HREF = '/terms';
 // Maps badge variant to a design-token dot color used in stat cards and the
 // activity feed. Extracted from pipeline-summary.tsx so both consumers share
 // one source of truth (ENGINEERING §1: abstract at 2+).
-export const STATUS_BADGE_VARIANT_TO_DOT: Record<string, string> = {
+export const STATUS_BADGE_VARIANT_TO_DOT: Record<BadgeVariant, string> = {
   info: 'bg-info',
   warning: 'bg-warning',
   success: 'bg-success',

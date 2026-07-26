@@ -52,10 +52,13 @@ export function useSortableTable<T>(
   columns: SortableColumn<T>[],
   options?: UseSortableTableOptions,
 ): UseSortableTableResult<T> {
-  const validKeys = useMemo(
-    () => columns.map((c) => c.key) as [string, ...string[]],
-    [columns],
-  );
+  const validKeys = useMemo(() => {
+    // Defensive invariant: all current callers pass a non-empty literal, but
+    // the cast below assumes it — fail loudly instead of silently miscasting.
+    if (columns.length === 0)
+      throw new Error('useSortableTable requires at least one column');
+    return columns.map((c) => c.key) as [string, ...string[]];
+  }, [columns]);
 
   const [params, setParams] = useQueryStates(
     {

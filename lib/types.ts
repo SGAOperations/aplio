@@ -1,38 +1,36 @@
-import type {
-  Application,
-  GlobalApplicationAnswer,
-  PositionApplicationAnswer,
-  PositionStatus,
-  QuestionType,
-} from '@/prisma/client';
+import type { PositionStatus } from '@/prisma/client';
 import type { $Enums, Prisma } from '@/prisma/client';
 
 import type { REVIEWER_APPLICATION_STATUSES } from '@/lib/constants';
 
 import type { BadgeVariant } from '@/components/ui/badge';
 
-export type PositionWithQuestions = {
-  id: string;
-  title: string;
-  status: PositionStatus;
-  description: string;
-  opensAt: Date | null;
-  closesAt: Date | null;
-  questions: {
-    id: string;
-    label: string;
-    type: QuestionType;
-    required: boolean;
-    options: string[];
-    order: number;
-  }[];
-};
+// Matches prisma/data/positions.ts's positionWithQuestionsSelect exactly —
+// field-by-field in sync with the schema via Prisma's generated payload type.
+export type PositionWithQuestions = Prisma.PositionGetPayload<{
+  select: {
+    id: true;
+    title: true;
+    status: true;
+    description: true;
+    opensAt: true;
+    closesAt: true;
+    questions: {
+      select: {
+        id: true;
+        label: true;
+        type: true;
+        required: true;
+        options: true;
+        order: true;
+      };
+    };
+  };
+}>;
 
-export type PositionManager = {
-  id: string;
-  name: string | null;
-  email: string;
-};
+export type PositionManager = Prisma.UserGetPayload<{
+  select: { id: true; name: true; email: true };
+}>;
 
 // Detail view type: full read payload including managers for the access check.
 // Manager ids are consumed server-side only; name/email are not needed for the
@@ -43,16 +41,18 @@ export type PositionDetail = PositionWithQuestions & {
 
 // Narrowed question shape — only the fields rendered by the edit page and
 // PositionQuestionsSection; audit columns are excluded to avoid leaking them
-// across the server/client prop boundary.
-export type PositionQuestionForEdit = {
-  id: string;
-  positionId: string;
-  label: string;
-  type: QuestionType;
-  required: boolean;
-  options: string[];
-  order: number;
-};
+// across the server/client prop boundary. Matches getPositionForEdit's select.
+export type PositionQuestionForEdit = Prisma.PositionQuestionGetPayload<{
+  select: {
+    id: true;
+    positionId: true;
+    label: true;
+    type: true;
+    required: true;
+    options: true;
+    order: true;
+  };
+}>;
 
 // Only the six position fields consumed on the edit page; audit columns are
 // excluded so they are never serialized across the server/client boundary.
@@ -67,10 +67,10 @@ export type PositionForEdit = {
   managers: PositionManager[];
 };
 
-export type DraftApplication = Application & {
-  globalAnswers: GlobalApplicationAnswer[];
-  positionAnswers: PositionApplicationAnswer[];
-};
+// Matches createDraftApplication's query in prisma/actions/applications.ts.
+export type DraftApplication = Prisma.ApplicationGetPayload<{
+  include: { globalAnswers: true; positionAnswers: true };
+}>;
 
 export type GlobalQuestionListItem = Prisma.GlobalQuestionGetPayload<{
   select: {
