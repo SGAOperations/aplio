@@ -225,32 +225,30 @@ export function ApplicationStepper({
 
   return (
     <div className="flex flex-col gap-6">
-      <div role="list" className="flex items-center gap-2">
-        <div
-          role="listitem"
-          aria-current={step === 1 ? 'step' : undefined}
-          className="bg-primary text-primary-foreground flex size-7 items-center justify-center rounded-full text-sm font-medium"
-        >
-          {step === 2 ? <CheckIcon className="size-4" /> : '1'}
+      {hasPositionQuestions && (
+        <div role="list" className="flex items-center gap-2">
+          <div
+            role="listitem"
+            aria-current={step === 1 ? 'step' : undefined}
+            className="bg-primary text-primary-foreground flex size-7 items-center justify-center rounded-full text-sm font-medium"
+          >
+            {step === 2 ? <CheckIcon className="size-4" /> : '1'}
+          </div>
+          <div className="bg-border h-px flex-1" />
+          <div
+            role="listitem"
+            aria-current={step === 2 ? 'step' : undefined}
+            className={cn(
+              'flex size-7 items-center justify-center rounded-full text-sm font-medium',
+              step === 2
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted text-muted-foreground',
+            )}
+          >
+            2
+          </div>
         </div>
-        {hasPositionQuestions && (
-          <>
-            <div className="bg-border h-px flex-1" />
-            <div
-              role="listitem"
-              aria-current={step === 2 ? 'step' : undefined}
-              className={cn(
-                'flex size-7 items-center justify-center rounded-full text-sm font-medium',
-                step === 2
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground',
-              )}
-            >
-              2
-            </div>
-          </>
-        )}
-      </div>
+      )}
 
       {step === 1 && (
         <div className="flex flex-col gap-6">
