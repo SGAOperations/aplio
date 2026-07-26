@@ -168,6 +168,7 @@ export function ApplicationStepper({
   const router = useRouter();
   const [step, setStep] = useState<1 | 2>(1);
   const [isCustomizing, setIsCustomizing] = useState(false);
+  const hasPositionQuestions = positionQuestions.length > 0;
 
   const {
     control,
@@ -224,28 +225,30 @@ export function ApplicationStepper({
 
   return (
     <div className="flex flex-col gap-6">
-      <div role="list" className="flex items-center gap-2">
-        <div
-          role="listitem"
-          aria-current={step === 1 ? 'step' : undefined}
-          className="bg-primary text-primary-foreground flex size-7 items-center justify-center rounded-full text-sm font-medium"
-        >
-          {step === 2 ? <CheckIcon className="size-4" /> : '1'}
+      {hasPositionQuestions && (
+        <div role="list" className="flex items-center gap-2">
+          <div
+            role="listitem"
+            aria-current={step === 1 ? 'step' : undefined}
+            className="bg-primary text-primary-foreground flex size-7 items-center justify-center rounded-full text-sm font-medium"
+          >
+            {step === 2 ? <CheckIcon className="size-4" /> : '1'}
+          </div>
+          <div className="bg-border h-px flex-1" />
+          <div
+            role="listitem"
+            aria-current={step === 2 ? 'step' : undefined}
+            className={cn(
+              'flex size-7 items-center justify-center rounded-full text-sm font-medium',
+              step === 2
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted text-muted-foreground',
+            )}
+          >
+            2
+          </div>
         </div>
-        <div className="bg-border h-px flex-1" />
-        <div
-          role="listitem"
-          aria-current={step === 2 ? 'step' : undefined}
-          className={cn(
-            'flex size-7 items-center justify-center rounded-full text-sm font-medium',
-            step === 2
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-muted text-muted-foreground',
-          )}
-        >
-          2
-        </div>
-      </div>
+      )}
 
       {step === 1 && (
         <div className="flex flex-col gap-6">
@@ -295,12 +298,21 @@ export function ApplicationStepper({
           )}
 
           <div className="flex justify-end">
-            <Button onClick={handleNext}>Next</Button>
+            <Button
+              onClick={hasPositionQuestions ? handleNext : onSubmit}
+              disabled={!hasPositionQuestions && isSubmitting}
+            >
+              {hasPositionQuestions
+                ? 'Next'
+                : isSubmitting
+                  ? 'Submitting...'
+                  : 'Submit Application'}
+            </Button>
           </div>
         </div>
       )}
 
-      {step === 2 && (
+      {step === 2 && hasPositionQuestions && (
         <div className="flex flex-col gap-6">
           <div>
             <h2 className="text-lg font-semibold tracking-tight">
