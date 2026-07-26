@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 import { prisma } from '@/lib/prisma';
-import { isLocalEnvironment } from '@/lib/utils';
+import { isBypassAllowed } from '@/lib/utils';
 
 export type BypassRole = 'admin' | 'applicant' | 'position-manager';
 
@@ -33,10 +33,10 @@ const BYPASS_USERS: Record<
   },
 };
 
-// Hard no-op outside local dev (ENGINEERING §3) — see isLocalEnvironment
-// for why VERCEL_ENV, not NODE_ENV, is the right "are we local" signal.
+// Hard no-op unless bypass is explicitly enabled (ENGINEERING §3) — see
+// isBypassAllowed for the default-deny rationale.
 export async function loginAsBypassUser(role: BypassRole) {
-  if (!isLocalEnvironment()) return;
+  if (!isBypassAllowed()) return;
 
   const cookieStore = await cookies();
 
@@ -78,10 +78,10 @@ export async function loginAsBypassUser(role: BypassRole) {
 }
 
 // Clears the bypass session cookie and returns the caller to the picker.
-// Hard no-op outside local dev (ENGINEERING §3) — see isLocalEnvironment
-// for why VERCEL_ENV, not NODE_ENV, is the right "are we local" signal.
+// Hard no-op unless bypass is explicitly enabled (ENGINEERING §3) — see
+// isBypassAllowed for the default-deny rationale.
 export async function logoutBypassUser() {
-  if (!isLocalEnvironment()) return;
+  if (!isBypassAllowed()) return;
 
   const cookieStore = await cookies();
   cookieStore.delete('dev-bypass-user-id');

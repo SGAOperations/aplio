@@ -22,14 +22,16 @@ export function isError<T>(result: ResponseType<T>): result is ErrorType {
 }
 
 /**
- * True when running locally (not on any Vercel deployment).
- * VERCEL_ENV is always set to 'production' | 'preview' | 'development' on a
- * real Vercel deployment, so its absence — not NODE_ENV, which can be
- * 'production' for a local production build — is the reliable "are we
- * local" signal.
+ * True only when the dev-bypass login is explicitly allowed.
+ * Default-DENY: bypass is disabled unless VERCEL_ENV is explicitly
+ * 'development' (set via .env.example for local `next dev`). Any other
+ * value — unset, 'production', 'preview' — must NOT enable bypass, since
+ * an unset VERCEL_ENV also describes any non-Vercel-hosted production
+ * deployment (self-hosted, another cloud). Never infer "local" from the
+ * absence of a signal.
  */
-export function isLocalEnvironment(): boolean {
-  return !process.env.VERCEL_ENV;
+export function isBypassAllowed(): boolean {
+  return process.env.VERCEL_ENV === 'development';
 }
 
 export function toStringArray(v: unknown): string[] {
