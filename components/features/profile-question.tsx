@@ -40,7 +40,10 @@ export function ProfileQuestion({
 
   async function save(value: string[]) {
     const serialized = JSON.stringify(value);
-    if (serialized === savedValueRef.current) return;
+    if (serialized === savedValueRef.current) {
+      setSaveError(false);
+      return;
+    }
     setIsSaving(true);
     setSaveError(false);
     try {

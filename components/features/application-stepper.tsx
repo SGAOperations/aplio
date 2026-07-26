@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { type RefObject, useRef, useState } from 'react';
 import { type Control, Controller, useForm, useWatch } from 'react-hook-form';
 
 import { CheckIcon } from 'lucide-react';
@@ -44,6 +44,11 @@ interface QuestionListProps {
   profileAnswers?: GlobalAnswer[];
   formValues?: StepperFormValues;
   missingGlobalIds?: Set<string>;
+  // Keyed by question id — lets the "Use profile answers" revert wait for any
+  // in-flight blur autosave on the same field before writing over it, so the
+  // revert (issued later) is always the last write and what's displayed
+  // matches what's persisted.
+  pendingSavesRef?: RefObject<Map<string, Promise<unknown>>>;
 }
 
 function ReadOnlyQuestionCard({
@@ -100,6 +105,7 @@ function QuestionList({
   profileAnswers,
   formValues,
   missingGlobalIds,
+  pendingSavesRef,
 }: QuestionListProps) {
   if (questions.length === 0)
     return (
@@ -147,14 +153,26 @@ function QuestionList({
                 field={field}
                 error={fieldState.error?.message}
                 onSave={async (value) => {
-                  const result = await createOrUpdateApplicationAnswer({
-                    applicationId,
-                    questionId: question.id,
-                    questionLabel: question.label,
-                    value,
-                    isGlobal,
-                  });
-                  if (isError(result)) throw new Error(result.error);
+                  const save = (async () => {
+                    const result = await createOrUpdateApplicationAnswer({
+                      applicationId,
+                      questionId: question.id,
+                      questionLabel: question.label,
+                      value,
+                      isGlobal,
+                    });
+                    if (isError(result)) throw new Error(result.error);
+                  })();
+                  // Track this in-flight save so a concurrent "Use profile
+                  // answers" revert on the same field can wait for it and
+                  // write last, rather than racing it (see revert loop).
+                  pendingSavesRef?.current.set(question.id, save);
+                  try {
+                    await save;
+                  } finally {
+                    if (pendingSavesRef?.current.get(question.id) === save)
+                      pendingSavesRef.current.delete(question.id);
+                  }
                 }}
               />
             )}
@@ -186,6 +204,8 @@ export function ApplicationStepper({
     new Set(),
   );
   const hasPositionQuestions = positionQuestions.length > 0;
+  // Keyed by question id — see QuestionListProps.pendingSavesRef.
+  const pendingSavesRef = useRef<Map<string, Promise<unknown>>>(new Map());
 
   const {
     control,
@@ -283,6 +303,12 @@ export function ApplicationStepper({
           const current = toStringArray(watchedValues[`g_${q.id}`]);
           if (JSON.stringify(current) === JSON.stringify(profileValue))
             return null;
+
+          // Let any blur-triggered autosave already in flight for this field
+          // settle first, so the revert write is issued last and the value
+          // that ends up persisted matches what we're about to display.
+          const pending = pendingSavesRef.current.get(q.id);
+          if (pending) await pending.catch(() => {});
 
           const result = await createOrUpdateApplicationAnswer({
             applicationId: application.id,
@@ -395,6 +421,7 @@ export function ApplicationStepper({
             profileAnswers={globalAnswers}
             formValues={watchedValues}
             missingGlobalIds={missingGlobalIds}
+            pendingSavesRef={pendingSavesRef}
           />
 
           {errors.root && (
