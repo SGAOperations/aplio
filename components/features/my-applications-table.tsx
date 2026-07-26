@@ -35,7 +35,9 @@ const COLUMNS: SortableColumn<MyApplicationListItem>[] = [
   { key: 'position', accessor: (a) => a.position.title },
   // Sort by human label A-Z so order matches what the user reads in the badge.
   { key: 'status', accessor: (a) => APPLICATION_STATUS_LABELS[a.status] },
-  // Drafts have null submittedAt — they sort last (null-last rule in the hook).
+  // submittedAt defaults to createdAt for drafts too (#306 — schema can't express
+  // a conditional default without a migration), so its value is meaningless for a
+  // draft row. Every display site must keep gating on status, not on null-ness.
   { key: 'applied', accessor: (a) => a.submittedAt },
 ];
 

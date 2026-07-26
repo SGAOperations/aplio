@@ -58,6 +58,9 @@ export async function deactivateUser(
   if (userId === user.id)
     return { error: 'You cannot deactivate your own account.' };
 
+  // #306: this does not clear email/neonAuthId, so neither is freed for reuse —
+  // a soft-deleted user's email/neonAuthId can never be re-registered until the
+  // partial-unique-index migration lands (schema.prisma comments on User).
   const result = await prisma.user.updateMany({
     where: { id: userId, deletedAt: null },
     data: { deletedAt: new Date(), deletedById: user.id },
