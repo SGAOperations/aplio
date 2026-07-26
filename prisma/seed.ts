@@ -5,6 +5,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from './client';
 import { applicationAssignments } from './seed/applications';
 import { globalQuestionDefs } from './seed/global-questions';
+import { toQuestionCreateInput } from './seed/helpers';
 import { positionAnswers, positionDefs } from './seed/positions';
 import { applicantDefs, profileAnswers } from './seed/users';
 
@@ -22,126 +23,129 @@ async function main() {
     return;
   }
 
-  // 1. Admin user
-  const admin = await prisma.user.create({
-    data: {
-      neonAuthId: crypto.randomUUID(),
-      email: 'seed@aplio.dev',
-      name: 'Seed Admin',
-      isAdmin: true,
-    },
-  });
-
-  // 2. Applicant users
-  const applicants = await prisma.user.createManyAndReturn({
-    data: applicantDefs.map((u) => ({
-      ...u,
-      neonAuthId: crypto.randomUUID(),
-      createdById: admin.id,
-      updatedById: admin.id,
-    })),
-  });
-
-  // 3. Global questions
-  const globalQuestions = await prisma.globalQuestion.createManyAndReturn({
-    data: globalQuestionDefs.map((q) => ({
-      ...q,
-      required: q.required ?? true,
-      options: q.options ?? [],
-      createdById: admin.id,
-      updatedById: admin.id,
-    })),
-  });
-
-  // 4. Positions with their questions
-  const positions = await Promise.all(
-    positionDefs.map((p) =>
-      prisma.position.create({
+  // Transactional so a partial failure rolls back instead of leaving a
+  // half-seeded DB that the userCount guard above would mask on rerun.
+  // 30s timeout: ~50 sequential writes over one connection to a remote Neon DB.
+  await prisma.$transaction(
+    async (tx) => {
+      const admin = await tx.user.create({
         data: {
-          title: p.title,
-          description: p.description,
-          status: 'open',
-          createdById: admin.id,
-          updatedById: admin.id,
-          questions: {
-            createMany: {
-              data: p.questions.map((q) => ({
-                ...q,
-                required: q.required ?? true,
-                options: q.options ?? [],
-                createdById: admin.id,
-                updatedById: admin.id,
-              })),
-            },
-          },
+          neonAuthId: crypto.randomUUID(),
+          email: 'seed@aplio.dev',
+          name: 'Seed Admin',
+          isAdmin: true,
         },
-        include: { questions: true },
-      }),
-    ),
-  );
+      });
 
-  // 5. Global answers (saved profile answers) for each applicant
-  await Promise.all(
-    applicants.flatMap((applicant, i) =>
-      globalQuestions.map((q) =>
-        prisma.globalAnswer.create({
-          data: {
-            userId: applicant.id,
-            globalQuestionId: q.id,
-            value: profileAnswers[i][q.label] ?? [],
-            createdById: applicant.id,
-            updatedById: applicant.id,
-          },
-        }),
-      ),
-    ),
-  );
+      // Created individually rather than createManyAndReturn: Promise.all's
+      // resolved array matches applicantDefs' order regardless of DB insert
+      // order, which the code below relies on to index into profileAnswers.
+      const applicants = await Promise.all(
+        applicantDefs.map((u) =>
+          tx.user.create({
+            data: {
+              ...u,
+              neonAuthId: crypto.randomUUID(),
+              createdById: admin.id,
+              updatedById: admin.id,
+            },
+          }),
+        ),
+      );
 
-  // 6. Applications with global and position answers
-  await Promise.all(
-    applicationAssignments.flatMap(({ applicantIdx, positionIndices }) =>
-      positionIndices.map((positionIdx) => {
-        const applicant = applicants[applicantIdx];
-        const position = positions[positionIdx];
+      const globalQuestions = await tx.globalQuestion.createManyAndReturn({
+        data: globalQuestionDefs.map((q) => toQuestionCreateInput(q, admin.id)),
+      });
 
-        return prisma.application.create({
-          data: {
-            userId: applicant.id,
-            positionId: position.id,
-            status: 'applied',
-            createdById: applicant.id,
-            updatedById: applicant.id,
-            globalAnswers: {
-              createMany: {
-                data: globalQuestions.map((q) => ({
-                  globalQuestionId: q.id,
-                  questionLabel: q.label,
-                  value: profileAnswers[applicantIdx][q.label] ?? [],
-                  createdById: applicant.id,
-                  updatedById: applicant.id,
-                })),
+      const positions = await Promise.all(
+        positionDefs.map((p) =>
+          tx.position.create({
+            data: {
+              title: p.title,
+              description: p.description,
+              status: 'open',
+              createdById: admin.id,
+              updatedById: admin.id,
+              questions: {
+                createMany: {
+                  data: p.questions.map((q) =>
+                    toQuestionCreateInput(q, admin.id),
+                  ),
+                },
               },
             },
-            positionAnswers: {
-              createMany: {
-                data: position.questions.map((q) => ({
-                  positionQuestionId: q.id,
-                  questionLabel: q.label,
-                  value: positionAnswers[position.title]?.[q.label] ?? [],
-                  createdById: applicant.id,
-                  updatedById: applicant.id,
-                })),
+            include: { questions: true },
+          }),
+        ),
+      );
+
+      await Promise.all(
+        applicants.flatMap((applicant, i) =>
+          globalQuestions.map((q) =>
+            tx.globalAnswer.create({
+              data: {
+                userId: applicant.id,
+                globalQuestionId: q.id,
+                value: profileAnswers[i][q.label] ?? [],
+                createdById: applicant.id,
+                updatedById: applicant.id,
               },
-            },
-          },
-        });
-      }),
-    ),
+            }),
+          ),
+        ),
+      );
+
+      await Promise.all(
+        applicationAssignments.flatMap(({ applicantIdx, positionIndices }) =>
+          positionIndices.map((positionIdx) => {
+            const applicant = applicants[applicantIdx];
+            const position = positions[positionIdx];
+
+            return tx.application.create({
+              data: {
+                userId: applicant.id,
+                positionId: position.id,
+                status: 'applied',
+                createdById: applicant.id,
+                updatedById: applicant.id,
+                globalAnswers: {
+                  createMany: {
+                    data: globalQuestions.map((q) => ({
+                      globalQuestionId: q.id,
+                      questionLabel: q.label,
+                      value: profileAnswers[applicantIdx][q.label] ?? [],
+                      createdById: applicant.id,
+                      updatedById: applicant.id,
+                    })),
+                  },
+                },
+                positionAnswers: {
+                  createMany: {
+                    data: position.questions.map((q) => ({
+                      positionQuestionId: q.id,
+                      questionLabel: q.label,
+                      value: positionAnswers[position.title]?.[q.label] ?? [],
+                      createdById: applicant.id,
+                      updatedById: applicant.id,
+                    })),
+                  },
+                },
+              },
+            });
+          }),
+        ),
+      );
+    },
+    { timeout: 30_000 },
   );
 
   console.log('Seed complete');
 }
 
 main()
-  .catch(console.error)
-  .finally(() => prisma.$disconnect());
+  .then(() => prisma.$disconnect())
+  .catch(async (err) => {
+    console.error(err);
+    await prisma.$disconnect();
+    process.exit(1);
+  });
