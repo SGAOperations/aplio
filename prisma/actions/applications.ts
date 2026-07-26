@@ -6,7 +6,6 @@ import { z } from 'zod/v4';
 
 import type {
   Application,
-  ApplicationStatus,
   GlobalAnswer,
   GlobalApplicationAnswer,
   GlobalQuestion,
@@ -14,7 +13,10 @@ import type {
 } from '@/prisma/client';
 
 import { getCurrentUser } from '@/lib/auth/server';
-import { REVIEWER_APPLICATION_STATUSES } from '@/lib/constants';
+import {
+  NON_REVIEWABLE_APPLICATION_STATUSES,
+  REVIEWER_APPLICATION_STATUSES,
+} from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 import { type DraftApplication } from '@/lib/types';
 import {
@@ -265,11 +267,6 @@ export async function updateApplicationStatus(
 
   const { applicationId, status } = parsed.data;
 
-  // Reviewer-selectable statuses exclude 'draft' and 'withdrawn' — a reviewer
-  // cannot push an application back to draft (applicant-owned) or to withdrawn
-  // (applicant-owned lifecycle action).
-  const nonReviewableStatuses = ['draft', 'withdrawn'] as ApplicationStatus[];
-
   // Authorization folded into the query — same pattern as getApplicationForReview.
   // Returns null for non-existent, soft-deleted, withdrawn, or unauthorized callers.
 
@@ -277,12 +274,12 @@ export async function updateApplicationStatus(
     ? {
         id: applicationId,
         deletedAt: null,
-        status: { notIn: nonReviewableStatuses },
+        status: { notIn: NON_REVIEWABLE_APPLICATION_STATUSES },
       }
     : {
         id: applicationId,
         deletedAt: null,
-        status: { notIn: nonReviewableStatuses },
+        status: { notIn: NON_REVIEWABLE_APPLICATION_STATUSES },
         position: { managers: { some: { id: user.id } } },
       };
 
@@ -317,7 +314,9 @@ const updateApplicationStatusesSchema = z.object({
 // Bulk status update for the /applications hub. Returns { updated: number } on
 // success so the client can toast the real count. Returns { error } for
 // user-facing failures (invalid input, no-op race). Throws for unexpected errors.
-// Authorization is folded into the scoped findMany — no IDOR.
+// Authorization is folded directly into the updateMany where — no separate
+// findMany/updateMany pair, so there is no window for the target set to drift
+// between an authorization check and the write.
 export async function updateApplicationStatuses(
   input: unknown,
 ): Promise<{ updated: number } | { error: string }> {
@@ -328,33 +327,28 @@ export async function updateApplicationStatuses(
 
   const { applicationIds, status } = parsed.data;
 
-  // Authorize: scoped where clause means forged/deleted/out-of-scope ids are
-  // silently excluded — the caller can only update records they may see.
+  // Authorize: scoped where clause means forged/deleted/out-of-scope/withdrawn
+  // ids are silently excluded — the caller can only update records they may see,
+  // mirroring the exclusion updateApplicationStatus enforces.
   const where = user.isAdmin
     ? {
         id: { in: applicationIds },
         deletedAt: null,
-        status: { not: 'draft' as const },
+        status: { notIn: NON_REVIEWABLE_APPLICATION_STATUSES },
       }
     : {
         id: { in: applicationIds },
         deletedAt: null,
-        status: { not: 'draft' as const },
+        status: { notIn: NON_REVIEWABLE_APPLICATION_STATUSES },
         position: { managers: { some: { id: user.id } } },
       };
 
-  const authorized = await prisma.application.findMany({
-    where,
-    select: { id: true },
-  });
-
-  if (authorized.length === 0)
-    return { error: 'No applications were updated.' };
-
   const result = await prisma.application.updateMany({
-    where: { id: { in: authorized.map((a) => a.id) } },
+    where,
     data: { status, updatedById: user.id },
   });
+
+  if (result.count === 0) return { error: 'No applications were updated.' };
 
   revalidatePath('/applications');
   // Clears all cached detail-page renders — bulk updates don't have individual
