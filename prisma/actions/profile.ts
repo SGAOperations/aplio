@@ -7,7 +7,7 @@ import { z } from 'zod/v4';
 import type { GlobalAnswer } from '@/prisma/client';
 
 import { getCurrentUser } from '@/lib/auth/server';
-import { NAME_MAX_LENGTH } from '@/lib/constants';
+import { nameSchema } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 import { type ErrorType, type ResponseType } from '@/lib/utils';
 
@@ -16,21 +16,10 @@ const updateGlobalAnswerSchema = z.object({
   value: z.array(z.string()),
 });
 
-const setUserNameSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1, 'Enter your full name.')
-    .max(
-      NAME_MAX_LENGTH,
-      `Name must be ${NAME_MAX_LENGTH} characters or fewer.`,
-    ),
-});
-
 export async function setUserName(input: unknown): Promise<ErrorType | void> {
   const user = await getCurrentUser();
 
-  const parsed = setUserNameSchema.safeParse(input);
+  const parsed = nameSchema.safeParse(input);
   if (!parsed.success) return { error: 'Enter your full name.' };
 
   // Write scoped to the calling user — no client-supplied ID, no IDOR.

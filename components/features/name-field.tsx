@@ -7,15 +7,14 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { z } from 'zod/v4';
+import type { z } from 'zod/v4';
 
 import { setUserName } from '@/prisma/actions/profile';
 
 import { authClient } from '@/lib/auth/client';
-import { NAME_MAX_LENGTH } from '@/lib/constants';
+import { nameSchema } from '@/lib/constants';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Form,
   FormControl,
@@ -25,17 +24,6 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-
-const nameSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1, 'Enter your full name.')
-    .max(
-      NAME_MAX_LENGTH,
-      `Name must be ${NAME_MAX_LENGTH} characters or fewer.`,
-    ),
-});
 
 type NameFormValues = z.infer<typeof nameSchema>;
 
@@ -75,46 +63,44 @@ export function NameField({ defaultName, redirectTo }: NameFieldProps) {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>What&apos;s your name?</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-muted-foreground mb-4 text-sm">
-          Enter your full name so reviewers know who you are.
+    <div className="flex w-full flex-col gap-4">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-semibold">What&apos;s your name?</h1>
+        <p className="text-muted-foreground text-sm">
+          Enter your full name so we know who you are.
         </p>
-        <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(onSubmit)}
-            className="flex flex-col gap-4"
-          >
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Full name</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      placeholder="Jane Smith"
-                      disabled={isPending}
-                      autoComplete="name"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Button type="submit" disabled={isPending} className="self-start">
-              {isPending && (
-                <Loader2 className="animate-spin" aria-hidden="true" />
-              )}
-              Continue
-            </Button>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
+      </div>
+      <Form {...form}>
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="flex w-full flex-col gap-4"
+        >
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Full name</FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    placeholder="Jane Smith"
+                    disabled={isPending}
+                    autoComplete="name"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <Button type="submit" disabled={isPending} className="w-full">
+            {isPending && (
+              <Loader2 className="animate-spin" aria-hidden="true" />
+            )}
+            Continue
+          </Button>
+        </form>
+      </Form>
+    </div>
   );
 }

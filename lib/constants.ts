@@ -362,6 +362,19 @@ export const createUserSchema = z.object({
 // in the server action and the client-side NameField component.
 export const NAME_MAX_LENGTH = 100;
 
+// Name validation shared between the server action and the client form so
+// they can't drift apart (ENGINEERING §1: abstract at 2+ occurrences).
+export const nameSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, 'Enter your full name.')
+    .max(
+      NAME_MAX_LENGTH,
+      `Name must be ${NAME_MAX_LENGTH} characters or fewer.`,
+    ),
+});
+
 // Maps badge variant to a design-token dot color used in stat cards and the
 // activity feed. Extracted from pipeline-summary.tsx so both consumers share
 // one source of truth (ENGINEERING §1: abstract at 2+).
