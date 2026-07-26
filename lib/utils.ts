@@ -21,6 +21,17 @@ export function isError<T>(result: ResponseType<T>): result is ErrorType {
   );
 }
 
+/**
+ * True when running locally (not on any Vercel deployment).
+ * VERCEL_ENV is always set to 'production' | 'preview' | 'development' on a
+ * real Vercel deployment, so its absence — not NODE_ENV, which can be
+ * 'production' for a local production build — is the reliable "are we
+ * local" signal.
+ */
+export function isLocalEnvironment(): boolean {
+  return !process.env.VERCEL_ENV;
+}
+
 export function toStringArray(v: unknown): string[] {
   if (Array.isArray(v) && v.every((x) => typeof x === 'string')) return v;
   return [];

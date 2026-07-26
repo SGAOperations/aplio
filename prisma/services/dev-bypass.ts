@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 import { prisma } from '@/lib/prisma';
+import { isLocalEnvironment } from '@/lib/utils';
 
 export type BypassRole = 'admin' | 'applicant' | 'position-manager';
 
@@ -32,10 +33,10 @@ const BYPASS_USERS: Record<
   },
 };
 
-// Hard no-op outside development — NODE_ENV is portable across hosts,
-// unlike the Vercel-specific VERCEL_ENV (ENGINEERING §3).
+// Hard no-op outside local dev (ENGINEERING §3) — see isLocalEnvironment
+// for why VERCEL_ENV, not NODE_ENV, is the right "are we local" signal.
 export async function loginAsBypassUser(role: BypassRole) {
-  if (process.env.NODE_ENV !== 'development') return;
+  if (!isLocalEnvironment()) return;
 
   const cookieStore = await cookies();
 
@@ -77,10 +78,10 @@ export async function loginAsBypassUser(role: BypassRole) {
 }
 
 // Clears the bypass session cookie and returns the caller to the picker.
-// Hard no-op outside development — NODE_ENV is portable across hosts,
-// unlike the Vercel-specific VERCEL_ENV (ENGINEERING §3).
+// Hard no-op outside local dev (ENGINEERING §3) — see isLocalEnvironment
+// for why VERCEL_ENV, not NODE_ENV, is the right "are we local" signal.
 export async function logoutBypassUser() {
-  if (process.env.NODE_ENV !== 'development') return;
+  if (!isLocalEnvironment()) return;
 
   const cookieStore = await cookies();
   cookieStore.delete('dev-bypass-user-id');

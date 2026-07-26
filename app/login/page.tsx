@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 
 import { getOptionalUser } from '@/lib/auth/server';
 import { PRIVACY_HREF, TERMS_HREF } from '@/lib/constants';
+import { isLocalEnvironment } from '@/lib/utils';
 
 import { LoginView } from '@/components/features/login-view';
 
@@ -34,9 +35,9 @@ export default async function SignInPage({
   const user = await getOptionalUser();
   if (user) redirect(safeTo);
 
-  // Must match the NODE_ENV guard in loginAsBypassUser/logoutBypassUser
+  // Must match the isLocalEnvironment guard in loginAsBypassUser/logoutBypassUser
   // (prisma/services/dev-bypass.ts) so the affordance and the action agree.
-  const isDev = process.env.NODE_ENV === 'development';
+  const isDev = isLocalEnvironment();
 
   const copy = applyContext
     ? {
