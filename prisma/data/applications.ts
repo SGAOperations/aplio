@@ -164,7 +164,9 @@ export async function getRecentApplications(
 // filters applied on top of the caller-scoped where clause (no IDOR).
 // Admins see all; managers see only their positions'. Returns cross-user data
 // (applicant identity + position) — must only be called from a reviewer-gated context.
-// Capped at 100 rows as a query-cost guard; full pagination is a future follow-up.
+// Capped at 100 rows as a query-cost guard (fetches 101 so the caller can
+// detect truncation vs. an exact 100-row match — see page.tsx); full
+// pagination is a future follow-up.
 export async function getApplications(
   user: { id: string; isAdmin: boolean },
   filters: ApplicationFilters,
@@ -275,7 +277,9 @@ export async function getApplications(
       user: { select: { id: true, name: true, email: true } },
     },
     orderBy,
-    take: 100,
+    // Fetch one row past the 100-row cap so the caller can distinguish
+    // "truncated at 100" from "exactly 100 rows exist" and slice back to 100.
+    take: 101,
   });
 }
 

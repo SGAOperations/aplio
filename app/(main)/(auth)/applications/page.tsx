@@ -82,15 +82,20 @@ export default async function ApplicationsPage({
     filters.sort
   );
 
-  const [applications, positions, total] = await Promise.all([
+  const [fetchedApplications, positions, total] = await Promise.all([
     getApplications(user, filters),
     getReviewablePositions(user),
     getApplicationsTotal(user),
   ]);
 
-  // The cap comes from `getApplications`'s `take: 100` on the *filtered*
-  // result — independent of `total`, which is always the unfiltered count.
-  const shownCapped = applications.length >= 100;
+  // `getApplications` fetches 101 rows so `> 100` (not `>= 100`) distinguishes
+  // an actually-truncated result from an exact 100-row match — independent of
+  // `total`, which is always the unfiltered count. Slice the 101st row off
+  // before rendering/counting so `shown` never exceeds the advertised cap.
+  const shownCapped = fetchedApplications.length > 100;
+  const applications = shownCapped
+    ? fetchedApplications.slice(0, 100)
+    : fetchedApplications;
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
