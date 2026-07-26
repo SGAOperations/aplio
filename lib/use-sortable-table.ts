@@ -30,14 +30,9 @@ interface UseSortableTableResult<T> {
 }
 
 function compareValues(
-  a: string | number | Date | null | undefined,
-  b: string | number | Date | null | undefined,
+  a: string | number | Date,
+  b: string | number | Date,
 ): number {
-  // Null/undefined always sort last regardless of direction.
-  if (a == null && b == null) return 0;
-  if (a == null) return 1;
-  if (b == null) return -1;
-
   if (a instanceof Date && b instanceof Date) return a.getTime() - b.getTime();
   if (typeof a === 'number' && typeof b === 'number') return a - b;
   if (typeof a === 'string' && typeof b === 'string')
@@ -112,6 +107,13 @@ export function useSortableTable<T>(
     return [...rows].sort((a, b) => {
       const valA = column.accessor(a);
       const valB = column.accessor(b);
+
+      // Null/undefined always sort last regardless of direction — checked
+      // before the desc negation below so it can never be flipped by it.
+      if (valA == null && valB == null) return 0;
+      if (valA == null) return 1;
+      if (valB == null) return -1;
+
       const cmp = compareValues(valA, valB);
       return sort.direction === 'desc' ? -cmp : cmp;
     });

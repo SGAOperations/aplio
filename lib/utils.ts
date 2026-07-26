@@ -122,8 +122,10 @@ interface FormatTableCountOptions {
 /**
  * Formats a table row count for display in a toolbar.
  *
- * When unfiltered (isFiltered=false) returns "{total} {noun}" (no x/x).
- * When filtered returns "{shown} / {total} {noun}".
+ * When unfiltered and not capped returns "{total} {noun}" (no x/x) — nothing
+ * is hidden, so a bare count is clearest.
+ * Otherwise (filtered, or unfiltered but capped) returns "{shown} / {total} {noun}",
+ * since the table is truncated relative to `total` and that should be visible.
  * When shownCapped uses "100+" for the shown side.
  */
 export function formatTableCount({
@@ -138,6 +140,6 @@ export function formatTableCount({
   const nounLabel = total === 1 ? noun : plural;
   const shownLabel = shownCapped ? '100+' : String(shown);
 
-  if (!isFiltered) return `${total} ${nounLabel}`;
+  if (!isFiltered && !shownCapped) return `${total} ${nounLabel}`;
   return `${shownLabel} / ${total} ${nounLabel}`;
 }
