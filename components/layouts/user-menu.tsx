@@ -2,7 +2,7 @@
 
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { unstable_rethrow, useRouter } from 'next/navigation';
 import { useTransition } from 'react';
 
 import {
@@ -71,7 +71,14 @@ export function UserMenu({
   function handleLogout() {
     startTransition(async () => {
       if (isBypass) {
-        await logoutBypassUser();
+        try {
+          await logoutBypassUser();
+        } catch (error) {
+          // Let Next's internal redirect signal through — only a genuine
+          // failure before the redirect() call should surface a toast.
+          unstable_rethrow(error);
+          toast.error('Could not sign out. Please try again.');
+        }
         return;
       }
       try {
