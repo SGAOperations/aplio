@@ -33,11 +33,6 @@ enum QuestionType {
 
 model User {
   id          String    @id @default(uuid(7))
-  // neonAuthId/email below are not partial on deletedAt — a soft-deleted row
-  // still holds both keys, so a fresh signup reusing the same email/neonAuthId hits
-  // P2002 forever. Needs a partial-unique-index migration (Prisma DSL can't express
-  // one); guarded in code at the call site (lib/auth/server.ts resolveRealUser)
-  // until that migration lands.
   neonAuthId  String    @unique
   email       String    @unique
   name        String?
@@ -170,10 +165,6 @@ model GlobalAnswer {
   user           User           @relation(fields: [userId], references: [id])
   globalQuestion GlobalQuestion @relation(fields: [globalQuestionId], references: [id])
 
-  // Not partial on deletedAt — same soft-delete-blocks-recreation gap as
-  // User above. Not currently reachable (no code path soft-deletes a GlobalAnswer
-  // today), but a future soft-delete feature must add the partial-unique-index
-  // migration first, not rely on this constraint alone.
   @@unique([userId, globalQuestionId])
 }
 
@@ -182,11 +173,6 @@ model Application {
   userId      String
   positionId  String
   status      ApplicationStatus @default(applied)
-  // Defaults to now() unconditionally, including for draft rows, so a draft's
-  // submittedAt is identical to createdAt despite never being submitted. Making this
-  // genuinely absent for drafts needs a nullable, no-default column — a migration.
-  // Every current read site gates on status before displaying/sorting this value;
-  // do not add a new read site that trusts this column without the same status gate.
   submittedAt DateTime          @default(now())
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
@@ -204,10 +190,6 @@ model Application {
   globalAnswers   GlobalApplicationAnswer[]
   positionAnswers PositionApplicationAnswer[]
 
-  // Not partial on deletedAt — same soft-delete-blocks-recreation gap as
-  // User above. Not currently reachable (withdraw/reopen only flip status; draft
-  // deletion is a hard delete), but a future soft-delete feature must add the
-  // partial-unique-index migration first, not rely on this constraint alone.
   @@unique([userId, positionId])
 }
 
@@ -231,10 +213,6 @@ model GlobalApplicationAnswer {
   application    Application    @relation(fields: [applicationId], references: [id])
   globalQuestion GlobalQuestion @relation(fields: [globalQuestionId], references: [id])
 
-  // Not partial on deletedAt — same soft-delete-blocks-recreation gap as
-  // User above. Not currently reachable (no code path soft-deletes this row today),
-  // but a future soft-delete feature must add the partial-unique-index migration
-  // first, not rely on this constraint alone.
   @@unique([applicationId, globalQuestionId])
 }
 
@@ -258,9 +236,5 @@ model PositionApplicationAnswer {
   application      Application      @relation(fields: [applicationId], references: [id])
   positionQuestion PositionQuestion @relation(fields: [positionQuestionId], references: [id])
 
-  // Not partial on deletedAt — same soft-delete-blocks-recreation gap as
-  // User above. Not currently reachable (no code path soft-deletes this row today),
-  // but a future soft-delete feature must add the partial-unique-index migration
-  // first, not rely on this constraint alone.
   @@unique([applicationId, positionQuestionId])
 }

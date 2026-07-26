@@ -29,10 +29,8 @@ async function resolveRealUser() {
       create: { neonAuthId, email, ...(name ? { name } : {}), isAdmin: false },
     });
   } catch (error) {
-    // A soft-deleted User row still holds this email/neonAuthId (non-partial
-    // unique constraint — see schema.prisma comments), so a fresh signup reusing
-    // either collides with P2002. Not user-actionable → generic render-time throw
-    // to the global boundary, never the raw Prisma error.
+    // Soft-deleted rows still hold their email/neonAuthId (unique, not partial),
+    // so re-signup collides with P2002 — not user-actionable, so throw generic.
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === 'P2002'
