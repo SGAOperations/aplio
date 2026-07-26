@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useFormContext } from 'react-hook-form';
 
 import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
@@ -39,6 +40,107 @@ const defaultValues: PositionFormValues = {
   closesAt: '',
 };
 
+// Rendered as a child of FormDialog (which wraps children in FormProvider),
+// so this can read isSubmitting via context to disable every field while the
+// create request is in flight — matches PositionDetailsForm's pattern.
+function PositionFormFields() {
+  const { formState } = useFormContext<PositionFormValues>();
+  const isSubmitting = formState.isSubmitting;
+
+  return (
+    <>
+      <FormField
+        name="title"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Title</FormLabel>
+            <FormControl>
+              <Input
+                placeholder="Position title"
+                disabled={isSubmitting}
+                {...field}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        name="description"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Description</FormLabel>
+            <FormControl>
+              <Textarea
+                placeholder="Position description"
+                rows={4}
+                disabled={isSubmitting}
+                {...field}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        name="status"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Status</FormLabel>
+            <Select
+              onValueChange={field.onChange}
+              value={field.value}
+              disabled={isSubmitting}
+            >
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {STATUS_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        name="opensAt"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Opens at (optional)</FormLabel>
+            <FormControl>
+              <Input type="datetime-local" disabled={isSubmitting} {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        name="closesAt"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Closes at (optional)</FormLabel>
+            <FormControl>
+              <Input type="datetime-local" disabled={isSubmitting} {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+    </>
+  );
+}
+
 // Dialog-triggered, so this adopts FormDialog + positionFormSchema directly,
 // matching GlobalQuestionDialog's pattern (ENGINEERING §1: reconcile ad-hoc
 // forms onto the established RHF + zod convention).
@@ -74,85 +176,7 @@ export function PositionCreateDialog() {
       onSubmit={onSubmit}
       submitLabel="Create Position"
     >
-      <FormField
-        name="title"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Title</FormLabel>
-            <FormControl>
-              <Input placeholder="Position title" {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        name="description"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Description</FormLabel>
-            <FormControl>
-              <Textarea
-                placeholder="Position description"
-                rows={4}
-                {...field}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        name="status"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Status</FormLabel>
-            <Select onValueChange={field.onChange} value={field.value}>
-              <FormControl>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {STATUS_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        name="opensAt"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Opens at (optional)</FormLabel>
-            <FormControl>
-              <Input type="datetime-local" {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        name="closesAt"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Closes at (optional)</FormLabel>
-            <FormControl>
-              <Input type="datetime-local" {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      <PositionFormFields />
     </FormDialog>
   );
 }

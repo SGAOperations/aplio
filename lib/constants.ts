@@ -67,9 +67,8 @@ export function validateOptions(
 // source of truth so RHF surfaces the same rule as field errors, rather than
 // re-inlining the choice-type constraint. Shared between GlobalQuestionDialog
 // and the position QuestionForm (ENGINEERING §1).
-export const questionFormSchema = baseQuestionSchema.superRefine(
-  validateOptions,
-);
+export const questionFormSchema =
+  baseQuestionSchema.superRefine(validateOptions);
 
 // Human-readable labels for each application status.
 // Keyed on the generated ApplicationStatus enum for build-time exhaustiveness.
