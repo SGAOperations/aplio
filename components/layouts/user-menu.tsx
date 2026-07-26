@@ -82,8 +82,11 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
         toast.success('Signed out.');
         router.push('/login');
       } catch (error) {
-        // signOutUser() no longer calls redirect() itself (see its comment), so
-        // reaching here means an unexpected throw, not the normal success path.
+        // signOutUser() calls getCurrentUser() first, which redirects (throwing
+        // a NEXT_REDIRECT digest) when the session already expired — rethrow
+        // that so Next can complete the navigation instead of it being
+        // misclassified as a genuine failure below.
+        unstable_rethrow(error);
         console.error('Sign-out failed unexpectedly', error);
         toast.error('Something went wrong. Please try again.');
       }
