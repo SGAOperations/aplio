@@ -23,13 +23,11 @@ async function main() {
     return;
   }
 
-  // Wrapped in a single transaction so a partial failure rolls back instead
-  // of leaving a half-seeded DB that the userCount guard above would then
-  // mask on every subsequent run. 30s timeout accounts for ~50 sequential
-  // writes over one connection against a remote Neon DB.
+  // Transactional so a partial failure rolls back instead of leaving a
+  // half-seeded DB that the userCount guard above would mask on rerun.
+  // 30s timeout: ~50 sequential writes over one connection to a remote Neon DB.
   await prisma.$transaction(
     async (tx) => {
-      // 1. Admin user
       const admin = await tx.user.create({
         data: {
           neonAuthId: crypto.randomUUID(),
@@ -39,10 +37,9 @@ async function main() {
         },
       });
 
-      // 2. Applicant users. Created individually (not createManyAndReturn)
-      // because Promise.all guarantees its resolved array matches the input
-      // array's order — a JS-level guarantee independent of DB insert order —
-      // which steps 5 and 6 below rely on to index into profileAnswers.
+      // Created individually rather than createManyAndReturn: Promise.all's
+      // resolved array matches applicantDefs' order regardless of DB insert
+      // order, which the code below relies on to index into profileAnswers.
       const applicants = await Promise.all(
         applicantDefs.map((u) =>
           tx.user.create({
@@ -56,12 +53,10 @@ async function main() {
         ),
       );
 
-      // 3. Global questions
       const globalQuestions = await tx.globalQuestion.createManyAndReturn({
         data: globalQuestionDefs.map((q) => toQuestionCreateInput(q, admin.id)),
       });
 
-      // 4. Positions with their questions
       const positions = await Promise.all(
         positionDefs.map((p) =>
           tx.position.create({
@@ -84,7 +79,6 @@ async function main() {
         ),
       );
 
-      // 5. Global answers (saved profile answers) for each applicant
       await Promise.all(
         applicants.flatMap((applicant, i) =>
           globalQuestions.map((q) =>
@@ -101,7 +95,6 @@ async function main() {
         ),
       );
 
-      // 6. Applications with global and position answers
       await Promise.all(
         applicationAssignments.flatMap(({ applicantIdx, positionIndices }) =>
           positionIndices.map((positionIdx) => {
