@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 
 import { Loader2, UserMinus, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
@@ -47,6 +47,15 @@ export function PositionManagersSection({
   const [, startTransition] = useTransition();
   // Ref holds the debounce timer so typing does not trigger a search per keystroke.
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear a pending debounced search on unmount — without this, navigating away
+  // within the debounce window still fires the stale closure's searchUsers call.
+  // A DOM/timer handle has no non-effect home, so this is the sanctioned exception (§1).
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
 
   function handleQueryChange(value: string) {
     setQuery(value);
