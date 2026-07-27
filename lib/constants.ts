@@ -42,6 +42,12 @@ export type ChoiceType = (typeof CHOICE_TYPES)[number];
 // one string, not two hardcoded copies (ENGINEERING §1: abstract at 2+).
 export const OTHER_OPTION_LABEL = 'Other';
 
+// Sentinel used only for RadioGroup/RadioGroupItem value comparisons on the
+// virtual "Other" choice — kept distinct from OTHER_OPTION_LABEL so an
+// admin-authored option literally named "Other" can never collide with the
+// virtual choice (see PR #334 review).
+export const OTHER_OPTION_VALUE = '__other__';
+
 // Base question schema shared between the client form and server actions.
 // Both sides extend this with `.superRefine` to enforce options constraints.
 export const baseQuestionSchema = z.object({

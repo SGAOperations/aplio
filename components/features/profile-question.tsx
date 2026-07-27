@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { updateGlobalAnswer } from '@/prisma/actions/profile';
 import type { GlobalAnswer, GlobalQuestion } from '@/prisma/client';
 
-import { OTHER_OPTION_LABEL } from '@/lib/constants';
+import { OTHER_OPTION_LABEL, OTHER_OPTION_VALUE } from '@/lib/constants';
 import { isError } from '@/lib/utils';
 
 import { Checkbox } from '@/components/ui/checkbox';
@@ -138,11 +138,11 @@ export function ProfileQuestion({
                   <RadioGroup
                     value={
                       otherSelected
-                        ? OTHER_OPTION_LABEL
+                        ? OTHER_OPTION_VALUE
                         : (field.value[0] ?? '')
                     }
                     onValueChange={(v) => {
-                      if (v === OTHER_OPTION_LABEL) {
+                      if (v === OTHER_OPTION_VALUE) {
                         setOtherSelected(true);
                         const next = otherText ? [otherText] : [];
                         field.onChange(next);
@@ -179,7 +179,7 @@ export function ProfileQuestion({
                     {question.allowOther && (
                       <div className="flex cursor-pointer items-center gap-2 py-1">
                         <RadioGroupItem
-                          value={OTHER_OPTION_LABEL}
+                          value={OTHER_OPTION_VALUE}
                           id={`${question.id}-other`}
                         />
                         <Label
