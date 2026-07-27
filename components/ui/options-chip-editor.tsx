@@ -1,5 +1,9 @@
 'use client';
 
+import { useId } from 'react';
+
+import { CornerDownLeft } from 'lucide-react';
+
 import { Input } from '@/components/ui/input';
 
 interface OptionsChipEditorProps {
@@ -17,6 +21,11 @@ export function OptionsChipEditor({
   onChange,
   disabled,
 }: OptionsChipEditorProps) {
+  // Own id rather than relying on the surrounding FormControl's
+  // aria-describedby — that wiring targets this component's outer div, not
+  // the Input rendered inside it, since Slot merges onto the immediate child.
+  const hintId = useId();
+
   function addOption(value: string) {
     const trimmed = value.trim();
     if (!trimmed || options.includes(trimmed)) return;
@@ -50,17 +59,28 @@ export function OptionsChipEditor({
           ))}
         </div>
       )}
-      <Input
-        placeholder="Type an option and press Enter"
-        disabled={disabled}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            addOption(e.currentTarget.value);
-            e.currentTarget.value = '';
-          }
-        }}
-      />
+      <div className="relative">
+        <Input
+          placeholder="Type an option and press Enter"
+          disabled={disabled}
+          aria-describedby={hintId}
+          className="pr-8"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              addOption(e.currentTarget.value);
+              e.currentTarget.value = '';
+            }
+          }}
+        />
+        <CornerDownLeft
+          aria-hidden="true"
+          className="text-muted-foreground pointer-events-none absolute top-1/2 right-2.5 h-3.5 w-3.5 -translate-y-1/2"
+        />
+      </div>
+      <span id={hintId} className="sr-only">
+        Press Enter to add an option
+      </span>
     </div>
   );
 }
