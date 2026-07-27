@@ -19,9 +19,7 @@ import type { ErrorType } from '@/lib/utils';
 // sign-out look like a thrown, unhandled failure to the caller. The caller
 // navigates client-side after a successful (non-error) result instead.
 export async function signOutUser(): Promise<ErrorType | void> {
-  const user = await getCurrentUser();
-  // getCurrentUser() always redirects when unauthenticated; this throw is defense-in-depth.
-  if (!user) throw new Error('Unauthenticated');
+  await getCurrentUser();
 
   const result = await authServer.signOut();
 
