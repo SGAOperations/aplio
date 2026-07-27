@@ -80,6 +80,29 @@ function TypeField() {
   );
 }
 
+function RequiredField() {
+  const { control, formState } = useFormContext<QuestionFormValues>();
+  return (
+    <FormField
+      control={control}
+      name="required"
+      render={({ field }) => (
+        <FormItem className="flex flex-row items-center gap-3">
+          <FormControl>
+            <Switch
+              checked={field.value as boolean}
+              onCheckedChange={field.onChange}
+              disabled={formState.isSubmitting}
+            />
+          </FormControl>
+          <FormLabel>Required</FormLabel>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+}
+
 function OptionsField() {
   const { control, setValue } = useFormContext<QuestionFormValues>();
   const type = useWatch({ control, name: 'type' });
@@ -161,21 +184,7 @@ export function GlobalQuestionDialog({
 
       <TypeField />
 
-      <FormField
-        name="required"
-        render={({ field }) => (
-          <FormItem className="flex flex-row items-center gap-3">
-            <FormControl>
-              <Switch
-                checked={field.value as boolean}
-                onCheckedChange={field.onChange}
-              />
-            </FormControl>
-            <FormLabel>Required</FormLabel>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      <RequiredField />
 
       <OptionsField />
     </FormDialog>
