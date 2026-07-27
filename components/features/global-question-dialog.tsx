@@ -53,10 +53,12 @@ function TypeField() {
           <Select
             onValueChange={(v) => {
               field.onChange(v);
-              // Clear stale options when switching to a non-choice type so they
-              // are not persisted to the DB (R3-M1).
-              if (!CHOICE_TYPES.includes(v as ChoiceType))
+              // Clear stale options/allowOther when switching to a non-choice
+              // type so they are not persisted to the DB (R3-M1).
+              if (!CHOICE_TYPES.includes(v as ChoiceType)) {
                 setValue('options', []);
+                setValue('allowOther', false);
+              }
             }}
             value={field.value}
           >
@@ -130,6 +132,32 @@ function OptionsField() {
   );
 }
 
+function AllowOtherField() {
+  const { control } = useFormContext<QuestionFormValues>();
+  const type = useWatch({ control, name: 'type' });
+
+  if (!CHOICE_TYPES.includes(type as ChoiceType)) return null;
+
+  return (
+    <FormField
+      control={control}
+      name="allowOther"
+      render={({ field }) => (
+        <FormItem className="flex flex-row items-center gap-3">
+          <FormControl>
+            <Checkbox
+              checked={field.value as boolean}
+              onCheckedChange={field.onChange}
+            />
+          </FormControl>
+          <FormLabel>Allow &quot;Other&quot;</FormLabel>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+}
+
 interface GlobalQuestionDialogProps {
   trigger: ReactNode;
   question?: GlobalQuestionListItem;
@@ -146,6 +174,7 @@ export function GlobalQuestionDialog({
     type: question?.type ?? 'short_answer',
     required: question?.required ?? true,
     options: question?.options ?? [],
+    allowOther: question?.allowOther ?? false,
   };
 
   async function onSubmit(data: QuestionFormValues): Promise<boolean> {
@@ -186,6 +215,7 @@ export function GlobalQuestionDialog({
 
       <RequiredField />
 
+      <AllowOtherField />
       <OptionsField />
     </FormDialog>
   );
