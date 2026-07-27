@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 
 import { getOptionalUser } from '@/lib/auth/server';
 import { PRIVACY_HREF, TERMS_HREF } from '@/lib/constants';
+import { isBypassAllowed } from '@/lib/utils';
 
 import { LoginView } from '@/components/features/login-view';
 
@@ -34,7 +35,9 @@ export default async function SignInPage({
   const user = await getOptionalUser();
   if (user) redirect(safeTo);
 
-  const isDev = process.env.VERCEL_ENV !== 'production';
+  // Must match the isBypassAllowed guard in loginAsBypassUser/logoutBypassUser
+  // (prisma/services/dev-bypass.ts) so the affordance and the action agree.
+  const isDev = isBypassAllowed();
 
   const copy = applyContext
     ? {

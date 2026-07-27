@@ -21,6 +21,22 @@ export function isError<T>(result: ResponseType<T>): result is ErrorType {
   );
 }
 
+/**
+ * True only when the dev-bypass login is explicitly allowed.
+ * Default-DENY: bypass is disabled unless VERCEL_ENV is explicitly
+ * 'development' or 'preview' (set via .env.example for local `next dev`,
+ * and by Vercel automatically for preview deployments). An unset VERCEL_ENV
+ * must NOT enable bypass, since that also describes any non-Vercel-hosted
+ * production deployment (self-hosted, another cloud). Never infer "local"
+ * from the absence of a signal.
+ */
+export function isBypassAllowed(): boolean {
+  return (
+    process.env.VERCEL_ENV === 'development' ||
+    process.env.VERCEL_ENV === 'preview'
+  );
+}
+
 export function toStringArray(v: unknown): string[] {
   if (Array.isArray(v) && v.every((x) => typeof x === 'string')) return v;
   return [];
