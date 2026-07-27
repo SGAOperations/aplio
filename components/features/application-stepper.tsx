@@ -33,6 +33,7 @@ type NarrowQuestion = {
   type: GlobalQuestion['type'];
   required: boolean;
   options: string[];
+  allowOther: boolean;
 };
 
 interface QuestionListProps {
