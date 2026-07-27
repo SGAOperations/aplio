@@ -22,6 +22,7 @@ export type PositionWithQuestions = Prisma.PositionGetPayload<{
         type: true;
         required: true;
         options: true;
+        allowOther: true;
         order: true;
       };
     };
@@ -50,6 +51,7 @@ export type PositionQuestionForEdit = Prisma.PositionQuestionGetPayload<{
     type: true;
     required: true;
     options: true;
+    allowOther: true;
     order: true;
   };
 }>;
@@ -73,6 +75,7 @@ export type PositionForEdit = Prisma.PositionGetPayload<{
         type: true;
         required: true;
         options: true;
+        allowOther: true;
         order: true;
       };
     };
@@ -93,6 +96,7 @@ export type GlobalQuestionListItem = Prisma.GlobalQuestionGetPayload<{
     type: true;
     required: true;
     options: true;
+    allowOther: true;
     createdAt: true;
     updatedAt: true;
   };
