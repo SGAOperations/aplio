@@ -22,7 +22,6 @@ import {
 } from '@/lib/constants';
 
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Form,
   FormControl,
@@ -40,6 +39,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 
 // Only the fields rendered in PositionQuestionsSection and needed for optimistic updates.
 export interface RenderedQuestion {
@@ -183,7 +183,7 @@ export function QuestionForm({
           render={({ field }) => (
             <FormItem className="flex flex-row items-center gap-2">
               <FormControl>
-                <Checkbox
+                <Switch
                   checked={field.value}
                   onCheckedChange={field.onChange}
                   disabled={isSubmitting}

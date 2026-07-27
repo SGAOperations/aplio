@@ -20,7 +20,6 @@ import {
 } from '@/lib/constants';
 import type { GlobalQuestionListItem } from '@/lib/types';
 
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   FormControl,
   FormField,
@@ -38,6 +37,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 
 type QuestionFormValues = z.infer<typeof questionFormSchema>;
 
@@ -166,7 +166,7 @@ export function GlobalQuestionDialog({
         render={({ field }) => (
           <FormItem className="flex flex-row items-center gap-3">
             <FormControl>
-              <Checkbox
+              <Switch
                 checked={field.value as boolean}
                 onCheckedChange={field.onChange}
               />
