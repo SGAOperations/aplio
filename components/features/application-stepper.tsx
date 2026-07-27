@@ -20,6 +20,10 @@ import type {
 } from '@/prisma/client';
 
 import {
+  SHORT_ANSWER_FORMAT_ERROR_MESSAGES,
+  SHORT_ANSWER_FORMAT_PATTERNS,
+} from '@/lib/constants';
+import {
   type DraftApplication,
   type PositionWithQuestions,
   type QuestionFileTarget,
@@ -39,6 +43,7 @@ type NarrowQuestion = {
   required: boolean;
   options: string[];
   allowOther: boolean;
+  format: GlobalQuestion['format'];
 };
 
 interface QuestionListProps {
@@ -155,10 +160,24 @@ function QuestionList({
             name={fieldName}
             shouldUnregister={false}
             rules={{
-              validate: (value) =>
-                !question.required ||
-                (Array.isArray(value) && value.length > 0) ||
-                'This field is required',
+              validate: (value) => {
+                if (
+                  question.required &&
+                  !(Array.isArray(value) && value.length > 0)
+                )
+                  return 'This field is required';
+                // Format re-check runs on blur (mode: 'onBlur' below) — mirrors
+                // the server-side check in createOrUpdateApplicationAnswer so
+                // the same rule is enforced client- and server-side.
+                if (
+                  question.type === 'short_answer' &&
+                  question.format &&
+                  value[0] &&
+                  !SHORT_ANSWER_FORMAT_PATTERNS[question.format].test(value[0])
+                )
+                  return SHORT_ANSWER_FORMAT_ERROR_MESSAGES[question.format];
+                return true;
+              },
             }}
             render={({ field, fieldState }) => (
               <ApplicationQuestion
@@ -237,6 +256,9 @@ export function ApplicationStepper({
     clearErrors,
     formState: { errors, isSubmitting },
   } = useForm<StepperFormValues>({
+    // Required and format field-validation both need to surface on blur, not
+    // only on an explicit trigger()/submit.
+    mode: 'onBlur',
     defaultValues: Object.fromEntries([
       ...globalQuestions.map((q) => {
         const appAnswer = application.globalAnswers.find(

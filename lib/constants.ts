@@ -91,15 +91,84 @@ export const OTHER_OPTION_LABEL = 'Other';
 // virtual choice (see PR #334 review).
 export const OTHER_OPTION_VALUE = '__other__';
 
+export const SHORT_ANSWER_FORMAT_VALUES = [
+  'email',
+  'phone_number',
+  'url',
+  'zip_code',
+] as const;
+
+export type ShortAnswerFormatValue =
+  (typeof SHORT_ANSWER_FORMAT_VALUES)[number];
+
+export const SHORT_ANSWER_FORMAT_LABELS: Record<
+  ShortAnswerFormatValue,
+  string
+> = {
+  email: 'Email',
+  phone_number: 'Phone number',
+  url: 'URL',
+  zip_code: 'ZIP code',
+};
+
+export const SHORT_ANSWER_FORMAT_OPTIONS: {
+  value: ShortAnswerFormatValue;
+  label: string;
+}[] = SHORT_ANSWER_FORMAT_VALUES.map((value) => ({
+  value,
+  label: SHORT_ANSWER_FORMAT_LABELS[value],
+}));
+
+// Single source of truth for each format preset's validation pattern — shared
+// by client (inline blur validation) and server (re-validation on save) so
+// they can never drift. Intentionally permissive: favor not blocking a
+// legitimate answer over strict/RFC-grade enforcement.
+export const SHORT_ANSWER_FORMAT_PATTERNS: Record<
+  ShortAnswerFormatValue,
+  RegExp
+> = {
+  email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+  phone_number: /^\+?[\d\s().-]{7,20}$/,
+  url: /^https?:\/\/\S+\.\S+$/,
+  zip_code: /^\d{5}(-\d{4})?$/,
+};
+
+export const SHORT_ANSWER_FORMAT_ERROR_MESSAGES: Record<
+  ShortAnswerFormatValue,
+  string
+> = {
+  email: 'Enter a valid email address',
+  phone_number: 'Enter a valid phone number',
+  url: 'Enter a valid URL',
+  zip_code: 'Enter a valid ZIP code',
+};
+
 // Base question schema shared between the client form and server actions.
-// Both sides extend this with `.superRefine` to enforce options constraints.
+// Both sides extend this with `.superRefine` to enforce options/format constraints.
 export const baseQuestionSchema = z.object({
   label: z.string().min(1, 'Label is required'),
   type: z.enum(QUESTION_TYPE_VALUES),
   required: z.boolean(),
   options: z.array(z.string()),
   allowOther: z.boolean(),
+  format: z.enum(SHORT_ANSWER_FORMAT_VALUES).nullable(),
 });
+
+// Shared superRefine used by both the admin dialogs and the server actions
+// (no 'use server' boundary here) so a format set on a non-short-answer
+// question is always rejected as a zod field error, never silently persisted.
+export function validateShortAnswerFormat(
+  data: { type: string; format: ShortAnswerFormatValue | null },
+  ctx: z.RefinementCtx,
+) {
+  if (data.format !== null && data.type !== 'short_answer') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['format'],
+      message: 'Format is only available for short-answer questions',
+    });
+  }
+}
 
 // Enforces that choice-type questions carry at least one option and non-choice
 // questions carry none — prevents orphaned option data. Also enforces that
@@ -136,12 +205,13 @@ export function validateOptions(
   }
 }
 
-// Client-side question form schema — reuses validateOptions as its single
-// source of truth so RHF surfaces the same rule as field errors, rather than
-// re-inlining the choice-type constraint. Shared between GlobalQuestionDialog
-// and the position QuestionForm (ENGINEERING §1).
-export const questionFormSchema =
-  baseQuestionSchema.superRefine(validateOptions);
+// Client-side question form schema — reuses validateOptions/validateShortAnswerFormat
+// as its single source of truth so RHF surfaces the same rules as field errors,
+// rather than re-inlining the choice-type/format constraints. Shared between
+// GlobalQuestionDialog and the position QuestionForm (ENGINEERING §1).
+export const questionFormSchema = baseQuestionSchema
+  .superRefine(validateOptions)
+  .superRefine(validateShortAnswerFormat);
 
 // Human-readable labels for each application status.
 // Keyed on the generated ApplicationStatus enum for build-time exhaustiveness.

@@ -20,6 +20,8 @@ import {
   NON_REVIEWABLE_APPLICATION_STATUSES,
   PUBLISHED_POSITION_WHERE,
   REVIEWER_APPLICATION_STATUSES,
+  SHORT_ANSWER_FORMAT_ERROR_MESSAGES,
+  SHORT_ANSWER_FORMAT_PATTERNS,
   TERMINAL_DECISION_STATUSES,
 } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
@@ -176,6 +178,26 @@ export async function createOrUpdateApplicationAnswer(params: {
   });
 
   requireOwnership(application, currentUser.id);
+
+  // Re-validate the format preset server-side — the client's on-blur check
+  // (application-stepper.tsx) is UX only and can be bypassed.
+  const question = isGlobal
+    ? await prisma.globalQuestion.findUnique({
+        where: { id: questionId },
+        select: { type: true, format: true },
+      })
+    : await prisma.positionQuestion.findUnique({
+        where: { id: questionId },
+        select: { type: true, format: true },
+      });
+
+  if (
+    question?.type === 'short_answer' &&
+    question.format &&
+    value[0] &&
+    !SHORT_ANSWER_FORMAT_PATTERNS[question.format].test(value[0])
+  )
+    return { error: SHORT_ANSWER_FORMAT_ERROR_MESSAGES[question.format] };
 
   if (isGlobal) {
     const question = await prisma.globalQuestion.findUnique({
