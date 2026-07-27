@@ -199,6 +199,14 @@ export async function createOrUpdateApplicationAnswer(params: {
   )
     return { error: SHORT_ANSWER_FORMAT_ERROR_MESSAGES[question.format] };
 
+  // Persist what was actually validated: matchesShortAnswerFormat trims
+  // internally, so a format-validated answer must be trimmed before saving
+  // too, or a pasted value with incidental whitespace saves verbatim.
+  const persistedValue =
+    question?.type === 'short_answer' && question.format
+      ? value.map((v) => v.trim())
+      : value;
+
   if (isGlobal) {
     const question = await prisma.globalQuestion.findUnique({
       where: { id: questionId },
@@ -233,12 +241,12 @@ export async function createOrUpdateApplicationAnswer(params: {
           globalQuestionId: questionId,
         },
       },
-      update: { value, updatedById: currentUser.id },
+      update: { value: persistedValue, updatedById: currentUser.id },
       create: {
         applicationId,
         globalQuestionId: questionId,
         questionLabel,
-        value,
+        value: persistedValue,
         createdById: currentUser.id,
         updatedById: currentUser.id,
       },
@@ -264,12 +272,12 @@ export async function createOrUpdateApplicationAnswer(params: {
         positionQuestionId: questionId,
       },
     },
-    update: { value, updatedById: currentUser.id },
+    update: { value: persistedValue, updatedById: currentUser.id },
     create: {
       applicationId,
       positionQuestionId: questionId,
       questionLabel,
-      value,
+      value: persistedValue,
       createdById: currentUser.id,
       updatedById: currentUser.id,
     },

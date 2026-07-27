@@ -50,6 +50,14 @@ export async function updateGlobalAnswer(
   )
     return { error: SHORT_ANSWER_FORMAT_ERROR_MESSAGES[question.format] };
 
+  // Persist what was actually validated: matchesShortAnswerFormat trims
+  // internally, so a format-validated answer must be trimmed before saving
+  // too, or a pasted value with incidental whitespace saves verbatim.
+  const persistedValue =
+    question?.type === 'short_answer' && question.format
+      ? parsed.data.value.map((v) => v.trim())
+      : parsed.data.value;
+
   const result = await prisma.globalAnswer.upsert({
     where: {
       userId_globalQuestionId: {
@@ -57,11 +65,11 @@ export async function updateGlobalAnswer(
         globalQuestionId: parsed.data.questionId,
       },
     },
-    update: { value: parsed.data.value, updatedById: user.id },
+    update: { value: persistedValue, updatedById: user.id },
     create: {
       userId: user.id,
       globalQuestionId: parsed.data.questionId,
-      value: parsed.data.value,
+      value: persistedValue,
       createdById: user.id,
       updatedById: user.id,
     },
