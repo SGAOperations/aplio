@@ -9,7 +9,7 @@ import type { GlobalAnswer } from '@/prisma/client';
 import { getCurrentUser } from '@/lib/auth/server';
 import {
   SHORT_ANSWER_FORMAT_ERROR_MESSAGES,
-  SHORT_ANSWER_FORMAT_PATTERNS,
+  matchesShortAnswerFormat,
 } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 import { type ResponseType } from '@/lib/utils';
@@ -46,7 +46,7 @@ export async function updateGlobalAnswer(
     question.type === 'short_answer' &&
     question.format &&
     parsed.data.value[0] &&
-    !SHORT_ANSWER_FORMAT_PATTERNS[question.format].test(parsed.data.value[0])
+    !matchesShortAnswerFormat(parsed.data.value[0], question.format)
   )
     return { error: SHORT_ANSWER_FORMAT_ERROR_MESSAGES[question.format] };
 

@@ -143,6 +143,19 @@ export const SHORT_ANSWER_FORMAT_ERROR_MESSAGES: Record<
   zip_code: 'Enter a valid ZIP code',
 };
 
+// Single source of truth for testing a value against a format preset — trims
+// before matching since every pattern above is anchored against character
+// classes that exclude (or only tolerate mid-string) whitespace, so a
+// legitimate pasted value with incidental leading/trailing whitespace must
+// not be rejected. Shared by every call site (client blur checks, server
+// re-validation) so none can drift and re-introduce the untrimmed check.
+export function matchesShortAnswerFormat(
+  value: string,
+  format: ShortAnswerFormatValue,
+): boolean {
+  return SHORT_ANSWER_FORMAT_PATTERNS[format].test(value.trim());
+}
+
 // Base question schema shared between the client form and server actions.
 // Both sides extend this with `.superRefine` to enforce options/format constraints.
 export const baseQuestionSchema = z.object({

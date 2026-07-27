@@ -21,7 +21,7 @@ import type {
 
 import {
   SHORT_ANSWER_FORMAT_ERROR_MESSAGES,
-  SHORT_ANSWER_FORMAT_PATTERNS,
+  matchesShortAnswerFormat,
 } from '@/lib/constants';
 import {
   type DraftApplication,
@@ -173,7 +173,7 @@ function QuestionList({
                   question.type === 'short_answer' &&
                   question.format &&
                   value[0] &&
-                  !SHORT_ANSWER_FORMAT_PATTERNS[question.format].test(value[0])
+                  !matchesShortAnswerFormat(value[0], question.format)
                 )
                   return SHORT_ANSWER_FORMAT_ERROR_MESSAGES[question.format];
                 return true;

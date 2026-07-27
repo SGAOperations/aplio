@@ -21,8 +21,8 @@ import {
   PUBLISHED_POSITION_WHERE,
   REVIEWER_APPLICATION_STATUSES,
   SHORT_ANSWER_FORMAT_ERROR_MESSAGES,
-  SHORT_ANSWER_FORMAT_PATTERNS,
   TERMINAL_DECISION_STATUSES,
+  matchesShortAnswerFormat,
 } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 import { type DraftApplication } from '@/lib/types';
@@ -195,7 +195,7 @@ export async function createOrUpdateApplicationAnswer(params: {
     question?.type === 'short_answer' &&
     question.format &&
     value[0] &&
-    !SHORT_ANSWER_FORMAT_PATTERNS[question.format].test(value[0])
+    !matchesShortAnswerFormat(value[0], question.format)
   )
     return { error: SHORT_ANSWER_FORMAT_ERROR_MESSAGES[question.format] };
 
