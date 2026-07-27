@@ -2,7 +2,7 @@
 
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { unstable_rethrow, useRouter } from 'next/navigation';
 import { useTransition } from 'react';
 
 import {
@@ -38,9 +38,6 @@ import {
 interface UserMenuProps {
   identity: NavIdentity;
   onNavigate?: () => void;
-  // 'sidebar' uses sidebar-context tokens (default, for sidebar/mobile-nav usage).
-  // 'header' uses neutral tokens suitable for a plain header without sidebar context.
-  variant?: 'sidebar' | 'header';
 }
 
 const THEME_OPTIONS = [
@@ -49,11 +46,7 @@ const THEME_OPTIONS = [
   { value: 'dark', label: 'Dark', icon: Moon },
 ] as const;
 
-export function UserMenu({
-  identity,
-  onNavigate,
-  variant = 'sidebar',
-}: UserMenuProps) {
+export function UserMenu({ identity, onNavigate }: UserMenuProps) {
   const { name, email, roleLabel, isBypass } = identity;
   const displayName = name ?? email;
   const [pending, startTransition] = useTransition();
@@ -64,14 +57,19 @@ export function UserMenu({
   const { theme = 'system', setTheme } = useTheme();
 
   const triggerClassName =
-    variant === 'header'
-      ? 'group flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition-colors bg-transparent hover:bg-muted'
-      : 'group flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground';
+    'group flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground';
 
   function handleLogout() {
     startTransition(async () => {
       if (isBypass) {
-        await logoutBypassUser();
+        try {
+          await logoutBypassUser();
+        } catch (error) {
+          // Let Next's internal redirect signal through — only a genuine
+          // failure before the redirect() call should surface a toast.
+          unstable_rethrow(error);
+          toast.error('Could not sign out. Please try again.');
+        }
         return;
       }
       try {

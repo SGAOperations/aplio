@@ -1,9 +1,13 @@
+import type { Metadata } from 'next';
+
 import { getProfileData } from '@/prisma/data/profile';
 
 import { getCurrentUser } from '@/lib/auth/server';
 
 import { ProfileForm } from '@/components/features/profile-form';
 import { PageHeader } from '@/components/layouts/page-header';
+
+export const metadata: Metadata = { title: 'Profile' };
 
 export default async function ProfilePage() {
   const user = await getCurrentUser();

@@ -35,8 +35,12 @@ const COLUMNS: SortableColumn<MyApplicationListItem>[] = [
   { key: 'position', accessor: (a) => a.position.title },
   // Sort by human label A-Z so order matches what the user reads in the badge.
   { key: 'status', accessor: (a) => APPLICATION_STATUS_LABELS[a.status] },
-  // Drafts have null submittedAt — they sort last (null-last rule in the hook).
-  { key: 'applied', accessor: (a) => a.submittedAt },
+  // submittedAt equals createdAt for drafts (no conditional default in the
+  // schema), so map to null here for the hook's null-last sort.
+  {
+    key: 'applied',
+    accessor: (a) => (a.status === 'draft' ? null : a.submittedAt),
+  },
 ];
 
 export function MyApplicationsTable({

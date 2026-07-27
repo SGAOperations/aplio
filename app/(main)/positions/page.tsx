@@ -1,3 +1,5 @@
+import type { Metadata } from 'next';
+
 import { Briefcase } from 'lucide-react';
 
 import { getPositionApplicationStats } from '@/prisma/data/applications';
@@ -14,6 +16,8 @@ import type { PositionApplicationStats } from '@/lib/types';
 import { PositionCard } from '@/components/features/position-card';
 import { PositionCreateDialog } from '@/components/features/position-create-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
+
+export const metadata: Metadata = { title: 'Positions' };
 
 export default async function PositionsPage() {
   const user = await getOptionalUser();

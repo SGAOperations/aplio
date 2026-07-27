@@ -3,6 +3,8 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
 
+import { Prisma } from '@/prisma/client';
+
 import { prisma } from '@/lib/prisma';
 
 export const authServer = createAuthServer();
@@ -19,11 +21,25 @@ async function resolveRealUser() {
 
   const { id: neonAuthId, email, name } = session.user;
 
-  const row = await prisma.user.upsert({
-    where: { neonAuthId },
-    update: {},
-    create: { neonAuthId, email, ...(name ? { name } : {}), isAdmin: false },
-  });
+  let row;
+  try {
+    row = await prisma.user.upsert({
+      where: { neonAuthId },
+      update: {},
+      create: { neonAuthId, email, ...(name ? { name } : {}), isAdmin: false },
+    });
+  } catch (error) {
+    // Soft-deleted rows still hold their email/neonAuthId (unique, not partial),
+    // so re-signup collides with P2002 — not user-actionable, so throw generic.
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    )
+      throw new Error(
+        'Unable to sign in — this account could not be provisioned.',
+      );
+    throw error;
+  }
   if (row.deletedAt) return null;
   return row;
 }

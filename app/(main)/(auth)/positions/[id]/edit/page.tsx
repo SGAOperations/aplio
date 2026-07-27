@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
 import { getPositionForEdit } from '@/prisma/data/positions';
@@ -12,6 +13,15 @@ import { PageHeader } from '@/components/layouts/page-header';
 
 interface EditPositionPageProps {
   params: Promise<{ id: string }>;
+}
+
+export async function generateMetadata({
+  params,
+}: EditPositionPageProps): Promise<Metadata> {
+  const { id } = await params;
+  const position = await getPositionForEdit(id);
+  if (!position) return {};
+  return { title: `Edit: ${position.title}` };
 }
 
 export default async function EditPositionPage({

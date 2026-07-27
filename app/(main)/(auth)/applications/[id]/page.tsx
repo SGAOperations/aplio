@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
 import { getApplicationForReview } from '@/prisma/data/applications';
@@ -19,6 +20,16 @@ import {
 
 interface ApplicationDetailPageProps {
   params: Promise<{ id: string }>;
+}
+
+export async function generateMetadata({
+  params,
+}: ApplicationDetailPageProps): Promise<Metadata> {
+  const { id } = await params;
+  const user = await getCurrentUser();
+  const application = await getApplicationForReview(id, user);
+  if (!application) return {};
+  return { title: application.user.name ?? application.user.email };
 }
 
 export default async function ApplicationDetailPage({

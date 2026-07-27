@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 
 import { Loader2, UserMinus, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
@@ -12,6 +12,7 @@ import {
 } from '@/prisma/actions/position-actions';
 
 import type { PositionManager } from '@/lib/types';
+import { isError } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,11 +41,21 @@ export function PositionManagersSection({
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<UserResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [searchFailed, setSearchFailed] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [addingId, setAddingId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   // Ref holds the debounce timer so typing does not trigger a search per keystroke.
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear a pending debounced search on unmount — without this, navigating away
+  // within the debounce window still fires the stale closure's searchUsers call.
+  // A DOM/timer handle has no non-effect home, so this is the sanctioned exception (§1).
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
 
   function handleQueryChange(value: string) {
     setQuery(value);
@@ -52,15 +63,22 @@ export function PositionManagersSection({
     if (!value.trim()) {
       setResults([]);
       setIsSearching(false);
+      setSearchFailed(false);
       return;
     }
     // Show the spinner immediately so the user knows their input was registered.
     setIsSearching(true);
+    setSearchFailed(false);
     debounceRef.current = setTimeout(() => {
       startTransition(async () => {
         const users = await searchUsers({ query: value });
-        // managers captured by closure is the latest value at search time.
-        setResults(users.filter((u) => !managers.some((m) => m.id === u.id)));
+        if (isError(users)) {
+          setResults([]);
+          setSearchFailed(true);
+        } else {
+          // managers captured by closure is the latest value at search time.
+          setResults(users.filter((u) => !managers.some((m) => m.id === u.id)));
+        }
         setIsSearching(false);
       });
     }, SEARCH_DEBOUNCE_MS);
@@ -154,6 +172,7 @@ export function PositionManagersSection({
               onChange={(e) => handleQueryChange(e.target.value)}
               placeholder="Search by name or email"
               autoComplete="off"
+              maxLength={200}
             />
             {isSearching && (
               <Loader2 className="text-muted-foreground absolute top-2 right-2.5 size-4 animate-spin" />
@@ -185,9 +204,17 @@ export function PositionManagersSection({
               ))}
             </ul>
           )}
-          {!isSearching && query.trim() && results.length === 0 && (
-            <p className="text-muted-foreground text-sm">No users found.</p>
+          {!isSearching && searchFailed && (
+            <p className="text-destructive text-sm">
+              Search failed. Try a shorter query.
+            </p>
           )}
+          {!isSearching &&
+            !searchFailed &&
+            query.trim() &&
+            results.length === 0 && (
+              <p className="text-muted-foreground text-sm">No users found.</p>
+            )}
         </div>
       )}
     </div>

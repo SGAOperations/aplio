@@ -1,9 +1,13 @@
+import type { Metadata } from 'next';
+
 import { getMyApplications } from '@/prisma/data/applications';
 
 import { getCurrentUser } from '@/lib/auth/server';
 
 import { MyApplicationsTable } from '@/components/features/my-applications-table';
 import { PageHeader } from '@/components/layouts/page-header';
+
+export const metadata: Metadata = { title: 'My Applications' };
 
 export default async function MyApplicationsPage() {
   const user = await getCurrentUser();

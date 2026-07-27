@@ -6,7 +6,6 @@ import { z } from 'zod/v4';
 
 import type {
   Application,
-  ApplicationStatus,
   GlobalAnswer,
   GlobalApplicationAnswer,
   GlobalQuestion,
@@ -14,7 +13,10 @@ import type {
 } from '@/prisma/client';
 
 import { getCurrentUser } from '@/lib/auth/server';
-import { REVIEWER_APPLICATION_STATUSES } from '@/lib/constants';
+import {
+  NON_REVIEWABLE_APPLICATION_STATUSES,
+  REVIEWER_APPLICATION_STATUSES,
+} from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 import { type DraftApplication } from '@/lib/types';
 import {
@@ -48,7 +50,6 @@ export async function createDraftApplication(
   positionId: string,
 ): Promise<ResponseType<DraftApplication>> {
   const currentUser = await getCurrentUser();
-  if (!currentUser) return { error: 'Unauthorized' };
 
   const parsed = createDraftApplicationSchema.safeParse({ positionId });
   if (!parsed.success) return { error: 'Invalid input' };
@@ -117,7 +118,6 @@ export async function createOrUpdateApplicationAnswer(params: {
   isGlobal: boolean;
 }): Promise<ResponseType<GlobalApplicationAnswer | PositionApplicationAnswer>> {
   const currentUser = await getCurrentUser();
-  if (!currentUser) return { error: 'Unauthorized' };
 
   const parsed = createOrUpdateApplicationAnswerSchema.safeParse(params);
   if (!parsed.success) return { error: 'Invalid input' };
@@ -180,7 +180,6 @@ export async function submitApplication(
   applicationId: string,
 ): Promise<ResponseType<Application>> {
   const currentUser = await getCurrentUser();
-  if (!currentUser) return { error: 'Unauthorized' };
 
   const parsed = submitApplicationSchema.safeParse({ applicationId });
   if (!parsed.success) return { error: 'Invalid input' };
@@ -265,11 +264,6 @@ export async function updateApplicationStatus(
 
   const { applicationId, status } = parsed.data;
 
-  // Reviewer-selectable statuses exclude 'draft' and 'withdrawn' — a reviewer
-  // cannot push an application back to draft (applicant-owned) or to withdrawn
-  // (applicant-owned lifecycle action).
-  const nonReviewableStatuses = ['draft', 'withdrawn'] as ApplicationStatus[];
-
   // Authorization folded into the query — same pattern as getApplicationForReview.
   // Returns null for non-existent, soft-deleted, withdrawn, or unauthorized callers.
 
@@ -277,28 +271,24 @@ export async function updateApplicationStatus(
     ? {
         id: applicationId,
         deletedAt: null,
-        status: { notIn: nonReviewableStatuses },
+        status: { notIn: NON_REVIEWABLE_APPLICATION_STATUSES },
       }
     : {
         id: applicationId,
         deletedAt: null,
-        status: { notIn: nonReviewableStatuses },
+        status: { notIn: NON_REVIEWABLE_APPLICATION_STATUSES },
         position: { managers: { some: { id: user.id } } },
       };
 
   const application = await prisma.application.findFirst({
     where,
-    select: { id: true, status: true, positionId: true },
+    select: { id: true },
   });
 
   // Null here means non-existent, soft-deleted, withdrawn, or the caller has no
   // right to this application ID — an IDOR-style miss that should not be
   // reachable from the UI, so we throw rather than returning a user-facing error.
   if (!application) throw new Error('Application not found or not authorized');
-
-  // Prevent updating a draft that has not been submitted yet.
-  if (application.status === 'draft')
-    return { error: 'This application has not been submitted yet.' };
 
   await prisma.application.update({
     where: { id: applicationId },
@@ -317,7 +307,9 @@ const updateApplicationStatusesSchema = z.object({
 // Bulk status update for the /applications hub. Returns { updated: number } on
 // success so the client can toast the real count. Returns { error } for
 // user-facing failures (invalid input, no-op race). Throws for unexpected errors.
-// Authorization is folded into the scoped findMany — no IDOR.
+// Authorization is folded directly into the updateMany where — no separate
+// findMany/updateMany pair, so there is no window for the target set to drift
+// between an authorization check and the write.
 export async function updateApplicationStatuses(
   input: unknown,
 ): Promise<{ updated: number } | { error: string }> {
@@ -328,33 +320,28 @@ export async function updateApplicationStatuses(
 
   const { applicationIds, status } = parsed.data;
 
-  // Authorize: scoped where clause means forged/deleted/out-of-scope ids are
-  // silently excluded — the caller can only update records they may see.
+  // Authorize: scoped where clause means forged/deleted/out-of-scope/withdrawn
+  // ids are silently excluded — the caller can only update records they may see,
+  // mirroring the exclusion updateApplicationStatus enforces.
   const where = user.isAdmin
     ? {
         id: { in: applicationIds },
         deletedAt: null,
-        status: { not: 'draft' as const },
+        status: { notIn: NON_REVIEWABLE_APPLICATION_STATUSES },
       }
     : {
         id: { in: applicationIds },
         deletedAt: null,
-        status: { not: 'draft' as const },
+        status: { notIn: NON_REVIEWABLE_APPLICATION_STATUSES },
         position: { managers: { some: { id: user.id } } },
       };
 
-  const authorized = await prisma.application.findMany({
-    where,
-    select: { id: true },
-  });
-
-  if (authorized.length === 0)
-    return { error: 'No applications were updated.' };
-
   const result = await prisma.application.updateMany({
-    where: { id: { in: authorized.map((a) => a.id) } },
+    where,
     data: { status, updatedById: user.id },
   });
+
+  if (result.count === 0) return { error: 'No applications were updated.' };
 
   revalidatePath('/applications');
   // Clears all cached detail-page renders — bulk updates don't have individual
@@ -368,7 +355,6 @@ export async function withdrawApplication(
   applicationId: string,
 ): Promise<ResponseType<void>> {
   const currentUser = await getCurrentUser();
-  if (!currentUser) throw new Error('Unauthenticated');
 
   const parsed = applicationIdSchema.safeParse({ applicationId });
   if (!parsed.success) throw new Error('Invalid input');
@@ -395,7 +381,6 @@ export async function reopenApplication(
   applicationId: string,
 ): Promise<ResponseType<void>> {
   const currentUser = await getCurrentUser();
-  if (!currentUser) throw new Error('Unauthenticated');
 
   const parsed = applicationIdSchema.safeParse({ applicationId });
   if (!parsed.success) throw new Error('Invalid input');
@@ -422,7 +407,6 @@ export async function deleteDraftApplication(
   applicationId: string,
 ): Promise<ResponseType<void>> {
   const currentUser = await getCurrentUser();
-  if (!currentUser) throw new Error('Unauthenticated');
 
   const parsed = applicationIdSchema.safeParse({ applicationId });
   if (!parsed.success) throw new Error('Invalid input');

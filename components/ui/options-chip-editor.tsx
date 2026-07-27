@@ -1,0 +1,66 @@
+'use client';
+
+import { Input } from '@/components/ui/input';
+
+interface OptionsChipEditorProps {
+  options: string[];
+  onChange: (next: string[]) => void;
+  disabled?: boolean;
+}
+
+// Controlled "type and press Enter" chip editor for choice-question options.
+// Library-agnostic: works under RHF's field.value/field.onChange or plain
+// useState — shared by GlobalQuestionDialog and the position QuestionForm,
+// which previously each hand-rolled this markup (ENGINEERING §1).
+export function OptionsChipEditor({
+  options,
+  onChange,
+  disabled,
+}: OptionsChipEditorProps) {
+  function addOption(value: string) {
+    const trimmed = value.trim();
+    if (!trimmed || options.includes(trimmed)) return;
+    onChange([...options, trimmed]);
+  }
+
+  function removeOption(option: string) {
+    onChange(options.filter((o) => o !== option));
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      {options.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {options.map((option) => (
+            <span
+              key={option}
+              className="bg-secondary text-secondary-foreground flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
+            >
+              {option}
+              <button
+                type="button"
+                onClick={() => removeOption(option)}
+                disabled={disabled}
+                className="hover:text-destructive ml-0.5 disabled:cursor-not-allowed"
+                aria-label={`Remove ${option}`}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <Input
+        placeholder="Type an option and press Enter"
+        disabled={disabled}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            addOption(e.currentTarget.value);
+            e.currentTarget.value = '';
+          }
+        }}
+      />
+    </div>
+  );
+}

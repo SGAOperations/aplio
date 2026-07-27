@@ -1,7 +1,9 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+
+import { toast } from 'sonner';
 
 import { updateGlobalAnswer } from '@/prisma/actions/profile';
 import type { GlobalAnswer, GlobalQuestion } from '@/prisma/client';
@@ -33,17 +35,28 @@ export function ProfileQuestion({
   });
   // Tracks the last saved serialized value to avoid redundant server calls.
   const savedValueRef = useRef(JSON.stringify(initialValue));
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState(false);
 
   async function save(value: string[]) {
     const serialized = JSON.stringify(value);
-    if (serialized === savedValueRef.current) return;
+    if (serialized === savedValueRef.current) {
+      setSaveError(false);
+      return;
+    }
+    setIsSaving(true);
+    setSaveError(false);
     try {
       const result = await updateGlobalAnswer(question.id, value);
       if (isError(result)) throw new Error(result.error);
       savedValueRef.current = serialized;
       reset({ value });
     } catch {
-      // silent — autosave is best-effort; savedValueRef is not advanced on failure so retries work
+      // savedValueRef is not advanced on failure so retries work
+      setSaveError(true);
+      toast.error('Failed to save answer');
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -167,6 +180,17 @@ export function ProfileQuestion({
             );
           }}
         />
+      )}
+
+      {isEditing && isSaving && (
+        <span className="text-muted-foreground mt-2 block text-xs">
+          Saving...
+        </span>
+      )}
+      {isEditing && saveError && (
+        <p className="text-destructive mt-2 text-xs">
+          Failed to save. Please try again.
+        </p>
       )}
     </div>
   );

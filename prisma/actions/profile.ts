@@ -20,7 +20,6 @@ export async function updateGlobalAnswer(
   value: string[],
 ): Promise<ResponseType<GlobalAnswer>> {
   const user = await getCurrentUser();
-  if (!user) return { error: 'Not authenticated' };
 
   const parsed = updateGlobalAnswerSchema.safeParse({ questionId, value });
   if (!parsed.success) return { error: 'Invalid input' };
