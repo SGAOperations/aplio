@@ -38,9 +38,6 @@ import {
 interface UserMenuProps {
   identity: NavIdentity;
   onNavigate?: () => void;
-  // 'sidebar' uses sidebar-context tokens (default, for sidebar/mobile-nav usage).
-  // 'header' uses neutral tokens suitable for a plain header without sidebar context.
-  variant?: 'sidebar' | 'header';
 }
 
 const THEME_OPTIONS = [
@@ -49,11 +46,7 @@ const THEME_OPTIONS = [
   { value: 'dark', label: 'Dark', icon: Moon },
 ] as const;
 
-export function UserMenu({
-  identity,
-  onNavigate,
-  variant = 'sidebar',
-}: UserMenuProps) {
+export function UserMenu({ identity, onNavigate }: UserMenuProps) {
   const { name, email, roleLabel, isBypass } = identity;
   const displayName = name ?? email;
   const [pending, startTransition] = useTransition();
@@ -64,9 +57,7 @@ export function UserMenu({
   const { theme = 'system', setTheme } = useTheme();
 
   const triggerClassName =
-    variant === 'header'
-      ? 'group flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition-colors bg-transparent hover:bg-muted'
-      : 'group flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground';
+    'group flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground';
 
   function handleLogout() {
     startTransition(async () => {

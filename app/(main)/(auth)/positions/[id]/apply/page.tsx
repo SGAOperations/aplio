@@ -30,7 +30,6 @@ export async function generateMetadata({
 export default async function ApplyPage({ params }: ApplyPageProps) {
   const { id } = await params;
   const user = await getCurrentUser();
-  if (!user) redirect('/sign-in');
 
   const [position, profileData] = await Promise.all([
     getPositionForApply(id),
