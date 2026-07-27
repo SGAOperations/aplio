@@ -28,7 +28,7 @@ export async function createGlobalQuestion(
   if (!parsed.success)
     return { error: parsed.error.issues[0]?.message ?? 'Invalid input' };
 
-  const { label, type, required, options } = parsed.data;
+  const { label, type, required, options, allowOther } = parsed.data;
 
   // Aggregate and create run in a transaction to prevent duplicate order values
   // under concurrent inserts.
@@ -45,6 +45,7 @@ export async function createGlobalQuestion(
         type,
         required,
         options,
+        allowOther,
         order: maxOrder + 1,
         createdById: user.id,
         updatedById: user.id,
@@ -66,7 +67,7 @@ export async function updateGlobalQuestion(
   if (!parsed.success)
     return { error: parsed.error.issues[0]?.message ?? 'Invalid input' };
 
-  const { id, label, type, required, options } = parsed.data;
+  const { id, label, type, required, options, allowOther } = parsed.data;
 
   const question = await prisma.globalQuestion.findFirst({
     where: { id, deletedAt: null },
@@ -76,7 +77,7 @@ export async function updateGlobalQuestion(
 
   await prisma.globalQuestion.update({
     where: { id },
-    data: { label, type, required, options, updatedById: user.id },
+    data: { label, type, required, options, allowOther, updatedById: user.id },
   });
 
   revalidatePath('/global-questions');
