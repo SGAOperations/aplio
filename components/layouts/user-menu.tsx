@@ -16,10 +16,11 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { signOutUser } from '@/prisma/actions/auth';
 import { logoutBypassUser } from '@/prisma/services/dev-bypass';
 
-import { authClient } from '@/lib/auth/client';
 import type { NavIdentity } from '@/lib/types';
+import { isError } from '@/lib/utils';
 
 import {
   DropdownMenu,
@@ -49,8 +50,8 @@ const THEME_OPTIONS = [
 export function UserMenu({ identity, onNavigate }: UserMenuProps) {
   const { name, email, roleLabel, isBypass } = identity;
   const displayName = name ?? email;
-  const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const [pending, startTransition] = useTransition();
   // next-themes is loaded with { ssr: false }; `theme` is undefined on first
   // render before the provider resolves. Default to 'system' to match
   // defaultTheme so the radio shows a selection without a flash.
@@ -73,12 +74,21 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
         return;
       }
       try {
-        await authClient.signOut();
+        const result = await signOutUser();
+        if (isError(result)) {
+          toast.error(result.error);
+          return;
+        }
         toast.success('Signed out.');
         router.push('/login');
-        router.refresh();
-      } catch {
-        toast.error('Could not sign out. Please try again.');
+      } catch (error) {
+        // signOutUser() calls getCurrentUser() first, which redirects (throwing
+        // a NEXT_REDIRECT digest) when the session already expired — rethrow
+        // that so Next can complete the navigation instead of it being
+        // misclassified as a genuine failure below.
+        unstable_rethrow(error);
+        console.error('Sign-out failed unexpectedly', error);
+        toast.error('Something went wrong. Please try again.');
       }
     });
   }
