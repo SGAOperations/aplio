@@ -18,7 +18,10 @@ export default async function UsersPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Users" />
+      <PageHeader
+        title="Users"
+        description="Manage platform accounts and admin access."
+      />
 
       <UsersTable users={users} currentUserId={user.id} />
     </div>

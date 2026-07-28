@@ -20,6 +20,7 @@ import type {
 
 import { ApplicationsTable } from '@/components/features/applications-table';
 import { ApplicationsToolbar } from '@/components/features/applications-toolbar';
+import { PageHeader } from '@/components/layouts/page-header';
 
 export const metadata: Metadata = { title: 'Applications' };
 
@@ -97,9 +98,10 @@ export default async function ApplicationsPage({
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Applications</h1>
-      </header>
+      <PageHeader
+        title="Applications"
+        description="Review and track submitted applications."
+      />
 
       <ApplicationsToolbar
         positions={positions}
