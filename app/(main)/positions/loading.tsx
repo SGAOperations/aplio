@@ -6,7 +6,7 @@ export default function PositionsLoading() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-2">
         <Skeleton className="h-8 w-40" />
-        <Skeleton className="h-4 w-56" />
+        <Skeleton className="h-4 w-72" />
       </div>
       <div className="flex flex-col gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
