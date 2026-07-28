@@ -27,6 +27,11 @@ const GENERIC_TYPE_ERROR = 'Only PDF, PNG and JPG files are allowed.';
 const SUBMITTED_ERROR = 'This application has already been submitted.';
 const NOT_AVAILABLE_ERROR = 'This file is no longer available.';
 
+// Thrown by readAndWriteAnswerValue when the transaction's authoritative
+// status re-check finds the application is no longer a draft — signals the
+// caller to surface SUBMITTED_ERROR instead of rethrowing as unexpected.
+class ApplicationSubmittedError extends Error {}
+
 // zod's messages double as the user-facing copy — the first issue is
 // returned verbatim, so this is the single source of truth for both the
 // server response and the client's identical pre-check (question-file-field.tsx).
@@ -113,6 +118,12 @@ function revalidateTarget(resolved: ResolvedTarget) {
 // the new one in a single transaction, so a concurrent write can't cause a
 // lost update. Shared by upload (value=[url]) and remove (value=[]) — the
 // only difference between the two actions is what value gets written.
+//
+// For the application scope, status is re-checked here (authoritatively,
+// inside the same transaction as the write) rather than relying solely on
+// authorizeTarget's earlier check — that check and this write aren't
+// otherwise atomic, so a concurrent submit (e.g. a second tab) could
+// otherwise land a file write on an already-submitted application.
 async function readAndWriteAnswerValue(
   tx: Prisma.TransactionClient,
   target: QuestionFileTarget,
@@ -140,6 +151,12 @@ async function readAndWriteAnswerValue(
     });
     return existing?.value[0] ?? null;
   }
+
+  const application = await tx.application.findFirst({
+    where: { id: target.applicationId, status: 'draft' },
+    select: { id: true },
+  });
+  if (!application) throw new ApplicationSubmittedError();
 
   if (target.isGlobal) {
     const where = {
@@ -265,6 +282,8 @@ export async function uploadQuestionFileAnswer(
   } catch (error) {
     // A failed write must not orphan the blob just uploaded.
     await del(blob.url).catch(() => {});
+    if (error instanceof ApplicationSubmittedError)
+      return { error: SUBMITTED_ERROR };
     throw error;
   }
 
@@ -287,9 +306,16 @@ export async function removeQuestionFileAnswer(
   const resolved = await authorizeTarget(user.id, target);
   if ('error' in resolved) return resolved;
 
-  const oldUrl = await prisma.$transaction((tx) =>
-    readAndWriteAnswerValue(tx, target, [], user.id),
-  );
+  let oldUrl: string | null;
+  try {
+    oldUrl = await prisma.$transaction((tx) =>
+      readAndWriteAnswerValue(tx, target, [], user.id),
+    );
+  } catch (error) {
+    if (error instanceof ApplicationSubmittedError)
+      return { error: SUBMITTED_ERROR };
+    throw error;
+  }
 
   if (oldUrl) await cleanupOrphanedBlob(oldUrl);
 
