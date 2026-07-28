@@ -79,6 +79,9 @@ export async function getPositionApplications(
 // Authorization is folded into the where clause: admins see any application;
 // managers only see applications for positions they manage. Unauthorized callers
 // and soft-deleted records both return null, which the page converts to notFound().
+// The question's type is selected through the relation (one query, no N+1) and
+// both answer arrays are normalized to ApplicationReviewAnswer[] so the review
+// UI can render file_upload answers via AnswerFileLink.
 export async function getApplicationForReview(
   id: string,
   user: { id: string; isAdmin: boolean },
@@ -91,7 +94,7 @@ export async function getApplicationForReview(
         position: { managers: { some: { id: user.id } } },
       };
 
-  return prisma.application.findFirst({
+  const application = await prisma.application.findFirst({
     where,
     select: {
       id: true,
@@ -102,15 +105,51 @@ export async function getApplicationForReview(
       globalAnswers: {
         where: { deletedAt: null },
         orderBy: { createdAt: 'asc' },
-        select: { id: true, questionLabel: true, value: true },
+        select: {
+          id: true,
+          globalQuestionId: true,
+          questionLabel: true,
+          value: true,
+          globalQuestion: { select: { type: true } },
+        },
       },
       positionAnswers: {
         where: { deletedAt: null },
         orderBy: { createdAt: 'asc' },
-        select: { id: true, questionLabel: true, value: true },
+        select: {
+          id: true,
+          positionQuestionId: true,
+          questionLabel: true,
+          value: true,
+          positionQuestion: { select: { type: true } },
+        },
       },
     },
   });
+
+  if (!application) return null;
+
+  const { globalAnswers, positionAnswers, ...rest } = application;
+
+  return {
+    ...rest,
+    globalAnswers: globalAnswers.map((a) => ({
+      id: a.id,
+      questionId: a.globalQuestionId,
+      questionLabel: a.questionLabel,
+      value: a.value,
+      type: a.globalQuestion.type,
+      isGlobal: true,
+    })),
+    positionAnswers: positionAnswers.map((a) => ({
+      id: a.id,
+      questionId: a.positionQuestionId,
+      questionLabel: a.questionLabel,
+      value: a.value,
+      type: a.positionQuestion.type,
+      isGlobal: false,
+    })),
+  };
 }
 
 export async function getMyApplicationStatusCounts(

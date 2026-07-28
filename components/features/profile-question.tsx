@@ -11,6 +11,8 @@ import type { GlobalAnswer, GlobalQuestion } from '@/prisma/client';
 import { OTHER_OPTION_LABEL, OTHER_OPTION_VALUE } from '@/lib/constants';
 import { isError } from '@/lib/utils';
 
+import { AnswerFileLink } from '@/components/features/answer-file-link';
+import { QuestionFileField } from '@/components/features/question-file-field';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -85,6 +87,11 @@ export function ProfileQuestion({
       {!isEditing &&
         (getValues('value').length === 0 ? (
           <p className="text-muted-foreground text-sm italic">No answer yet</p>
+        ) : question.type === 'file_upload' ? (
+          <AnswerFileLink
+            target={{ scope: 'profile', questionId: question.id }}
+            url={getValues('value')[0]}
+          />
         ) : question.type === 'multiple_choice' ? (
           <div className="flex flex-wrap gap-1.5">
             {getValues('value').map((v) => (
@@ -220,6 +227,24 @@ export function ProfileQuestion({
                 </div>
               );
 
+            if (question.type === 'file_upload')
+              return (
+                <QuestionFileField
+                  target={{ scope: 'profile', questionId: question.id }}
+                  value={field.value}
+                  onChange={(v) => {
+                    // uploadQuestionFileAnswer/removeQuestionFileAnswer already
+                    // persisted this value server-side — just sync local
+                    // state, never route through save() (updateGlobalAnswer
+                    // throws for file_upload questions by design).
+                    field.onChange(v);
+                    savedValueRef.current = JSON.stringify(v);
+                    reset({ value: v });
+                  }}
+                />
+              );
+
+            // question.type === 'multiple_choice'
             return (
               <div className="flex flex-col gap-2">
                 {question.options.map((option: string, i: number) => (

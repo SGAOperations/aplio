@@ -72,6 +72,7 @@ export default async function ApplicationDetailPage({
               <ApplicationAnswersList
                 answers={application.globalAnswers}
                 emptyMessage="No profile answers."
+                applicationId={application.id}
               />
             </CardContent>
           </Card>
@@ -87,6 +88,7 @@ export default async function ApplicationDetailPage({
               <ApplicationAnswersList
                 answers={application.positionAnswers}
                 emptyMessage="No position-specific answers."
+                applicationId={application.id}
               />
             </CardContent>
           </Card>
