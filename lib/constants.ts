@@ -37,6 +37,17 @@ export const QUESTION_TYPE_BADGE_VARIANT: Record<QuestionType, BadgeVariant> = {
 export const CHOICE_TYPES = ['single_choice', 'multiple_choice'] as const;
 export type ChoiceType = (typeof CHOICE_TYPES)[number];
 
+// Label for the virtual "Other" choice appended to choice-type questions when
+// allowOther is enabled — shared by both applicant-facing renderers so there is
+// one string, not two hardcoded copies (ENGINEERING §1: abstract at 2+).
+export const OTHER_OPTION_LABEL = 'Other';
+
+// Sentinel used only for RadioGroup/RadioGroupItem value comparisons on the
+// virtual "Other" choice — kept distinct from OTHER_OPTION_LABEL so an
+// admin-authored option literally named "Other" can never collide with the
+// virtual choice (see PR #334 review).
+export const OTHER_OPTION_VALUE = '__other__';
+
 // Base question schema shared between the client form and server actions.
 // Both sides extend this with `.superRefine` to enforce options constraints.
 export const baseQuestionSchema = z.object({
@@ -44,14 +55,16 @@ export const baseQuestionSchema = z.object({
   type: z.enum(QUESTION_TYPE_VALUES),
   required: z.boolean(),
   options: z.array(z.string()),
+  allowOther: z.boolean(),
 });
 
 // Enforces that choice-type questions carry at least one option and non-choice
-// questions carry none — prevents orphaned option data. Shared by the global-question
-// and position-question schemas (client and server) so there is one implementation
-// (ENGINEERING §1: abstract at 2+).
+// questions carry none — prevents orphaned option data. Also enforces that
+// allowOther is only set on choice-type questions, for the same reason. Shared
+// by the global-question and position-question schemas (client and server) so
+// there is one implementation (ENGINEERING §1: abstract at 2+).
 export function validateOptions(
-  data: { type: string; options: string[] },
+  data: { type: string; options: string[]; allowOther: boolean },
   ctx: z.RefinementCtx,
 ) {
   const isChoice = CHOICE_TYPES.includes(
@@ -69,6 +82,13 @@ export function validateOptions(
       code: z.ZodIssueCode.custom,
       path: ['options'],
       message: 'Options are not allowed for this question type',
+    });
+  }
+  if (!isChoice && data.allowOther) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['allowOther'],
+      message: "'Other' is only available for choice questions",
     });
   }
 }

@@ -108,6 +108,7 @@ model GlobalQuestion {
   required    Boolean      @default(true)
   order       Int
   options     String[]
+  allowOther  Boolean      @default(false)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   deletedAt   DateTime?
@@ -131,6 +132,7 @@ model PositionQuestion {
   required    Boolean      @default(true)
   order       Int
   options     String[]
+  allowOther  Boolean      @default(false)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   deletedAt   DateTime?

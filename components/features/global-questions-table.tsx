@@ -145,7 +145,7 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  {question.options.length > 0 ? (
+                  {question.options.length > 0 || question.allowOther ? (
                     <div className="flex flex-wrap gap-1">
                       {question.options.map((opt) => (
                         <span
@@ -155,6 +155,11 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
                           {opt}
                         </span>
                       ))}
+                      {question.allowOther && (
+                        <span className="bg-secondary text-secondary-foreground rounded-full px-2 py-0.5 text-xs">
+                          + Other
+                        </span>
+                      )}
                     </div>
                   ) : (
                     <span className="text-muted-foreground">—</span>
@@ -213,7 +218,7 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
                   </Badge>
                 )}
               </div>
-              {question.options.length > 0 && (
+              {(question.options.length > 0 || question.allowOther) && (
                 <div className="flex flex-wrap gap-1">
                   {question.options.map((opt) => (
                     <span
@@ -223,6 +228,11 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
                       {opt}
                     </span>
                   ))}
+                  {question.allowOther && (
+                    <span className="bg-secondary text-secondary-foreground rounded-full px-2 py-0.5 text-xs">
+                      + Other
+                    </span>
+                  )}
                 </div>
               )}
               <div className="flex gap-2">

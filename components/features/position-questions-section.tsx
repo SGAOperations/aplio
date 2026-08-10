@@ -93,7 +93,7 @@ export function PositionQuestionsSection({
                     {question.required ? 'Required' : 'Optional'}
                   </span>
                 </div>
-                {question.options.length > 0 && (
+                {(question.options.length > 0 || question.allowOther) && (
                   <div className="mt-1 flex flex-wrap gap-1">
                     {question.options.map((opt) => (
                       <span
@@ -103,6 +103,11 @@ export function PositionQuestionsSection({
                         {opt}
                       </span>
                     ))}
+                    {question.allowOther && (
+                      <span className="bg-secondary text-secondary-foreground rounded-full px-2 py-0.5 text-xs">
+                        + Other
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
