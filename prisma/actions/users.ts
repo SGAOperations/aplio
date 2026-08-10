@@ -4,7 +4,11 @@ import { revalidatePath } from 'next/cache';
 
 import { z } from 'zod/v4';
 
+import { Prisma } from '@/prisma/client';
+
+import { createNeonAuthUser, deleteNeonAuthUser } from '@/lib/auth/admin';
 import { getCurrentUser } from '@/lib/auth/server';
+import { createUserSchema } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 
 const toggleAdminSchema = z.object({
@@ -67,6 +71,52 @@ export async function deactivateUser(
   // Not reachable from the freshly-rendered admin list → unexpected → throw.
   if (result.count === 0)
     throw new Error('User not found or already deactivated');
+
+  revalidatePath('/users');
+}
+
+export async function createUser(input: unknown): Promise<ActionError | void> {
+  const admin = await getCurrentUser();
+  if (!admin.isAdmin) return { error: 'Unauthorized' };
+
+  const parsed = createUserSchema.safeParse(input);
+  if (!parsed.success) return { error: 'Invalid input' };
+
+  const { email, name, isAdmin } = parsed.data;
+
+  // Neon Auth identity first: the app row needs its id, and provisioning it here is
+  // what lets the invitee sign in via the normal OTP flow without ever having
+  // requested a code. Uses the app's own credential, not the caller's session —
+  // see lib/auth/admin.ts for why authServer.admin.createUser cannot work.
+  const created = await createNeonAuthUser({ email, name });
+  if ('duplicate' in created)
+    return { error: 'A user with this email already exists.' };
+
+  try {
+    await prisma.user.create({
+      data: {
+        neonAuthId: created.id,
+        email,
+        ...(name ? { name } : {}),
+        isAdmin,
+        createdById: admin.id,
+      },
+    });
+  } catch (error) {
+    // Any failure here leaves the identity orphaned in Neon Auth, so always roll it
+    // back before surfacing — otherwise each retry accumulates another one.
+    await deleteNeonAuthUser(created.id);
+
+    // Soft-deleted rows keep their email and neonAuthId (unique, not partial — see
+    // deactivateUser above), so a previously deactivated address collides here too.
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    )
+      return { error: 'A user with this email already exists.' };
+
+    throw error;
+  }
 
   revalidatePath('/users');
 }
