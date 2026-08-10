@@ -175,6 +175,19 @@ jobs:
             echo "::add-mask::$EXISTING_VALUE"
           fi
 
+          # Whether the comparison was even possible, without exposing the value. If
+          # Vercel declines to decrypt, the value can never match and every push would
+          # redeploy; decrypted=true with a mismatch instead means the Neon URL really
+          # changed and the redeploy is warranted.
+          EXISTING_DECRYPTED=$(printf '%s' "$EXISTING_JSON" \
+            | jq -r '[.envs[]? | select(.key == "DATABASE_URL" and .gitBranch == env.GIT_BRANCH) | .decrypted] | first // "absent"' \
+            || true)
+          if [ -n "$EXISTING_ID" ]; then
+            echo "Existing branch-scoped DATABASE_URL found (decrypted=$EXISTING_DECRYPTED)."
+          else
+            echo "No existing branch-scoped DATABASE_URL for $GIT_BRANCH."
+          fi
+
           # Already correct — leave the record alone and skip the redeploy.
           if [ -n "$EXISTING_ID" ] && [ "$EXISTING_VALUE" = "$BRANCH_URL" ]; then
             echo "Branch-scoped DATABASE_URL for $GIT_BRANCH is already current; no redeploy needed."
