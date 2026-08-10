@@ -154,48 +154,31 @@ jobs:
           fi
 
           # Look up any existing branch-scoped DATABASE_URL to avoid duplicates.
-          # decrypt=true so the current value can be compared against BRANCH_URL —
-          # an unchanged value means the running deployment already has the right
-          # DB and must not be redeployed.
+          # Also capture updatedAt *before* writing: the redeploy step compares it to
+          # the current deployment's build time to decide whether that build already
+          # had this value. Comparing the values themselves is not an option — Vercel
+          # does not return a decrypted value for an encrypted var, so a value check
+          # never matches and would redeploy on every push.
           # jq @uri performs RFC-3986 percent-encoding without requiring Python.
           EXISTING_JSON=$(curl -sf \
             -H "Authorization: Bearer $VERCEL_TOKEN" \
-            "https://api.vercel.com/v10/projects/$VERCEL_PROJECT_ID/env?teamId=$VERCEL_ORG_ID&decrypt=true&gitBranch=$(printf '%s' "$GIT_BRANCH" | jq -sRr @uri)" \
+            "https://api.vercel.com/v10/projects/$VERCEL_PROJECT_ID/env?teamId=$VERCEL_ORG_ID&gitBranch=$(printf '%s' "$GIT_BRANCH" | jq -sRr @uri)" \
             || true)
 
           EXISTING_ID=$(printf '%s' "$EXISTING_JSON" \
             | jq -r '.envs[]? | select(.key == "DATABASE_URL" and .gitBranch == env.GIT_BRANCH) | .id' \
             || true)
-          EXISTING_VALUE=$(printf '%s' "$EXISTING_JSON" \
-            | jq -r '.envs[]? | select(.key == "DATABASE_URL" and .gitBranch == env.GIT_BRANCH) | .value // empty' \
+          EXISTING_UPDATED_AT=$(printf '%s' "$EXISTING_JSON" \
+            | jq -r '[.envs[]? | select(.key == "DATABASE_URL" and .gitBranch == env.GIT_BRANCH) | .updatedAt] | first // empty' \
             || true)
 
-          # Never let a previously-configured DB URL reach the log.
-          if [ -n "$EXISTING_VALUE" ]; then
-            echo "::add-mask::$EXISTING_VALUE"
-          fi
-
-          # Whether the comparison was even possible, without exposing the value. If
-          # Vercel declines to decrypt, the value can never match and every push would
-          # redeploy; decrypted=true with a mismatch instead means the Neon URL really
-          # changed and the redeploy is warranted.
-          EXISTING_DECRYPTED=$(printf '%s' "$EXISTING_JSON" \
-            | jq -r '[.envs[]? | select(.key == "DATABASE_URL" and .gitBranch == env.GIT_BRANCH) | .decrypted] | first // "absent"' \
-            || true)
-          if [ -n "$EXISTING_ID" ]; then
-            echo "Existing branch-scoped DATABASE_URL found (decrypted=$EXISTING_DECRYPTED)."
+          if [ -n "$EXISTING_ID" ] && [ -n "$EXISTING_UPDATED_AT" ]; then
+            echo "Existing branch-scoped DATABASE_URL last updated at $EXISTING_UPDATED_AT."
+            echo "env_updated_at_before=$EXISTING_UPDATED_AT" >> "$GITHUB_OUTPUT"
           else
-            echo "No existing branch-scoped DATABASE_URL for $GIT_BRANCH."
+            echo "No existing branch-scoped DATABASE_URL for $GIT_BRANCH; a redeploy will be required."
+            echo "env_updated_at_before=absent" >> "$GITHUB_OUTPUT"
           fi
-
-          # Already correct — leave the record alone and skip the redeploy.
-          if [ -n "$EXISTING_ID" ] && [ "$EXISTING_VALUE" = "$BRANCH_URL" ]; then
-            echo "Branch-scoped DATABASE_URL for $GIT_BRANCH is already current; no redeploy needed."
-            echo "redeploy_needed=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          echo "redeploy_needed=true" >> "$GITHUB_OUTPUT"
 
           if [ -n "$EXISTING_ID" ] && [ "$EXISTING_ID" != "null" ]; then
             # Patch the existing record in-place.
@@ -226,32 +209,48 @@ jobs:
         # above — it silently uses the generic preview value (the dev DB) until
         # something rebuilds it. Redeploy so the value actually takes effect.
         #
-        # Only runs when the value changed, which in practice means the first push to
-        # a new PR branch (or the first success after a failed Neon run). Steady-state
-        # pushes reuse the same Neon branch, so no second build is triggered.
+        # Skipped once the live deployment was built after the variable was last set —
+        # in practice every push after the first, so no duplicate builds in steady
+        # state. Timestamps are used rather than a value comparison because Vercel does
+        # not hand back a decrypted value to compare against.
         #
         # This creates a Vercel deployment, not a git push, so it cannot re-trigger
         # this workflow.
-        if: steps.check_neon.outputs.has_neon == 'true' && steps.check_vercel.outputs.has_vercel == 'true' && steps.set_env.outputs.redeploy_needed == 'true'
+        if: steps.check_neon.outputs.has_neon == 'true' && steps.check_vercel.outputs.has_vercel == 'true'
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           GIT_BRANCH: ${{ github.head_ref }}
+          ENV_UPDATED_AT_BEFORE: ${{ steps.set_env.outputs.env_updated_at_before }}
         run: |
           # Select by githubCommitRef rather than github.sha: on pull_request events
           # github.sha is the synthetic merge commit, while Vercel deploys the branch
           # head. Newest deployment for the branch is the one serving the preview.
-          DEPLOYMENT_ID=$(curl -sf \
+          DEPLOYMENT=$(curl -sf \
             -H "Authorization: Bearer $VERCEL_TOKEN" \
             "https://api.vercel.com/v6/deployments?projectId=$VERCEL_PROJECT_ID&teamId=$VERCEL_ORG_ID&target=preview&limit=100" \
             | jq -r --arg ref "$GIT_BRANCH" \
-              '[.deployments[]? | select(.meta.githubCommitRef == $ref)] | sort_by(.created) | last | .uid // empty' \
+              '[.deployments[]? | select(.meta.githubCommitRef == $ref)] | sort_by(.created) | last | "\(.uid // "") \(.created // "")"' \
             || true)
+
+          DEPLOYMENT_ID=${DEPLOYMENT%% *}
+          DEPLOYMENT_CREATED=${DEPLOYMENT##* }
 
           if [ -z "$DEPLOYMENT_ID" ]; then
             echo "::error::No Vercel preview deployment found for branch $GIT_BRANCH; cannot redeploy. The preview would keep using the wrong database."
             exit 1
+          fi
+
+          # Both are epoch milliseconds. A deployment created after the variable was
+          # last written already resolved it at build time and needs nothing. The
+          # numeric guards also cover "absent" and any missing field, which fall
+          # through to a redeploy rather than aborting on an integer comparison.
+          NUMERIC='^[0-9]+$'
+          if [[ "$ENV_UPDATED_AT_BEFORE" =~ $NUMERIC ]] && [[ "$DEPLOYMENT_CREATED" =~ $NUMERIC ]] \
+            && [ "$DEPLOYMENT_CREATED" -gt "$ENV_UPDATED_AT_BEFORE" ]; then
+            echo "Deployment $DEPLOYMENT_ID was built at $DEPLOYMENT_CREATED, after the DATABASE_URL was set at $ENV_UPDATED_AT_BEFORE; it already has the branch database."
+            exit 0
           fi
 
           # v13 create-deployment requires `name`; read it rather than adding a secret.
