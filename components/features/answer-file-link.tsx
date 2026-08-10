@@ -61,12 +61,14 @@ export function AnswerFileLink({ target, url }: AnswerFileLinkProps) {
   }
 
   return (
-    <div className="flex min-w-0 items-center gap-2">
+    // Fills its container so the growing filename pushes Download to the
+    // right edge on every surface that renders this leaf.
+    <div className="flex w-full min-w-0 items-center gap-2">
       <Icon
         className="text-muted-foreground size-4 shrink-0"
         aria-hidden="true"
       />
-      <span className="min-w-0 truncate text-sm" title={filename}>
+      <span className="min-w-0 flex-1 truncate text-sm" title={filename}>
         {filename}
       </span>
       <Button

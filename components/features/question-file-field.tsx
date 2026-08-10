@@ -131,7 +131,11 @@ export function QuestionFileField({
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    // `relative` is load-bearing: the file input below is `sr-only`
+    // (position: absolute) and would otherwise resolve against the initial
+    // containing block, stretching the document past the app shell's scroll
+    // container and producing a second scrollbar.
+    <div className="relative flex flex-col gap-2">
       {isPending ? (
         <span
           aria-live="polite"
@@ -142,8 +146,10 @@ export function QuestionFileField({
         </span>
       ) : url ? (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <AnswerFileLink target={target} url={url} />
-          <div className="flex gap-2">
+          <div className="min-w-0 sm:flex-1">
+            <AnswerFileLink target={target} url={url} />
+          </div>
+          <div className="flex justify-end gap-2">
             <Label
               htmlFor={inputId}
               aria-disabled={disabled}
@@ -201,20 +207,22 @@ export function QuestionFileField({
           </div>
         </div>
       ) : (
-        <>
-          <p className="text-muted-foreground text-sm">No file uploaded yet.</p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-muted-foreground min-w-0 text-sm">
+            No file uploaded yet.
+          </p>
           <Label
             htmlFor={inputId}
             aria-disabled={disabled}
             className={cn(
               buttonVariants({ variant: 'outline', size: 'sm' }),
-              'peer-focus-visible:ring-ring min-h-11 w-fit cursor-pointer peer-focus-visible:ring-2 sm:min-h-9',
+              'peer-focus-visible:ring-ring min-h-11 w-fit shrink-0 cursor-pointer peer-focus-visible:ring-2 sm:min-h-9',
               disabled && 'pointer-events-none opacity-50',
             )}
           >
             Choose file
           </Label>
-        </>
+        </div>
       )}
 
       <input
