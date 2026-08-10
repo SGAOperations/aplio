@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { X } from 'lucide-react';
 
@@ -35,7 +35,7 @@ export function ApplicationsToolbar({
   shown,
   total,
   shownCapped,
-  hasActiveFilters: hasActiveFiltersProp,
+  hasActiveFilters,
 }: ApplicationsToolbarProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -48,12 +48,15 @@ export function ApplicationsToolbar({
     undefined,
   );
 
+  // Clear a pending debounced search on unmount — without this, navigating away
+  // within the debounce window still fires the stale closure's router.replace.
+  // A DOM/timer handle has no non-effect home, so this is the sanctioned exception (§1).
+  useEffect(() => () => clearTimeout(debounceTimer.current), []);
+
   // Track the search input value in local state so the X button reflects the
   // current input value both on initial page load (from URL param) and after
   // typing (without waiting for the debounce to update the URL).
   const [searchValue, setSearchValue] = useState(filters.q ?? '');
-
-  const hasActiveFilters = hasActiveFiltersProp;
 
   function updateParam(key: string, value: string | undefined) {
     const params = new URLSearchParams(searchParams.toString());

@@ -4,8 +4,13 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 import { prisma } from '@/lib/prisma';
+import { isBypassAllowed } from '@/lib/utils';
 
 export type BypassRole = 'admin' | 'applicant' | 'position-manager';
+
+// Well-known id so concurrent bypass logins upsert the same fixture row
+// instead of racing to create duplicate "Bypass Position" rows.
+const BYPASS_POSITION_ID = 'bypass-position';
 
 const BYPASS_USERS: Record<
   BypassRole,
@@ -28,8 +33,10 @@ const BYPASS_USERS: Record<
   },
 };
 
+// Hard no-op unless bypass is explicitly enabled (ENGINEERING §3) — see
+// isBypassAllowed for the default-deny rationale.
 export async function loginAsBypassUser(role: BypassRole) {
-  if (process.env.VERCEL_ENV === 'production') return;
+  if (!isBypassAllowed()) return;
 
   const cookieStore = await cookies();
 
@@ -45,27 +52,19 @@ export async function loginAsBypassUser(role: BypassRole) {
   });
 
   if (role === 'position-manager') {
-    const existingPosition = await prisma.position.findFirst({
-      where: { title: 'Bypass Position' },
+    await prisma.position.upsert({
+      where: { id: BYPASS_POSITION_ID },
+      update: { managers: { connect: { id: user.id } } },
+      create: {
+        id: BYPASS_POSITION_ID,
+        title: 'Bypass Position',
+        description: 'A position for bypass testing.',
+        status: 'open',
+        createdById: user.id,
+        updatedById: user.id,
+        managers: { connect: { id: user.id } },
+      },
     });
-
-    if (existingPosition) {
-      await prisma.position.update({
-        where: { id: existingPosition.id },
-        data: { managers: { connect: { id: user.id } } },
-      });
-    } else {
-      await prisma.position.create({
-        data: {
-          title: 'Bypass Position',
-          description: 'A position for bypass testing.',
-          status: 'open',
-          createdById: user.id,
-          updatedById: user.id,
-          managers: { connect: { id: user.id } },
-        },
-      });
-    }
   }
 
   cookieStore.set('dev-bypass-user-id', user.id, {
@@ -79,9 +78,10 @@ export async function loginAsBypassUser(role: BypassRole) {
 }
 
 // Clears the bypass session cookie and returns the caller to the picker.
-// Hard no-op in production — the cookie and this action are dev-only (ENGINEERING §3).
+// Hard no-op unless bypass is explicitly enabled (ENGINEERING §3) — see
+// isBypassAllowed for the default-deny rationale.
 export async function logoutBypassUser() {
-  if (process.env.VERCEL_ENV === 'production') return;
+  if (!isBypassAllowed()) return;
 
   const cookieStore = await cookies();
   cookieStore.delete('dev-bypass-user-id');

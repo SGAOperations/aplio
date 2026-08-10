@@ -58,6 +58,7 @@ export async function deactivateUser(
   if (userId === user.id)
     return { error: 'You cannot deactivate your own account.' };
 
+  // Leaves email/neonAuthId intact, so neither is freed for reuse by a new signup.
   const result = await prisma.user.updateMany({
     where: { id: userId, deletedAt: null },
     data: { deletedAt: new Date(), deletedById: user.id },

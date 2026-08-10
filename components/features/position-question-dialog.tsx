@@ -1,9 +1,11 @@
 'use client';
 
-import { useRef, useState, useTransition } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
 
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import type { z } from 'zod/v4';
 
 import {
   createPositionQuestion,
@@ -11,12 +13,25 @@ import {
 } from '@/prisma/actions/position-question-actions';
 import type { QuestionType } from '@/prisma/client';
 
-import { QUESTION_TYPE_OPTIONS } from '@/lib/constants';
+import {
+  CHOICE_TYPES,
+  type ChoiceType,
+  QUESTION_TYPE_LABELS,
+  QUESTION_TYPE_VALUES,
+  questionFormSchema,
+} from '@/lib/constants';
 
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { OptionsChipEditor } from '@/components/ui/options-chip-editor';
 import {
   Select,
   SelectContent,
@@ -24,8 +39,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-
-const CHOICE_TYPES: QuestionType[] = ['single_choice', 'multiple_choice'];
+import { Switch } from '@/components/ui/switch';
 
 // Only the fields rendered in PositionQuestionsSection and needed for optimistic updates.
 export interface RenderedQuestion {
@@ -45,187 +59,177 @@ export interface QuestionFormProps {
   onClose: () => void;
 }
 
+type QuestionFormValues = z.infer<typeof questionFormSchema>;
+
+// Rendered inline in a Card by PositionQuestionsSection — not behind a
+// trigger/Dialog — so this uses the shadcn Form primitives directly rather
+// than FormDialog. Shares questionFormSchema/OptionsChipEditor with
+// GlobalQuestionDialog (ENGINEERING §1), including the "at least one option
+// for choice types" validation this form previously never enforced.
 export function QuestionForm({
   positionId,
   question,
   onSuccess,
   onClose,
 }: QuestionFormProps) {
-  const [isPending, startTransition] = useTransition();
-  const [label, setLabel] = useState(question?.label ?? '');
-  const [type, setType] = useState<QuestionType>(
-    question?.type ?? 'short_answer',
-  );
-  const [required, setRequired] = useState(question?.required ?? true);
-  // Options are tracked as a plain string array; UUIDs are not needed with badge input.
-  const [options, setOptions] = useState<string[]>(question?.options ?? []);
-  const optionInputRef = useRef<HTMLInputElement>(null);
+  const form = useForm<QuestionFormValues>({
+    resolver: zodResolver(questionFormSchema),
+    defaultValues: {
+      label: question?.label ?? '',
+      type: question?.type ?? 'short_answer',
+      required: question?.required ?? true,
+      options: question?.options ?? [],
+    },
+  });
+  const isSubmitting = form.formState.isSubmitting;
 
-  const isChoiceType = CHOICE_TYPES.includes(type);
+  const type = useWatch({ control: form.control, name: 'type' });
+  const options = useWatch({ control: form.control, name: 'options' });
+  const isChoiceType = CHOICE_TYPES.includes(type as ChoiceType);
 
-  function addOption(value: string) {
-    const trimmed = value.trim();
-    if (!trimmed || options.includes(trimmed)) return;
-    setOptions((prev) => [...prev, trimmed]);
-  }
-
-  function removeOption(opt: string) {
-    setOptions((prev) => prev.filter((o) => o !== opt));
-  }
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const filteredOptions = isChoiceType ? options : [];
-
-    startTransition(async () => {
-      if (question) {
-        const result = await updatePositionQuestion({
-          id: question.id,
-          positionId,
-          label,
-          type,
-          required,
-          options: filteredOptions,
-        });
-        if (result && 'error' in result) {
-          toast.error(result.error);
-          return;
-        }
-        toast.success('Question updated');
-        onClose();
-        onSuccess({
-          id: question.id,
-          positionId,
-          label,
-          type,
-          required,
-          order: question.order,
-          options: filteredOptions,
-        });
-      } else {
-        const result = await createPositionQuestion({
-          positionId,
-          label,
-          type,
-          required,
-          options: filteredOptions,
-        });
-        if (result && 'error' in result) {
-          toast.error(result.error);
-          return;
-        }
-        toast.success('Question added');
-        onClose();
-        onSuccess({
-          id: (result as { id: string; order: number }).id,
-          positionId,
-          label,
-          type,
-          required,
-          order: (result as { id: string; order: number }).order,
-          options: filteredOptions,
-        });
+  async function onSubmit(data: QuestionFormValues) {
+    if (question) {
+      const result = await updatePositionQuestion({
+        id: question.id,
+        positionId,
+        ...data,
+      });
+      if (result && 'error' in result) {
+        toast.error(result.error);
+        return;
       }
-    });
+      toast.success('Question updated');
+      onClose();
+      onSuccess({
+        id: question.id,
+        positionId,
+        order: question.order,
+        ...data,
+      });
+    } else {
+      const result = await createPositionQuestion({ positionId, ...data });
+      if (result && 'error' in result) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success('Question added');
+      onClose();
+      onSuccess({ id: result.id, positionId, order: result.order, ...data });
+    }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <div className="grid gap-2">
-        <Label htmlFor="q-label">Question</Label>
-        <Input
-          id="q-label"
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          placeholder="Enter question text"
-          required
-          disabled={isPending}
-        />
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="q-type">Type</Label>
-        <Select
-          value={type}
-          onValueChange={(v) => {
-            setType(v as QuestionType);
-            // Clear options when switching away from a choice type
-            if (!CHOICE_TYPES.includes(v as QuestionType)) setOptions([]);
-          }}
-          disabled={isPending}
-        >
-          <SelectTrigger id="q-type">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {QUESTION_TYPE_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="flex items-center gap-2">
-        <Checkbox
-          id="q-required"
-          checked={required}
-          onCheckedChange={(checked) => setRequired(checked === true)}
-          disabled={isPending}
-        />
-        <Label htmlFor="q-required">Required</Label>
-      </div>
-      {isChoiceType && (
-        <div className="grid gap-2">
-          <Label>Options</Label>
-          {options.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {options.map((opt) => (
-                <span
-                  key={opt}
-                  className="bg-secondary text-secondary-foreground flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
-                >
-                  {opt}
-                  <button
-                    type="button"
-                    onClick={() => removeOption(opt)}
-                    disabled={isPending}
-                    className="hover:text-destructive ml-0.5 disabled:cursor-not-allowed"
-                    aria-label={`Remove ${opt}`}
-                  >
-                    &times;
-                  </button>
-                </span>
-              ))}
-            </div>
+    <Form {...form}>
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="flex flex-col gap-4"
+      >
+        <FormField
+          control={form.control}
+          name="label"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Question</FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="Enter question text"
+                  disabled={isSubmitting}
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
           )}
-          <Input
-            ref={optionInputRef}
-            placeholder="Type an option and press Enter"
-            disabled={isPending}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                addOption(e.currentTarget.value);
-                e.currentTarget.value = '';
-              }
-            }}
+        />
+
+        <FormField
+          control={form.control}
+          name="type"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Type</FormLabel>
+              <Select
+                onValueChange={(v) => {
+                  field.onChange(v);
+                  // Clear stale options when switching to a non-choice type so
+                  // they are not persisted to the DB (R3-M1).
+                  if (!CHOICE_TYPES.includes(v as ChoiceType))
+                    form.setValue('options', []);
+                }}
+                value={field.value}
+                disabled={isSubmitting}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {QUESTION_TYPE_VALUES.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {QUESTION_TYPE_LABELS[t]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="required"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center gap-2">
+              <FormControl>
+                <Switch
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                  disabled={isSubmitting}
+                />
+              </FormControl>
+              <FormLabel>Required</FormLabel>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {isChoiceType && (
+          <FormField
+            control={form.control}
+            name="options"
+            render={() => (
+              <FormItem>
+                <FormLabel>Options</FormLabel>
+                <FormControl>
+                  <OptionsChipEditor
+                    options={options}
+                    onChange={(next) => form.setValue('options', next)}
+                    disabled={isSubmitting}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
+        )}
+
+        <div className="flex gap-2">
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="animate-spin" />}
+            {question ? 'Save Changes' : 'Add Question'}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={isSubmitting}
+            onClick={onClose}
+          >
+            Cancel
+          </Button>
         </div>
-      )}
-      <div className="flex gap-2">
-        <Button type="submit" disabled={isPending}>
-          {isPending && <Loader2 className="animate-spin" />}
-          {question ? 'Save Changes' : 'Add Question'}
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          disabled={isPending}
-          onClick={onClose}
-        >
-          Cancel
-        </Button>
-      </div>
-    </form>
+      </form>
+    </Form>
   );
 }

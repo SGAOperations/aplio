@@ -2,7 +2,7 @@
 
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { unstable_rethrow, useRouter } from 'next/navigation';
 import { useTransition } from 'react';
 
 import {
@@ -16,10 +16,11 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { signOutUser } from '@/prisma/actions/auth';
 import { logoutBypassUser } from '@/prisma/services/dev-bypass';
 
-import { authClient } from '@/lib/auth/client';
 import type { NavIdentity } from '@/lib/types';
+import { isError } from '@/lib/utils';
 
 import {
   DropdownMenu,
@@ -38,9 +39,6 @@ import {
 interface UserMenuProps {
   identity: NavIdentity;
   onNavigate?: () => void;
-  // 'sidebar' uses sidebar-context tokens (default, for sidebar/mobile-nav usage).
-  // 'header' uses neutral tokens suitable for a plain header without sidebar context.
-  variant?: 'sidebar' | 'header';
 }
 
 const THEME_OPTIONS = [
@@ -49,38 +47,48 @@ const THEME_OPTIONS = [
   { value: 'dark', label: 'Dark', icon: Moon },
 ] as const;
 
-export function UserMenu({
-  identity,
-  onNavigate,
-  variant = 'sidebar',
-}: UserMenuProps) {
+export function UserMenu({ identity, onNavigate }: UserMenuProps) {
   const { name, email, roleLabel, isBypass } = identity;
   const displayName = name ?? email;
-  const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const [pending, startTransition] = useTransition();
   // next-themes is loaded with { ssr: false }; `theme` is undefined on first
   // render before the provider resolves. Default to 'system' to match
   // defaultTheme so the radio shows a selection without a flash.
   const { theme = 'system', setTheme } = useTheme();
 
   const triggerClassName =
-    variant === 'header'
-      ? 'group flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition-colors bg-transparent hover:bg-muted'
-      : 'group flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground';
+    'group flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground';
 
   function handleLogout() {
     startTransition(async () => {
       if (isBypass) {
-        await logoutBypassUser();
+        try {
+          await logoutBypassUser();
+        } catch (error) {
+          // Let Next's internal redirect signal through — only a genuine
+          // failure before the redirect() call should surface a toast.
+          unstable_rethrow(error);
+          toast.error('Could not sign out. Please try again.');
+        }
         return;
       }
       try {
-        await authClient.signOut();
+        const result = await signOutUser();
+        if (isError(result)) {
+          toast.error(result.error);
+          return;
+        }
         toast.success('Signed out.');
         router.push('/login');
-        router.refresh();
-      } catch {
-        toast.error('Could not sign out. Please try again.');
+      } catch (error) {
+        // signOutUser() calls getCurrentUser() first, which redirects (throwing
+        // a NEXT_REDIRECT digest) when the session already expired — rethrow
+        // that so Next can complete the navigation instead of it being
+        // misclassified as a genuine failure below.
+        unstable_rethrow(error);
+        console.error('Sign-out failed unexpectedly', error);
+        toast.error('Something went wrong. Please try again.');
       }
     });
   }

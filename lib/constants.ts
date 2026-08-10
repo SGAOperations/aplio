@@ -23,6 +23,16 @@ export const QUESTION_TYPE_LABELS: Record<QuestionTypeValue, string> = {
   multiple_choice: 'Multiple Choice',
 };
 
+// Keyed on the generated QuestionType enum (not QUESTION_TYPE_VALUES) for build-time
+// exhaustiveness. Excludes 'destructive' (error-only) and 'outline' (used by the
+// adjacent Required badge).
+export const QUESTION_TYPE_BADGE_VARIANT: Record<QuestionType, BadgeVariant> = {
+  short_answer: 'secondary',
+  long_answer: 'info',
+  single_choice: 'success',
+  multiple_choice: 'warning',
+};
+
 // Choice-type question types that require at least one option.
 export const CHOICE_TYPES = ['single_choice', 'multiple_choice'] as const;
 export type ChoiceType = (typeof CHOICE_TYPES)[number];
@@ -35,6 +45,40 @@ export const baseQuestionSchema = z.object({
   required: z.boolean(),
   options: z.array(z.string()),
 });
+
+// Enforces that choice-type questions carry at least one option and non-choice
+// questions carry none — prevents orphaned option data. Shared by the global-question
+// and position-question schemas (client and server) so there is one implementation
+// (ENGINEERING §1: abstract at 2+).
+export function validateOptions(
+  data: { type: string; options: string[] },
+  ctx: z.RefinementCtx,
+) {
+  const isChoice = CHOICE_TYPES.includes(
+    data.type as (typeof CHOICE_TYPES)[number],
+  );
+  if (isChoice && data.options.length === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['options'],
+      message: 'At least one option is required for choice questions',
+    });
+  }
+  if (!isChoice && data.options.length > 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['options'],
+      message: 'Options are not allowed for this question type',
+    });
+  }
+}
+
+// Client-side question form schema — reuses validateOptions as its single
+// source of truth so RHF surfaces the same rule as field errors, rather than
+// re-inlining the choice-type constraint. Shared between GlobalQuestionDialog
+// and the position QuestionForm (ENGINEERING §1).
+export const questionFormSchema =
+  baseQuestionSchema.superRefine(validateOptions);
 
 // Human-readable labels for each application status.
 // Keyed on the generated ApplicationStatus enum for build-time exhaustiveness.
@@ -67,8 +111,10 @@ export const APPLICATION_STATUS_BADGE_VARIANT: Record<
   withdrawn: 'outline',
 };
 
-// Tuple of all ApplicationStatus values — shared between zod enum (action) and
-// the Select options (control) so both stay in sync with the DB enum.
+// Tuple of all ApplicationStatus values EXCEPT 'withdrawn' — shared between zod
+// enum (action) and the Select options (control) so both stay in sync with the
+// DB enum. 'withdrawn' is intentionally excluded: no consumer today needs the
+// full unfiltered status list (mirrors REVIEWER_APPLICATION_STATUSES's doc style).
 export const APPLICATION_STATUS_VALUES = [
   'draft',
   'applied',
@@ -110,6 +156,16 @@ export const REVIEWER_APPLICATION_STATUSES = [
 export const REVIEWER_APPLICATION_STATUS_OPTIONS =
   APPLICATION_STATUS_OPTIONS.filter((o) => o.value !== 'draft');
 
+// Statuses a reviewer may not act on — 'draft' (unsubmitted, applicant-owned) and
+// 'withdrawn' (applicant-owned lifecycle action). Distinct from
+// REVIEWER_APPLICATION_STATUSES above, which is the set a reviewer may set a
+// record *to*; this is the set a reviewer may not act *on*. Shared by the single-
+// and bulk-update actions so both enforce the same exclusion (ENGINEERING §1).
+export const NON_REVIEWABLE_APPLICATION_STATUSES = [
+  'draft',
+  'withdrawn',
+] as const satisfies $Enums.ApplicationStatus[];
+
 // Submitted-but-not-concluded application statuses. Excludes 'draft' (unsubmitted,
 // applicant-owned), 'accepted'/'rejected' (terminal), and 'withdrawn' (resolved).
 // Used by the admin positions query to keep a closed position visible only while
@@ -143,11 +199,13 @@ export const RECENTLY_CLOSED_WINDOW_DAYS = 7;
 // public "Recently Closed" section so they retain oversight during wrap-up.
 export const MANAGED_POSITIONS_WINDOW_DAYS = 30;
 
-export const STATUS_OPTIONS: { value: PositionStatus; label: string }[] = [
-  { value: 'draft', label: 'Draft' },
-  { value: 'open', label: 'Open' },
-  { value: 'closed', label: 'Closed' },
-];
+// Tuple of all PositionStatus values — STATUS_OPTIONS derives from this + STATUS_LABELS
+// so the label text has a single source of truth.
+export const STATUS_VALUES = [
+  'draft',
+  'open',
+  'closed',
+] as const satisfies PositionStatus[];
 
 export const STATUS_LABELS: Record<PositionStatus, string> = {
   draft: 'Draft',
@@ -155,18 +213,31 @@ export const STATUS_LABELS: Record<PositionStatus, string> = {
   closed: 'Closed',
 };
 
+export const STATUS_OPTIONS: { value: PositionStatus; label: string }[] =
+  STATUS_VALUES.map((value) => ({ value, label: STATUS_LABELS[value] }));
+
+// Client-side position form schema, mirroring createPositionSchema/
+// updatePositionSchema's shape. Shared between PositionCreateDialog and
+// PositionDetailsForm (ENGINEERING §1).
+export const positionFormSchema = z.object({
+  title: z.string().min(1, 'Title is required'),
+  description: z.string(),
+  status: z.enum(STATUS_VALUES),
+  opensAt: z.string().optional(),
+  closesAt: z.string().optional(),
+});
+
 export const STATUS_VARIANTS: Record<PositionStatus, BadgeVariant> = {
   draft: 'secondary',
   open: 'default',
   closed: 'outline',
 };
 
-export const QUESTION_TYPE_OPTIONS: { value: QuestionType; label: string }[] = [
-  { value: 'short_answer', label: 'Short Answer' },
-  { value: 'long_answer', label: 'Long Answer' },
-  { value: 'single_choice', label: 'Single Choice' },
-  { value: 'multiple_choice', label: 'Multiple Choice' },
-];
+export const QUESTION_TYPE_OPTIONS: { value: QuestionType; label: string }[] =
+  QUESTION_TYPE_VALUES.map((value) => ({
+    value,
+    label: QUESTION_TYPE_LABELS[value],
+  }));
 
 // Human-readable labels for each computed availability state.
 // 'accepting'/'closed_by_date' intentionally mirror STATUS_LABELS 'open'/'closed' so
@@ -194,7 +265,7 @@ export const TERMS_HREF = '/terms';
 // Maps badge variant to a design-token dot color used in stat cards and the
 // activity feed. Extracted from pipeline-summary.tsx so both consumers share
 // one source of truth (ENGINEERING §1: abstract at 2+).
-export const STATUS_BADGE_VARIANT_TO_DOT: Record<string, string> = {
+export const STATUS_BADGE_VARIANT_TO_DOT: Record<BadgeVariant, string> = {
   info: 'bg-info',
   warning: 'bg-warning',
   success: 'bg-success',

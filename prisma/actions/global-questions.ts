@@ -5,33 +5,8 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod/v4';
 
 import { getCurrentUser } from '@/lib/auth/server';
-import { CHOICE_TYPES, baseQuestionSchema } from '@/lib/constants';
+import { baseQuestionSchema, validateOptions } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
-
-function validateOptions(
-  data: { type: string; options: string[] },
-  ctx: z.RefinementCtx,
-) {
-  const isChoice = CHOICE_TYPES.includes(
-    data.type as (typeof CHOICE_TYPES)[number],
-  );
-  // Choice-type questions must have at least one option.
-  if (isChoice && data.options.length === 0) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['options'],
-      message: 'At least one option is required for choice questions',
-    });
-  }
-  // Non-choice questions must not carry options — prevents orphaned data (R3-M1).
-  if (!isChoice && data.options.length > 0) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['options'],
-      message: 'Options are not allowed for this question type',
-    });
-  }
-}
 
 const createSchema = baseQuestionSchema.superRefine(validateOptions);
 
@@ -78,7 +53,6 @@ export async function createGlobalQuestion(
   });
 
   revalidatePath('/global-questions');
-  // /profile will consume global questions once the profile route is built (#TODO).
   revalidatePath('/profile');
 }
 
@@ -106,7 +80,6 @@ export async function updateGlobalQuestion(
   });
 
   revalidatePath('/global-questions');
-  // /profile will consume global questions once the profile route is built (#TODO).
   revalidatePath('/profile');
 }
 
@@ -133,6 +106,5 @@ export async function deleteGlobalQuestion(
   });
 
   revalidatePath('/global-questions');
-  // /profile will consume global questions once the profile route is built (#TODO).
   revalidatePath('/profile');
 }

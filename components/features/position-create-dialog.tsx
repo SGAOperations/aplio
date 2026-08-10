@@ -1,26 +1,26 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import { useFormContext } from 'react-hook-form';
 
-import { Loader2, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
+import type { z } from 'zod/v4';
 
 import { createPosition } from '@/prisma/actions/position-actions';
-import type { PositionStatus } from '@/prisma/client';
 
-import { STATUS_OPTIONS } from '@/lib/constants';
+import { STATUS_OPTIONS, positionFormSchema } from '@/lib/constants';
 
 import { Button } from '@/components/ui/button';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { FormDialog } from '@/components/ui/form-dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -30,94 +30,75 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 
-export function PositionCreateDialog() {
-  const router = useRouter();
-  const [open, setOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
+type PositionFormValues = z.infer<typeof positionFormSchema>;
 
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [status, setStatus] = useState<PositionStatus>('draft');
-  const [opensAt, setOpensAt] = useState('');
-  const [closesAt, setClosesAt] = useState('');
+const defaultValues: PositionFormValues = {
+  title: '',
+  description: '',
+  status: 'draft',
+  opensAt: '',
+  closesAt: '',
+};
 
-  function handleOpenChange(next: boolean) {
-    if (!isPending) {
-      setOpen(next);
-      if (!next) {
-        setTitle('');
-        setDescription('');
-        setStatus('draft');
-        setOpensAt('');
-        setClosesAt('');
-      }
-    }
-  }
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    startTransition(async () => {
-      const result = await createPosition({
-        title,
-        description,
-        status,
-        opensAt: opensAt || undefined,
-        closesAt: closesAt || undefined,
-      });
-      if (result && 'error' in result) {
-        toast.error(result.error);
-      } else {
-        toast.success('Position created');
-        router.push(`/positions/${result.id}/edit`);
-      }
-    });
-  }
+// Rendered as a child of FormDialog (which wraps children in FormProvider),
+// so this can read isSubmitting via context to disable every field while the
+// create request is in flight — matches PositionDetailsForm's pattern.
+function PositionFormFields() {
+  const { formState } = useFormContext<PositionFormValues>();
+  const isSubmitting = formState.isSubmitting;
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus className="size-4" />
-          New Position
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Create Position</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="create-title">Title</Label>
-            <Input
-              id="create-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Position title"
-              required
-              disabled={isPending}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="create-description">Description</Label>
-            <Textarea
-              id="create-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Position description"
-              rows={4}
-              disabled={isPending}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="create-status">Status</Label>
+    <>
+      <FormField
+        name="title"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Title</FormLabel>
+            <FormControl>
+              <Input
+                placeholder="Position title"
+                disabled={isSubmitting}
+                {...field}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        name="description"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Description</FormLabel>
+            <FormControl>
+              <Textarea
+                placeholder="Position description"
+                rows={4}
+                disabled={isSubmitting}
+                {...field}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        name="status"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Status</FormLabel>
             <Select
-              value={status}
-              onValueChange={(v) => setStatus(v as PositionStatus)}
-              disabled={isPending}
+              onValueChange={field.onChange}
+              value={field.value}
+              disabled={isSubmitting}
             >
-              <SelectTrigger id="create-status">
-                <SelectValue />
-              </SelectTrigger>
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+              </FormControl>
               <SelectContent>
                 {STATUS_OPTIONS.map((opt) => (
                   <SelectItem key={opt.value} value={opt.value}>
@@ -126,33 +107,76 @@ export function PositionCreateDialog() {
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="create-opens-at">Opens at (optional)</Label>
-            <Input
-              id="create-opens-at"
-              type="datetime-local"
-              value={opensAt}
-              onChange={(e) => setOpensAt(e.target.value)}
-              disabled={isPending}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="create-closes-at">Closes at (optional)</Label>
-            <Input
-              id="create-closes-at"
-              type="datetime-local"
-              value={closesAt}
-              onChange={(e) => setClosesAt(e.target.value)}
-              disabled={isPending}
-            />
-          </div>
-          <Button type="submit" disabled={isPending} className="mt-2">
-            {isPending && <Loader2 className="animate-spin" />}
-            Create Position
-          </Button>
-        </form>
-      </DialogContent>
-    </Dialog>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        name="opensAt"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Opens at (optional)</FormLabel>
+            <FormControl>
+              <Input type="datetime-local" disabled={isSubmitting} {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        name="closesAt"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Closes at (optional)</FormLabel>
+            <FormControl>
+              <Input type="datetime-local" disabled={isSubmitting} {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+    </>
+  );
+}
+
+// Dialog-triggered, so this adopts FormDialog + positionFormSchema directly,
+// matching GlobalQuestionDialog's pattern (ENGINEERING §1: reconcile ad-hoc
+// forms onto the established RHF + zod convention).
+export function PositionCreateDialog() {
+  const router = useRouter();
+
+  async function onSubmit(data: PositionFormValues): Promise<boolean> {
+    const result = await createPosition({
+      ...data,
+      opensAt: data.opensAt || undefined,
+      closesAt: data.closesAt || undefined,
+    });
+    if ('error' in result) {
+      toast.error(result.error);
+      return false;
+    }
+    toast.success('Position created');
+    router.push(`/positions/${result.id}/edit`);
+    return true;
+  }
+
+  return (
+    <FormDialog
+      trigger={
+        <Button>
+          <Plus className="size-4" />
+          New Position
+        </Button>
+      }
+      title="Create Position"
+      schema={positionFormSchema}
+      defaultValues={defaultValues}
+      onSubmit={onSubmit}
+      submitLabel="Create Position"
+    >
+      <PositionFormFields />
+    </FormDialog>
   );
 }

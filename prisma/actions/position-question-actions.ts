@@ -7,31 +7,16 @@ import { z } from 'zod/v4';
 import { checkPositionAccess } from '@/prisma/data/managers';
 
 import { getCurrentUser } from '@/lib/auth/server';
+import { baseQuestionSchema, validateOptions } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 
-const questionTypeSchema = z.enum([
-  'short_answer',
-  'long_answer',
-  'single_choice',
-  'multiple_choice',
-]);
+const createPositionQuestionSchema = baseQuestionSchema
+  .extend({ positionId: z.string().min(1) })
+  .superRefine(validateOptions);
 
-const createPositionQuestionSchema = z.object({
-  positionId: z.string().min(1),
-  label: z.string().min(1),
-  type: questionTypeSchema,
-  required: z.boolean(),
-  options: z.array(z.string()).optional().default([]),
-});
-
-const updatePositionQuestionSchema = z.object({
-  id: z.string().min(1),
-  positionId: z.string().min(1),
-  label: z.string().min(1),
-  type: questionTypeSchema,
-  required: z.boolean(),
-  options: z.array(z.string()).optional().default([]),
-});
+const updatePositionQuestionSchema = baseQuestionSchema
+  .extend({ id: z.string().min(1), positionId: z.string().min(1) })
+  .superRefine(validateOptions);
 
 const deletePositionQuestionSchema = z.object({
   id: z.string().min(1),
@@ -44,7 +29,8 @@ export async function createPositionQuestion(
   const user = await getCurrentUser();
 
   const parsed = createPositionQuestionSchema.safeParse(input);
-  if (!parsed.success) return { error: 'Invalid input' };
+  if (!parsed.success)
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid input' };
 
   const { positionId, label, type, required, options } = parsed.data;
 
@@ -87,7 +73,8 @@ export async function updatePositionQuestion(
   const user = await getCurrentUser();
 
   const parsed = updatePositionQuestionSchema.safeParse(input);
-  if (!parsed.success) return { error: 'Invalid input' };
+  if (!parsed.success)
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid input' };
 
   const { id, positionId, label, type, required, options } = parsed.data;
 
