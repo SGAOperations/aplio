@@ -7,7 +7,10 @@ import { toast } from 'sonner';
 
 import { deleteGlobalQuestion } from '@/prisma/actions/global-questions';
 
-import { QUESTION_TYPE_LABELS } from '@/lib/constants';
+import {
+  QUESTION_TYPE_BADGE_VARIANT,
+  QUESTION_TYPE_LABELS,
+} from '@/lib/constants';
 import type { GlobalQuestionListItem } from '@/lib/types';
 import {
   type SortableColumn,
@@ -137,7 +140,7 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
                 <TableCell>{question.order}</TableCell>
                 <TableCell className="font-medium">{question.label}</TableCell>
                 <TableCell>
-                  <Badge variant="secondary">
+                  <Badge variant={QUESTION_TYPE_BADGE_VARIANT[question.type]}>
                     {QUESTION_TYPE_LABELS[question.type]}
                   </Badge>
                 </TableCell>
@@ -196,7 +199,7 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
             <div className="flex flex-col gap-3">
               <div className="flex items-start justify-between gap-2">
                 <p className="font-medium">{question.label}</p>
-                <Badge variant="secondary">
+                <Badge variant={QUESTION_TYPE_BADGE_VARIANT[question.type]}>
                   {QUESTION_TYPE_LABELS[question.type]}
                 </Badge>
               </div>

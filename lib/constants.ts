@@ -23,6 +23,16 @@ export const QUESTION_TYPE_LABELS: Record<QuestionTypeValue, string> = {
   multiple_choice: 'Multiple Choice',
 };
 
+// Keyed on the generated QuestionType enum (not QUESTION_TYPE_VALUES) for build-time
+// exhaustiveness. Excludes 'destructive' (error-only) and 'outline' (used by the
+// adjacent Required badge).
+export const QUESTION_TYPE_BADGE_VARIANT: Record<QuestionType, BadgeVariant> = {
+  short_answer: 'secondary',
+  long_answer: 'info',
+  single_choice: 'success',
+  multiple_choice: 'warning',
+};
+
 // Choice-type question types that require at least one option.
 export const CHOICE_TYPES = ['single_choice', 'multiple_choice'] as const;
 export type ChoiceType = (typeof CHOICE_TYPES)[number];
