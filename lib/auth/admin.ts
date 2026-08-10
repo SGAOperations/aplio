@@ -24,13 +24,85 @@ function requireEnv(name: string): string {
   return value;
 }
 
-// The Neon Auth user directory is branch-scoped, so NEON_BRANCH_ID differs per
-// environment (production branch vs. the per-PR preview branch).
-function authUsersUrl(): string {
+function authHeader(): { Authorization: string } {
+  return { Authorization: `Bearer ${requireEnv('NEON_API_KEY')}` };
+}
+
+// ── Branch resolution ────────────────────────────────────────────────────────────
+// The Neon Auth user directory is branch-scoped and the API requires a `br-`-prefixed
+// branch *id* — passing a name yields PLATFORM_BRANCH_NOT_FOUND. NEON_BRANCH accepts
+// either, so a name is looked up once and cached. That keeps preview deployments
+// zero-config: their branch id changes every PR, but the name is derivable from
+// Vercel's git ref, matching how neon-preview-branch.yml names the branch.
+
+interface NeonBranchSummary {
+  id: string;
+  name: string;
+}
+
+let cachedBranchId: string | null = null;
+
+function configuredBranch(): string {
+  const explicit = process.env.NEON_BRANCH;
+  if (explicit) return explicit;
+
+  const gitRef = process.env.VERCEL_GIT_COMMIT_REF;
+  if (process.env.VERCEL_ENV === 'preview' && gitRef)
+    return `preview/${gitRef}`;
+
+  throw new Error('NEON_BRANCH is not configured');
+}
+
+function parseBranches(data: unknown): NeonBranchSummary[] {
+  if (!data || typeof data !== 'object' || !('branches' in data)) return [];
+  const raw = (data as { branches: unknown }).branches;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(
+    (branch): branch is NeonBranchSummary =>
+      !!branch &&
+      typeof branch === 'object' &&
+      typeof (branch as { id?: unknown }).id === 'string' &&
+      typeof (branch as { name?: unknown }).name === 'string',
+  );
+}
+
+async function resolveBranchId(): Promise<string> {
+  if (cachedBranchId) return cachedBranchId;
+
+  const branch = configuredBranch();
+  if (branch.startsWith('br-')) {
+    cachedBranchId = branch;
+    return branch;
+  }
+
+  const url = `${NEON_API_BASE}/projects/${requireEnv('NEON_PROJECT_ID')}/branches?search=${encodeURIComponent(branch)}`;
+  const response = await fetch(url, { headers: authHeader() });
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '');
+    console.error(
+      `[neon-auth] branch lookup failed: ${response.status} ${response.statusText} ${detail}`,
+    );
+    throw new Error(`Neon branch lookup failed (${response.status})`);
+  }
+
+  // `search` is a fuzzy match over name and id, so match the name exactly — a
+  // prefix collision (preview/239 vs preview/239-foo) would otherwise pick wrongly.
+  const match = parseBranches(await response.json().catch(() => null)).find(
+    (candidate) => candidate.name === branch,
+  );
+  if (!match) throw new Error(`Neon branch "${branch}" not found`);
+
+  cachedBranchId = match.id;
+  return match.id;
+}
+
+async function authUsersUrl(): Promise<string> {
   const projectId = requireEnv('NEON_PROJECT_ID');
-  const branchId = requireEnv('NEON_BRANCH_ID');
+  const branchId = await resolveBranchId();
   return `${NEON_API_BASE}/projects/${projectId}/branches/${branchId}/auth/users`;
 }
+
+// ── User provisioning ────────────────────────────────────────────────────────────
 
 export type CreateNeonAuthUserResult = { id: string } | { duplicate: true };
 
@@ -45,12 +117,9 @@ export async function createNeonAuthUser({
   email: string;
   name?: string;
 }): Promise<CreateNeonAuthUserResult> {
-  const response = await fetch(authUsersUrl(), {
+  const response = await fetch(await authUsersUrl(), {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${requireEnv('NEON_API_KEY')}`,
-      'Content-Type': 'application/json',
-    },
+    headers: { ...authHeader(), 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, ...(name ? { name } : {}) }),
   });
 
@@ -85,11 +154,8 @@ export async function createNeonAuthUser({
 export async function deleteNeonAuthUser(authUserId: string): Promise<void> {
   try {
     const response = await fetch(
-      `${authUsersUrl()}/${encodeURIComponent(authUserId)}`,
-      {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${requireEnv('NEON_API_KEY')}` },
-      },
+      `${await authUsersUrl()}/${encodeURIComponent(authUserId)}`,
+      { method: 'DELETE', headers: authHeader() },
     );
     if (!response.ok && response.status !== 404)
       console.error(
