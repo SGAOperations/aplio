@@ -206,7 +206,7 @@ export function QuestionForm({
             render={({ field }) => (
               <FormItem className="flex flex-row items-center gap-2">
                 <FormControl>
-                  <Checkbox
+                  <Switch
                     checked={field.value}
                     onCheckedChange={field.onChange}
                     disabled={isSubmitting}

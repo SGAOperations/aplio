@@ -133,7 +133,7 @@ function OptionsField() {
 }
 
 function AllowOtherField() {
-  const { control } = useFormContext<QuestionFormValues>();
+  const { control, formState } = useFormContext<QuestionFormValues>();
   const type = useWatch({ control, name: 'type' });
 
   if (!CHOICE_TYPES.includes(type as ChoiceType)) return null;
@@ -145,9 +145,10 @@ function AllowOtherField() {
       render={({ field }) => (
         <FormItem className="flex flex-row items-center gap-3">
           <FormControl>
-            <Checkbox
+            <Switch
               checked={field.value as boolean}
               onCheckedChange={field.onChange}
+              disabled={formState.isSubmitting}
             />
           </FormControl>
           <FormLabel>Allow &quot;Other&quot;</FormLabel>
