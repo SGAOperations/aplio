@@ -20,7 +20,6 @@ import {
 } from '@/lib/constants';
 import type { GlobalQuestionListItem } from '@/lib/types';
 
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   FormControl,
   FormField,
@@ -38,6 +37,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 
 type QuestionFormValues = z.infer<typeof questionFormSchema>;
 
@@ -73,6 +73,29 @@ function TypeField() {
               ))}
             </SelectContent>
           </Select>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+}
+
+function RequiredField() {
+  const { control, formState } = useFormContext<QuestionFormValues>();
+  return (
+    <FormField
+      control={control}
+      name="required"
+      render={({ field }) => (
+        <FormItem className="flex flex-row items-center gap-3">
+          <FormControl>
+            <Switch
+              checked={field.value as boolean}
+              onCheckedChange={field.onChange}
+              disabled={formState.isSubmitting}
+            />
+          </FormControl>
+          <FormLabel>Required</FormLabel>
           <FormMessage />
         </FormItem>
       )}
@@ -161,21 +184,7 @@ export function GlobalQuestionDialog({
 
       <TypeField />
 
-      <FormField
-        name="required"
-        render={({ field }) => (
-          <FormItem className="flex flex-row items-center gap-3">
-            <FormControl>
-              <Checkbox
-                checked={field.value as boolean}
-                onCheckedChange={field.onChange}
-              />
-            </FormControl>
-            <FormLabel>Required</FormLabel>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      <RequiredField />
 
       <OptionsField />
     </FormDialog>
