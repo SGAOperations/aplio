@@ -16,6 +16,10 @@ try {
   if (!cmd) process.exit(0);
 
   // Mirror settings.json `permissions.allow` for Bash — these are NOT logged.
+  // Content-emitting commands (echo/cat/head/tail/cut/diff/true) are
+  // deliberately absent: shell redirection can't be denied by pattern, so they
+  // stay off the allowlist and their denials are worth surfacing. See
+  // PIPELINE.md → "Known gap — shell redirection cannot be denied this way".
   const allowed = [
     /^gh\s/,
     /^git\s/,
@@ -26,19 +30,12 @@ try {
     /^rg(\s|$)/,
     /^find(\s|$)/,
     /^ls(\s|$)/,
-    /^cat(\s|$)/,
     /^wc(\s|$)/,
-    /^head(\s|$)/,
-    /^tail(\s|$)/,
     /^sort(\s|$)/,
     /^uniq(\s|$)/,
-    /^cut(\s|$)/,
-    /^diff(\s|$)/,
     /^stat(\s|$)/,
     /^file(\s|$)/,
-    /^echo(\s|$)/,
     /^pwd(\s|$)/,
-    /^true(\s|$)/,
     /^mkdir\s+-p\s/,
   ];
   if (allowed.some((re) => re.test(cmd))) process.exit(0);
