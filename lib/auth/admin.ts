@@ -31,9 +31,15 @@ function authHeader(): { Authorization: string } {
 // ── Branch resolution ────────────────────────────────────────────────────────────
 // The Neon Auth user directory is branch-scoped and the API requires a `br-`-prefixed
 // branch *id* — passing a name yields PLATFORM_BRANCH_NOT_FOUND. NEON_BRANCH accepts
-// either, so a name is looked up once and cached. That keeps preview deployments
-// zero-config: their branch id changes every PR, but the name is derivable from
-// Vercel's git ref, matching how neon-preview-branch.yml names the branch.
+// either, and a name is looked up once and cached.
+//
+// IMPORTANT: NEON_BRANCH must name the branch behind NEON_AUTH_BASE_URL, which is NOT
+// necessarily the branch behind DATABASE_URL. neon-preview-branch.yml overrides only
+// DATABASE_URL per PR, so a preview deployment reads Postgres from its own branch
+// while authenticating against the shared auth directory. Provisioning an identity in
+// any other branch's directory would leave the invitee unable to sign in — the
+// original #239 bug, relocated. So this is a stable per-environment value and is
+// never derived from the git ref.
 
 interface NeonBranchSummary {
   id: string;
@@ -43,14 +49,7 @@ interface NeonBranchSummary {
 let cachedBranchId: string | null = null;
 
 function configuredBranch(): string {
-  const explicit = process.env.NEON_BRANCH;
-  if (explicit) return explicit;
-
-  const gitRef = process.env.VERCEL_GIT_COMMIT_REF;
-  if (process.env.VERCEL_ENV === 'preview' && gitRef)
-    return `preview/${gitRef}`;
-
-  throw new Error('NEON_BRANCH is not configured');
+  return requireEnv('NEON_BRANCH');
 }
 
 function parseBranches(data: unknown): NeonBranchSummary[] {
