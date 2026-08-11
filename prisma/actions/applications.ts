@@ -450,7 +450,8 @@ export async function reopenApplication(
 
   const result = await prisma.$transaction(async (tx) => {
     // Ownership and source status are folded into the where clause (no IDOR
-    // surface) — same read-then-write pattern submitApplication uses.
+    // surface). Unlike submitApplication, this read-then-write runs inside
+    // the $transaction below to keep the check and the update atomic.
     const application = await tx.application.findFirst({
       where: {
         id: parsed.data.applicationId,
