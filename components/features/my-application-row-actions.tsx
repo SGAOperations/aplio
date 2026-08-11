@@ -12,6 +12,7 @@ import {
 } from '@/prisma/actions/applications';
 import type { $Enums } from '@/prisma/client';
 
+import { TERMINAL_DECISION_STATUSES } from '@/lib/constants';
 import { isError } from '@/lib/utils';
 
 import {
@@ -148,7 +149,14 @@ export function MyApplicationRowActions({
     );
   }
 
-  // Non-draft, non-withdrawn statuses (applied, reached_out, interview_scheduled, reviewing, accepted, rejected)
+  if (TERMINAL_DECISION_STATUSES.includes(status))
+    return (
+      <span className="text-muted-foreground text-sm" aria-hidden="true">
+        —
+      </span>
+    );
+
+  // Non-draft, non-withdrawn, non-terminal statuses (applied, reached_out, interview_scheduled, reviewing)
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
