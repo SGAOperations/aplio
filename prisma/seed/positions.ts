@@ -65,6 +65,12 @@ export const positionDefs: PositionDef[] = [
         type: 'single_choice',
         options: ['Yes', 'No', 'Maybe'],
       },
+      {
+        order: 4,
+        label: 'Optionally upload a resume or writing sample',
+        type: 'file_upload',
+        required: false,
+      },
     ],
   },
   {

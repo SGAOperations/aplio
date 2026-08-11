@@ -24,6 +24,16 @@ export async function updateGlobalAnswer(
   const parsed = updateGlobalAnswerSchema.safeParse({ questionId, value });
   if (!parsed.success) return { error: 'Invalid input' };
 
+  const question = await prisma.globalQuestion.findUnique({
+    where: { id: parsed.data.questionId },
+    select: { type: true },
+  });
+  if (!question) throw new Error('Question not found');
+  // file_upload answers are written exclusively by uploadQuestionFileAnswer /
+  // removeQuestionFileAnswer (prisma/actions/question-files.ts).
+  if (question.type === 'file_upload')
+    throw new Error('Invalid question type for this action');
+
   const result = await prisma.globalAnswer.upsert({
     where: {
       userId_globalQuestionId: {

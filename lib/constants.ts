@@ -12,6 +12,7 @@ export const QUESTION_TYPE_VALUES = [
   'long_answer',
   'single_choice',
   'multiple_choice',
+  'file_upload',
 ] as const;
 
 export type QuestionTypeValue = (typeof QUESTION_TYPE_VALUES)[number];
@@ -21,6 +22,7 @@ export const QUESTION_TYPE_LABELS: Record<QuestionTypeValue, string> = {
   long_answer: 'Long Answer',
   single_choice: 'Single Choice',
   multiple_choice: 'Multiple Choice',
+  file_upload: 'File Upload',
 };
 
 // Keyed on the generated QuestionType enum (not QUESTION_TYPE_VALUES) for build-time
@@ -31,7 +33,48 @@ export const QUESTION_TYPE_BADGE_VARIANT: Record<QuestionType, BadgeVariant> = {
   long_answer: 'info',
   single_choice: 'success',
   multiple_choice: 'warning',
+  file_upload: 'default',
 };
+
+// App-wide file-upload constraints (v1: fixed, not per-question configurable).
+// 4MB stays safely under Vercel's hard 4.5MB Function body limit (see
+// next.config.ts's serverActions.bodySizeLimit).
+export const FILE_UPLOAD_MAX_BYTES = 4 * 1024 * 1024;
+
+// Allow-listed MIME types — must match the magic-byte signatures sniffed in
+// lib/files.ts#sniffMimeType so client copy and server enforcement agree.
+export const FILE_UPLOAD_MIME_TYPES = [
+  'application/pdf',
+  'image/png',
+  'image/jpeg',
+] as const;
+
+// Maps a sniffed MIME type to its canonical extension for stored pathnames.
+export const FILE_UPLOAD_MIME_EXTENSIONS: Record<
+  (typeof FILE_UPLOAD_MIME_TYPES)[number],
+  string
+> = { 'application/pdf': 'pdf', 'image/png': 'png', 'image/jpeg': 'jpg' };
+
+// `accept` attribute for the file input — extensions plus MIME types so both
+// browser-native filtering paths are covered.
+export const FILE_UPLOAD_ACCEPT =
+  '.pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg';
+
+export const FILE_UPLOAD_HELP_TEXT = 'PDF, PNG or JPG · up to 4MB';
+
+// Discriminated-union target a file answer belongs to — addressed by question,
+// not by answer row id, mirroring createOrUpdateApplicationAnswer's existing
+// (applicationId, questionId, isGlobal) addressing. FormData always arrives as
+// strings, so callers must coerce isGlobal from 'true'/'false' before parsing.
+export const questionFileTargetSchema = z.discriminatedUnion('scope', [
+  z.object({ scope: z.literal('profile'), questionId: z.string().min(1) }),
+  z.object({
+    scope: z.literal('application'),
+    applicationId: z.string().min(1),
+    questionId: z.string().min(1),
+    isGlobal: z.boolean(),
+  }),
+]);
 
 // Choice-type question types that require at least one option.
 export const CHOICE_TYPES = ['single_choice', 'multiple_choice'] as const;

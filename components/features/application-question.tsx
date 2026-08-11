@@ -7,8 +7,10 @@ import { toast } from 'sonner';
 import type { QuestionType } from '@/prisma/client';
 
 import { OTHER_OPTION_LABEL } from '@/lib/constants';
+import type { QuestionFileTarget } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
+import { QuestionFileField } from '@/components/features/question-file-field';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -32,6 +34,9 @@ interface ApplicationQuestionProps {
   };
   error?: string;
   onSave: (value: string[]) => Promise<void>;
+  // Only read for question.type === 'file_upload' — QuestionFileField talks
+  // directly to the file actions (never through onSave's text-answer path).
+  fileTarget: QuestionFileTarget;
 }
 
 export function ApplicationQuestion({
@@ -39,6 +44,7 @@ export function ApplicationQuestion({
   field,
   error,
   onSave,
+  fileTarget,
 }: ApplicationQuestionProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
@@ -266,6 +272,14 @@ export function ApplicationQuestion({
             </>
           )}
         </div>
+      )}
+
+      {question.type === 'file_upload' && (
+        <QuestionFileField
+          target={fileTarget}
+          value={field.value}
+          onChange={field.onChange}
+        />
       )}
 
       {error && <p className="text-destructive mt-2 text-xs">{error}</p>}

@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 
 import { z } from 'zod/v4';
 
+import { cleanupOrphanedBlob } from '@/prisma/actions/question-files';
 import type {
   Application,
   GlobalAnswer,
@@ -134,6 +135,32 @@ export async function createOrUpdateApplicationAnswer(params: {
     return { error: 'Unauthorized' };
 
   if (isGlobal) {
+    const question = await prisma.globalQuestion.findUnique({
+      where: { id: questionId },
+      select: { type: true },
+    });
+    if (!question) throw new Error('Question not found');
+
+    // file_upload answers are written exclusively by uploadQuestionFileAnswer /
+    // removeQuestionFileAnswer (prisma/actions/question-files.ts) — never trust
+    // a client-supplied blob URL here. This path only runs for the stepper's
+    // "Use profile answers" revert, so always copy the caller's own current
+    // profile value instead of whatever the client sent.
+    const value =
+      question.type === 'file_upload'
+        ? ((
+            await prisma.globalAnswer.findUnique({
+              where: {
+                userId_globalQuestionId: {
+                  userId: currentUser.id,
+                  globalQuestionId: questionId,
+                },
+              },
+              select: { value: true },
+            })
+          )?.value ?? [])
+        : parsed.data.value;
+
     const result = await prisma.globalApplicationAnswer.upsert({
       where: {
         applicationId_globalQuestionId: {
@@ -154,6 +181,16 @@ export async function createOrUpdateApplicationAnswer(params: {
     revalidatePath(`/positions/${application.positionId}/apply`);
     return result;
   }
+
+  const question = await prisma.positionQuestion.findUnique({
+    where: { id: questionId },
+    select: { type: true },
+  });
+  if (!question) throw new Error('Question not found');
+  // Not reachable from the UI — file_upload position answers can only be
+  // written by uploadQuestionFileAnswer.
+  if (question.type === 'file_upload')
+    throw new Error('Invalid question type for this action');
 
   const result = await prisma.positionApplicationAnswer.upsert({
     where: {
@@ -413,6 +450,10 @@ export async function deleteDraftApplication(
 
   const id = parsed.data.applicationId;
 
+  // Collected inside the transaction, before the rows are removed, so any
+  // uploaded file answers can be reference-counted and cleaned up after commit.
+  let fileUrls: string[] = [];
+
   const deleteResult = await prisma.$transaction(async (tx) => {
     const app = await tx.application.findFirst({
       where: { id, userId: currentUser.id, status: 'draft', deletedAt: null },
@@ -420,6 +461,20 @@ export async function deleteDraftApplication(
     });
 
     if (!app) return { error: 'This draft can no longer be deleted.' };
+
+    // Scoped to file_upload questions only — other answer values are plain
+    // text, not blob URLs, and must never be sent to the Blob API.
+    const [globalAnswers, positionAnswers] = await Promise.all([
+      tx.globalApplicationAnswer.findMany({
+        where: { applicationId: id, globalQuestion: { type: 'file_upload' } },
+        select: { value: true },
+      }),
+      tx.positionApplicationAnswer.findMany({
+        where: { applicationId: id, positionQuestion: { type: 'file_upload' } },
+        select: { value: true },
+      }),
+    ]);
+    fileUrls = [...globalAnswers, ...positionAnswers].flatMap((a) => a.value);
 
     await tx.globalApplicationAnswer.deleteMany({
       where: { applicationId: id },
@@ -431,6 +486,8 @@ export async function deleteDraftApplication(
   });
 
   if (deleteResult && 'error' in deleteResult) return deleteResult;
+
+  await Promise.all(fileUrls.map((url) => cleanupOrphanedBlob(url)));
 
   revalidatePath('/my-applications');
 }
