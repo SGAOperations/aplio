@@ -42,7 +42,8 @@ interface ApplicationQuestionProps {
     onBlur: () => void;
   };
   error?: string;
-  onSave: (value: string[]) => Promise<void>;
+  // A returned string is a user-facing refusal; void means saved.
+  onSave: (value: string[]) => Promise<string | void>;
   // file_upload only: QuestionFileField calls the file actions directly.
   fileTarget: QuestionFileTarget;
 }
@@ -74,7 +75,15 @@ export function ApplicationQuestion({
     setIsSaving(true);
     setSaveError(false);
     try {
-      await onSave(value);
+      const refusal = await onSave(value);
+      if (refusal) {
+        // User-facing refusal (e.g. no longer editable) — do not advance
+        // savedValueRef so a retry after the underlying condition changes
+        // (e.g. withdrawing) is still attempted rather than treated as saved.
+        setSaveError(true);
+        toast.error(refusal);
+        return;
+      }
       savedValueRef.current = serialized;
     } catch {
       setSaveError(true);

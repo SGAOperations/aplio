@@ -207,12 +207,16 @@ function QuestionList({
                       value,
                       isGlobal,
                     });
-                    if (isError(result)) throw new Error(result.error);
+                    // A returned { error } is a user-facing refusal (e.g. the
+                    // application is no longer editable) — surface it as the
+                    // exact sentence rather than collapsing it into the
+                    // generic throw-path toast.
+                    return isError(result) ? result.error : undefined;
                   })();
                   // Tracked so a concurrent revert on this field waits rather than races it.
                   pendingSavesRef?.current.set(question.id, save);
                   try {
-                    await save;
+                    return await save;
                   } finally {
                     if (pendingSavesRef?.current.get(question.id) === save)
                       pendingSavesRef.current.delete(question.id);
