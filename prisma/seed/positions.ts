@@ -138,6 +138,34 @@ export const positionDefs: PositionDef[] = [
       },
     ],
   },
+  // Regression fixtures for issue #348 — never seeded before, which is why
+  // "position: PUBLISHED_POSITION_WHERE" going unapplied went unnoticed.
+  {
+    title: 'Director of Wellness (Draft)',
+    description:
+      'Coordinate mental health resources and wellness programming — not yet published.',
+    status: 'draft',
+    questions: [
+      {
+        order: 1,
+        label: 'What wellness initiatives would you prioritize?',
+        type: 'long_answer',
+      },
+    ],
+  },
+  {
+    title: 'Director of Alumni Relations (Deleted)',
+    description:
+      'Maintain alumni engagement and coordinate reunion programming — soft-deleted.',
+    deleted: true,
+    questions: [
+      {
+        order: 1,
+        label: 'How would you engage alumni in campus life?',
+        type: 'long_answer',
+      },
+    ],
+  },
 ];
 
 // Per-position answers keyed by question label
@@ -194,6 +222,16 @@ export const positionAnswers: Record<string, Record<string, string[]>> = {
       'Mental Health',
       'Housing',
       'Tuition',
+    ],
+  },
+  'Director of Wellness (Draft)': {
+    'What wellness initiatives would you prioritize?': [
+      'Expanding counseling appointment availability and destigmatizing mental health resources.',
+    ],
+  },
+  'Director of Alumni Relations (Deleted)': {
+    'How would you engage alumni in campus life?': [
+      'Host regional alumni mixers and pair recent grads with a mentor from their major.',
     ],
   },
 };
