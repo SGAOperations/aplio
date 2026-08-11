@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 
 import type { QuestionType } from '@/prisma/client';
 
+import { OTHER_OPTION_LABEL } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
 import { Checkbox } from '@/components/ui/checkbox';
@@ -19,6 +20,7 @@ type QuestionShape = {
   type: QuestionType;
   required: boolean;
   options: string[];
+  allowOther: boolean;
 };
 
 interface ApplicationQuestionProps {
@@ -44,6 +46,14 @@ export function ApplicationQuestion({
   const options = Array.isArray(question.options)
     ? question.options.filter((o): o is string => typeof o === 'string')
     : [];
+
+  // Any answer value that isn't one of the admin-defined options is the
+  // applicant's typed "Other" text (options is a closed set — see issue #322).
+  const initialOtherValue = field.value.find((v) => !options.includes(v));
+  const [otherSelected, setOtherSelected] = useState(
+    initialOtherValue !== undefined,
+  );
+  const [otherText, setOtherText] = useState(initialOtherValue ?? '');
 
   async function save(value: string[]) {
     const serialized = JSON.stringify(value);
@@ -112,8 +122,12 @@ export function ApplicationQuestion({
                 type="radio"
                 name={question.id}
                 value={option}
-                checked={field.value[0] === option}
+                checked={!otherSelected && field.value[0] === option}
                 onChange={() => {
+                  // Picking a real option hides the "Other" input and clears
+                  // any previously typed text so it is never silently resubmitted.
+                  setOtherSelected(false);
+                  setOtherText('');
                   field.onChange([option]);
                   save([option]);
                 }}
@@ -122,6 +136,51 @@ export function ApplicationQuestion({
               {option}
             </Label>
           ))}
+
+          {question.allowOther && (
+            <>
+              <Label className="flex cursor-pointer items-center gap-2 font-normal">
+                <input
+                  type="radio"
+                  name={question.id}
+                  value={OTHER_OPTION_LABEL}
+                  checked={otherSelected}
+                  onChange={() => {
+                    setOtherSelected(true);
+                    const next = otherText ? [otherText] : [];
+                    field.onChange(next);
+                    save(next);
+                  }}
+                  className="accent-primary size-4"
+                />
+                {OTHER_OPTION_LABEL}
+              </Label>
+
+              {otherSelected && (
+                <div className="ml-6 flex flex-col gap-1">
+                  <Label
+                    htmlFor={`${question.id}-other`}
+                    className="text-muted-foreground text-xs font-normal"
+                  >
+                    {OTHER_OPTION_LABEL}
+                    {question.required && (
+                      <span className="text-destructive ml-1">*</span>
+                    )}
+                  </Label>
+                  <Input
+                    id={`${question.id}-other`}
+                    value={otherText}
+                    onChange={(e) => {
+                      setOtherText(e.target.value);
+                      field.onChange(e.target.value ? [e.target.value] : []);
+                    }}
+                    onBlur={handleBlur}
+                    placeholder="Type your answer"
+                  />
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
 
@@ -145,6 +204,67 @@ export function ApplicationQuestion({
               {option}
             </Label>
           ))}
+
+          {question.allowOther && (
+            <>
+              <Label className="flex cursor-pointer items-center gap-2 font-normal">
+                <Checkbox
+                  checked={otherSelected}
+                  onCheckedChange={(checked) => {
+                    setOtherSelected(!!checked);
+                    const checkedOptions = field.value.filter((v) =>
+                      options.includes(v),
+                    );
+                    if (checked) {
+                      const next = otherText
+                        ? [...checkedOptions, otherText]
+                        : checkedOptions;
+                      field.onChange(next);
+                      save(next);
+                    } else {
+                      // Uncheck removes the typed text from the saved array
+                      // immediately so it isn't silently resubmitted.
+                      setOtherText('');
+                      field.onChange(checkedOptions);
+                      save(checkedOptions);
+                    }
+                  }}
+                />
+                {OTHER_OPTION_LABEL}
+              </Label>
+
+              {otherSelected && (
+                <div className="ml-6 flex flex-col gap-1">
+                  <Label
+                    htmlFor={`${question.id}-other`}
+                    className="text-muted-foreground text-xs font-normal"
+                  >
+                    {OTHER_OPTION_LABEL}
+                    {question.required && (
+                      <span className="text-destructive ml-1">*</span>
+                    )}
+                  </Label>
+                  <Input
+                    id={`${question.id}-other`}
+                    value={otherText}
+                    onChange={(e) => {
+                      setOtherText(e.target.value);
+                      const checkedOptions = field.value.filter((v) =>
+                        options.includes(v),
+                      );
+                      field.onChange(
+                        e.target.value
+                          ? [...checkedOptions, e.target.value]
+                          : checkedOptions,
+                      );
+                    }}
+                    onBlur={handleBlur}
+                    placeholder="Type your answer"
+                  />
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
 

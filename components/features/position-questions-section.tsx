@@ -7,8 +7,12 @@ import { toast } from 'sonner';
 
 import { deletePositionQuestion } from '@/prisma/actions/position-question-actions';
 
-import { QUESTION_TYPE_LABELS } from '@/lib/constants';
+import {
+  QUESTION_TYPE_BADGE_VARIANT,
+  QUESTION_TYPE_LABELS,
+} from '@/lib/constants';
 
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 
@@ -81,11 +85,15 @@ export function PositionQuestionsSection({
             <Card className="flex flex-row items-center gap-3 p-4">
               <div className="flex-1">
                 <p className="text-sm font-medium">{question.label}</p>
-                <p className="text-muted-foreground text-xs">
-                  {QUESTION_TYPE_LABELS[question.type] ?? question.type}
-                  {question.required ? ' · Required' : ' · Optional'}
-                </p>
-                {question.options.length > 0 && (
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <Badge variant={QUESTION_TYPE_BADGE_VARIANT[question.type]}>
+                    {QUESTION_TYPE_LABELS[question.type]}
+                  </Badge>
+                  <span className="text-muted-foreground text-xs">
+                    {question.required ? 'Required' : 'Optional'}
+                  </span>
+                </div>
+                {(question.options.length > 0 || question.allowOther) && (
                   <div className="mt-1 flex flex-wrap gap-1">
                     {question.options.map((opt) => (
                       <span
@@ -95,6 +103,11 @@ export function PositionQuestionsSection({
                         {opt}
                       </span>
                     ))}
+                    {question.allowOther && (
+                      <span className="bg-secondary text-secondary-foreground rounded-full px-2 py-0.5 text-xs">
+                        + Other
+                      </span>
+                    )}
                   </div>
                 )}
               </div>

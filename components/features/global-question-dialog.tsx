@@ -20,7 +20,6 @@ import {
 } from '@/lib/constants';
 import type { GlobalQuestionListItem } from '@/lib/types';
 
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   FormControl,
   FormField,
@@ -38,6 +37,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 
 type QuestionFormValues = z.infer<typeof questionFormSchema>;
 
@@ -53,10 +53,12 @@ function TypeField() {
           <Select
             onValueChange={(v) => {
               field.onChange(v);
-              // Clear stale options when switching to a non-choice type so they
-              // are not persisted to the DB (R3-M1).
-              if (!CHOICE_TYPES.includes(v as ChoiceType))
+              // Clear stale options/allowOther when switching to a non-choice
+              // type so they are not persisted to the DB (R3-M1).
+              if (!CHOICE_TYPES.includes(v as ChoiceType)) {
                 setValue('options', []);
+                setValue('allowOther', false);
+              }
             }}
             value={field.value}
           >
@@ -73,6 +75,29 @@ function TypeField() {
               ))}
             </SelectContent>
           </Select>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+}
+
+function RequiredField() {
+  const { control, formState } = useFormContext<QuestionFormValues>();
+  return (
+    <FormField
+      control={control}
+      name="required"
+      render={({ field }) => (
+        <FormItem className="flex flex-row items-center gap-3">
+          <FormControl>
+            <Switch
+              checked={field.value as boolean}
+              onCheckedChange={field.onChange}
+              disabled={formState.isSubmitting}
+            />
+          </FormControl>
+          <FormLabel>Required</FormLabel>
           <FormMessage />
         </FormItem>
       )}
@@ -107,6 +132,33 @@ function OptionsField() {
   );
 }
 
+function AllowOtherField() {
+  const { control, formState } = useFormContext<QuestionFormValues>();
+  const type = useWatch({ control, name: 'type' });
+
+  if (!CHOICE_TYPES.includes(type as ChoiceType)) return null;
+
+  return (
+    <FormField
+      control={control}
+      name="allowOther"
+      render={({ field }) => (
+        <FormItem className="flex flex-row items-center gap-3">
+          <FormControl>
+            <Switch
+              checked={field.value as boolean}
+              onCheckedChange={field.onChange}
+              disabled={formState.isSubmitting}
+            />
+          </FormControl>
+          <FormLabel>Allow &quot;Other&quot;</FormLabel>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+}
+
 interface GlobalQuestionDialogProps {
   trigger: ReactNode;
   question?: GlobalQuestionListItem;
@@ -123,6 +175,7 @@ export function GlobalQuestionDialog({
     type: question?.type ?? 'short_answer',
     required: question?.required ?? true,
     options: question?.options ?? [],
+    allowOther: question?.allowOther ?? false,
   };
 
   async function onSubmit(data: QuestionFormValues): Promise<boolean> {
@@ -161,22 +214,9 @@ export function GlobalQuestionDialog({
 
       <TypeField />
 
-      <FormField
-        name="required"
-        render={({ field }) => (
-          <FormItem className="flex flex-row items-center gap-3">
-            <FormControl>
-              <Checkbox
-                checked={field.value as boolean}
-                onCheckedChange={field.onChange}
-              />
-            </FormControl>
-            <FormLabel>Required</FormLabel>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      <RequiredField />
 
+      <AllowOtherField />
       <OptionsField />
     </FormDialog>
   );

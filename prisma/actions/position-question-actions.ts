@@ -32,7 +32,8 @@ export async function createPositionQuestion(
   if (!parsed.success)
     return { error: parsed.error.issues[0]?.message ?? 'Invalid input' };
 
-  const { positionId, label, type, required, options } = parsed.data;
+  const { positionId, label, type, required, options, allowOther } =
+    parsed.data;
 
   const hasAccess = await checkPositionAccess(
     positionId,
@@ -57,6 +58,7 @@ export async function createPositionQuestion(
         required,
         order,
         options,
+        allowOther,
         createdById: user.id,
         updatedById: user.id,
       },
@@ -76,7 +78,8 @@ export async function updatePositionQuestion(
   if (!parsed.success)
     return { error: parsed.error.issues[0]?.message ?? 'Invalid input' };
 
-  const { id, positionId, label, type, required, options } = parsed.data;
+  const { id, positionId, label, type, required, options, allowOther } =
+    parsed.data;
 
   const hasAccess = await checkPositionAccess(
     positionId,
@@ -88,7 +91,7 @@ export async function updatePositionQuestion(
   // Scope the write to positionId to prevent IDOR across positions
   const result = await prisma.positionQuestion.updateMany({
     where: { id, positionId },
-    data: { label, type, required, options, updatedById: user.id },
+    data: { label, type, required, options, allowOther, updatedById: user.id },
   });
 
   if (result.count === 0) return { error: 'Not found' };

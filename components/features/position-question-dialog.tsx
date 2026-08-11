@@ -22,7 +22,6 @@ import {
 } from '@/lib/constants';
 
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Form,
   FormControl,
@@ -40,6 +39,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 
 // Only the fields rendered in PositionQuestionsSection and needed for optimistic updates.
 export interface RenderedQuestion {
@@ -49,6 +49,7 @@ export interface RenderedQuestion {
   type: QuestionType;
   required: boolean;
   options: string[];
+  allowOther: boolean;
   order: number;
 }
 
@@ -79,6 +80,7 @@ export function QuestionForm({
       type: question?.type ?? 'short_answer',
       required: question?.required ?? true,
       options: question?.options ?? [],
+      allowOther: question?.allowOther ?? false,
     },
   });
   const isSubmitting = form.formState.isSubmitting;
@@ -151,10 +153,12 @@ export function QuestionForm({
               <Select
                 onValueChange={(v) => {
                   field.onChange(v);
-                  // Clear stale options when switching to a non-choice type so
-                  // they are not persisted to the DB (R3-M1).
-                  if (!CHOICE_TYPES.includes(v as ChoiceType))
+                  // Clear stale options/allowOther when switching to a
+                  // non-choice type so they are not persisted to the DB (R3-M1).
+                  if (!CHOICE_TYPES.includes(v as ChoiceType)) {
                     form.setValue('options', []);
+                    form.setValue('allowOther', false);
+                  }
                 }}
                 value={field.value}
                 disabled={isSubmitting}
@@ -183,7 +187,7 @@ export function QuestionForm({
           render={({ field }) => (
             <FormItem className="flex flex-row items-center gap-2">
               <FormControl>
-                <Checkbox
+                <Switch
                   checked={field.value}
                   onCheckedChange={field.onChange}
                   disabled={isSubmitting}
@@ -194,6 +198,26 @@ export function QuestionForm({
             </FormItem>
           )}
         />
+
+        {isChoiceType && (
+          <FormField
+            control={form.control}
+            name="allowOther"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center gap-2">
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    disabled={isSubmitting}
+                  />
+                </FormControl>
+                <FormLabel>Allow &quot;Other&quot;</FormLabel>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
 
         {isChoiceType && (
           <FormField

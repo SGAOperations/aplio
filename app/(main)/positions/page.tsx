@@ -15,6 +15,7 @@ import type { PositionApplicationStats } from '@/lib/types';
 
 import { PositionCard } from '@/components/features/position-card';
 import { PositionCreateDialog } from '@/components/features/position-create-dialog';
+import { PageHeader } from '@/components/layouts/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 
 export const metadata: Metadata = { title: 'Positions' };
@@ -32,10 +33,11 @@ export default async function PositionsPage() {
         : new Map<string, PositionApplicationStats>();
     return (
       <div className="flex flex-col gap-6">
-        <div className="flex items-center justify-between gap-4">
-          <h1 className="text-2xl font-semibold tracking-tight">Positions</h1>
-          <PositionCreateDialog />
-        </div>
+        <PageHeader
+          title="Positions"
+          description="Create positions and track their applications."
+          actions={<PositionCreateDialog />}
+        />
         {positions.length === 0 ? (
           <EmptyState
             icon={Briefcase}
@@ -85,7 +87,10 @@ export default async function PositionsPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-2xl font-semibold tracking-tight">Positions</h1>
+      <PageHeader
+        title="Positions"
+        description="Browse open positions and apply."
+      />
 
       {/* My Positions — shown first for managers; omitted when empty (non-manager or no relevant positions) */}
       {showManagedSection && (

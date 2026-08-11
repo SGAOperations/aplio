@@ -12,6 +12,7 @@ export async function getGlobalQuestions() {
       type: true,
       required: true,
       options: true,
+      allowOther: true,
       createdAt: true,
       updatedAt: true,
     },
