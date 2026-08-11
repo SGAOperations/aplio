@@ -17,6 +17,7 @@ import { getCurrentUser } from '@/lib/auth/server';
 import {
   NON_REVIEWABLE_APPLICATION_STATUSES,
   REVIEWER_APPLICATION_STATUSES,
+  TERMINAL_DECISION_STATUSES,
 } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 import { type DraftApplication } from '@/lib/types';
@@ -401,7 +402,7 @@ export async function withdrawApplication(
       id: parsed.data.applicationId,
       userId: currentUser.id,
       deletedAt: null,
-      status: { notIn: ['draft', 'withdrawn'] },
+      status: { notIn: ['draft', 'withdrawn', ...TERMINAL_DECISION_STATUSES] },
     },
     data: { status: 'withdrawn', updatedById: currentUser.id },
   });

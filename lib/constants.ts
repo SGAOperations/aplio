@@ -253,6 +253,16 @@ export const NON_TERMINAL_APPLICATION_STATUSES = [
   'reviewing',
 ] as const satisfies $Enums.ApplicationStatus[];
 
+// Concluded decisions. An accepted/rejected application can no longer be
+// withdrawn: there is no status history, so a withdraw → re-open round-trip
+// would launder the decision back to 'applied' (#346). Deliberately NOT the
+// complement of NON_TERMINAL_APPLICATION_STATUSES, which also excludes
+// 'withdrawn'; this set is the decided outcomes only.
+export const TERMINAL_DECISION_STATUSES: readonly $Enums.ApplicationStatus[] = [
+  'accepted',
+  'rejected',
+];
+
 // Window (in days) for the "Recently Closed" positions section.
 // Positions closed within this window appear in that section.
 export const RECENTLY_CLOSED_WINDOW_DAYS = 7;
