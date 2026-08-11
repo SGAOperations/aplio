@@ -98,6 +98,14 @@ The app runs at <http://localhost:3000>.
 
 > Always run Prisma through `npm run prisma:*` — never `npx prisma` directly.
 
+## Deployment & databases
+
+Preview databases come from the **Neon Previews Integration** (installed on the Vercel project) — it owns per-PR branch creation, `DATABASE_URL`/`DATABASE_URL_UNPOOLED` injection, and branch teardown. There is no bespoke workflow for this anymore.
+
+Preview migrations run inside the Vercel build itself, driven by `vercel.json`'s `buildCommand`: when `VERCEL_ENV` is `preview`, it runs `prisma migrate deploy` against `DATABASE_URL_UNPOOLED` (required — the pooled endpoint rejects `migrate deploy`) before the normal build. On Production and Development deploys the guard is false, so the command is just `npm run build`, unchanged.
+
+`dev` and `main` are migrated the existing way, via `.github/workflows/migrate-db.yml` on push — that workflow is untouched by the above.
+
 ## Project structure
 
 ```
