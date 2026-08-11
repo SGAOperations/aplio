@@ -28,7 +28,7 @@ import {
   type PositionWithQuestions,
   type QuestionFileTarget,
 } from '@/lib/types';
-import { cn, isError, toStringArray } from '@/lib/utils';
+import { type ErrorType, cn, isError, toStringArray } from '@/lib/utils';
 
 import { AnswerFileLink } from '@/components/features/answer-file-link';
 import { ApplicationQuestion } from '@/components/features/application-question';
@@ -396,8 +396,12 @@ export function ApplicationStepper({
         }),
       );
 
-      const hasError = results.some((r) => r !== null && isError(r));
-      if (hasError) toast.error('Failed to revert some answers');
+      // Mirror the onSave/blur path: a specific refusal (e.g. the application
+      // became non-editable) surfaces verbatim rather than generic copy.
+      const firstError = results.find(
+        (r): r is ErrorType => r !== null && isError(r),
+      );
+      if (firstError) toast.error(firstError.error);
       else toast.success('Reverted to profile answers');
     } catch {
       toast.error('Failed to revert some answers');
