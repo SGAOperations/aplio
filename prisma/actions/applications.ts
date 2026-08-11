@@ -190,9 +190,10 @@ export async function createOrUpdateApplicationAnswer(params: {
         where: { id: questionId },
         select: { type: true, format: true },
       });
+  if (!question) throw new Error('Question not found');
 
   if (
-    question?.type === 'short_answer' &&
+    question.type === 'short_answer' &&
     question.format &&
     value[0] &&
     !matchesShortAnswerFormat(value[0], question.format)
@@ -203,23 +204,17 @@ export async function createOrUpdateApplicationAnswer(params: {
   // internally, so a format-validated answer must be trimmed before saving
   // too, or a pasted value with incidental whitespace saves verbatim.
   const persistedValue =
-    question?.type === 'short_answer' && question.format
+    question.type === 'short_answer' && question.format
       ? value.map((v) => v.trim())
       : value;
 
   if (isGlobal) {
-    const question = await prisma.globalQuestion.findUnique({
-      where: { id: questionId },
-      select: { type: true },
-    });
-    if (!question) throw new Error('Question not found');
-
     // file_upload answers are written exclusively by uploadQuestionFileAnswer /
     // removeQuestionFileAnswer (prisma/actions/question-files.ts) — never trust
     // a client-supplied blob URL here. This path only runs for the stepper's
     // "Use profile answers" revert, so always copy the caller's own current
     // profile value instead of whatever the client sent.
-    const value =
+    const globalPersistedValue =
       question.type === 'file_upload'
         ? ((
             await prisma.globalAnswer.findUnique({
@@ -232,7 +227,7 @@ export async function createOrUpdateApplicationAnswer(params: {
               select: { value: true },
             })
           )?.value ?? [])
-        : parsed.data.value;
+        : persistedValue;
 
     const result = await prisma.globalApplicationAnswer.upsert({
       where: {
@@ -241,12 +236,12 @@ export async function createOrUpdateApplicationAnswer(params: {
           globalQuestionId: questionId,
         },
       },
-      update: { value: persistedValue, updatedById: currentUser.id },
+      update: { value: globalPersistedValue, updatedById: currentUser.id },
       create: {
         applicationId,
         globalQuestionId: questionId,
         questionLabel,
-        value: persistedValue,
+        value: globalPersistedValue,
         createdById: currentUser.id,
         updatedById: currentUser.id,
       },
@@ -255,11 +250,6 @@ export async function createOrUpdateApplicationAnswer(params: {
     return result;
   }
 
-  const question = await prisma.positionQuestion.findUnique({
-    where: { id: questionId },
-    select: { type: true },
-  });
-  if (!question) throw new Error('Question not found');
   // Not reachable from the UI — file_upload position answers can only be
   // written by uploadQuestionFileAnswer.
   if (question.type === 'file_upload')
