@@ -94,8 +94,9 @@ export async function getPositionApplications(
 }
 
 // Authorization is folded into the where clause: admins see any application;
-// managers only see applications for positions they manage. Unauthorized callers
-// and soft-deleted records both return null, which the page converts to notFound().
+// managers only see applications for positions they manage. Unauthorized callers,
+// soft-deleted records, and draft/deleted-position applications all return null,
+// which the page converts to notFound().
 // The question's type is selected through the relation (one query, no N+1) and
 // both answer arrays are normalized to ApplicationReviewAnswer[] so the review
 // UI can render file_upload answers via AnswerFileLink.
