@@ -66,15 +66,12 @@ export async function createNeonAuthUser({
   if (response.status === 409 || response.status === 422)
     return { duplicate: true };
 
-  // Temporary while the duplicate-email status is unconfirmed — the thrown message
-  // already carries the status, so remove this once QA has named it (see PR #249).
-  if (!response.ok) {
-    const detail = await response.text().catch(() => '');
-    console.error(
-      `[neon-auth] create user failed: ${response.status} ${response.statusText} ${detail}`,
+  // Status only — the provider's response body can echo the invitee's email, and it
+  // adds nothing the status doesn't already say.
+  if (!response.ok)
+    throw new Error(
+      `Neon Auth user creation failed (${response.status} ${response.statusText})`,
     );
-    throw new Error(`Neon Auth user creation failed (${response.status})`);
-  }
 
   const data: unknown = await response.json().catch(() => null);
   const id =
@@ -88,23 +85,17 @@ export async function createNeonAuthUser({
 }
 
 // Compensating cleanup for a failed app-row write, so a retry doesn't accumulate
-// orphaned identities. Never throws: it runs while another error is already being
-// surfaced, and masking that error would hide the real failure. 404 is success here
-// (nothing left to remove).
+// orphaned identities. Throws when the identity could not be removed — the caller is
+// already handling an error, and this one supersedes it deliberately: a stranded Neon
+// Auth identity is the more serious condition and must not be reported to the admin as
+// a tidy duplicate-email message. 404 is success (nothing left to remove).
 export async function deleteNeonAuthUser(authUserId: string): Promise<void> {
-  try {
-    const response = await fetch(
-      `${authUsersUrl()}/${encodeURIComponent(authUserId)}`,
-      { method: 'DELETE', headers: authHeader() },
+  const response = await fetch(
+    `${authUsersUrl()}/${encodeURIComponent(authUserId)}`,
+    { method: 'DELETE', headers: authHeader() },
+  );
+  if (!response.ok && response.status !== 404)
+    throw new Error(
+      `Neon Auth identity ${authUserId} orphaned — delete failed (${response.status} ${response.statusText})`,
     );
-    if (!response.ok && response.status !== 404)
-      console.error(
-        `[neon-auth] orphaned identity ${authUserId} — delete failed: ${response.status} ${response.statusText}`,
-      );
-  } catch (error) {
-    console.error(
-      `[neon-auth] orphaned identity ${authUserId} — delete threw:`,
-      error,
-    );
-  }
 }

@@ -116,7 +116,8 @@ export async function createUser(input: unknown): Promise<ActionError | void> {
     });
   } catch (error) {
     // Any failure here leaves the identity orphaned in Neon Auth, so always roll it
-    // back before surfacing — otherwise each retry accumulates another one.
+    // back before surfacing — otherwise each retry accumulates another one. If the
+    // rollback itself fails it throws, superseding the error below by design.
     await deleteNeonAuthUser(created.id);
 
     // Soft-deleted rows keep their email and neonAuthId (unique, not partial — see
