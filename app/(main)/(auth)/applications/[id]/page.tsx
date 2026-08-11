@@ -43,10 +43,7 @@ export default async function ApplicationDetailPage({
   if (!application) notFound();
 
   const applicantName = application.user.name ?? application.user.email;
-  const isDraft = application.status === 'draft';
-  const metaLine = isDraft
-    ? `${application.position.title} · Draft — not yet submitted`
-    : `${application.position.title} · Applied ${formatDate(application.submittedAt)}`;
+  const metaLine = `${application.position.title} · Applied ${formatDate(application.submittedAt)}`;
 
   return (
     <div className="mx-auto max-w-5xl">

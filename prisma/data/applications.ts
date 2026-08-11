@@ -21,8 +21,9 @@ const applicationSelect = {
   position: { select: { id: true, title: true } },
 } as const;
 
-// Shared by getApplications and getApplicationsTotal so the two always cover
-// the same universe of rows (list and denominator stay in sync).
+// Shared by getApplications, getApplicationsTotal and getApplicationForReview
+// so the list, the denominator and the detail page all agree on what a
+// reviewer may see (drafts excluded, withdrawn included).
 function buildBaseWhere(user: { id: string; isAdmin: boolean }) {
   return user.isAdmin
     ? { deletedAt: null, status: { not: 'draft' as const } }
@@ -86,16 +87,8 @@ export async function getApplicationForReview(
   id: string,
   user: { id: string; isAdmin: boolean },
 ): Promise<ApplicationForReview | null> {
-  const where = user.isAdmin
-    ? { id, deletedAt: null }
-    : {
-        id,
-        deletedAt: null,
-        position: { managers: { some: { id: user.id } } },
-      };
-
   const application = await prisma.application.findFirst({
-    where,
+    where: { id, ...buildBaseWhere(user) },
     select: {
       id: true,
       status: true,
