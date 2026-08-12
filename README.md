@@ -106,6 +106,8 @@ Preview migrations run inside the Vercel build itself, driven by `vercel.json`'s
 
 `dev` and `main` are migrated the existing way, via `.github/workflows/migrate-db.yml` on push — that workflow is untouched by the above.
 
+Preview branches are a **project-wide, finite pool**: Neon allows 10 branches and 3 are permanently held (`dev`, production, `vercel-dev`), leaving **~7 usable for previews**. Every open PR with a preview deployment consumes one, and merging or closing that PR frees it automatically — there is no manual cleanup step. When the pool is exhausted the integration cannot attach a branch, so `DATABASE_URL_UNPOOLED` is never injected and the build fails in `scripts/vercel-preview-migrate.mjs` with an explicit branch-limit message rather than an opaque Prisma datasource error. To reclaim capacity, merge or close an open PR; the next push to a blocked branch redeploys into the freed slot.
+
 ## Project structure
 
 ```
