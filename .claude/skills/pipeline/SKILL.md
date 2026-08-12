@@ -158,7 +158,7 @@ Interpret intent, not literal syntax:
 
 - **"scope out X" / "break down X"** — Stage 0 deserves a stronger model than haiku; suggest the human run `/scope` in their main session.
 - **"status"** — re-run the tick queries **live** and build the table from them (never from session memory): each in-flight item + stage, each item waiting on the human, and each PR currently labeled `approved` (the live `gh pr list --assignee "@me" --label approved` result — a merged PR has already dropped out, so it must not appear). It **inherits the assignee filter**, so it reports only this operator's items; append the unowned sweep result as a separate **"unowned"** line so a stalled ticket is diagnosable from one command.
-- **"pause #N"** — remove the item's current trigger label; confirm what was removed.
+- **"pause #N"** — remove the item's current trigger label; confirm what was removed. Same ownership rule as opt-in: if the item belongs to **another operator**, say so and stop rather than touch its labels.
 - **"resume #N" / "retry #N"** — re-apply the trigger label for where it stalled (issue stuck in `planning` → `ready`; PR stuck in `revising` → `needs revision`; etc.). Same ownership rule as opt-in: if the item is **unassigned**, add `--add-assignee "@me"` in the same command (re-applying a trigger to an unassigned item is a no-op for every cockpit); if it belongs to **another operator**, say so and stop rather than re-trigger.
 
 ## Stop controls
@@ -167,8 +167,8 @@ A session-level **draining** flag gates dispatch. Interpret these intents:
 
 - **"drain" / "pause the pipeline" / "finish current, start nothing new"** — set draining = on. Stop dispatching new agents and **stop scheduling wakeups**; let in-flight agents finish and keep relaying their completions. Report what is still running (`TaskList`).
 - **"resume" / "start" / "unpause"** — set draining = off and run one tick immediately.
-- **"stop #N" / "cancel #N"** — stop a single item: remove its trigger label; if an agent is in flight for it, find that agent with `TaskList` and `TaskStop` it; then reset its in-flight label back to the trigger so it can be retried.
-- **"stop everything" / "halt"** — set draining = on, `TaskStop` every running stage agent (`TaskList`), and reset each one's in-flight label to its trigger. Report what was halted.
+- **"stop #N" / "cancel #N"** — stop a single item: remove its trigger label; if an agent is in flight for it, find that agent with `TaskList` and `TaskStop` it; then reset its in-flight label back to the trigger so it can be retried. Same ownership rule as opt-in: if the item belongs to **another operator**, say so and stop rather than act on it.
+- **"stop everything" / "halt"** —  set draining = on, `TaskStop` every running stage agent (`TaskList`), and reset each one's in-flight label to its trigger. Report what was halted. (No separate ownership check needed here — this only ever touches agents *this* cockpit dispatched, which are by construction all `@me`-assigned.)
 
 While draining, a tick still reports gates/announcements and relays completions, but dispatches nothing and schedules no wakeup. Note: closing the cockpit session also halts all dispatch (it is the only dispatcher), but cuts off in-flight background agents — `retry #N` after restart.
 
