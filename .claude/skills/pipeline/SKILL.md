@@ -168,7 +168,7 @@ A session-level **draining** flag gates dispatch. Interpret these intents:
 - **"drain" / "pause the pipeline" / "finish current, start nothing new"** — set draining = on. Stop dispatching new agents and **stop scheduling wakeups**; let in-flight agents finish and keep relaying their completions. Report what is still running (`TaskList`).
 - **"resume" / "start" / "unpause"** — set draining = off and run one tick immediately.
 - **"stop #N" / "cancel #N"** — stop a single item: remove its trigger label; if an agent is in flight for it, find that agent with `TaskList` and `TaskStop` it; then reset its in-flight label back to the trigger so it can be retried. Same ownership rule as opt-in: if the item belongs to **another operator**, say so and stop rather than act on it.
-- **"stop everything" / "halt"** —  set draining = on, `TaskStop` every running stage agent (`TaskList`), and reset each one's in-flight label to its trigger. Report what was halted. (No separate ownership check needed here — this only ever touches agents *this* cockpit dispatched, which are by construction all `@me`-assigned.)
+- **"stop everything" / "halt"** — set draining = on, `TaskStop` every running stage agent (`TaskList`), and reset each one's in-flight label to its trigger. Report what was halted. (No separate ownership check needed here — this only ever touches agents _this_ cockpit dispatched, which are by construction all `@me`-assigned.)
 
 While draining, a tick still reports gates/announcements and relays completions, but dispatches nothing and schedules no wakeup. Note: closing the cockpit session also halts all dispatch (it is the only dispatcher), but cuts off in-flight background agents — `retry #N` after restart.
 
