@@ -33,7 +33,7 @@ gh pr view $INPUT --repo SGAOperations/aplio --json labels,title,headRefName,bas
 
 If that fails (it's an issue number): `gh pr list --repo SGAOperations/aplio --search "closes #$INPUT" --json number,title,headRefName,baseRefName`. If no PR is found, stop and report: "No open PR found linked to issue #$INPUT. Nothing was changed."
 
-Confirm the PR is labeled `needs revision`. If not, stop and report current labels; change nothing.
+Confirm the PR is labeled `needs revision`. If instead it is labeled **`refresh branch`** (the cockpit's prompt says "refresh mode"), skip everything below and follow **Refresh mode** at the end of this file. If neither label is present, stop and report current labels; change nothing.
 
 ## Label swap (first action after pre-flight)
 
@@ -73,6 +73,8 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "needs revision
    - **e. Escalate (any ambiguous/semantic/never-touch).** `git rebase --abort`. Write a `## Pipeline Escalation` body to `.temp/conflict-<pr>.md` (Write tool) that lists each conflicting file, the specific ambiguous hunks, both sides of each conflict, and why autonomous resolution was not safe. Then `gh pr comment <pr-number> --repo SGAOperations/aplio --body-file .temp/conflict-<pr>.md`, `gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "revising" --add-label "needs human"`, and end with: `BLOCKED: rebase of <branch> onto origin/<base> has ambiguous conflicts in <files>; human decision needed.`
 
 3. **Apply fixes** per the review's findings. Fix **every finding the review flagged at this cycle's bar** (the review uses an escalating bar — on an early cycle that includes Low/Nit; fix them rather than deferring), all **introduced in this PR**. Skip a flagged item only if it's genuinely not an issue (explain the skip). **Preexisting** findings of any severity: do not fix — note them as suggested future tickets in the summary. No scope creep beyond the review.
+
+   **Never** attempt to fix a red `Vercel` check, and never treat one as a finding to address — it is infrastructure, almost always the Neon branch quota (see `.claude/docs/PIPELINE.md` → "Preview-database concurrency"). If a review body carries the `⚠️ Vercel` infrastructure note, ignore it.
 
 4. **CI checks** (fix everything; never `eslint-disable`). Issue each line below as its own separate Bash call — never prefixed with `cd`, never pasted together as one multi-line script, and never with an extra `npx prettier`/`npx tsc` line appended:
 
@@ -120,3 +122,22 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "needs revision
 ```bash
 gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "revising" --add-label "ready for review"
 ```
+
+## Refresh mode
+
+Entered **instead of** the Work steps above when the PR carries `refresh branch`. The job is a rebase and a force-push — **no review reading, no `npm ci`, no `prisma:generate`, no code edits, no new commits**. Its purpose is to trigger a fresh Vercel preview deployment now that a Neon branch slot has freed (`.claude/docs/PIPELINE.md` → "Preview-database concurrency"); **the push is the redeploy.**
+
+1. **Pre-flight.** `gh pr view <pr-number> --repo SGAOperations/aplio --json labels,headRefName,baseRefName,headRefOid` — confirm `refresh branch` is present and **record `headRefOid`**. If it's absent, stop and report the labels; change nothing.
+2. **Label swap.** `gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "refresh branch" --add-label "refreshing"`. **Leave every other label untouched** — an `approved` PR stays `approved`.
+3. **Rebase.** Each as its own Bash call:
+
+   ```bash
+   git fetch origin
+   git checkout --detach origin/<headRefName>
+   git rebase origin/<baseRefName>
+   ```
+
+4. **Conflicts** → the **Rebase conflict protocol** in step 2 above, unchanged (auto-resolve the structurally unambiguous, abort + `## Pipeline Escalation` + `BLOCKED:` otherwise). On escalation remove **both** `refreshing` **and** `approved` and add `needs human` — the PR is no longer merge-ready.
+5. **No-op check.** If `git rev-parse HEAD` equals the recorded `headRefOid`, the rebase changed nothing: **skip the push**, remove `refreshing`, and report `refresh: no-op (already current)`. **Never** fabricate an empty commit to force a deployment.
+6. **Push.** `git push --force-with-lease origin HEAD:<headRefName>`.
+7. **Handoff.** `gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "refreshing"` and add **nothing** — never `ready for review`. Report the new SHA and that a fresh preview deployment was triggered. **No PR comment.**
