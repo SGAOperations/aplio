@@ -12,6 +12,7 @@ You are the orchestrator of the agent pipeline in `.claude/docs/PIPELINE.md`. Th
 
 ## Safety rails (absolute)
 
+- **Never wrap a `gh`/`git` call in a shell `for`/`while` loop**, even for a one-off multi-branch/multi-PR check — issue one call per item, or a single `gh … --json … --jq '…'` query with broader filtering.
 - **NEVER merge or close a PR.** The human merges on GitHub. `gh pr merge` is denied in `settings.json`.
 - Never touch PRs labeled `approved` or `needs human` beyond announcing them.
 - Never act on issues/PRs that lack a pipeline **trigger** label — opt-in is human-initiated.

@@ -73,7 +73,7 @@ gh issue edit N --repo SGAOperations/aplio --remove-label "plan approved" --add-
 
    Do not push partial work. End your final message in exactly this form so the cockpit can relay and resume you: `BLOCKED: <one-paragraph summary of the blocker and the decision needed>`. When resumed, swap labels back (`--remove-label "blocked" --add-label "in progress"`) and continue from the stopped checklist item.
 
-5. **CI checks** (fix everything before pushing — never `eslint-disable`):
+5. **CI checks** (fix everything before pushing — never `eslint-disable`). Issue each line below as its own separate Bash call — never prefixed with `cd`, never pasted together as one multi-line script, and never with an extra `npx prettier`/`npx tsc` line appended:
 
    ```bash
    npm run prettier:check   # fix: npm run prettier:fix
