@@ -262,7 +262,16 @@ export type AdminUserListItem = Prisma.UserGetPayload<{
     managedPositions: { select: { id: true; title: true } };
     _count: {
       select: {
-        applications: { where: { deletedAt: null; status: { not: 'draft' } } };
+        // Mirrors prisma/data/users.ts#getUsersForAdmin's `applications` where
+        // (PUBLISHED_POSITION_WHERE inlined — a value import can't feed a type
+        // position) so the payload type stays in lockstep with the query.
+        applications: {
+          where: {
+            deletedAt: null;
+            status: { not: 'draft' };
+            position: { deletedAt: null; status: { not: 'draft' } };
+          };
+        };
       };
     };
   };

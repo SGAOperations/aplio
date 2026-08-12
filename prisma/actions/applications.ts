@@ -11,11 +11,13 @@ import type {
   GlobalApplicationAnswer,
   GlobalQuestion,
   PositionApplicationAnswer,
+  Prisma,
 } from '@/prisma/client';
 
 import { getCurrentUser } from '@/lib/auth/server';
 import {
   NON_REVIEWABLE_APPLICATION_STATUSES,
+  PUBLISHED_POSITION_WHERE,
   REVIEWER_APPLICATION_STATUSES,
   TERMINAL_DECISION_STATUSES,
 } from '@/lib/constants';
@@ -30,6 +32,46 @@ import {
 type GlobalAnswerWithQuestion = GlobalAnswer & {
   globalQuestion: GlobalQuestion;
 };
+
+type ApplicationForRequiredAnswers = {
+  globalAnswers: GlobalApplicationAnswer[];
+  positionAnswers: PositionApplicationAnswer[];
+  position: { questions: { id: string; required: boolean }[] };
+};
+
+// Shared by submitApplication and reopenApplication so the two gates can't
+// drift. Not exported — this file's 'use server' directive requires every
+// export to be an async server action. Accepts a Prisma.TransactionClient
+// (PrismaClient is structurally assignable) so callers can pass either the
+// bare client or a transaction.
+async function findMissingRequiredAnswers(
+  client: Prisma.TransactionClient,
+  application: ApplicationForRequiredAnswers,
+): Promise<'global' | 'position' | null> {
+  const requiredGlobalQuestions = await client.globalQuestion.findMany({
+    where: { required: true, deletedAt: null },
+  });
+
+  const hasUnansweredGlobal = requiredGlobalQuestions.some(
+    (q) =>
+      !application.globalAnswers.some(
+        (a) => a.globalQuestionId === q.id && toStringArray(a.value).length > 0,
+      ),
+  );
+  if (hasUnansweredGlobal) return 'global';
+
+  const hasUnansweredPosition = application.position.questions.some(
+    (q) =>
+      q.required &&
+      !application.positionAnswers.some(
+        (a) =>
+          a.positionQuestionId === q.id && toStringArray(a.value).length > 0,
+      ),
+  );
+  if (hasUnansweredPosition) return 'position';
+
+  return null;
+}
 
 const createDraftApplicationSchema = z.object({
   positionId: z.string().min(1),
@@ -229,6 +271,7 @@ export async function submitApplication(
       positionAnswers: true,
       position: {
         select: {
+          deletedAt: true,
           status: true,
           opensAt: true,
           closesAt: true,
@@ -241,37 +284,22 @@ export async function submitApplication(
   if (!application || application.userId !== currentUser.id)
     return { error: 'Unauthorized' };
 
+  // Same copy as createDraftApplication's equivalent gate — a draft's position
+  // can be soft-deleted after the draft was created, before submit.
+  if (application.position.deletedAt !== null)
+    return { error: 'This position is no longer available.' };
+
   // Window re-check: a window can close while a draft is open. Checked before
   // required-answer validation so a closed window gives the clearest message.
   if (!isAcceptingApplications(application.position))
     return { error: 'This position is no longer accepting applications.' };
 
-  const requiredGlobalQuestions = await prisma.globalQuestion.findMany({
-    where: { required: true, deletedAt: null },
-  });
-
-  const hasUnansweredGlobal = requiredGlobalQuestions.some(
-    (q) =>
-      !application.globalAnswers.some(
-        (a) => a.globalQuestionId === q.id && toStringArray(a.value).length > 0,
-      ),
-  );
-
-  if (hasUnansweredGlobal)
+  const missing = await findMissingRequiredAnswers(prisma, application);
+  if (missing === 'global')
     return {
       error: 'Please answer all required profile questions before submitting.',
     };
-
-  const hasUnansweredPosition = application.position.questions.some(
-    (q) =>
-      q.required &&
-      !application.positionAnswers.some(
-        (a) =>
-          a.positionQuestionId === q.id && toStringArray(a.value).length > 0,
-      ),
-  );
-
-  if (hasUnansweredPosition)
+  if (missing === 'position')
     return { error: 'Please answer all required questions before submitting.' };
 
   const updated = await prisma.application.update({
@@ -303,19 +331,25 @@ export async function updateApplicationStatus(
   const { applicationId, status } = parsed.data;
 
   // Authorization folded into the query — same pattern as getApplicationForReview.
-  // Returns null for non-existent, soft-deleted, withdrawn, or unauthorized callers.
+  // Returns null for non-existent, soft-deleted, withdrawn, draft/deleted-position,
+  // or unauthorized callers.
 
   const where = user.isAdmin
     ? {
         id: applicationId,
         deletedAt: null,
         status: { notIn: NON_REVIEWABLE_APPLICATION_STATUSES },
+        position: PUBLISHED_POSITION_WHERE,
       }
     : {
         id: applicationId,
         deletedAt: null,
         status: { notIn: NON_REVIEWABLE_APPLICATION_STATUSES },
-        position: { managers: { some: { id: user.id } } },
+        // Merge, don't overwrite — see prisma/data/applications.ts#buildBaseWhere.
+        position: {
+          ...PUBLISHED_POSITION_WHERE,
+          managers: { some: { id: user.id } },
+        },
       };
 
   const application = await prisma.application.findFirst({
@@ -366,12 +400,17 @@ export async function updateApplicationStatuses(
         id: { in: applicationIds },
         deletedAt: null,
         status: { notIn: NON_REVIEWABLE_APPLICATION_STATUSES },
+        position: PUBLISHED_POSITION_WHERE,
       }
     : {
         id: { in: applicationIds },
         deletedAt: null,
         status: { notIn: NON_REVIEWABLE_APPLICATION_STATUSES },
-        position: { managers: { some: { id: user.id } } },
+        // Merge, don't overwrite — see prisma/data/applications.ts#buildBaseWhere.
+        position: {
+          ...PUBLISHED_POSITION_WHERE,
+          managers: { some: { id: user.id } },
+        },
       };
 
   const result = await prisma.application.updateMany({
@@ -423,18 +462,79 @@ export async function reopenApplication(
   const parsed = applicationIdSchema.safeParse({ applicationId });
   if (!parsed.success) throw new Error('Invalid input');
 
-  const result = await prisma.application.updateMany({
-    where: {
-      id: parsed.data.applicationId,
-      userId: currentUser.id,
-      deletedAt: null,
-      status: 'withdrawn',
-    },
-    data: { status: 'applied', updatedById: currentUser.id },
+  // Single `now` shared by the window check below, to avoid a race between
+  // reads at slightly different instants inside the transaction.
+  const now = new Date();
+
+  const result = await prisma.$transaction(async (tx) => {
+    // Ownership and source status are folded into the where clause (no IDOR
+    // surface). Unlike submitApplication, this read-then-write runs inside
+    // the $transaction below to keep the check and the update atomic.
+    const application = await tx.application.findFirst({
+      where: {
+        id: parsed.data.applicationId,
+        userId: currentUser.id,
+        deletedAt: null,
+        status: 'withdrawn',
+      },
+      include: {
+        globalAnswers: true,
+        positionAnswers: true,
+        position: {
+          select: {
+            deletedAt: true,
+            status: true,
+            opensAt: true,
+            closesAt: true,
+            questions: { where: { deletedAt: null } },
+          },
+        },
+      },
+    });
+
+    // Not found / not owned / not withdrawn / a concurrent race. Reachable
+    // normally from a stale /my-applications tab, so this stays a toast.
+    if (!application)
+      return { error: 'This application can no longer be re-opened.' };
+
+    if (application.position.deletedAt !== null)
+      return { error: 'This position is no longer available.' };
+
+    // Covers draft, closed, before opensAt, and after closesAt.
+    if (!isAcceptingApplications(application.position, now))
+      return { error: 'This position is no longer accepting applications.' };
+
+    const missing = await findMissingRequiredAnswers(tx, application);
+    if (missing === 'global')
+      return {
+        error:
+          'Answer all required profile questions before re-opening this application.',
+      };
+    if (missing === 'position')
+      return {
+        error:
+          'Answer all required questions on this application before re-opening it.',
+      };
+
+    // updateMany (not update) to keep the same ownership/status where clause
+    // as the read — count === 0 means a concurrent transition beat us here.
+    const updateResult = await tx.application.updateMany({
+      where: {
+        id: parsed.data.applicationId,
+        userId: currentUser.id,
+        deletedAt: null,
+        status: 'withdrawn',
+      },
+      // submittedAt is left untouched — it reflects the original submission
+      // time reviewers sort by, not the re-open time.
+      data: { status: 'applied', updatedById: currentUser.id },
+    });
+
+    if (updateResult.count === 0)
+      return { error: 'This application can no longer be re-opened.' };
   });
 
-  if (result.count === 0)
-    return { error: 'This application can no longer be re-opened.' };
+  if (result && 'error' in result) return result;
 
   revalidatePath('/my-applications');
   revalidatePath('/applications');

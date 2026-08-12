@@ -1,4 +1,4 @@
-import type { QuestionType } from '../client';
+import type { PositionStatus, QuestionType } from '../client';
 
 // Hand-rolled rather than derived from a single Prisma `*CreateManyInput`
 // because this shape is shared across two different models
@@ -16,4 +16,8 @@ export interface PositionDef {
   title: string;
   description: string;
   questions: QuestionDef[];
+  /** Defaults to 'open' — set 'draft' for the #348 regression fixture. */
+  status?: PositionStatus;
+  /** Soft-deletes the position (deletedAt/deletedById) — the #348 regression fixture. */
+  deleted?: boolean;
 }

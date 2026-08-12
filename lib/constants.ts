@@ -1,7 +1,7 @@
 import { z } from 'zod/v4';
 
 import { $Enums } from '@/prisma/client';
-import type { PositionStatus, QuestionType } from '@/prisma/client';
+import type { PositionStatus, Prisma, QuestionType } from '@/prisma/client';
 
 import type { PositionAvailability } from '@/lib/types';
 
@@ -305,6 +305,22 @@ export const STATUS_VARIANTS: Record<PositionStatus, BadgeVariant> = {
   open: 'default',
   closed: 'outline',
 };
+
+// The rule, stated once (issue #348): `deletedAt` means "does not exist"
+// everywhere else in this codebase, so a soft-deleted position's applications
+// are dead links and must be hidden on every cross-position surface. `draft`
+// positions are unpublished, so applications against one are hidden there too
+// — except on position-scoped surfaces (a manager reverting an open position
+// to draft still sees its applications on the position card), which use
+// VISIBLE_POSITION_WHERE instead.
+export const VISIBLE_POSITION_WHERE = {
+  deletedAt: null,
+} satisfies Prisma.PositionWhereInput;
+
+export const PUBLISHED_POSITION_WHERE = {
+  deletedAt: null,
+  status: { not: 'draft' },
+} satisfies Prisma.PositionWhereInput;
 
 export const QUESTION_TYPE_OPTIONS: { value: QuestionType; label: string }[] =
   QUESTION_TYPE_VALUES.map((value) => ({
