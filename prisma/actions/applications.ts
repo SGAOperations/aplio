@@ -17,6 +17,7 @@ import type {
 import { getCurrentUser } from '@/lib/auth/server';
 import {
   NON_REVIEWABLE_APPLICATION_STATUSES,
+  PUBLISHED_POSITION_WHERE,
   REVIEWER_APPLICATION_STATUSES,
   TERMINAL_DECISION_STATUSES,
 } from '@/lib/constants';
@@ -270,6 +271,7 @@ export async function submitApplication(
       positionAnswers: true,
       position: {
         select: {
+          deletedAt: true,
           status: true,
           opensAt: true,
           closesAt: true,
@@ -281,6 +283,11 @@ export async function submitApplication(
 
   if (!application || application.userId !== currentUser.id)
     return { error: 'Unauthorized' };
+
+  // Same copy as createDraftApplication's equivalent gate — a draft's position
+  // can be soft-deleted after the draft was created, before submit.
+  if (application.position.deletedAt !== null)
+    return { error: 'This position is no longer available.' };
 
   // Window re-check: a window can close while a draft is open. Checked before
   // required-answer validation so a closed window gives the clearest message.
@@ -324,19 +331,25 @@ export async function updateApplicationStatus(
   const { applicationId, status } = parsed.data;
 
   // Authorization folded into the query — same pattern as getApplicationForReview.
-  // Returns null for non-existent, soft-deleted, withdrawn, or unauthorized callers.
+  // Returns null for non-existent, soft-deleted, withdrawn, draft/deleted-position,
+  // or unauthorized callers.
 
   const where = user.isAdmin
     ? {
         id: applicationId,
         deletedAt: null,
         status: { notIn: NON_REVIEWABLE_APPLICATION_STATUSES },
+        position: PUBLISHED_POSITION_WHERE,
       }
     : {
         id: applicationId,
         deletedAt: null,
         status: { notIn: NON_REVIEWABLE_APPLICATION_STATUSES },
-        position: { managers: { some: { id: user.id } } },
+        // Merge, don't overwrite — see prisma/data/applications.ts#buildBaseWhere.
+        position: {
+          ...PUBLISHED_POSITION_WHERE,
+          managers: { some: { id: user.id } },
+        },
       };
 
   const application = await prisma.application.findFirst({
@@ -387,12 +400,17 @@ export async function updateApplicationStatuses(
         id: { in: applicationIds },
         deletedAt: null,
         status: { notIn: NON_REVIEWABLE_APPLICATION_STATUSES },
+        position: PUBLISHED_POSITION_WHERE,
       }
     : {
         id: { in: applicationIds },
         deletedAt: null,
         status: { notIn: NON_REVIEWABLE_APPLICATION_STATUSES },
-        position: { managers: { some: { id: user.id } } },
+        // Merge, don't overwrite — see prisma/data/applications.ts#buildBaseWhere.
+        position: {
+          ...PUBLISHED_POSITION_WHERE,
+          managers: { some: { id: user.id } },
+        },
       };
 
   const result = await prisma.application.updateMany({

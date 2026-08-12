@@ -110,6 +110,11 @@ export async function updatePosition(
   revalidatePath('/positions');
   revalidatePath(`/positions/${id}`);
   revalidatePath(`/positions/${id}/edit`);
+  // status can flip open <-> draft here, which changes which applications are
+  // visible on every cross-position surface (issue #348) — clear them too.
+  revalidatePath('/');
+  revalidatePath('/my-applications');
+  revalidatePath('/applications');
 }
 
 export async function deletePosition(
@@ -131,6 +136,10 @@ export async function deletePosition(
   if (deleteResult.count === 0) return { error: 'Not found' };
 
   revalidatePath('/positions');
+  // Soft-deleting hides this position's applications everywhere (issue #348).
+  revalidatePath('/');
+  revalidatePath('/my-applications');
+  revalidatePath('/applications');
 }
 
 export async function addPositionManager(
