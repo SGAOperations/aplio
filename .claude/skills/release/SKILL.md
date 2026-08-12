@@ -9,7 +9,7 @@ allowed-tools: Read, Edit, Write, AskUserQuestion, ScheduleWakeup, Bash(git *), 
 
 **Trigger:** Manual — a human runs `/release <version>`.
 **Input:** `$ARGUMENTS` — the target version (bare semver `1.2.3`, or `v1.2.3`; the leading `v` is stripped).
-**Repo:** `SGAOperations/aplio`. **Assignee for both PRs:** `b-at-neu`.
+**Repo:** `SGAOperations/aplio`. **Assignee for both PRs:** the operator running `/release`.
 
 ## What it does (one invocation, end to end)
 
@@ -76,7 +76,7 @@ Guard: only run Phase A if the working tree is clean (`git status --porcelain` e
    ```
    ```bash
    gh pr create --repo SGAOperations/aplio --base dev --head bump/v<version> \
-     --title "bump version to v<version>" --body-file .temp/bump-pr.md --assignee b-at-neu
+     --title "bump version to v<version>" --body-file .temp/bump-pr.md --assignee "@me"
    ```
    Note the bump PR URL.
 
@@ -119,7 +119,7 @@ The body is **minimal**: short bullets only, **ticket number first** (`- #169 sh
    ```bash
    gh pr list --repo SGAOperations/aplio --base main --head dev --state open --json number --jq '.[0].number'
    ```
-   - **None open:** `gh pr create --repo SGAOperations/aplio --base main --head dev --title "Release v<version>" --body-file .temp/release-pr.md --assignee b-at-neu`
+   - **None open:** `gh pr create --repo SGAOperations/aplio --base main --head dev --title "Release v<version>" --body-file .temp/release-pr.md --assignee "@me"`
    - **One open:** `gh pr edit <existing-number> --repo SGAOperations/aplio --title "Release v<version>" --body-file .temp/release-pr.md`
 
 After both PRs exist, tell the human once: **merge the bump PR into `dev` first, then merge the release PR into `main`** — and that you'll watch and publish automatically. Then fall through to "Watch for the merge".
