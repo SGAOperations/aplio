@@ -30,8 +30,6 @@ export function ApplicationStatusControl({
 }: ApplicationStatusControlProps) {
   const [isPending, startTransition] = useTransition();
 
-  const isDraft = currentStatus === 'draft';
-
   // Reviewer-selectable options — 'draft' is already excluded from this constant.
   const options = REVIEWER_APPLICATION_STATUS_OPTIONS;
 
@@ -64,12 +62,12 @@ export function ApplicationStatusControl({
           />
         )}
         <Select
-          value={isDraft ? undefined : currentStatus}
+          value={currentStatus}
           onValueChange={handleValueChange}
-          disabled={isPending || isDraft}
+          disabled={isPending}
         >
           <SelectTrigger id="application-status" className="w-52">
-            <SelectValue placeholder={isDraft ? 'Draft' : undefined} />
+            <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {options.map((opt) => (
@@ -80,11 +78,6 @@ export function ApplicationStatusControl({
           </SelectContent>
         </Select>
       </div>
-      {isDraft && (
-        <p className="text-muted-foreground text-sm">
-          This application has not been submitted yet.
-        </p>
-      )}
     </div>
   );
 }
