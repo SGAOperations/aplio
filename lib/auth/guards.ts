@@ -81,3 +81,16 @@ export async function requirePositionAccessOr404(
   if (!(await checkPositionAccess(positionId, user))) notFound();
   return user;
 }
+
+// Variant for callers that already fetched the position's managers list
+// (e.g. the edit page's initial data fetch) — reuses it instead of
+// re-querying the DB for the same check `requirePositionAccessOr404` above
+// would otherwise run.
+export async function requirePositionManagerOr404(
+  managers: { id: string }[],
+): Promise<User> {
+  const user = await getCurrentUser();
+  if (!user.isAdmin && !managers.some((manager) => manager.id === user.id))
+    notFound();
+  return user;
+}

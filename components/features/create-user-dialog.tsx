@@ -34,18 +34,15 @@ interface CreateUserDialogProps {
 
 export function CreateUserDialog({ trigger }: CreateUserDialogProps) {
   async function onSubmit(data: CreateUserFormValues): Promise<boolean> {
-    try {
-      const result = await createUser(data);
-      if (result?.error) {
-        toast.error(result.error);
-        return false;
-      }
-      toast.success(data.isAdmin ? 'Admin user created.' : 'User created.');
-      return true;
-    } catch {
-      toast.error('Something went wrong. Please try again.');
+    // An unexpected throw propagates to FormDialog's own try/catch, which
+    // shows the same generic toast — no need to duplicate it here.
+    const result = await createUser(data);
+    if (result?.error) {
+      toast.error(result.error);
       return false;
     }
+    toast.success(data.isAdmin ? 'Admin user created.' : 'User created.');
+    return true;
   }
 
   return (

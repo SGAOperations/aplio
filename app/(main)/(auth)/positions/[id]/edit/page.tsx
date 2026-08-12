@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 
 import { getPositionForEdit } from '@/prisma/data/positions';
 
-import { requirePositionAccessOr404 } from '@/lib/auth/guards';
+import { requirePositionManagerOr404 } from '@/lib/auth/guards';
 
 import { PositionDetailsForm } from '@/components/features/position-details-form';
 import { PositionEditTabs } from '@/components/features/position-edit-tabs';
@@ -29,16 +29,18 @@ export default async function EditPositionPage({
 }: EditPositionPageProps) {
   const { id } = await params;
 
-  // Fetch position after confirming user is authenticated (inside the data
-  // call chain via getCurrentUser); a missing position is a genuine 404, and
-  // must be checked before the access guard so a deleted-position link gives
-  // the same 404 either way rather than depending on guard-check ordering.
+  // Fetch position after confirming user is authenticated (enforced by the
+  // (auth) route group's layout.tsx); a missing position is a genuine 404,
+  // and must be checked before the access guard so a deleted-position link
+  // gives the same 404 either way rather than depending on guard-check
+  // ordering.
   const position = await getPositionForEdit(id);
   if (!position) notFound();
 
   // Access check: admin or manager of this specific position, else 404 —
-  // same denial as a genuinely missing position (no existence leak).
-  await requirePositionAccessOr404(id);
+  // same denial as a genuinely missing position (no existence leak). Reuses
+  // the managers list already fetched above instead of re-querying it.
+  await requirePositionManagerOr404(position.managers);
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
