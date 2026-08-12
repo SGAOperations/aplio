@@ -26,17 +26,18 @@ export async function getManagedPositionIds(
 }
 
 // Returns true if the user is an admin or a manager of the given position.
-// Used as the shared authorization guard across position actions.
+// This is the query behind lib/auth/guards.ts's requirePositionAccess /
+// requirePositionAccessOr404 — call those from actions/pages instead of this
+// function directly, so denial handling stays centralized (#356).
 export async function checkPositionAccess(
   positionId: string,
-  userId: string,
-  isAdmin: boolean,
+  user: { id: string; isAdmin: boolean },
 ): Promise<boolean> {
-  if (isAdmin) return true;
+  if (user.isAdmin) return true;
 
   const position = await prisma.position.findFirst({
     where: { id: positionId, deletedAt: null },
-    select: { managers: { where: { id: userId }, select: { id: true } } },
+    select: { managers: { where: { id: user.id }, select: { id: true } } },
   });
 
   return (position?.managers.length ?? 0) > 0;

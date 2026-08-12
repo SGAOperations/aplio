@@ -49,14 +49,19 @@ export function PositionQuestionsSection({
   function handleDelete(id: string) {
     setDeletingId(id);
     startTransition(async () => {
-      const result = await deletePositionQuestion({ id, positionId });
-      if (result && 'error' in result) {
-        toast.error(result.error);
-      } else {
-        setQuestions((prev) => prev.filter((q) => q.id !== id));
-        toast.success('Question deleted');
+      try {
+        const result = await deletePositionQuestion({ id, positionId });
+        if (result && 'error' in result) {
+          toast.error(result.error);
+        } else {
+          setQuestions((prev) => prev.filter((q) => q.id !== id));
+          toast.success('Question deleted');
+        }
+      } catch {
+        toast.error('Something went wrong. Please try again.');
+      } finally {
+        setDeletingId(null);
       }
-      setDeletingId(null);
     });
   }
 

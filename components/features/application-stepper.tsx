@@ -358,13 +358,17 @@ export function ApplicationStepper({
   }
 
   const onSubmit = handleSubmit(async () => {
-    const result = await submitApplication(application.id);
-    if (isError(result)) {
-      setError('root', { message: result.error });
-      toast.error(result.error);
-    } else {
-      toast.success('Application submitted');
-      router.push('/applications');
+    try {
+      const result = await submitApplication(application.id);
+      if (isError(result)) {
+        setError('root', { message: result.error });
+        toast.error(result.error);
+      } else {
+        toast.success('Application submitted');
+        router.push('/applications');
+      }
+    } catch {
+      toast.error('Something went wrong. Please try again.');
     }
   });
 

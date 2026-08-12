@@ -90,33 +90,37 @@ export function QuestionForm({
   const isChoiceType = CHOICE_TYPES.includes(type as ChoiceType);
 
   async function onSubmit(data: QuestionFormValues) {
-    if (question) {
-      const result = await updatePositionQuestion({
-        id: question.id,
-        positionId,
-        ...data,
-      });
-      if (result && 'error' in result) {
-        toast.error(result.error);
-        return;
+    try {
+      if (question) {
+        const result = await updatePositionQuestion({
+          id: question.id,
+          positionId,
+          ...data,
+        });
+        if (result && 'error' in result) {
+          toast.error(result.error);
+          return;
+        }
+        toast.success('Question updated');
+        onClose();
+        onSuccess({
+          id: question.id,
+          positionId,
+          order: question.order,
+          ...data,
+        });
+      } else {
+        const result = await createPositionQuestion({ positionId, ...data });
+        if (result && 'error' in result) {
+          toast.error(result.error);
+          return;
+        }
+        toast.success('Question added');
+        onClose();
+        onSuccess({ id: result.id, positionId, order: result.order, ...data });
       }
-      toast.success('Question updated');
-      onClose();
-      onSuccess({
-        id: question.id,
-        positionId,
-        order: question.order,
-        ...data,
-      });
-    } else {
-      const result = await createPositionQuestion({ positionId, ...data });
-      if (result && 'error' in result) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success('Question added');
-      onClose();
-      onSuccess({ id: result.id, positionId, order: result.order, ...data });
+    } catch {
+      toast.error('Something went wrong. Please try again.');
     }
   }
 

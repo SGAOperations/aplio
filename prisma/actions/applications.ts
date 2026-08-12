@@ -14,6 +14,7 @@ import type {
   Prisma,
 } from '@/prisma/client';
 
+import { requireOwnership } from '@/lib/auth/guards';
 import { getCurrentUser } from '@/lib/auth/server';
 import {
   NON_REVIEWABLE_APPLICATION_STATUSES,
@@ -174,8 +175,7 @@ export async function createOrUpdateApplicationAnswer(params: {
     select: { userId: true, positionId: true },
   });
 
-  if (!application || application.userId !== currentUser.id)
-    return { error: 'Unauthorized' };
+  requireOwnership(application, currentUser.id);
 
   if (isGlobal) {
     const question = await prisma.globalQuestion.findUnique({
@@ -281,8 +281,7 @@ export async function submitApplication(
     },
   });
 
-  if (!application || application.userId !== currentUser.id)
-    return { error: 'Unauthorized' };
+  requireOwnership(application, currentUser.id);
 
   // Same copy as createDraftApplication's equivalent gate — a draft's position
   // can be soft-deleted after the draft was created, before submit.

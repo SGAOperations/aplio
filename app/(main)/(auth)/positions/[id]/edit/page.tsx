@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
-import { redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 
 import { getPositionForEdit } from '@/prisma/data/positions';
 
-import { getCurrentUser } from '@/lib/auth/server';
+import { requirePositionAccessOr404 } from '@/lib/auth/guards';
 
 import { PositionDetailsForm } from '@/components/features/position-details-form';
 import { PositionEditTabs } from '@/components/features/position-edit-tabs';
@@ -28,21 +28,17 @@ export default async function EditPositionPage({
   params,
 }: EditPositionPageProps) {
   const { id } = await params;
-  const user = await getCurrentUser();
 
-  // Fetch position after confirming user is authenticated; access check below verifies
-  // admin or manager status before the page renders.
+  // Fetch position after confirming user is authenticated (inside the data
+  // call chain via getCurrentUser); a missing position is a genuine 404, and
+  // must be checked before the access guard so a deleted-position link gives
+  // the same 404 either way rather than depending on guard-check ordering.
   const position = await getPositionForEdit(id);
+  if (!position) notFound();
 
-  if (!position) redirect('/positions');
-
-  // Access check: admins always have access; managers are confirmed after the DB fetch
-  // because the manager list is part of the position record.
-  const isPositionManager = position.managers.some((m) => m.id === user.id);
-  if (!user.isAdmin && !isPositionManager) redirect(`/positions/${id}`);
-
-  // canManage: admin always; managers confirmed above via the position record.
-  const canManage = user.isAdmin || isPositionManager;
+  // Access check: admin or manager of this specific position, else 404 —
+  // same denial as a genuinely missing position (no existence leak).
+  await requirePositionAccessOr404(id);
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
@@ -73,13 +69,10 @@ export default async function EditPositionPage({
           />
         }
         managersContent={
-          canManage ? (
-            <PositionManagersSection
-              positionId={position.id}
-              initialManagers={position.managers}
-              canManage={canManage}
-            />
-          ) : null
+          <PositionManagersSection
+            positionId={position.id}
+            initialManagers={position.managers}
+          />
         }
       />
     </div>

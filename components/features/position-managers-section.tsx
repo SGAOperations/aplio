@@ -29,13 +29,11 @@ interface UserResult {
 interface PositionManagersSectionProps {
   positionId: string;
   initialManagers: PositionManager[];
-  canManage: boolean;
 }
 
 export function PositionManagersSection({
   positionId,
   initialManagers,
-  canManage,
 }: PositionManagersSectionProps) {
   const [managers, setManagers] = useState<PositionManager[]>(initialManagers);
   const [query, setQuery] = useState('');
@@ -87,35 +85,48 @@ export function PositionManagersSection({
   function handleAdd(user: UserResult) {
     setAddingId(user.id);
     startTransition(async () => {
-      const result = await addPositionManager({ positionId, userId: user.id });
+      try {
+        const result = await addPositionManager({
+          positionId,
+          userId: user.id,
+        });
 
-      if (result && 'error' in result) {
-        toast.error(result.error);
-      } else {
-        setManagers((prev) => [
-          ...prev,
-          { id: user.id, name: user.displayName, email: user.primaryEmail },
-        ]);
-        setResults([]);
-        setQuery('');
-        toast.success('Manager added');
+        if (result && 'error' in result) {
+          toast.error(result.error);
+        } else {
+          setManagers((prev) => [
+            ...prev,
+            { id: user.id, name: user.displayName, email: user.primaryEmail },
+          ]);
+          setResults([]);
+          setQuery('');
+          toast.success('Manager added');
+        }
+      } catch {
+        toast.error('Something went wrong. Please try again.');
+      } finally {
+        setAddingId(null);
       }
-      setAddingId(null);
     });
   }
 
   function handleRemove(userId: string) {
     setRemovingId(userId);
     startTransition(async () => {
-      const result = await removePositionManager({ positionId, userId });
+      try {
+        const result = await removePositionManager({ positionId, userId });
 
-      if (result && 'error' in result) {
-        toast.error(result.error);
-      } else {
-        setManagers((prev) => prev.filter((m) => m.id !== userId));
-        toast.success('Manager removed');
+        if (result && 'error' in result) {
+          toast.error(result.error);
+        } else {
+          setManagers((prev) => prev.filter((m) => m.id !== userId));
+          toast.success('Manager removed');
+        }
+      } catch {
+        toast.error('Something went wrong. Please try again.');
+      } finally {
+        setRemovingId(null);
       }
-      setRemovingId(null);
     });
   }
 
@@ -142,81 +153,77 @@ export function PositionManagersSection({
                   </p>
                 )}
               </div>
-              {canManage && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleRemove(manager.id)}
-                  disabled={removingId === manager.id}
-                >
-                  {removingId === manager.id ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <UserMinus className="size-4" />
-                  )}
-                  <span className="sr-only">Remove manager</span>
-                </Button>
-              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleRemove(manager.id)}
+                disabled={removingId === manager.id}
+              >
+                {removingId === manager.id ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <UserMinus className="size-4" />
+                )}
+                <span className="sr-only">Remove manager</span>
+              </Button>
             </li>
           ))}
         </ul>
       )}
 
-      {canManage && (
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="manager-search">Add Manager</Label>
-          <div className="relative">
-            <Input
-              id="manager-search"
-              value={query}
-              onChange={(e) => handleQueryChange(e.target.value)}
-              placeholder="Search by name or email"
-              autoComplete="off"
-              maxLength={200}
-            />
-            {isSearching && (
-              <Loader2 className="text-muted-foreground absolute top-2 right-2.5 size-4 animate-spin" />
-            )}
-          </div>
-          {results.length > 0 && (
-            <ul className="flex flex-col gap-1 rounded-md border p-1">
-              {results.map((user) => (
-                <li key={user.id}>
-                  <button
-                    type="button"
-                    onClick={() => handleAdd(user)}
-                    disabled={addingId === user.id}
-                    className="hover:bg-accent flex w-full items-center justify-between rounded px-3 py-2 text-left text-sm disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <div>
-                      <span className="font-medium">{user.displayName}</span>
-                      <span className="text-muted-foreground ml-2 text-xs">
-                        {user.primaryEmail}
-                      </span>
-                    </div>
-                    {addingId === user.id ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <UserPlus className="size-4" />
-                    )}
-                  </button>
-                </li>
-              ))}
-            </ul>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="manager-search">Add Manager</Label>
+        <div className="relative">
+          <Input
+            id="manager-search"
+            value={query}
+            onChange={(e) => handleQueryChange(e.target.value)}
+            placeholder="Search by name or email"
+            autoComplete="off"
+            maxLength={200}
+          />
+          {isSearching && (
+            <Loader2 className="text-muted-foreground absolute top-2 right-2.5 size-4 animate-spin" />
           )}
-          {!isSearching && searchFailed && (
-            <p className="text-destructive text-sm">
-              Search failed. Try a shorter query.
-            </p>
-          )}
-          {!isSearching &&
-            !searchFailed &&
-            query.trim() &&
-            results.length === 0 && (
-              <p className="text-muted-foreground text-sm">No users found.</p>
-            )}
         </div>
-      )}
+        {results.length > 0 && (
+          <ul className="flex flex-col gap-1 rounded-md border p-1">
+            {results.map((user) => (
+              <li key={user.id}>
+                <button
+                  type="button"
+                  onClick={() => handleAdd(user)}
+                  disabled={addingId === user.id}
+                  className="hover:bg-accent flex w-full items-center justify-between rounded px-3 py-2 text-left text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <div>
+                    <span className="font-medium">{user.displayName}</span>
+                    <span className="text-muted-foreground ml-2 text-xs">
+                      {user.primaryEmail}
+                    </span>
+                  </div>
+                  {addingId === user.id ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <UserPlus className="size-4" />
+                  )}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {!isSearching && searchFailed && (
+          <p className="text-destructive text-sm">
+            Search failed. Try a shorter query.
+          </p>
+        )}
+        {!isSearching &&
+          !searchFailed &&
+          query.trim() &&
+          results.length === 0 && (
+            <p className="text-muted-foreground text-sm">No users found.</p>
+          )}
+      </div>
     </div>
   );
 }

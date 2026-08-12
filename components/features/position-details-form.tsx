@@ -66,17 +66,21 @@ export function PositionDetailsForm({ position }: PositionDetailsFormProps) {
   const isSubmitting = form.formState.isSubmitting;
 
   async function onSubmit(data: PositionFormValues) {
-    const result = await updatePosition({
-      id: position.id,
-      ...data,
-      opensAt: data.opensAt || undefined,
-      closesAt: data.closesAt || undefined,
-    });
+    try {
+      const result = await updatePosition({
+        id: position.id,
+        ...data,
+        opensAt: data.opensAt || undefined,
+        closesAt: data.closesAt || undefined,
+      });
 
-    if (result && 'error' in result) {
-      toast.error(result.error);
-    } else {
-      toast.success('Position updated');
+      if (result && 'error' in result) {
+        toast.error(result.error);
+      } else {
+        toast.success('Position updated');
+      }
+    } catch {
+      toast.error('Something went wrong. Please try again.');
     }
   }
 

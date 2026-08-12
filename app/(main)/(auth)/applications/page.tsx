@@ -1,14 +1,12 @@
 import type { Metadata } from 'next';
-import { redirect } from 'next/navigation';
 
 import {
   getApplications,
   getApplicationsTotal,
   getReviewablePositions,
 } from '@/prisma/data/applications';
-import { isManager } from '@/prisma/data/managers';
 
-import { getCurrentUser } from '@/lib/auth/server';
+import { requireManagerOrAdminOr404 } from '@/lib/auth/guards';
 import { REVIEWER_APPLICATION_STATUSES } from '@/lib/constants';
 import type {
   ApplicationFilters,
@@ -34,14 +32,10 @@ const VALID_SORT_DIRECTIONS: ApplicationSortDirection[] = ['asc', 'desc'];
 export default async function ApplicationsPage({
   searchParams,
 }: ApplicationsPageProps) {
-  const user = await getCurrentUser();
-
-  // Authorization guard: admins pass; managers pass only while they have ≥1 position.
-  // Regular applicants are redirected to home — the (auth) layout is not sufficient.
-  if (!user.isAdmin) {
-    const managed = await isManager(user.id);
-    if (!managed) redirect('/');
-  }
+  // Authorization guard: admins pass; managers pass only while they have ≥1
+  // position. Regular applicants get the shared 404 — the (auth) layout is
+  // not sufficient (it only gates on profile completeness).
+  const user = await requireManagerOrAdminOr404();
 
   const sp = await searchParams;
 

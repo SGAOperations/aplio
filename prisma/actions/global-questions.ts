@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 
 import { z } from 'zod/v4';
 
-import { getCurrentUser } from '@/lib/auth/server';
+import { requireAdmin } from '@/lib/auth/guards';
 import { baseQuestionSchema, validateOptions } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 
@@ -21,8 +21,7 @@ type ActionError = { error: string };
 export async function createGlobalQuestion(
   input: unknown,
 ): Promise<ActionError | void> {
-  const user = await getCurrentUser();
-  if (!user.isAdmin) return { error: 'Forbidden' };
+  const user = await requireAdmin();
 
   const parsed = createSchema.safeParse(input);
   if (!parsed.success)
@@ -60,8 +59,7 @@ export async function createGlobalQuestion(
 export async function updateGlobalQuestion(
   input: unknown,
 ): Promise<ActionError | void> {
-  const user = await getCurrentUser();
-  if (!user.isAdmin) return { error: 'Forbidden' };
+  const user = await requireAdmin();
 
   const parsed = updateSchema.safeParse(input);
   if (!parsed.success)
@@ -73,7 +71,7 @@ export async function updateGlobalQuestion(
     where: { id, deletedAt: null },
     select: { id: true },
   });
-  if (!question) return { error: 'Not found' };
+  if (!question) return { error: 'This question no longer exists.' };
 
   await prisma.globalQuestion.update({
     where: { id },
@@ -87,8 +85,7 @@ export async function updateGlobalQuestion(
 export async function deleteGlobalQuestion(
   input: unknown,
 ): Promise<ActionError | void> {
-  const user = await getCurrentUser();
-  if (!user.isAdmin) return { error: 'Forbidden' };
+  const user = await requireAdmin();
 
   const parsed = deleteSchema.safeParse(input);
   if (!parsed.success) return { error: 'Invalid input' };
@@ -99,7 +96,7 @@ export async function deleteGlobalQuestion(
     where: { id, deletedAt: null },
     select: { id: true },
   });
-  if (!question) return { error: 'Not found' };
+  if (!question) return { error: 'This question no longer exists.' };
 
   await prisma.globalQuestion.update({
     where: { id },

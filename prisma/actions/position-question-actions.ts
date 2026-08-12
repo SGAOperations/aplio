@@ -4,9 +4,7 @@ import { revalidatePath } from 'next/cache';
 
 import { z } from 'zod/v4';
 
-import { checkPositionAccess } from '@/prisma/data/managers';
-
-import { getCurrentUser } from '@/lib/auth/server';
+import { requirePositionAccess } from '@/lib/auth/guards';
 import { baseQuestionSchema, validateOptions } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 
@@ -26,8 +24,6 @@ const deletePositionQuestionSchema = z.object({
 export async function createPositionQuestion(
   input: unknown,
 ): Promise<{ id: string; order: number } | { error: string }> {
-  const user = await getCurrentUser();
-
   const parsed = createPositionQuestionSchema.safeParse(input);
   if (!parsed.success)
     return { error: parsed.error.issues[0]?.message ?? 'Invalid input' };
@@ -35,12 +31,7 @@ export async function createPositionQuestion(
   const { positionId, label, type, required, options, allowOther } =
     parsed.data;
 
-  const hasAccess = await checkPositionAccess(
-    positionId,
-    user.id,
-    user.isAdmin,
-  );
-  if (!hasAccess) throw new Error('Forbidden');
+  const user = await requirePositionAccess(positionId);
 
   const created = await prisma.$transaction(async (tx) => {
     const maxOrder = await tx.positionQuestion.aggregate({
@@ -72,8 +63,6 @@ export async function createPositionQuestion(
 export async function updatePositionQuestion(
   input: unknown,
 ): Promise<void | { error: string }> {
-  const user = await getCurrentUser();
-
   const parsed = updatePositionQuestionSchema.safeParse(input);
   if (!parsed.success)
     return { error: parsed.error.issues[0]?.message ?? 'Invalid input' };
@@ -81,12 +70,7 @@ export async function updatePositionQuestion(
   const { id, positionId, label, type, required, options, allowOther } =
     parsed.data;
 
-  const hasAccess = await checkPositionAccess(
-    positionId,
-    user.id,
-    user.isAdmin,
-  );
-  if (!hasAccess) throw new Error('Forbidden');
+  const user = await requirePositionAccess(positionId);
 
   // Scope the write to positionId to prevent IDOR across positions
   const result = await prisma.positionQuestion.updateMany({
@@ -94,7 +78,7 @@ export async function updatePositionQuestion(
     data: { label, type, required, options, allowOther, updatedById: user.id },
   });
 
-  if (result.count === 0) return { error: 'Not found' };
+  if (result.count === 0) return { error: 'This question no longer exists.' };
 
   revalidatePath(`/positions/${positionId}/edit`);
 }
@@ -102,19 +86,12 @@ export async function updatePositionQuestion(
 export async function deletePositionQuestion(
   input: unknown,
 ): Promise<void | { error: string }> {
-  const user = await getCurrentUser();
-
   const parsed = deletePositionQuestionSchema.safeParse(input);
   if (!parsed.success) return { error: 'Invalid input' };
 
   const { id, positionId } = parsed.data;
 
-  const hasAccess = await checkPositionAccess(
-    positionId,
-    user.id,
-    user.isAdmin,
-  );
-  if (!hasAccess) throw new Error('Forbidden');
+  const user = await requirePositionAccess(positionId);
 
   // Scope the write to positionId to prevent IDOR across positions
   const result = await prisma.positionQuestion.updateMany({
@@ -122,7 +99,7 @@ export async function deletePositionQuestion(
     data: { deletedAt: new Date(), deletedById: user.id },
   });
 
-  if (result.count === 0) return { error: 'Not found' };
+  if (result.count === 0) return { error: 'This question no longer exists.' };
 
   revalidatePath(`/positions/${positionId}/edit`);
 }
