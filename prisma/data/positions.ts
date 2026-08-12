@@ -10,6 +10,7 @@ import {
 } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 import {
+  type ManagedPosition,
   type OpenPositionSummaryItem,
   type PositionDetail,
   type PositionForEdit,
@@ -39,6 +40,29 @@ const positionWithQuestionsSelect = {
     },
   },
 } as const;
+
+// Shared fragment for the isPositionActive predicate (lib/utils.ts). The `where`
+// inside `_count` is the one fragile joint Prisma cannot type-check — any hand-written
+// _count.applications select that omits this non-terminal filter will silently mark an
+// archived position active. Reused unchanged by #360's getPositionForEdit widening so
+// the manager list and the edit-freeze check share one source of truth.
+export const positionActivitySelect = {
+  updatedAt: true,
+  _count: {
+    select: {
+      applications: {
+        where: {
+          deletedAt: null,
+          // Fresh mutable array, not the readonly tuple — Prisma's generated
+          // filter types require ApplicationStatus[], not readonly [...]. An
+          // outer `as const` on this object would re-freeze the spread below,
+          // so this fragment is deliberately NOT `as const` (unlike its siblings).
+          status: { in: [...NON_TERMINAL_APPLICATION_STATUSES] },
+        },
+      },
+    },
+  },
+};
 
 // Filtered post-fetch: the end-of-day closesAt math has no clean Prisma where.
 export async function getOpenPositions(): Promise<PositionWithQuestions[]> {
@@ -79,32 +103,18 @@ export async function getRecentlyClosedPositions(): Promise<
   });
 }
 
-// A closed position stays listed while non-terminal applications remain.
+// Manager-facing: every non-deleted position the user manages, including drafts —
+// filtering into active/archived is delegated entirely to the pure isPositionActive
+// predicate (lib/utils.ts), not encoded here, so the list, the archive toggle, and
+// (#360) the manager edit freeze all share one source of truth. Row count is bounded
+// by the caller's own managed positions, not by a status/date window.
 export async function getManagedPositions(
   userId: string,
-): Promise<PositionWithQuestions[]> {
-  const cutoff30 = new Date();
-  cutoff30.setDate(cutoff30.getDate() - MANAGED_POSITIONS_WINDOW_DAYS);
-
+): Promise<ManagedPosition[]> {
   return prisma.position.findMany({
-    where: {
-      managers: { some: { id: userId } },
-      deletedAt: null,
-      OR: [
-        { status: 'open' },
-        { status: 'closed', closesAt: { gte: cutoff30 } },
-        { status: 'closed', closesAt: null, updatedAt: { gte: cutoff30 } },
-        {
-          applications: {
-            some: {
-              deletedAt: null,
-              status: { in: [...NON_TERMINAL_APPLICATION_STATUSES] },
-            },
-          },
-        },
-      ],
-    },
-    select: positionWithQuestionsSelect,
+    where: { managers: { some: { id: userId } }, deletedAt: null },
+    select: { ...positionWithQuestionsSelect, ...positionActivitySelect },
+    // Enum order puts draft first, then open, then closed.
     orderBy: [{ status: 'asc' }, { title: 'asc' }],
   });
 }

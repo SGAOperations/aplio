@@ -1,7 +1,12 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-import type { PositionAvailability, PositionWindow } from '@/lib/types';
+import { MANAGED_POSITIONS_WINDOW_DAYS } from '@/lib/constants';
+import type {
+  PositionActivity,
+  PositionAvailability,
+  PositionWindow,
+} from '@/lib/types';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -91,6 +96,36 @@ export function isAcceptingApplications(
   now?: Date,
 ): boolean {
   return getPositionAvailability(position, now) === 'accepting';
+}
+
+/**
+ * Single source of truth for "still worth a manager's attention" — used to
+ * partition the /positions manager list into active vs archived, AND (#360)
+ * to freeze edits on a managed position. A second implementation of this
+ * predicate is an authorization bug, not just a display bug.
+ *
+ * Active when any of:
+ *   1. status !== 'closed' — draft and open positions are always active.
+ *   2. position._count.applications > 0 — an in-flight (non-terminal) application
+ *      keeps a position active regardless of status, deliberately unscoped per
+ *      the ACs (an old closed position with a lingering draft still needs attention).
+ *   3. otherwise, (closesAt ?? updatedAt) is within MANAGED_POSITIONS_WINDOW_DAYS
+ *      of `now` — same cutoff arithmetic getManagedPositions used before this
+ *      predicate existed, so closed-position behavior is unchanged.
+ *
+ * `now` is injectable for deterministic testing.
+ */
+export function isPositionActive(
+  position: PositionActivity,
+  now: Date = new Date(),
+): boolean {
+  if (position.status !== 'closed') return true;
+  if (position._count.applications > 0) return true;
+
+  const cutoff = new Date(now);
+  cutoff.setDate(cutoff.getDate() - MANAGED_POSITIONS_WINDOW_DAYS);
+  const recency = position.closesAt ?? position.updatedAt;
+  return recency >= cutoff;
 }
 
 interface FormatTableCountOptions {

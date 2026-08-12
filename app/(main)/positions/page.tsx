@@ -13,6 +13,7 @@ import {
 import { getOptionalUser } from '@/lib/auth/server';
 import type { PositionApplicationStats } from '@/lib/types';
 
+import { ManagedPositionsSection } from '@/components/features/managed-positions-section';
 import { PositionCard } from '@/components/features/position-card';
 import { PositionCreateDialog } from '@/components/features/position-create-dialog';
 import { PageHeader } from '@/components/layouts/page-header';
@@ -92,25 +93,10 @@ export default async function PositionsPage() {
 
       {/* My Positions — shown first for managers; omitted when empty (non-manager or no relevant positions) */}
       {showManagedSection && (
-        <section
-          aria-labelledby="my-positions-heading"
-          className="flex flex-col gap-4"
-        >
-          <h2 id="my-positions-heading" className="text-lg font-semibold">
-            My Positions
-          </h2>
-          <div className="flex flex-col gap-4">
-            {managedPositions.map((position) => (
-              <PositionCard
-                key={position.id}
-                position={position}
-                canManage={true}
-                isAuthenticated={isAuthenticated}
-                applicationStats={statsByPosition.get(position.id)}
-              />
-            ))}
-          </div>
-        </section>
+        <ManagedPositionsSection
+          positions={managedPositions}
+          statsByPosition={statsByPosition}
+        />
       )}
 
       {/* Open Positions — always rendered, even when empty */}
