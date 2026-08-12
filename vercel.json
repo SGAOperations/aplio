@@ -1,4 +1,4 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "if [ \"$VERCEL_ENV\" = \"preview\" ]; then DATABASE_URL=\"$DATABASE_URL_UNPOOLED\" npm run prisma:migrate:deploy; fi && npm run build"
+  "buildCommand": "node scripts/vercel-preview-migrate.mjs && npm run build"
 }
