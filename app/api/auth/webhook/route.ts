@@ -17,25 +17,35 @@ import { verifyWebhookSignature } from '@/lib/email/verify-webhook';
 // Static segment "webhook" takes precedence over the [...path] catch-all beside it,
 // so existing auth routes (login, callback, etc.) are unaffected.
 
-// Neon uses event_type (not type) as the discriminator, and nests the recipient
-// under user.email and event-specific fields under event_data.
-const userSchema = z.object({ email: z.string().email().optional() });
+// Neon uses event_type (not type) as the discriminator and nests event-specific
+// fields under event_data. The recipient's location varies with account state: an
+// existing user's event carries user.email, but a first-time sign-up has no user
+// row at send time — better-auth creates it at verification, not when the OTP is
+// issued — so the address can arrive top-level or under event_data instead.
+// Accept all three; assuming user.email silently dropped every sign-up (#435).
+const userSchema = z
+  .object({ email: z.string().email().optional() })
+  .optional();
 
 const otpEventSchema = z.object({
   event_type: z.literal('send.otp'),
   user: userSchema,
+  email: z.string().email().optional(),
   event_data: z.object({
     otp_code: z.string(),
     expires_at: z.string().optional(),
+    email: z.string().email().optional(),
   }),
 });
 
 const magicLinkEventSchema = z.object({
   event_type: z.literal('send.magic_link'),
   user: userSchema,
+  email: z.string().email().optional(),
   event_data: z.object({
     link_url: z.string().url(),
     expires_at: z.string().optional(),
+    email: z.string().email().optional(),
   }),
 });
 
@@ -45,6 +55,30 @@ const webhookEventSchema = z.discriminatedUnion('event_type', [
 ]);
 
 const badRequest = () => new Response(null, { status: 400 });
+
+// Replaces every leaf value with its type, so a rejected payload can be logged
+// structurally. The body carries a live OTP code and magic-link token, so the
+// values themselves must never reach the logs — only the shape is diagnostic.
+function describeShape(value: unknown): unknown {
+  if (Array.isArray(value))
+    return value.length ? [describeShape(value[0])] : [];
+  if (value && typeof value === 'object')
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nested]) => [
+        key,
+        describeShape(nested),
+      ]),
+    );
+  return typeof value;
+}
+
+// event_type is a non-sensitive discriminator and the single most useful field
+// when a payload is rejected, so it is read directly rather than type-masked.
+function readEventType(value: unknown): string {
+  if (value && typeof value === 'object' && 'event_type' in value)
+    return String((value as { event_type: unknown }).event_type);
+  return '<missing>';
+}
 
 function minutesUntil(isoString: string | undefined): number | undefined {
   if (!isoString) return undefined;
@@ -79,12 +113,29 @@ export async function POST(req: Request): Promise<Response> {
     return badRequest();
   }
 
+  // A rejected payload means no email is sent at all — subscribing a webhook makes
+  // Neon skip its own delivery — so both failure paths log their shape rather than
+  // returning a bare 400. Silence here hid #435 for seven weeks.
   const result = webhookEventSchema.safeParse(parsed);
-  if (!result.success) return badRequest();
+  if (!result.success) {
+    console.error(
+      '[webhook] Unrecognized payload for %s; shape: %s',
+      readEventType(parsed),
+      JSON.stringify(describeShape(parsed)),
+    );
+    return badRequest();
+  }
 
   const event = result.data;
-  const email = event.user.email;
-  if (!email) return badRequest();
+  const email = event.user?.email ?? event.email ?? event.event_data.email;
+  if (!email) {
+    console.error(
+      '[webhook] No recipient resolved for %s; shape: %s',
+      event.event_type,
+      JSON.stringify(describeShape(parsed)),
+    );
+    return badRequest();
+  }
 
   // Dispatch by event type and send the branded email.
   try {
