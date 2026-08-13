@@ -122,15 +122,27 @@ export const SHORT_ANSWER_FORMAT_OPTIONS: {
 // Single source of truth for each format preset's validation pattern — shared
 // by client (inline blur validation) and server (re-validation on save) so
 // they can never drift. Intentionally permissive: favor not blocking a
-// legitimate answer over strict/RFC-grade enforcement.
+// legitimate answer over strict/RFC-grade enforcement, and each pattern
+// accepts multiple real-world variants of its format rather than one
+// canonical shape (see human feedback on PR #333).
 export const SHORT_ANSWER_FORMAT_PATTERNS: Record<
   ShortAnswerFormatValue,
   RegExp
 > = {
   email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-  phone_number: /^\+?[\d\s().-]{7,20}$/,
-  url: /^https?:\/\/\S+\.\S+$/,
-  zip_code: /^\d{5}(-\d{4})?$/,
+  // Optional leading + (country code) or 00 international prefix, then digits
+  // with any mix of spaces, dots, hyphens, and parens as separators — covers
+  // "555-123-4567", "(555) 123-4567", "555.123.4567", "+1 555 123 4567", and
+  // "00 44 20 7946 0958" without requiring a single canonical layout.
+  phone_number: /^(\+|00)?[\d\s().-]{7,20}$/,
+  // Scheme (http/https) and "www." are both optional so a bare domain like
+  // "google.com" or a "www."-prefixed host passes alongside a full
+  // "https://google.com/path" URL — only the host needs a dot-separated
+  // label plus a TLD; no nested quantifiers, to keep this ReDoS-safe.
+  url: /^(https?:\/\/)?(www\.)?[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(:\d+)?([/?#]\S*)?$/,
+  // 5-digit ZIP, ZIP+4 with or without the hyphen (some autofill/paste
+  // sources omit it) — still US ZIP-shaped, not a general postal code.
+  zip_code: /^\d{5}(-?\d{4})?$/,
 };
 
 export const SHORT_ANSWER_FORMAT_ERROR_MESSAGES: Record<
@@ -139,7 +151,7 @@ export const SHORT_ANSWER_FORMAT_ERROR_MESSAGES: Record<
 > = {
   email: 'Enter a valid email address',
   phone_number: 'Enter a valid phone number',
-  url: 'Enter a valid URL',
+  url: 'Enter a valid URL (e.g. example.com or https://example.com)',
   zip_code: 'Enter a valid ZIP code',
 };
 
