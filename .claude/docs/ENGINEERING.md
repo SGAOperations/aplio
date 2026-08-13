@@ -150,7 +150,23 @@ if (applications.length === 0)
 - **Exhaustiveness.** `switch` over enums/unions handles every case, with a `never` default to break the build when a case is added.
 - **Prisma-generated types** (`Prisma.ApplicationGetPayload<...>`, generated enums) over hand-written duplicates that drift.
 - **Naming follows the neighborhood.** Match the file's existing patterns for casing, ordering, and component structure before introducing anything new.
-- **Comments explain constraints, not code.** A comment states a non-obvious invariant or external requirement; it never narrates what the next line does.
+- **Comments are rare and short.** Default to none — name things so the code reads without help. Write one only where a reader fluent in the language and this codebase would still get it wrong: a non-obvious invariant, an external requirement, a deliberate exclusion, or a workaround for someone else's bug.
+  - **Two lines, max.** If it needs a paragraph, the code is wrong, not underdocumented — restructure it, or put the narrative in the PR body where it belongs.
+  - **No provenance.** Never cite an issue, PR, review thread, or `ENGINEERING §` ref. `git blame` links every line to its PR and its review permanently; a hardcoded `#334` only rots.
+  - **No narration.** Never restate what the next line does; never label an obvious section.
+  - **Function docs get the same bar.** A JSDoc block only where the contract isn't clear from the name and signature, still ≤2 lines, and no `@param`/`@returns` that merely restate types.
+
+  ```ts
+  // before — 5 lines, provenance ref, restates what the code already says
+  // Sentinel used only for RadioGroup/RadioGroupItem value comparisons on the
+  // virtual "Other" choice — kept distinct from OTHER_OPTION_LABEL so an
+  // admin-authored option literally named "Other" can never collide with the
+  // virtual choice (see PR #334 review).
+
+  // after — the one fact a reader cannot infer
+  // Distinct from OTHER_OPTION_LABEL so an admin-authored option named "Other" can't collide.
+  ```
+
 - **Leave it better, narrowly.** Fix problems in code you touch when they affect your change; do not refactor unrelated code in a feature PR.
 
 ## 8. Pre-PR self-check (shared by impl, revise, and review)
@@ -165,3 +181,4 @@ A scannable summary of the issues that recur in this codebase. **impl** builds t
 - **Components:** server-first; `'use client'` only on the smallest leaf; **no `useEffect` (empty-deps especially)**; **shadcn/Radix primitives, not hand-rolled raw elements**; role-gate nav where the route is role-gated. (§1, §5)
 - **Structure & conventions:** server actions in `prisma/actions/`, queries in `prisma/data/`; **shared types/constants in `lib/types.ts`/`lib/constants.ts`** (not per-service); abstract repetition sensibly (no over-abstraction); named exports only (except route files); no API routes except `/api/auth`; **design tokens, never hardcoded colors**; strict TS, no `any`. (§1, §7)
 - **Hygiene:** no dead scaffolding/shims/transitional re-exports; schema changes ship with their migration. (§1)
+- **Comments:** rare and ≤2 lines; **no issue/PR/`§` refs**, no narration; JSDoc only where the signature doesn't already say it. (§7)
