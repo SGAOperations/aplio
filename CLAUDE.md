@@ -27,7 +27,7 @@ Next.js 16 (App Router, React 19) · Prisma 7 · Tailwind CSS 4 · shadcn/ui (Ra
 - Strict TypeScript, **no `any`** (`unknown` + narrowing); prefer Prisma-generated types.
 - Tailwind only — avoid custom CSS. **Mobile-first**: base styles target mobile, add `md:`/`lg:` upward; sidebars collapse to a Sheet/drawer on small screens; no fixed pixel widths that break narrow viewports.
 - `async`/`await` over promise chains. Single-line loops/conditionals: no curly braces.
-- **Comments are rare and ≤2 lines** — default to none and let naming carry it. No narration, and **never cite an issue, PR, or `ENGINEERING §` ref** (`git blame` already links the line to its PR). JSDoc only where the signature doesn't already say it. Full rule: `.claude/docs/ENGINEERING.md` §7.
+- **Comments are rare, one line by default, two only rarely** — default to none and let naming carry it. Terse fragments, not narrated sentences; no issue/PR/`ENGINEERING §` refs (`git blame` already links the line to its PR). JSDoc only where the signature doesn't already say it. Full rule: `.claude/docs/ENGINEERING.md` §7.
 - `revalidatePath`/`revalidateTag` after every mutation; **toast feedback (`sonner`) on every action**.
 
 ## Commits, Branches, PRs

@@ -10,8 +10,7 @@ import { prisma } from '@/lib/prisma';
 
 export const authServer = createAuthServer();
 
-// Provision-on-first-auth. The empty update {} makes it create-only, and keying on the
-// unique neonAuthId makes the upsert race-safe.
+// Provision-on-first-auth: empty update {} makes it create-only; neonAuthId keeps it race-safe.
 async function resolveRealUser() {
   const { data: session } = await authServer.getSession();
   if (!session?.user) return null;
@@ -46,8 +45,7 @@ export async function getIsBypass(): Promise<boolean> {
   return Boolean((await cookies()).get('dev-bypass-user-id')?.value);
 }
 
-// For public pages that personalize when someone is signed in but never force it.
-// Provisioning still runs, so a logged-in visitor always has an app row.
+// For public pages: personalizes if signed in, never forces auth; still provisions.
 export const getOptionalUser = cache(async function getOptionalUser() {
   if (process.env.VERCEL_ENV !== 'production') {
     const bypassUserId = (await cookies()).get('dev-bypass-user-id')?.value;

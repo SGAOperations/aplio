@@ -12,15 +12,13 @@ interface OptionsChipEditorProps {
   disabled?: boolean;
 }
 
-// Controlled "type and press Enter" chip editor for choice-question options.
-// Library-agnostic: works under RHF's field.value/field.onChange or plain useState.
+// Library-agnostic "type and Enter" chip editor: works under RHF or plain useState.
 export function OptionsChipEditor({
   options,
   onChange,
   disabled,
 }: OptionsChipEditorProps) {
-  // Own id: Slot merges FormControl's aria-describedby onto the outer div, not the
-  // Input inside it.
+  // Own id: Slot merges FormControl's aria-describedby onto the outer div, not this Input.
   const hintId = useId();
 
   function addOption(value: string) {

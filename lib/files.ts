@@ -41,8 +41,7 @@ export function sniffMimeType(bytes: Uint8Array): SniffableMimeType | null {
   return null;
 }
 
-// Bounds the stem against path traversal. The extension always comes from the
-// sniffed MIME type, never from here.
+// Bounds the stem against path traversal; extension always comes from the sniffed MIME type.
 function sanitizeStem(originalName: string): string {
   const withoutExtension = originalName.replace(/\.[^./\\]*$/, '');
   const collapsed = withoutExtension.replace(/[^a-zA-Z0-9._-]/g, '-');

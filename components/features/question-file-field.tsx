@@ -41,8 +41,7 @@ interface QuestionFileFieldProps {
   disabled?: boolean;
 }
 
-// Mirrors the zod messages in question-files.ts. A UX pre-check only — the server
-// re-runs these checks and sniffs magic bytes.
+// UX pre-check only, mirroring question-files.ts: the server re-runs and sniffs bytes.
 function clientValidationError(file: File): string | null {
   if (file.size > FILE_UPLOAD_MAX_BYTES) return 'File must be 4MB or smaller.';
   if (
@@ -126,8 +125,7 @@ export function QuestionFileField({
   }
 
   return (
-    // `relative` is load-bearing: the sr-only file input would otherwise resolve
-    // against the initial containing block and produce a second scrollbar.
+    // `relative` is load-bearing: without it the sr-only input causes a second scrollbar.
     <div className="relative flex flex-col gap-2">
       {isPending ? (
         <span

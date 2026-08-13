@@ -251,8 +251,7 @@ export function ProfileQuestion({
                   target={{ scope: 'profile', questionId: question.id }}
                   value={field.value}
                   onChange={(v) => {
-                    // Already persisted by the file actions, so this only syncs local
-                    // state — save() would throw for a file_upload question.
+                    // Already persisted by the file actions: syncs local state only.
                     field.onChange(v);
                     savedValueRef.current = JSON.stringify(v);
                     reset({ value: v });

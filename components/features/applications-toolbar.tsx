@@ -45,12 +45,10 @@ export function ApplicationsToolbar({
     undefined,
   );
 
-  // Navigating away inside the debounce window would otherwise fire the stale
-  // closure's router.replace. A timer handle has no non-effect home.
+  // Clears a stale closure's router.replace on unmount; a timer has no non-effect home.
   useEffect(() => () => clearTimeout(debounceTimer.current), []);
 
-  // Local state so the X button tracks the input immediately, rather than waiting
-  // for the debounce to reach the URL.
+  // Tracks the input immediately, ahead of the debounced URL update.
   const [searchValue, setSearchValue] = useState(filters.q ?? '');
 
   function updateParam(key: string, value: string | undefined) {
@@ -89,14 +87,12 @@ export function ApplicationsToolbar({
 
   function clearFilters() {
     setSearchValue('');
-    // Drops userId too, so a zero-result filter set isn't a dead end inside the
-    // per-user deep link.
+    // Drops userId too, so a zero-result filter set isn't a per-user deep-link dead end.
     router.push(pathname);
   }
 
   return (
-    // p-1 keeps 3px focus rings clear of the box: overflow-x auto forces overflow-y
-    // to auto per spec, which would silently clip them.
+    // p-1: overflow-x-auto forces overflow-y auto too, which would clip focus rings.
     <div className="w-full min-w-0 overflow-x-auto p-1">
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
         <div className="flex flex-col gap-1.5">

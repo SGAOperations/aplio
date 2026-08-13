@@ -65,8 +65,7 @@ export interface QuestionFormProps {
 
 type QuestionFormValues = z.infer<typeof questionFormSchema>;
 
-// Rendered inline in a Card rather than behind a trigger, so it uses the shadcn Form
-// primitives directly rather than FormDialog.
+// Rendered inline in a Card, not behind a trigger: shadcn Form primitives, no FormDialog.
 export function QuestionForm({
   positionId,
   question,

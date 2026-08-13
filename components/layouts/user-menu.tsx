@@ -52,8 +52,7 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
   const displayName = name ?? email;
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  // theme is undefined on first render under { ssr: false }; the 'system' default
-  // matches defaultTheme so the radio shows a selection without a flash.
+  // Matches defaultTheme: theme is undefined pre-hydration under { ssr: false }.
   const { theme = 'system', setTheme } = useTheme();
 
   const triggerClassName =
@@ -81,8 +80,7 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
         toast.success('Signed out.');
         router.push('/login');
       } catch (error) {
-        // An expired session makes signOutUser() redirect, and that NEXT_REDIRECT
-        // must reach Next rather than be misread as a failure below.
+        // Lets an expired-session NEXT_REDIRECT reach Next instead of failing below.
         unstable_rethrow(error);
         console.error('Sign-out failed unexpectedly', error);
         toast.error('Something went wrong. Please try again.');

@@ -55,8 +55,7 @@ interface QuestionListProps {
   profileAnswers?: GlobalAnswer[];
   formValues?: StepperFormValues;
   missingGlobalIds?: Set<string>;
-  // Keyed by question id, so a "Use profile answers" revert can wait for an in-flight
-  // blur autosave on the same field and still be the last write.
+  // Keyed by question id: lets a profile-answers revert wait on an in-flight autosave.
   pendingSavesRef?: RefObject<Map<string, Promise<unknown>>>;
 }
 
@@ -201,8 +200,7 @@ function QuestionList({
                     });
                     if (isError(result)) throw new Error(result.error);
                   })();
-                  // Tracked so a concurrent revert on this field can wait rather
-                  // than race it.
+                  // Tracked so a concurrent revert on this field waits rather than races it.
                   pendingSavesRef?.current.set(question.id, save);
                   try {
                     await save;
@@ -295,8 +293,7 @@ export function ApplicationStepper({
       return;
     }
 
-    // Read-only mode registers no Controllers for global fields, so `trigger` can't
-    // validate them — required-ness is checked against the profile's answers.
+    // No Controllers registered in read-only mode, so `trigger` can't validate these.
     const missing = new Set(
       globalQuestions
         .filter(
@@ -347,8 +344,7 @@ export function ApplicationStepper({
           if (JSON.stringify(current) === JSON.stringify(profileValue))
             return null;
 
-          // Let an in-flight autosave settle first, so the revert write lands last
-          // and the displayed value matches what persisted.
+          // Waits for an in-flight autosave so the revert write lands last.
           const pending = pendingSavesRef.current.get(q.id);
           if (pending) await pending.catch(() => {});
 
@@ -359,8 +355,7 @@ export function ApplicationStepper({
             value: profileValue,
             isGlobal: true,
           });
-          // Reflected only once persisted, so a failed field keeps its last saved
-          // value rather than one the server never accepted.
+          // Applied only once persisted: a failed field keeps its last saved value.
           if (!isError(result)) setValue(`g_${q.id}`, profileValue);
           return result;
         }),

@@ -19,7 +19,6 @@ export default async function Home() {
 
   if (user.isAdmin) return <AdminDashboard />;
 
-  // Managers get UserDashboard too — they are also regular users who can apply, and
-  // their pipeline view belongs to the Applications hub.
+  // Managers get UserDashboard too: their pipeline view lives in the Applications hub.
   return <UserDashboard userId={user.id} userName={user.name} />;
 }

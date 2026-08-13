@@ -25,8 +25,7 @@ function base64ToBlob(base64: string, contentType: string): Blob {
   return new Blob([bytes], { type: contentType });
 }
 
-// Delivery goes through a Server Action rather than a Route Handler, so the base64
-// payload becomes a Blob client-side and downloads via a programmatic anchor click.
+// Server Action, not a Route Handler: base64 becomes a Blob and downloads client-side.
 export function AnswerFileLink({ target, url }: AnswerFileLinkProps) {
   const [isPending, setIsPending] = useState(false);
   const filename = getFileDisplayName(url);

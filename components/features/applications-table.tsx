@@ -17,8 +17,8 @@ import type {
 import { formatDate } from '@/lib/utils';
 
 import { ApplicationsBulkBar } from '@/components/features/applications-bulk-bar';
-// Shared indicator only: this table sorts server-side via router.push, so its
-// ?sort=field:direction format stays decoupled from useSortableTable's ?sort=&dir=.
+// Server-side sort (router.push); its param format deliberately differs from
+// useSortableTable's, to avoid coupling the two.
 import { SortableHeader } from '@/components/features/sortable-header';
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
 import { Button } from '@/components/ui/button';

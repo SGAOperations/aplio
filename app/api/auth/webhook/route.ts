@@ -4,11 +4,9 @@ import { sendEmail } from '@/lib/email/resend';
 import { magicLinkEmail, otpEmail } from '@/lib/email/templates';
 import { verifyWebhookSignature } from '@/lib/email/verify-webhook';
 
-// Permitted exception to the no-API-routes rule (publicly reachable, HTTP-status
-// contract). Static `webhook` segment takes precedence over the `[...path]` catch-all.
+// Permitted API-route exception; `webhook` beats the `[...path]` catch-all here.
 
-// Neon uses event_type (not type) as the discriminator, and nests the recipient
-// under user.email and event-specific fields under event_data.
+// Neon's discriminator is event_type (not type); recipient nests under user.email.
 const userSchema = z.object({ email: z.string().email().optional() });
 
 const otpEventSchema = z.object({
@@ -100,8 +98,7 @@ export async function POST(req: Request): Promise<Response> {
       }
     }
   } catch (err) {
-    // 500 so Neon retries. A retry can duplicate a send, which is acceptable for
-    // short-lived auth codes.
+    // 500 lets Neon retry; a duplicate send is fine for short-lived auth codes.
     console.error('[webhook] Failed to send email:', err);
     return new Response(null, { status: 500 });
   }

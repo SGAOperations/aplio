@@ -84,7 +84,6 @@ function PositionStatCluster({ stats }: PositionStatClusterProps) {
   );
 }
 
-// Managed cards additionally show a stats cluster, when applicationStats is passed.
 export function PositionCard({
   position,
   canManage = false,

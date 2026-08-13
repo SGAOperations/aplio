@@ -87,8 +87,7 @@ interface ApplicantActivityFeedProps {
   userId: string;
 }
 
-// Copy describes the current state ("is {Status}") rather than a transition — with no
-// status-history table there is no from-state to assert.
+// States the current status only — no status-history table, so no from-state to assert.
 export async function ApplicantActivityFeed({
   userId,
 }: ApplicantActivityFeedProps) {
@@ -115,8 +114,7 @@ export async function ApplicantActivityFeed({
 
 // ─── Admin feed wrapper ───────────────────────────────────────────────────────
 
-// Ordered by submittedAt, which is a provable event stream in a way updatedAt is not.
-// Returns cross-user data — admin-gated callers only.
+// Ordered by submittedAt (a provable event stream); cross-user data, admin-gated only.
 export async function AdminActivityFeed() {
   const applications = await getRecentApplications(10);
 

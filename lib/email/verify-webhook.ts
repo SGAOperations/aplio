@@ -2,8 +2,7 @@ import 'server-only';
 
 import { compactVerify, importJWK } from 'jose';
 
-// Neon signs with EdDSA (Ed25519) in detached JWS form. jose rather than Node's
-// crypto.createPublicKey, which throws InvalidCharacterError on valid Ed25519 JWKs here.
+// jose, not Node's crypto.createPublicKey: the latter throws on valid Ed25519 JWKs here.
 
 interface JWK {
   kid: string;

@@ -25,7 +25,7 @@ export const QUESTION_TYPE_LABELS: Record<QuestionTypeValue, string> = {
   file_upload: 'File Upload',
 };
 
-// 'destructive' (error-only) and 'outline' (the adjacent Required badge) are deliberately unused here.
+// 'destructive' (error-only) and 'outline' (Required badge) deliberately unused here.
 export const QUESTION_TYPE_BADGE_VARIANT: Record<QuestionType, BadgeVariant> = {
   short_answer: 'secondary',
   long_answer: 'info',
@@ -55,8 +55,7 @@ export const FILE_UPLOAD_ACCEPT =
 
 export const FILE_UPLOAD_HELP_TEXT = 'PDF, PNG or JPG · up to 4MB';
 
-// Addressed by question, not answer-row id, mirroring createOrUpdateApplicationAnswer.
-// FormData is all strings: callers must coerce isGlobal before parsing.
+// Addressed by question, not answer-row id; FormData is all strings, so isGlobal needs coercion.
 export const questionFileTargetSchema = z.discriminatedUnion('scope', [
   z.object({ scope: z.literal('profile'), questionId: z.string().min(1) }),
   z.object({
@@ -72,7 +71,7 @@ export type ChoiceType = (typeof CHOICE_TYPES)[number];
 
 export const OTHER_OPTION_LABEL = 'Other';
 
-// Distinct from OTHER_OPTION_LABEL so an admin-authored option named "Other" can't collide.
+// Distinct from OTHER_OPTION_LABEL: an admin option literally named "Other" can't collide.
 export const OTHER_OPTION_VALUE = '__other__';
 
 export const SHORT_ANSWER_FORMAT_VALUES = [
@@ -177,8 +176,7 @@ export function validateShortAnswerFormat(
   }
 }
 
-// Choice types require at least one option; non-choice types must carry none and
-// no allowOther, which would otherwise leave orphaned option data behind.
+// Choice types need ≥1 option; non-choice types must carry none/no allowOther (orphaned data else).
 export function validateOptions(
   data: { type: string; options: string[]; allowOther: boolean },
   ctx: z.RefinementCtx,
@@ -260,8 +258,7 @@ export const APPLICATION_STATUS_OPTIONS: {
   label: APPLICATION_STATUS_LABELS[value],
 }));
 
-// A reviewer cannot push an application back to 'draft' — that state is applicant-owned.
-// Literal tuple so z.enum() infers the union without an unsafe cast.
+// Reviewer can't set 'draft' (applicant-owned); literal tuple so z.enum() infers without a cast.
 export const REVIEWER_APPLICATION_STATUSES = [
   'applied',
   'reached_out',
@@ -277,15 +274,13 @@ export const REVIEWER_APPLICATION_STATUSES = [
 export const REVIEWER_APPLICATION_STATUS_OPTIONS =
   APPLICATION_STATUS_OPTIONS.filter((o) => o.value !== 'draft');
 
-// The set a reviewer may not act *on*, as opposed to REVIEWER_APPLICATION_STATUSES,
-// which is the set they may set a record *to*. Both are applicant-owned states.
+// States a reviewer may not act *on*, unlike REVIEWER_APPLICATION_STATUSES (may set *to*).
 export const NON_REVIEWABLE_APPLICATION_STATUSES = [
   'draft',
   'withdrawn',
 ] as const satisfies $Enums.ApplicationStatus[];
 
-// Submitted but not concluded. A positive list, so a future enum value stays
-// excluded until deliberately added — safer for a visibility metric.
+// Positive list: a future enum value stays excluded until added — safer for this metric.
 export const UNRESOLVED_APPLICATION_STATUSES = [
   'applied',
   'reached_out',
@@ -293,8 +288,7 @@ export const UNRESOLVED_APPLICATION_STATUSES = [
   'reviewing',
 ] as const satisfies $Enums.ApplicationStatus[];
 
-// Includes 'draft', unlike UNRESOLVED_APPLICATION_STATUSES: a managed position
-// with only a draft applicant still warrants a manager's attention.
+// Includes 'draft' (unlike UNRESOLVED): a draft-only applicant still needs attention.
 export const NON_TERMINAL_APPLICATION_STATUSES = [
   'draft',
   'applied',
@@ -303,8 +297,7 @@ export const NON_TERMINAL_APPLICATION_STATUSES = [
   'reviewing',
 ] as const satisfies $Enums.ApplicationStatus[];
 
-// An accepted/rejected application can no longer be withdrawn: there is no status
-// history, so a withdraw → re-open round-trip would launder the decision to 'applied'.
+// No status history, so a withdraw → re-open round-trip would launder the decision.
 export const TERMINAL_DECISION_STATUSES: readonly $Enums.ApplicationStatus[] = [
   'accepted',
   'rejected',
@@ -345,8 +338,7 @@ export const STATUS_VARIANTS: Record<PositionStatus, BadgeVariant> = {
   closed: 'outline',
 };
 
-// Position-scoped surfaces use this one (a manager reverting to draft still sees its
-// applications); cross-position surfaces use PUBLISHED, where those rows are dead links.
+// Position-scoped surfaces (draft still shows its applications); PUBLISHED is for cross-position ones.
 export const VISIBLE_POSITION_WHERE = {
   deletedAt: null,
 } satisfies Prisma.PositionWhereInput;
@@ -362,8 +354,7 @@ export const QUESTION_TYPE_OPTIONS: { value: QuestionType; label: string }[] =
     label: QUESTION_TYPE_LABELS[value],
   }));
 
-// 'accepting'/'closed_by_date' mirror STATUS_LABELS 'open'/'closed' so the badge
-// reflects the effective state rather than the raw DB status enum.
+// Mirrors STATUS_LABELS 'open'/'closed' so the badge reflects effective state, not the raw enum.
 export const AVAILABILITY_LABELS: Record<PositionAvailability, string> = {
   accepting: 'Open',
   upcoming: 'Upcoming',

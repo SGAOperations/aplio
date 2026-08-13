@@ -49,8 +49,7 @@ function formatDateForInput(iso: string | null): string {
   return iso.slice(0, 16);
 }
 
-// Always visible rather than dialog-triggered, so it uses the shadcn Form primitives
-// directly rather than FormDialog.
+// Always visible, not dialog-triggered: shadcn Form primitives directly, no FormDialog.
 export function PositionDetailsForm({ position }: PositionDetailsFormProps) {
   const form = useForm<PositionFormValues>({
     resolver: zodResolver(positionFormSchema),
