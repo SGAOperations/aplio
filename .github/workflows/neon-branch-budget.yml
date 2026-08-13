@@ -44,7 +44,12 @@ permissions:
 
 jobs:
   budget:
-    name: Report branch budget
+    # Every workflow job also shows up on the PR as its own check run, so this
+    # name is deliberately about the mechanism ("did the reporter run?") rather
+    # than a verdict. The verdict lives in the `neon-branch-budget` commit status
+    # this job posts — and at capacity the two legitimately disagree: posting
+    # succeeds (job green) while the status it posts is red.
+    name: Post branch-budget status
     runs-on: ubuntu-latest
     timeout-minutes: 5
     # Dependabot-triggered runs receive Dependabot secrets, not Actions secrets,
