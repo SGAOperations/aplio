@@ -86,8 +86,8 @@ export async function updatePosition(
   // IDs. Cached by React, so requirePositionAccess below reuses this resolve.
   await getCurrentUser();
 
-  // Stale-link guard (ENGINEERING §4 gray-area rule): runs before the access
-  // guard so a deleted position always gets an actionable message, not a toast.
+  // Stale-link guard: runs before the access guard so a manager on a stale
+  // link gets an actionable message instead of a generic error toast.
   const exists = await prisma.position.findFirst({
     where: { id, deletedAt: null },
     select: { id: true },
