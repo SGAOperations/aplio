@@ -11,6 +11,7 @@ import {
   type AdminApplicationListItem,
   type ApplicationFilters,
   type ApplicationForReview,
+  type DraftApplication,
   type MyApplicationListItem,
   type PositionApplicationListItem,
   type PositionApplicationStats,
@@ -42,6 +43,19 @@ function buildBaseWhere(user: { id: string; isAdmin: boolean }) {
           managers: { some: { id: user.id } },
         },
       };
+}
+
+// Scoped to the caller (no IDOR) — lets the apply page open an in-progress
+// draft directly instead of re-running the profile-completeness gate, which
+// only guards *creating* a new application (see prisma/actions/applications.ts).
+export async function getDraftApplication(
+  userId: string,
+  positionId: string,
+): Promise<DraftApplication | null> {
+  return prisma.application.findFirst({
+    where: { userId, positionId, status: 'draft', deletedAt: null },
+    include: { globalAnswers: true, positionAnswers: true },
+  });
 }
 
 export async function getMyApplications(

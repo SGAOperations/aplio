@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import { createDraftApplication } from '@/prisma/actions/applications';
+import { getDraftApplication } from '@/prisma/data/applications';
 import { getPositionForApply } from '@/prisma/data/positions';
 import { getProfileData } from '@/prisma/data/profile';
 
@@ -31,9 +32,10 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
   const { id } = await params;
   const user = await getCurrentUser();
 
-  const [position, profileData] = await Promise.all([
+  const [position, profileData, draft] = await Promise.all([
     getPositionForApply(id),
     getProfileData(user.id),
+    getDraftApplication(user.id, id),
   ]);
 
   // Resource-state redirect, not an authorization denial.
@@ -51,12 +53,16 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
       .filter((d) => d.question.required)
       .every((d) => toStringArray(d.answer?.value).length > 0);
 
-  const applicationResult = profileComplete
-    ? await createDraftApplication(id)
-    : null;
+  // An existing draft always opens — the profile-completeness gate protects
+  // *creating* an application, not resuming work already in progress. A
+  // required global question added after the draft was created must stay
+  // reachable so the stepper (not this gate) can surface it as an empty
+  // required field.
+  const applicationResult =
+    draft ?? (profileComplete ? await createDraftApplication(id) : null);
 
   // Error despite a complete profile is unexpected: error boundary, not the profile gate.
-  if (profileComplete && applicationResult && isError(applicationResult))
+  if (!draft && profileComplete && applicationResult && isError(applicationResult))
     throw new Error(applicationResult.error);
 
   const application =
