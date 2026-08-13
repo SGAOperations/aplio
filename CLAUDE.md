@@ -39,7 +39,7 @@ Next.js 16 (App Router, React 19) · Prisma 7 · Tailwind CSS 4 · shadcn/ui (Ra
 
 ## Preview databases (Neon branch budget)
 
-The Neon project caps at **10 branches** and 3 are permanently held (`dev`, production, `vercel-dev`), so **~7 PRs can hold a preview database at once**. Every open PR with a preview deployment consumes one slot. Reclamation is automatic (branch auto-delete on merge plus Neon's own sweep), so this is a **concurrency ceiling, not a housekeeping chore** — what exhausts it is too many PRs open at the same time. Exhaustion shows up as a red `Vercel` check on _every_ open PR while `run-prettier-check` / `run-linting-check` / `run-tsc-check` stay green: check the Neon branch count before debugging Prisma. Full operational detail: `.claude/docs/PIPELINE.md` → "Preview-database concurrency".
+The Neon project caps at **10 branches** and 2 are permanently held (`dev`, `production`), so **~8 PRs can hold a preview database at once**. Every open PR with a preview deployment consumes one slot. Reclamation is automatic (branch auto-delete on merge plus Neon's own sweep), so this is a **concurrency ceiling, not a housekeeping chore** — what exhausts it is too many PRs open at the same time. Exhaustion shows up as a red `Vercel` check on _every_ open PR while `run-prettier-check` / `run-linting-check` / `run-tsc-check` stay green: check the Neon branch count before debugging Prisma. Full operational detail: `.claude/docs/PIPELINE.md` → "Preview-database concurrency".
 
 ## Pre-push checks (always, before pushing)
 
