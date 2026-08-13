@@ -1,37 +1,19 @@
-# Neon Branch Budget — report preview-database capacity as a commit status
+# Reports Neon preview-database capacity on each PR. Fails when the project is
+# at its branch cap, so a quota-blocked preview is distinguishable from a broken
+# build without opening the Neon or Vercel console.
 #
-# Why this exists: when the Neon project hits its branch cap the Vercel check
-# goes red with a generic "Deployment has failed — run npx vercel inspect …"
-# description that names neither Neon nor the quota, and the explicit message
-# from scripts/vercel-preview-migrate.mjs lives only in the build log, which no
-# pipeline agent can read. This posts the live branch count where `gh pr checks`
-# already looks, so "is this quota or my code?" is answerable without a console.
+# Secrets: NEON_API_KEY (read-only suffices), NEON_PROJECT_ID.
+# Variable: NEON_BRANCH_LIMIT (default 10) — Neon exposes no quota endpoint, so
+# the cap cannot be discovered and must be configured.
 #
-# Required secrets (GitHub → Settings → Secrets and variables → Actions):
-#   NEON_API_KEY    — Neon API key; read-only is sufficient (branches are listed,
-#                     never created or deleted — the Previews Integration owns
-#                     branch lifecycle, settled in #344).
-#   NEON_PROJECT_ID — Neon project ID (Neon console → Settings).
-# Both already exist as app runtime env vars (see .env.example, lib/auth/admin.ts);
-# these are the same values stored in a second place.
-#
-# Optional variable:
-#   NEON_BRANCH_LIMIT — branch cap to compare against (default 10). Neon's API
-#                       exposes no quota endpoint, so the limit CANNOT be
-#                       discovered and must be configured here.
-#
-# IMPORTANT: `neon-branch-budget` must NEVER be added to the required status
-# checks on `dev` or `main`. Going red at capacity is the entire point; making it
-# required would turn it into a second merge blocker on top of `Vercel` and make
-# quota exhaustion strictly worse.
+# NEVER add this to the required status checks on `dev`/`main`. It goes red at
+# capacity by design; requiring it would block merges on top of `Vercel`.
 
 name: Neon Branch Budget
 
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-  push:
-    branches: [dev] # a merge frees a slot — refresh every open PR's status
   workflow_dispatch:
 
 concurrency:
@@ -39,27 +21,18 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  statuses: write # post the commit status
-  pull-requests: read # enumerate open PRs on push/dispatch
+  contents: read
 
 jobs:
   budget:
-    # Every workflow job also shows up on the PR as its own check run, so this
-    # name is deliberately about the mechanism ("did the reporter run?") rather
-    # than a verdict. The verdict lives in the `neon-branch-budget` commit status
-    # this job posts — and at capacity the two legitimately disagree: posting
-    # succeeds (job green) while the status it posts is red.
-    name: Post branch-budget status
+    name: Check branch budget
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # Dependabot-triggered runs receive Dependabot secrets, not Actions secrets,
-    # so NEON_API_KEY would be empty and the job would fail confusingly. Those
-    # PRs get their status from the next push to `dev` instead.
+    # Dependabot runs receive Dependabot secrets, not Actions secrets.
     if: github.actor != 'dependabot[bot]'
 
     steps:
-      - name: Resolve branch budget
-        id: budget
+      - name: Check Neon branch budget
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
           NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
@@ -69,52 +42,25 @@ jobs:
 
           if [ -z "$NEON_API_KEY" ] || [ -z "$NEON_PROJECT_ID" ]; then
             echo "::error::NEON_API_KEY and NEON_PROJECT_ID are required secrets. Configure them in GitHub → Settings → Secrets and variables → Actions."
-            {
-              echo "state=error"
-              echo "description=NEON_API_KEY / NEON_PROJECT_ID not configured for Actions"
-            } >> "$GITHUB_OUTPUT"
-            exit 0
+            exit 1
           fi
 
-          # limit=100 comfortably exceeds any plan's cap, so the paginated
-          # response is always a single page and `length` is the true total.
-          if ! curl -sfS \
+          # limit=100 exceeds any plan's cap, so the response is a single page.
+          curl -sfS \
             -H "Authorization: Bearer $NEON_API_KEY" \
             -H "Accept: application/json" \
             "https://console.neon.tech/api/v2/projects/$NEON_PROJECT_ID/branches?limit=100" \
-            -o "$RUNNER_TEMP/branches.json"; then
-            echo "::error::Neon API request failed — could not list branches for project $NEON_PROJECT_ID."
-            {
-              echo "state=error"
-              echo "description=Neon API request failed — branch count unavailable"
-            } >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
+            -o "$RUNNER_TEMP/branches.json"
 
           COUNT=$(jq '.branches | length' "$RUNNER_TEMP/branches.json")
           FREE=$((BRANCH_LIMIT - COUNT))
-          # Clamp: a project can sit above a lowered limit, and "-1 free" is noise.
-          # Written as an `if` rather than `[ … ] && FREE=0`, which returns non-zero
-          # when the test is false and would trip `set -e`.
           if [ "$FREE" -lt 0 ]; then
             FREE=0
           fi
 
-          if [ "$COUNT" -ge "$BRANCH_LIMIT" ]; then
-            STATE="failure"
-            DESCRIPTION="$COUNT/$BRANCH_LIMIT Neon branches used — no preview DB available; a slot frees when a PR merges or closes"
-          else
-            STATE="success"
-            DESCRIPTION="$COUNT/$BRANCH_LIMIT Neon branches used — $FREE preview slot(s) free"
-          fi
+          echo "Neon branch inventory ($COUNT/$BRANCH_LIMIT used, $FREE free):"
+          jq -r '.branches[] | "  \(.name)\t\(.created_at)"' "$RUNNER_TEMP/branches.json"
 
-          {
-            echo "state=$STATE"
-            echo "description=$DESCRIPTION"
-          } >> "$GITHUB_OUTPUT"
-
-          # The inventory is the point, not just the number: it shows which
-          # branches are permanently held vs. lingering from closed PRs.
           {
             echo "### Neon branch budget"
             echo
@@ -125,49 +71,9 @@ jobs:
             jq -r '.branches[] | "| \(.name) | \(.created_at) |"' "$RUNNER_TEMP/branches.json"
           } >> "$GITHUB_STEP_SUMMARY"
 
-          # Also to stdout: the step summary renders only in the web UI, and this
-          # workflow exists so the quota is answerable WITHOUT a console. Printing
-          # it here makes the inventory reachable via `gh run view --log`.
-          echo "Neon branch inventory ($COUNT/$BRANCH_LIMIT used, $FREE free):"
-          jq -r '.branches[] | "  \(.name)\t\(.created_at)"' "$RUNNER_TEMP/branches.json"
-
-      - name: Post commit status
-        env:
-          GH_TOKEN: ${{ github.token }}
-          STATE: ${{ steps.budget.outputs.state }}
-          DESCRIPTION: ${{ steps.budget.outputs.description }}
-          EVENT_NAME: ${{ github.event_name }}
-          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          set -euo pipefail
-
-          # jq builds the payload so the description is escaped correctly.
-          jq -n \
-            --arg state "$STATE" \
-            --arg description "$DESCRIPTION" \
-            --arg context "neon-branch-budget" \
-            --arg target_url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
-            '{state: $state, description: $description, context: $context, target_url: $target_url}' \
-            > "$RUNNER_TEMP/status.json"
-
-          post_status() {
-            gh api --method POST "repos/$GITHUB_REPOSITORY/statuses/$1" \
-              --input "$RUNNER_TEMP/status.json" --silent
-            echo "posted $STATE to $1"
-          }
-
-          if [ "$EVENT_NAME" = "pull_request" ]; then
-            post_status "$PR_HEAD_SHA"
-            exit 0
+          if [ "$COUNT" -ge "$BRANCH_LIMIT" ]; then
+            echo "::error::$COUNT/$BRANCH_LIMIT Neon branches used — no preview database available for this PR. A slot frees when an open PR is merged or closed; push again to redeploy."
+            exit 1
           fi
 
-          # push to `dev` / manual dispatch: a slot may have just freed, so
-          # refresh every open PR — including the Dependabot ones the
-          # pull_request trigger skips. This is what clears a stale red status
-          # without requiring a push to the PR's own branch.
-          gh pr list --repo "$GITHUB_REPOSITORY" --state open --json headRefOid \
-            --jq '.[].headRefOid' > "$RUNNER_TEMP/shas.txt"
-
-          while read -r sha; do
-            [ -n "$sha" ] && post_status "$sha"
-          done < "$RUNNER_TEMP/shas.txt"
+          echo "$COUNT/$BRANCH_LIMIT Neon branches used — $FREE preview slot(s) free."
