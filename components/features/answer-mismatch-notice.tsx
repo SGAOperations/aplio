@@ -33,9 +33,9 @@ export function AnswerMismatchNotice({
         </p>
         {questionType === 'multiple_choice' ? (
           <div className="mt-1 flex flex-wrap gap-1.5">
-            {values.map((v) => (
+            {values.map((v, i) => (
               <span
-                key={v}
+                key={i}
                 className="bg-warning/20 rounded-md px-2 py-0.5 text-xs font-medium"
               >
                 {v}

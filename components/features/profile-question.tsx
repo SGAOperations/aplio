@@ -96,8 +96,7 @@ export function ProfileQuestion({
   // This autosave fails silently, so blocking here is the only way the user sees it.
   function handleBlur() {
     const value = getValues('value');
-    // Orphaned values are already read-only in the mismatch notice, so only
-    // the fitted (editable) value needs format-validating.
+    // Orphaned values are read-only elsewhere — only fitted needs format-validating.
     const { fitted } = partitionAnswerValue(question, value);
     if (
       question.type === 'short_answer' &&
