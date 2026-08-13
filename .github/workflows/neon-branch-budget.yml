@@ -22,6 +22,7 @@ concurrency:
 
 permissions:
   contents: read
+  checks: write # to put the count on this job's own check run
 
 jobs:
   budget:
@@ -34,6 +35,7 @@ jobs:
     steps:
       - name: Check Neon branch budget
         env:
+          GH_TOKEN: ${{ github.token }}
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
           NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
           BRANCH_LIMIT: ${{ vars.NEON_BRANCH_LIMIT || '10' }}
@@ -72,8 +74,30 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
           if [ "$COUNT" -ge "$BRANCH_LIMIT" ]; then
-            echo "::error::$COUNT/$BRANCH_LIMIT Neon branches used — no preview database available for this PR. A slot frees when an open PR is merged or closed; push again to redeploy."
-            exit 1
+            HEADLINE="$COUNT/$BRANCH_LIMIT Neon branches used — no preview database available"
+            DETAIL="A slot frees when an open PR is merged or closed; push again to redeploy."
+          else
+            HEADLINE="$COUNT/$BRANCH_LIMIT Neon branches used — $FREE preview slot(s) free"
+            DETAIL="Preview databases are available."
           fi
 
-          echo "$COUNT/$BRANCH_LIMIT Neon branches used — $FREE preview slot(s) free."
+          # Actions leaves its own check run's output empty, which is why the count
+          # would otherwise be invisible to `gh pr checks`. GITHUB_TOKEN belongs to
+          # the same app that owns this check run, so it can fill the output in.
+          # jobs[0] because this workflow has exactly one job.
+          CHECK_RUN_URL=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs" \
+            --jq '.jobs[0].check_run_url')
+
+          if [ -n "$CHECK_RUN_URL" ]; then
+            jq -n --arg title "$HEADLINE" --arg summary "$DETAIL" \
+              '{output: {title: $title, summary: $summary}}' > "$RUNNER_TEMP/check.json"
+            gh api --method PATCH "$CHECK_RUN_URL" --input "$RUNNER_TEMP/check.json" --silent \
+              || echo "::warning::Could not set the check run description; the count is in this log."
+          fi
+
+          echo "$HEADLINE"
+
+          if [ "$COUNT" -ge "$BRANCH_LIMIT" ]; then
+            echo "::error::$HEADLINE. $DETAIL"
+            exit 1
+          fi
