@@ -4,8 +4,8 @@ import { sendEmail } from '@/lib/email/resend';
 import { magicLinkEmail, otpEmail } from '@/lib/email/templates';
 import { verifyWebhookSignature } from '@/lib/email/verify-webhook';
 
-// A permitted exception to the no-API-routes rule: auth infrastructure that must be a
-// publicly reachable endpoint. Its contract is HTTP status codes, not the action model.
+// Permitted exception to the no-API-routes rule (publicly reachable, HTTP-status
+// contract). Static `webhook` segment takes precedence over the `[...path]` catch-all.
 
 // Neon uses event_type (not type) as the discriminator, and nests the recipient
 // under user.email and event-specific fields under event_data.

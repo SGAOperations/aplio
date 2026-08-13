@@ -44,6 +44,10 @@ export function formatDate(date: Date): string {
   }).format(date);
 }
 
+/**
+ * Buckets to "Just now"/"Nm ago"/"Nh ago"/"Nd ago", falling back to formatDate
+ * beyond a week.
+ */
 export function formatRelativeTime(date: Date, now: Date = new Date()): string {
   const diffMs = now.getTime() - date.getTime();
   const diffSec = Math.floor(diffMs / 1000);
