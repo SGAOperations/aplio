@@ -106,6 +106,10 @@ Preview migrations run inside the Vercel build itself, driven by `vercel.json`'s
 
 `dev` and `main` are migrated the existing way, via `.github/workflows/migrate-db.yml` on push — that workflow is untouched by the above.
 
+`.github/workflows/neon-branch-check.yml` checks the live branch count on every PR push and **fails when the project is at its cap**, so a quota-blocked preview is distinguishable from a broken build without opening the Neon console; the count and full branch inventory are in the run log. It needs two Actions secrets — `NEON_API_KEY` and `NEON_PROJECT_ID`, the same values the app already uses at runtime (see `.env.example`) — and an optional `NEON_BRANCH_LIMIT` repository variable, which defaults to `10`. That limit is configuration rather than something the workflow discovers, because Neon's API exposes no quota endpoint. **Never add this check to the required status checks:** it goes red at capacity by design, and making it required would block merges on top of `Vercel` instead of merely reporting.
+
+Preview branches are a **project-wide, finite pool**: Neon allows 10 branches and 2 are permanently held (`dev`, `production`), leaving **~8 usable for previews**. Every open PR with a preview deployment consumes one, and merging or closing that PR frees it automatically — there is no manual cleanup step. When the pool is exhausted the integration cannot attach a branch, so `DATABASE_URL_UNPOOLED` is never injected and the preview build fails on the Prisma datasource — the branch-budget check above is what identifies that as a quota problem. To reclaim capacity, merge or close an open PR; the next push to a blocked branch redeploys into the freed slot.
+
 ## Project structure
 
 ```

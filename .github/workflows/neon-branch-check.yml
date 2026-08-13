@@ -1,0 +1,104 @@
+# Reports Neon preview-database capacity on each PR. Fails when the project is
+# at its branch cap, so a quota-blocked preview is distinguishable from a broken
+# build without opening the Neon or Vercel console.
+#
+# Secrets: NEON_API_KEY (read-only suffices), NEON_PROJECT_ID.
+# Variable: NEON_BRANCH_LIMIT (default 10) — Neon exposes no quota endpoint, so
+# the cap cannot be discovered and must be configured.
+#
+# NEVER add this to the required status checks on `dev`/`main`. It goes red at
+# capacity by design; requiring it would block merges on top of `Vercel`.
+
+name: Neon Branch Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+concurrency:
+  group: neon-branch-check-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write # to put the count on this job's own check run
+
+jobs:
+  run-neon-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Dependabot runs receive Dependabot secrets, not Actions secrets.
+    if: github.actor != 'dependabot[bot]'
+
+    steps:
+      - name: Check Neon branch budget
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+          BRANCH_LIMIT: ${{ vars.NEON_BRANCH_LIMIT || '10' }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$NEON_API_KEY" ] || [ -z "$NEON_PROJECT_ID" ]; then
+            echo "::error::NEON_API_KEY and NEON_PROJECT_ID are required secrets. Configure them in GitHub → Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+          # limit=100 exceeds any plan's cap, so the response is a single page.
+          curl -sfS \
+            -H "Authorization: Bearer $NEON_API_KEY" \
+            -H "Accept: application/json" \
+            "https://console.neon.tech/api/v2/projects/$NEON_PROJECT_ID/branches?limit=100" \
+            -o "$RUNNER_TEMP/branches.json"
+
+          COUNT=$(jq '.branches | length' "$RUNNER_TEMP/branches.json")
+          FREE=$((BRANCH_LIMIT - COUNT))
+          if [ "$FREE" -lt 0 ]; then
+            FREE=0
+          fi
+
+          echo "Neon branch inventory ($COUNT/$BRANCH_LIMIT used, $FREE free):"
+          jq -r '.branches[] | "  \(.name)\t\(.created_at)"' "$RUNNER_TEMP/branches.json"
+
+          {
+            echo "### Neon branch budget"
+            echo
+            echo "**$COUNT / $BRANCH_LIMIT** branches used — $FREE free."
+            echo
+            echo "| Branch | Created |"
+            echo "| ------ | ------- |"
+            jq -r '.branches[] | "| \(.name) | \(.created_at) |"' "$RUNNER_TEMP/branches.json"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$COUNT" -ge "$BRANCH_LIMIT" ]; then
+            HEADLINE="$COUNT/$BRANCH_LIMIT Neon branches used — no preview database available"
+            DETAIL="A slot frees when an open PR is merged or closed; push again to redeploy."
+          else
+            HEADLINE="$COUNT/$BRANCH_LIMIT Neon branches used — $FREE preview slot(s) free"
+            DETAIL="Preview databases are available."
+          fi
+
+          # Actions leaves its own check run's output empty, which is why the count
+          # would otherwise be invisible to `gh pr checks`. GITHUB_TOKEN belongs to
+          # the same app that owns this check run, so it can fill the output in.
+          # jobs[0] because this workflow has exactly one job. `|| true` so a
+          # transient lookup failure only skips the check-run update below and
+          # never aborts the step before the real COUNT-vs-BRANCH_LIMIT verdict.
+          CHECK_RUN_URL=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs" \
+            --jq '.jobs[0].check_run_url' || true)
+
+          if [ -n "$CHECK_RUN_URL" ]; then
+            jq -n --arg title "$HEADLINE" --arg summary "$DETAIL" \
+              '{output: {title: $title, summary: $summary}}' > "$RUNNER_TEMP/check.json"
+            gh api --method PATCH "$CHECK_RUN_URL" --input "$RUNNER_TEMP/check.json" --silent \
+              || echo "::warning::Could not set the check run description; the count is in this log."
+          fi
+
+          echo "$HEADLINE"
+
+          if [ "$COUNT" -ge "$BRANCH_LIMIT" ]; then
+            echo "::error::$HEADLINE. $DETAIL"
+            exit 1
+          fi

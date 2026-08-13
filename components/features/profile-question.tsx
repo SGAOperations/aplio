@@ -8,7 +8,12 @@ import { toast } from 'sonner';
 import { updateGlobalAnswer } from '@/prisma/actions/profile';
 import type { GlobalAnswer, GlobalQuestion } from '@/prisma/client';
 
-import { OTHER_OPTION_LABEL, OTHER_OPTION_VALUE } from '@/lib/constants';
+import {
+  OTHER_OPTION_LABEL,
+  OTHER_OPTION_VALUE,
+  SHORT_ANSWER_FORMAT_ERROR_MESSAGES,
+  matchesShortAnswerFormat,
+} from '@/lib/constants';
 import { isError } from '@/lib/utils';
 
 import { AnswerFileLink } from '@/components/features/answer-file-link';
@@ -40,6 +45,7 @@ export function ProfileQuestion({
   const savedValueRef = useRef(JSON.stringify(initialValue));
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
+  const [formatError, setFormatError] = useState<string | null>(null);
 
   // Any answer value that isn't one of the admin-defined options is the
   // applicant's typed "Other" text (options is a closed set — see issue #322).
@@ -73,8 +79,22 @@ export function ProfileQuestion({
     }
   }
 
+  // Format mismatches never reach the network — this autosave's failure path
+  // is silent by design (see the catch above), so blocking the save
+  // client-side is the only way the user ever sees this message.
   function handleBlur() {
-    save(getValues('value'));
+    const value = getValues('value');
+    if (
+      question.type === 'short_answer' &&
+      question.format &&
+      value[0] &&
+      !matchesShortAnswerFormat(value[0], question.format)
+    ) {
+      setFormatError(SHORT_ANSWER_FORMAT_ERROR_MESSAGES[question.format]);
+      return;
+    }
+    setFormatError(null);
+    save(value);
   }
 
   return (
@@ -118,9 +138,10 @@ export function ProfileQuestion({
               return (
                 <Input
                   value={field.value[0] ?? ''}
-                  onChange={(e) =>
-                    field.onChange(e.target.value ? [e.target.value] : [])
-                  }
+                  onChange={(e) => {
+                    field.onChange(e.target.value ? [e.target.value] : []);
+                    setFormatError(null);
+                  }}
                   onBlur={handleBlur}
                   placeholder="Your answer"
                 />
@@ -342,6 +363,9 @@ export function ProfileQuestion({
         />
       )}
 
+      {isEditing && formatError && (
+        <p className="text-destructive mt-2 text-xs">{formatError}</p>
+      )}
       {isEditing && isSaving && (
         <span className="text-muted-foreground mt-2 block text-xs">
           Saving...

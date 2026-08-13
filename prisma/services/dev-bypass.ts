@@ -3,35 +3,13 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
+import { BYPASS_USERS, type BypassRole } from '@/lib/bypass-users';
 import { prisma } from '@/lib/prisma';
 import { isBypassAllowed } from '@/lib/utils';
-
-export type BypassRole = 'admin' | 'applicant' | 'position-manager';
 
 // Well-known id so concurrent bypass logins upsert the same fixture row
 // instead of racing to create duplicate "Bypass Position" rows.
 const BYPASS_POSITION_ID = 'bypass-position';
-
-const BYPASS_USERS: Record<
-  BypassRole,
-  { email: string; neonAuthId: string; isAdmin: boolean }
-> = {
-  admin: {
-    email: 'bypass-admin@example.com',
-    neonAuthId: 'bypass-admin',
-    isAdmin: true,
-  },
-  applicant: {
-    email: 'bypass-applicant@example.com',
-    neonAuthId: 'bypass-applicant',
-    isAdmin: false,
-  },
-  'position-manager': {
-    email: 'bypass-position-manager@example.com',
-    neonAuthId: 'bypass-position-manager',
-    isAdmin: false,
-  },
-};
 
 // Hard no-op unless bypass is explicitly enabled (ENGINEERING §3) — see
 // isBypassAllowed for the default-deny rationale.

@@ -1,10 +1,19 @@
+import { BYPASS_USERS } from '@/lib/bypass-users';
+
 import type { PositionDef } from './types';
 
+// Day offsets are resolved against the seed run's `now` via utcDayOffset, so
+// every window below (opens-today boundary, upcoming, closing soon,
+// closed-by-date, long-closed) stays correct no matter when the seed runs.
 export const positionDefs: PositionDef[] = [
   {
     title: 'Senator — College of Engineering',
     description:
       'Represent the interests of engineering students in the Student Government Association.',
+    status: 'open',
+    opensInDays: 0,
+    closesInDays: 21,
+    managerEmails: [BYPASS_USERS['position-manager'].email],
     questions: [
       {
         order: 1,
@@ -28,6 +37,10 @@ export const positionDefs: PositionDef[] = [
     title: 'Director of Finance',
     description:
       'Oversee the SGA budget, manage financial requests, and ensure transparent allocation of student funds.',
+    status: 'open',
+    opensInDays: null,
+    closesInDays: 0,
+    managerEmails: ['david@example.com'],
     questions: [
       {
         order: 1,
@@ -47,12 +60,16 @@ export const positionDefs: PositionDef[] = [
     title: 'Director of Technology',
     description:
       'Lead digital initiatives for the SGA, maintain the student portal, and improve tech infrastructure.',
+    status: 'open',
+    opensInDays: -7,
+    closesInDays: 2,
     questions: [
       {
         order: 1,
         label: 'What technologies are you proficient in?',
         type: 'multiple_choice',
-        options: ['JavaScript', 'Python', 'Java', 'SQL', 'Other'],
+        options: ['JavaScript', 'Python', 'Java', 'SQL'],
+        allowOther: true,
       },
       {
         order: 2,
@@ -77,6 +94,9 @@ export const positionDefs: PositionDef[] = [
     title: 'Senator — College of Science',
     description:
       'Voice the concerns and priorities of science students in SGA legislative sessions.',
+    status: 'open',
+    opensInDays: 14,
+    closesInDays: 45,
     questions: [
       {
         order: 1,
@@ -94,6 +114,9 @@ export const positionDefs: PositionDef[] = [
     title: 'Director of External Relations',
     description:
       'Build partnerships with external organizations, coordinate community outreach, and represent students to university leadership.',
+    status: 'open',
+    opensInDays: -30,
+    closesInDays: -3,
     questions: [
       {
         order: 1,
@@ -112,6 +135,10 @@ export const positionDefs: PositionDef[] = [
     title: 'Student Advocate',
     description:
       'Serve as a direct point of contact for students with grievances, policy concerns, or unmet needs.',
+    status: 'closed',
+    opensInDays: -60,
+    closesInDays: -10,
+    managerEmails: [BYPASS_USERS['position-manager'].email],
     questions: [
       {
         order: 1,
@@ -138,31 +165,46 @@ export const positionDefs: PositionDef[] = [
       },
     ],
   },
-  // Regression fixtures for issue #348 — never seeded before, which is why
-  // "position: PUBLISHED_POSITION_WHERE" going unapplied went unnoticed.
   {
-    title: 'Director of Wellness (Draft)',
+    title: 'Chief of Staff',
     description:
-      'Coordinate mental health resources and wellness programming — not yet published.',
+      "Coordinate the executive team's daily operations and serve as the President's chief advisor.",
     status: 'draft',
+    questions: [],
+  },
+  {
+    title: 'Sustainability Chair',
+    description:
+      'Lead campus sustainability initiatives and represent environmental priorities within SGA.',
+    status: 'closed',
+    opensInDays: -120,
+    closesInDays: -90,
     questions: [
       {
         order: 1,
-        label: 'What wellness initiatives would you prioritize?',
+        label: 'What sustainability initiative would you prioritize first?',
+        type: 'long_answer',
+      },
+      {
+        order: 2,
+        label:
+          'Describe any experience with environmental advocacy or organizing.',
         type: 'long_answer',
       },
     ],
   },
   {
-    title: 'Director of Alumni Relations (Deleted)',
+    title: 'Elections Commissioner',
     description:
-      'Maintain alumni engagement and coordinate reunion programming — soft-deleted.',
+      'Administer SGA elections, oversee candidate eligibility, and certify results.',
+    status: 'open',
     deleted: true,
     questions: [
       {
         order: 1,
-        label: 'How would you engage alumni in campus life?',
-        type: 'long_answer',
+        label: 'Have you previously served on an election oversight committee?',
+        type: 'single_choice',
+        options: ['Yes', 'No'],
       },
     ],
   },
@@ -189,7 +231,14 @@ export const positionAnswers: Record<string, Record<string, string[]>> = {
       ],
   },
   'Director of Technology': {
-    'What technologies are you proficient in?': ['JavaScript', 'Python', 'SQL'],
+    // 'Rust' is not in the question's options — exercises the virtual "Other"
+    // choice's custom-value render path (allowOther is set on this question).
+    'What technologies are you proficient in?': [
+      'JavaScript',
+      'Python',
+      'SQL',
+      'Rust',
+    ],
     "Describe a project you've built or contributed to.": [
       'Built an open-source room booking system for our CS club, now used by 200+ students weekly.',
     ],
@@ -224,14 +273,15 @@ export const positionAnswers: Record<string, Record<string, string[]>> = {
       'Tuition',
     ],
   },
-  'Director of Wellness (Draft)': {
-    'What wellness initiatives would you prioritize?': [
-      'Expanding counseling appointment availability and destigmatizing mental health resources.',
+  'Sustainability Chair': {
+    'What sustainability initiative would you prioritize first?': [
+      'Expanding campus composting to every dining hall within a semester.',
+    ],
+    'Describe any experience with environmental advocacy or organizing.': [
+      'Organized a campus-wide single-use plastics phase-out petition that gathered 800 signatures.',
     ],
   },
-  'Director of Alumni Relations (Deleted)': {
-    'How would you engage alumni in campus life?': [
-      'Host regional alumni mixers and pair recent grads with a mentor from their major.',
-    ],
+  'Elections Commissioner': {
+    'Have you previously served on an election oversight committee?': ['No'],
   },
 };

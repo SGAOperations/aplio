@@ -2,13 +2,10 @@ import 'dotenv/config';
 
 import { PrismaPg } from '@prisma/adapter-pg';
 
-import { PrismaClient } from './client';
-import {
-  applicationAssignments,
-  draftApplicationAssignments,
-} from './seed/applications';
+import { PrismaClient, type User } from './client';
+import { applicationDefs } from './seed/applications';
 import { globalQuestionDefs } from './seed/global-questions';
-import { toQuestionCreateInput } from './seed/helpers';
+import { toQuestionCreateInput, utcDayOffset } from './seed/helpers';
 import { positionAnswers, positionDefs } from './seed/positions';
 import { applicantDefs, profileAnswers } from './seed/users';
 
@@ -19,60 +16,106 @@ if (!databaseUrl)
 const adapter = new PrismaPg({ connectionString: databaseUrl });
 const prisma = new PrismaClient({ adapter });
 
+const SEED_MARKER_EMAIL = 'seed@aplio.dev';
+
 async function main() {
-  const userCount = await prisma.user.count();
-  if (userCount > 0) {
-    console.log('Database already has users — skipping seed.');
+  // A bypass login creates a User row on its own, which would permanently
+  // disable a plain `userCount > 0` guard on any DB someone has bypass-logged
+  // into. The seed-marker admin only ever comes from this script.
+  const existingSeed = await prisma.user.findUnique({
+    where: { email: SEED_MARKER_EMAIL },
+  });
+  if (existingSeed) {
+    console.log('Database already seeded — skipping seed.');
     return;
   }
 
+  const now = new Date();
+
   // Transactional so a partial failure rolls back instead of leaving a
-  // half-seeded DB that the userCount guard above would mask on rerun.
-  // 30s timeout: ~50 sequential writes over one connection to a remote Neon DB.
+  // half-seeded DB that the seed-marker guard above would mask on rerun.
+  // 60s timeout: the fixture set roughly triples the original write count.
   await prisma.$transaction(
     async (tx) => {
       const admin = await tx.user.create({
         data: {
           neonAuthId: crypto.randomUUID(),
-          email: 'seed@aplio.dev',
+          email: SEED_MARKER_EMAIL,
           name: 'Seed Admin',
           isAdmin: true,
         },
       });
 
-      // Created individually rather than createManyAndReturn: Promise.all's
-      // resolved array matches applicantDefs' order regardless of DB insert
-      // order, which the code below relies on to index into profileAnswers.
-      const applicants = await Promise.all(
+      // Bypass identities are upserted (create leaves everything else alone) so
+      // a DB where someone already bypass-logged-in still seeds instead of
+      // colliding on the unique neonAuthId; regular applicants are plain
+      // creates. `name` is synced on update so a prior dev-bypass login (whose
+      // own upsert never sets `name`) still picks up the seeded display name.
+      const applicants: User[] = await Promise.all(
         applicantDefs.map((u) =>
-          tx.user.create({
-            data: {
-              ...u,
-              neonAuthId: crypto.randomUUID(),
-              createdById: admin.id,
-              updatedById: admin.id,
-            },
-          }),
+          u.neonAuthId
+            ? tx.user.upsert({
+                where: { neonAuthId: u.neonAuthId },
+                update: { name: u.name },
+                create: {
+                  neonAuthId: u.neonAuthId,
+                  email: u.email,
+                  name: u.name,
+                  isAdmin: u.isAdmin ?? false,
+                  createdById: admin.id,
+                  updatedById: admin.id,
+                },
+              })
+            : tx.user.create({
+                data: {
+                  neonAuthId: crypto.randomUUID(),
+                  email: u.email,
+                  name: u.name,
+                  createdById: admin.id,
+                  updatedById: admin.id,
+                  ...(u.deactivated
+                    ? { deletedAt: now, deletedById: admin.id }
+                    : {}),
+                },
+              }),
         ),
+      );
+
+      const usersByEmail: Record<string, User> = Object.fromEntries(
+        [admin, ...applicants].map((u) => [u.email, u]),
       );
 
       const globalQuestions = await tx.globalQuestion.createManyAndReturn({
         data: globalQuestionDefs.map((q) => toQuestionCreateInput(q, admin.id)),
       });
+      const globalQuestionsByLabel = Object.fromEntries(
+        globalQuestions.map((q) => [q.label, q]),
+      );
 
       const positions = await Promise.all(
-        positionDefs.map((p) =>
-          tx.position.create({
+        positionDefs.map((p) => {
+          const opensAt =
+            p.opensInDays != null ? utcDayOffset(now, p.opensInDays) : null;
+          const closesAt =
+            p.closesInDays != null ? utcDayOffset(now, p.closesInDays) : null;
+          const managerIds = (p.managerEmails ?? []).map((email) => {
+            const manager = usersByEmail[email];
+            if (!manager) throw new Error(`Unknown manager email: ${email}`);
+            return manager.id;
+          });
+
+          return tx.position.create({
             data: {
               title: p.title,
               description: p.description,
-              status: p.status ?? 'open',
+              status: p.status,
+              opensAt,
+              closesAt,
               createdById: admin.id,
               updatedById: admin.id,
-              // Regression fixture for issue #348 — soft-deleted, so every
-              // cross-position surface must exclude its applications.
-              ...(p.deleted
-                ? { deletedAt: new Date(), deletedById: admin.id }
+              ...(p.deleted ? { deletedAt: now, deletedById: admin.id } : {}),
+              ...(managerIds.length > 0
+                ? { managers: { connect: managerIds.map((id) => ({ id })) } }
                 : {}),
               questions: {
                 createMany: {
@@ -83,101 +126,130 @@ async function main() {
               },
             },
             include: { questions: true },
-          }),
-        ),
+          });
+        }),
+      );
+      const positionsByTitle = Object.fromEntries(
+        positions.map((p) => [p.title, p]),
       );
 
-      await Promise.all(
-        applicants.flatMap((applicant, i) =>
-          globalQuestions.map((q) =>
-            tx.globalAnswer.create({
-              data: {
-                userId: applicant.id,
-                globalQuestionId: q.id,
-                value: profileAnswers[i][q.label] ?? [],
-                createdById: applicant.id,
-                updatedById: applicant.id,
-              },
-            }),
-          ),
+      // One createMany across every applicant's profile answers — only labels
+      // present in profileAnswers[email] get a row, so an omitted question
+      // (the position manager's two missing required answers) is genuinely
+      // unanswered rather than answered with an empty value. skipDuplicates
+      // covers a bypass identity that already carries answers from a prior run.
+      const globalAnswerData = applicants.flatMap((user) =>
+        Object.entries(profileAnswers[user.email] ?? {}).map(
+          ([label, value]) => {
+            const question = globalQuestionsByLabel[label];
+            if (!question)
+              throw new Error(`Unknown global question label: ${label}`);
+            return {
+              userId: user.id,
+              globalQuestionId: question.id,
+              value,
+              createdById: user.id,
+              updatedById: user.id,
+            };
+          },
         ),
       );
+      await tx.globalAnswer.createMany({
+        data: globalAnswerData,
+        skipDuplicates: true,
+      });
 
       await Promise.all(
-        applicationAssignments.flatMap(({ applicantIdx, positionIndices }) =>
-          positionIndices.map((positionIdx) => {
-            const applicant = applicants[applicantIdx];
-            const position = positions[positionIdx];
+        applicationDefs.map((def) => {
+          const user = usersByEmail[def.applicantEmail];
+          if (!user)
+            throw new Error(`Unknown applicant email: ${def.applicantEmail}`);
+          const position = positionsByTitle[def.positionTitle];
+          if (!position)
+            throw new Error(`Unknown position title: ${def.positionTitle}`);
 
-            return tx.application.create({
-              data: {
-                userId: applicant.id,
-                positionId: position.id,
-                status: 'applied',
-                createdById: applicant.id,
-                updatedById: applicant.id,
-                globalAnswers: {
-                  createMany: {
-                    data: globalQuestions.map((q) => ({
-                      globalQuestionId: q.id,
-                      questionLabel: q.label,
-                      value: profileAnswers[applicantIdx][q.label] ?? [],
-                      createdById: applicant.id,
-                      updatedById: applicant.id,
-                    })),
+          // 'partial' and 'full' both copy the applicant's current profile
+          // answers onto the application, mirroring createDraftApplication —
+          // an incomplete profile (the position manager) still copies whatever
+          // exists, which is exactly what leaves that draft blocked on submit.
+          const globalAnswersData =
+            def.answers === 'none'
+              ? []
+              : Object.entries(profileAnswers[user.email] ?? {}).map(
+                  ([label, value]) => {
+                    const question = globalQuestionsByLabel[label];
+                    if (!question)
+                      throw new Error(
+                        `Unknown global question label: ${label}`,
+                      );
+                    return {
+                      globalQuestionId: question.id,
+                      questionLabel: label,
+                      value,
+                      createdById: user.id,
+                      updatedById: user.id,
+                    };
                   },
-                },
-                positionAnswers: {
-                  createMany: {
-                    data: position.questions.map((q) => ({
-                      positionQuestionId: q.id,
-                      questionLabel: q.label,
-                      value: positionAnswers[position.title]?.[q.label] ?? [],
-                      createdById: applicant.id,
-                      updatedById: applicant.id,
-                    })),
-                  },
-                },
-              },
-            });
-          }),
-        ),
-      );
+                );
 
-      // Regression fixture for issue #348 — a draft (unsubmitted) application
-      // against the soft-deleted position, alongside the submitted one above.
-      await Promise.all(
-        draftApplicationAssignments.map(({ applicantIdx, positionIdx }) => {
-          const applicant = applicants[applicantIdx];
-          const position = positions[positionIdx];
+          // file_upload questions are skipped — seeded fixtures carry no real
+          // blob, and every file_upload question in this dataset is optional.
+          const positionAnswersData =
+            def.answers === 'full'
+              ? position.questions
+                  .filter((q) => q.type !== 'file_upload')
+                  .map((q) => ({
+                    positionQuestionId: q.id,
+                    questionLabel: q.label,
+                    value: positionAnswers[position.title]?.[q.label] ?? [],
+                    createdById: user.id,
+                    updatedById: user.id,
+                  }))
+              : [];
 
           return tx.application.create({
             data: {
-              userId: applicant.id,
+              userId: user.id,
               positionId: position.id,
-              status: 'draft',
-              createdById: applicant.id,
-              updatedById: applicant.id,
-              globalAnswers: {
-                createMany: {
-                  data: globalQuestions.map((q) => ({
-                    globalQuestionId: q.id,
-                    questionLabel: q.label,
-                    value: profileAnswers[applicantIdx][q.label] ?? [],
-                    createdById: applicant.id,
-                    updatedById: applicant.id,
-                  })),
-                },
-              },
+              status: def.status,
+              ...(def.submittedInDays !== undefined
+                ? { submittedAt: utcDayOffset(now, -def.submittedInDays) }
+                : {}),
+              createdById: user.id,
+              updatedById: user.id,
+              globalAnswers: { createMany: { data: globalAnswersData } },
+              positionAnswers: { createMany: { data: positionAnswersData } },
             },
           });
         }),
       );
     },
-    { timeout: 30_000 },
+    { timeout: 60_000 },
   );
 
+  const positionsByStatus = positionDefs.reduce<Record<string, number>>(
+    (acc, p) => {
+      acc[p.status] = (acc[p.status] ?? 0) + 1;
+      return acc;
+    },
+    {},
+  );
+  const applicationsByStatus = applicationDefs.reduce<Record<string, number>>(
+    (acc, a) => {
+      acc[a.status] = (acc[a.status] ?? 0) + 1;
+      return acc;
+    },
+    {},
+  );
+  const deletedPosition = positionDefs.find((p) => p.deleted);
+  const deactivatedUser = applicantDefs.find((u) => u.deactivated);
+
   console.log('Seed complete');
+  console.log(`Users: ${applicantDefs.length + 1} (including seed admin)`);
+  console.log('Positions by status:', positionsByStatus);
+  console.log('Applications by status:', applicationsByStatus);
+  console.log(`Soft-deleted position: ${deletedPosition?.title ?? 'none'}`);
+  console.log(`Deactivated user: ${deactivatedUser?.email ?? 'none'}`);
 }
 
 main()
