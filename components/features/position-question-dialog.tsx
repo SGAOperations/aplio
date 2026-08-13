@@ -18,9 +18,11 @@ import {
   type ChoiceType,
   QUESTION_TYPE_LABELS,
   QUESTION_TYPE_VALUES,
+  type ShortAnswerFormatValue,
   questionFormSchema,
 } from '@/lib/constants';
 
+import { FormatField } from '@/components/features/question-format-field';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -50,6 +52,7 @@ export interface RenderedQuestion {
   required: boolean;
   options: string[];
   allowOther: boolean;
+  format: ShortAnswerFormatValue | null;
   order: number;
 }
 
@@ -81,6 +84,7 @@ export function QuestionForm({
       required: question?.required ?? true,
       options: question?.options ?? [],
       allowOther: question?.allowOther ?? false,
+      format: question?.format ?? null,
     },
   });
   const isSubmitting = form.formState.isSubmitting;
@@ -164,6 +168,9 @@ export function QuestionForm({
                     form.setValue('options', []);
                     form.setValue('allowOther', false);
                   }
+                  // Clear format at the same moment — it's only meaningful for
+                  // short_answer questions.
+                  if (v !== 'short_answer') form.setValue('format', null);
                 }}
                 value={field.value}
                 disabled={isSubmitting}
@@ -185,6 +192,8 @@ export function QuestionForm({
             </FormItem>
           )}
         />
+
+        <FormatField />
 
         <FormField
           control={form.control}

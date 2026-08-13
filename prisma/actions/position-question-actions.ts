@@ -5,16 +5,22 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod/v4';
 
 import { requirePositionAccess } from '@/lib/auth/guards';
-import { baseQuestionSchema, validateOptions } from '@/lib/constants';
+import {
+  baseQuestionSchema,
+  validateOptions,
+  validateShortAnswerFormat,
+} from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 
 const createPositionQuestionSchema = baseQuestionSchema
   .extend({ positionId: z.string().min(1) })
-  .superRefine(validateOptions);
+  .superRefine(validateOptions)
+  .superRefine(validateShortAnswerFormat);
 
 const updatePositionQuestionSchema = baseQuestionSchema
   .extend({ id: z.string().min(1), positionId: z.string().min(1) })
-  .superRefine(validateOptions);
+  .superRefine(validateOptions)
+  .superRefine(validateShortAnswerFormat);
 
 const deletePositionQuestionSchema = z.object({
   id: z.string().min(1),
@@ -28,7 +34,7 @@ export async function createPositionQuestion(
   if (!parsed.success)
     return { error: parsed.error.issues[0]?.message ?? 'Invalid input' };
 
-  const { positionId, label, type, required, options, allowOther } =
+  const { positionId, label, type, required, options, allowOther, format } =
     parsed.data;
 
   const user = await requirePositionAccess(positionId);
@@ -50,6 +56,7 @@ export async function createPositionQuestion(
         order,
         options,
         allowOther,
+        format,
         createdById: user.id,
         updatedById: user.id,
       },
@@ -67,7 +74,7 @@ export async function updatePositionQuestion(
   if (!parsed.success)
     return { error: parsed.error.issues[0]?.message ?? 'Invalid input' };
 
-  const { id, positionId, label, type, required, options, allowOther } =
+  const { id, positionId, label, type, required, options, allowOther, format } =
     parsed.data;
 
   const user = await requirePositionAccess(positionId);
@@ -75,7 +82,15 @@ export async function updatePositionQuestion(
   // Scope the write to positionId to prevent IDOR across positions
   const result = await prisma.positionQuestion.updateMany({
     where: { id, positionId },
-    data: { label, type, required, options, allowOther, updatedById: user.id },
+    data: {
+      label,
+      type,
+      required,
+      options,
+      allowOther,
+      format,
+      updatedById: user.id,
+    },
   });
 
   if (result.count === 0) return { error: 'This question no longer exists.' };

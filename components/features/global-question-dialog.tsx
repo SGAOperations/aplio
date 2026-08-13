@@ -20,6 +20,7 @@ import {
 } from '@/lib/constants';
 import type { GlobalQuestionListItem } from '@/lib/types';
 
+import { FormatField } from '@/components/features/question-format-field';
 import {
   FormControl,
   FormField,
@@ -59,6 +60,9 @@ function TypeField() {
                 setValue('options', []);
                 setValue('allowOther', false);
               }
+              // Clear format at the same moment — it's only meaningful for
+              // short_answer questions.
+              if (v !== 'short_answer') setValue('format', null);
             }}
             value={field.value}
           >
@@ -176,6 +180,7 @@ export function GlobalQuestionDialog({
     required: question?.required ?? true,
     options: question?.options ?? [],
     allowOther: question?.allowOther ?? false,
+    format: question?.format ?? null,
   };
 
   async function onSubmit(data: QuestionFormValues): Promise<boolean> {
@@ -213,6 +218,8 @@ export function GlobalQuestionDialog({
       />
 
       <TypeField />
+
+      <FormatField />
 
       <RequiredField />
 

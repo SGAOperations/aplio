@@ -4,9 +4,9 @@ import { useRef, useState } from 'react';
 
 import { toast } from 'sonner';
 
-import type { QuestionType } from '@/prisma/client';
+import type { QuestionType, ShortAnswerFormat } from '@/prisma/client';
 
-import { OTHER_OPTION_LABEL } from '@/lib/constants';
+import { OTHER_OPTION_LABEL, matchesShortAnswerFormat } from '@/lib/constants';
 import type { QuestionFileTarget } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -23,6 +23,16 @@ type QuestionShape = {
   required: boolean;
   options: string[];
   allowOther: boolean;
+  format: ShortAnswerFormat | null;
+};
+
+// Native input type per format preset — gives mobile keyboards (email/tel/url)
+// without adding any new validation surface (validation is the format regex).
+const FORMAT_INPUT_TYPES: Record<ShortAnswerFormat, string> = {
+  email: 'email',
+  phone_number: 'tel',
+  url: 'url',
+  zip_code: 'text',
 };
 
 interface ApplicationQuestionProps {
@@ -79,6 +89,17 @@ export function ApplicationQuestion({
 
   async function handleBlur() {
     field.onBlur();
+    // Mirrors the Controller `validate` rule in application-stepper.tsx —
+    // skip the autosave when the value fails format validation so a
+    // rejected value never round-trips to the server for a second, more
+    // generic "Failed to save answer" toast on top of the inline error.
+    if (
+      question.type === 'short_answer' &&
+      question.format &&
+      field.value[0] &&
+      !matchesShortAnswerFormat(field.value[0], question.format)
+    )
+      return;
     await save(field.value);
   }
 
@@ -96,6 +117,7 @@ export function ApplicationQuestion({
 
       {question.type === 'short_answer' && (
         <Input
+          type={question.format ? FORMAT_INPUT_TYPES[question.format] : 'text'}
           value={field.value[0] ?? ''}
           onChange={(e) =>
             field.onChange(e.target.value ? [e.target.value] : [])

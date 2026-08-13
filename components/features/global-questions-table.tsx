@@ -10,6 +10,7 @@ import { deleteGlobalQuestion } from '@/prisma/actions/global-questions';
 import {
   QUESTION_TYPE_BADGE_VARIANT,
   QUESTION_TYPE_LABELS,
+  SHORT_ANSWER_FORMAT_LABELS,
 } from '@/lib/constants';
 import type { GlobalQuestionListItem } from '@/lib/types';
 import {
@@ -146,9 +147,16 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
                 <TableCell>{question.order}</TableCell>
                 <TableCell className="font-medium">{question.label}</TableCell>
                 <TableCell>
-                  <Badge variant={QUESTION_TYPE_BADGE_VARIANT[question.type]}>
-                    {QUESTION_TYPE_LABELS[question.type]}
-                  </Badge>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={QUESTION_TYPE_BADGE_VARIANT[question.type]}>
+                      {QUESTION_TYPE_LABELS[question.type]}
+                    </Badge>
+                    {question.format && (
+                      <Badge variant="outline">
+                        {SHORT_ANSWER_FORMAT_LABELS[question.format]}
+                      </Badge>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell>
                   {question.options.length > 0 || question.allowOther ? (
@@ -210,9 +218,16 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
             <div className="flex flex-col gap-3">
               <div className="flex items-start justify-between gap-2">
                 <p className="font-medium">{question.label}</p>
-                <Badge variant={QUESTION_TYPE_BADGE_VARIANT[question.type]}>
-                  {QUESTION_TYPE_LABELS[question.type]}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant={QUESTION_TYPE_BADGE_VARIANT[question.type]}>
+                    {QUESTION_TYPE_LABELS[question.type]}
+                  </Badge>
+                  {question.format && (
+                    <Badge variant="outline">
+                      {SHORT_ANSWER_FORMAT_LABELS[question.format]}
+                    </Badge>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground text-xs">
