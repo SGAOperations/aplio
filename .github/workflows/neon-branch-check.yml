@@ -9,7 +9,7 @@
 # NEVER add this to the required status checks on `dev`/`main`. It goes red at
 # capacity by design; requiring it would block merges on top of `Vercel`.
 
-name: Neon Branch Budget
+name: Neon Branch Check
 
 on:
   pull_request:
@@ -17,7 +17,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: neon-branch-budget-${{ github.ref }}
+  group: neon-branch-check-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -25,8 +25,7 @@ permissions:
   checks: write # to put the count on this job's own check run
 
 jobs:
-  budget:
-    name: Check branch budget
+  run-neon-check:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     # Dependabot runs receive Dependabot secrets, not Actions secrets.
