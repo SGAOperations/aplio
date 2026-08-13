@@ -120,6 +120,12 @@ jobs:
             jq -r '.branches[] | "| \(.name) | \(.created_at) |"' "$RUNNER_TEMP/branches.json"
           } >> "$GITHUB_STEP_SUMMARY"
 
+          # Also to stdout: the step summary renders only in the web UI, and this
+          # workflow exists so the quota is answerable WITHOUT a console. Printing
+          # it here makes the inventory reachable via `gh run view --log`.
+          echo "Neon branch inventory ($COUNT/$BRANCH_LIMIT used, $FREE free):"
+          jq -r '.branches[] | "  \(.name)\t\(.created_at)"' "$RUNNER_TEMP/branches.json"
+
       - name: Post commit status
         env:
           GH_TOKEN: ${{ github.token }}
