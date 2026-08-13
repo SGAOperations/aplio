@@ -10,6 +10,7 @@ import { deletePositionQuestion } from '@/prisma/actions/position-question-actio
 import {
   QUESTION_TYPE_BADGE_VARIANT,
   QUESTION_TYPE_LABELS,
+  SHORT_ANSWER_FORMAT_LABELS,
 } from '@/lib/constants';
 
 import { Badge } from '@/components/ui/badge';
@@ -95,6 +96,11 @@ export function PositionQuestionsSection({
                   <Badge variant={QUESTION_TYPE_BADGE_VARIANT[question.type]}>
                     {QUESTION_TYPE_LABELS[question.type]}
                   </Badge>
+                  {question.format && (
+                    <Badge variant="outline">
+                      {SHORT_ANSWER_FORMAT_LABELS[question.format]}
+                    </Badge>
+                  )}
                   <span className="text-muted-foreground text-xs">
                     {question.required ? 'Required' : 'Optional'}
                   </span>

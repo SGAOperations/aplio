@@ -163,12 +163,25 @@ export async function addPositionManager(
 
   const user = await requirePositionAccess(positionId);
 
+  // A stale search result (e.g. loaded before the target was deactivated)
+  // must not silently connect a deleted user, and would otherwise surface as
+  // a raw Prisma P2025 from `connect` — user-facing and actionable (§4).
+  const target = await prisma.user.findFirst({
+    where: { id: userId, deletedAt: null },
+    select: { id: true },
+  });
+  if (!target) return { error: 'That user is no longer available.' };
+
   await prisma.position.update({
     where: { id: positionId },
     data: { managers: { connect: { id: userId } }, updatedById: user.id },
   });
 
+  // Manager membership drives the positions list a manager sees and the
+  // Roles / Managed Positions columns on /users, beyond the edit page itself.
   revalidatePath(`/positions/${positionId}/edit`);
+  revalidatePath('/positions');
+  revalidatePath('/users');
 }
 
 export async function removePositionManager(
@@ -190,12 +203,25 @@ export async function removePositionManager(
 
   const user = await requirePositionAccess(positionId);
 
+  // Defense in depth beyond the UI guard, matching toggleUserAdmin/deactivateUser:
+  // a manager may remove any other manager but never themselves, so a position
+  // can never reach zero managers through manager action. Admins are exempt —
+  // they may deliberately leave a position with no managers.
+  if (userId === user.id && !user.isAdmin)
+    return {
+      error: 'You cannot remove yourself as a manager. Ask an admin to do it.',
+    };
+
   await prisma.position.update({
     where: { id: positionId },
     data: { managers: { disconnect: { id: userId } }, updatedById: user.id },
   });
 
+  // Manager membership drives the positions list a manager sees and the
+  // Roles / Managed Positions columns on /users, beyond the edit page itself.
   revalidatePath(`/positions/${positionId}/edit`);
+  revalidatePath('/positions');
+  revalidatePath('/users');
 }
 
 const searchUsersSchema = z.object({ query: z.string().max(200) });

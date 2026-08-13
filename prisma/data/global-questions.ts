@@ -13,6 +13,7 @@ export async function getGlobalQuestions() {
       required: true,
       options: true,
       allowOther: true,
+      format: true,
       createdAt: true,
       updatedAt: true,
     },

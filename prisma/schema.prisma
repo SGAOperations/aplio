@@ -32,6 +32,13 @@ enum QuestionType {
   file_upload
 }
 
+enum ShortAnswerFormat {
+  email
+  phone_number
+  url
+  zip_code
+}
+
 model User {
   id          String    @id @default(uuid(7))
   neonAuthId  String    @unique
@@ -103,15 +110,16 @@ model Position {
 }
 
 model GlobalQuestion {
-  id          String       @id @default(uuid(7))
+  id          String             @id @default(uuid(7))
   label       String
   type        QuestionType
-  required    Boolean      @default(true)
+  required    Boolean            @default(true)
   order       Int
   options     String[]
-  allowOther  Boolean      @default(false)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  allowOther  Boolean            @default(false)
+  format      ShortAnswerFormat?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
   deletedAt   DateTime?
   createdById String
   updatedById String
@@ -126,16 +134,17 @@ model GlobalQuestion {
 }
 
 model PositionQuestion {
-  id          String       @id @default(uuid(7))
+  id          String             @id @default(uuid(7))
   positionId  String
   label       String
   type        QuestionType
-  required    Boolean      @default(true)
+  required    Boolean            @default(true)
   order       Int
   options     String[]
-  allowOther  Boolean      @default(false)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  allowOther  Boolean            @default(false)
+  format      ShortAnswerFormat?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
   deletedAt   DateTime?
   createdById String
   updatedById String

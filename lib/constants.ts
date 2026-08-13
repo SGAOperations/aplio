@@ -91,15 +91,109 @@ export const OTHER_OPTION_LABEL = 'Other';
 // virtual choice (see PR #334 review).
 export const OTHER_OPTION_VALUE = '__other__';
 
+export const SHORT_ANSWER_FORMAT_VALUES = [
+  'email',
+  'phone_number',
+  'url',
+  'zip_code',
+] as const;
+
+export type ShortAnswerFormatValue =
+  (typeof SHORT_ANSWER_FORMAT_VALUES)[number];
+
+export const SHORT_ANSWER_FORMAT_LABELS: Record<
+  ShortAnswerFormatValue,
+  string
+> = {
+  email: 'Email',
+  phone_number: 'Phone number',
+  url: 'URL',
+  zip_code: 'ZIP code',
+};
+
+export const SHORT_ANSWER_FORMAT_OPTIONS: {
+  value: ShortAnswerFormatValue;
+  label: string;
+}[] = SHORT_ANSWER_FORMAT_VALUES.map((value) => ({
+  value,
+  label: SHORT_ANSWER_FORMAT_LABELS[value],
+}));
+
+// Single source of truth for each format preset's validation pattern — shared
+// by client (inline blur validation) and server (re-validation on save) so
+// they can never drift. Intentionally permissive: favor not blocking a
+// legitimate answer over strict/RFC-grade enforcement, and each pattern
+// accepts multiple real-world variants of its format rather than one
+// canonical shape (see human feedback on PR #333).
+export const SHORT_ANSWER_FORMAT_PATTERNS: Record<
+  ShortAnswerFormatValue,
+  RegExp
+> = {
+  email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+  // Optional leading + (country code) or 00 international prefix, then digits
+  // with any mix of spaces, dots, hyphens, and parens as separators — covers
+  // "555-123-4567", "(555) 123-4567", "555.123.4567", "+1 555 123 4567", and
+  // "00 44 20 7946 0958" without requiring a single canonical layout.
+  phone_number: /^(\+|00)?[\d\s().-]{7,20}$/,
+  // Scheme (http/https) and "www." are both optional so a bare domain like
+  // "google.com" or a "www."-prefixed host passes alongside a full
+  // "https://google.com/path" URL — only the host needs a dot-separated
+  // label plus a TLD; no nested quantifiers, to keep this ReDoS-safe.
+  url: /^(https?:\/\/)?(www\.)?[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(:\d+)?([/?#]\S*)?$/,
+  // 5-digit ZIP, ZIP+4 with or without the hyphen (some autofill/paste
+  // sources omit it) — still US ZIP-shaped, not a general postal code.
+  zip_code: /^\d{5}(-?\d{4})?$/,
+};
+
+export const SHORT_ANSWER_FORMAT_ERROR_MESSAGES: Record<
+  ShortAnswerFormatValue,
+  string
+> = {
+  email: 'Enter a valid email address',
+  phone_number: 'Enter a valid phone number',
+  url: 'Enter a valid URL (e.g. example.com or https://example.com)',
+  zip_code: 'Enter a valid ZIP code',
+};
+
+// Single source of truth for testing a value against a format preset — trims
+// before matching since every pattern above is anchored against character
+// classes that exclude (or only tolerate mid-string) whitespace, so a
+// legitimate pasted value with incidental leading/trailing whitespace must
+// not be rejected. Shared by every call site (client blur checks, server
+// re-validation) so none can drift and re-introduce the untrimmed check.
+export function matchesShortAnswerFormat(
+  value: string,
+  format: ShortAnswerFormatValue,
+): boolean {
+  return SHORT_ANSWER_FORMAT_PATTERNS[format].test(value.trim());
+}
+
 // Base question schema shared between the client form and server actions.
-// Both sides extend this with `.superRefine` to enforce options constraints.
+// Both sides extend this with `.superRefine` to enforce options/format constraints.
 export const baseQuestionSchema = z.object({
   label: z.string().min(1, 'Label is required'),
   type: z.enum(QUESTION_TYPE_VALUES),
   required: z.boolean(),
   options: z.array(z.string()),
   allowOther: z.boolean(),
+  format: z.enum(SHORT_ANSWER_FORMAT_VALUES).nullable(),
 });
+
+// Shared superRefine used by both the admin dialogs and the server actions
+// (no 'use server' boundary here) so a format set on a non-short-answer
+// question is always rejected as a zod field error, never silently persisted.
+export function validateShortAnswerFormat(
+  data: { type: string; format: ShortAnswerFormatValue | null },
+  ctx: z.RefinementCtx,
+) {
+  if (data.format !== null && data.type !== 'short_answer') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['format'],
+      message: 'Format is only available for short-answer questions',
+    });
+  }
+}
 
 // Enforces that choice-type questions carry at least one option and non-choice
 // questions carry none — prevents orphaned option data. Also enforces that
@@ -136,12 +230,13 @@ export function validateOptions(
   }
 }
 
-// Client-side question form schema — reuses validateOptions as its single
-// source of truth so RHF surfaces the same rule as field errors, rather than
-// re-inlining the choice-type constraint. Shared between GlobalQuestionDialog
-// and the position QuestionForm (ENGINEERING §1).
-export const questionFormSchema =
-  baseQuestionSchema.superRefine(validateOptions);
+// Client-side question form schema — reuses validateOptions/validateShortAnswerFormat
+// as its single source of truth so RHF surfaces the same rules as field errors,
+// rather than re-inlining the choice-type/format constraints. Shared between
+// GlobalQuestionDialog and the position QuestionForm (ENGINEERING §1).
+export const questionFormSchema = baseQuestionSchema
+  .superRefine(validateOptions)
+  .superRefine(validateShortAnswerFormat);
 
 // Human-readable labels for each application status.
 // Keyed on the generated ApplicationStatus enum for build-time exhaustiveness.

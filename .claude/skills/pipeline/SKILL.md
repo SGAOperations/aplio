@@ -14,10 +14,10 @@ You are the orchestrator of the agent pipeline in `.claude/docs/PIPELINE.md`. Th
 
 - **Never wrap a `gh`/`git` call in a shell `for`/`while` loop**, even for a one-off multi-branch/multi-PR check — issue one call per item, or a single `gh … --json … --jq '…'` query with broader filtering.
 - **NEVER merge or close a PR.** The human merges on GitHub. `gh pr merge` is denied in `settings.json`.
-- Never touch PRs labeled `approved` or `needs human` beyond announcing them.
+- Never touch PRs labeled `approved` or `needs human` beyond announcing them. **One carve-out:** applying `refresh branch` / `refreshing` to an `approved` PR and dispatching a refresh is permitted (see Preview-database refresh) — nothing else about an `approved` PR may be touched.
 - Never act on issues/PRs that lack a pipeline **trigger** label — opt-in is human-initiated.
 - **Never act on an item assigned to another operator** — ownership transfers only through an explicit human take-over (see Ownership).
-- Never dispatch for an item with an **in-flight** label (`planning`, `in progress`, `reviewing`, `revising`) — an agent owns it or a human paused it.
+- Never dispatch for an item with an **in-flight** label (`planning`, `in progress`, `reviewing`, `revising`, `refreshing`) — an agent owns it or a human paused it.
 - Every dispatch runs in the background (`run_in_background: true`). Worktree isolation, model, tool scope, and **permission mode (`dontAsk` — auto-denies anything not allow-listed)** all come from the subagent definition in `.claude/agents/` — you do not set them at the call site. (Since CC v2.1.186 a background subagent's prompts surface to you unless it runs `dontAsk` **and** this session is in default mode — see Model & permission mode.)
 - **Respect the draining flag:** while draining (see Stop controls), dispatch nothing new and schedule no wakeup; only report state and relay completions.
 
@@ -38,6 +38,7 @@ gh issue list --repo SGAOperations/aplio --assignee "@me" --label "plan changes 
 gh issue list --repo SGAOperations/aplio --assignee "@me" --label "plan approved" --json number,title
 gh pr list --repo SGAOperations/aplio --assignee "@me" --label "ready for review" --json number,title
 gh pr list --repo SGAOperations/aplio --assignee "@me" --label "needs revision" --json number,title
+gh pr list --repo SGAOperations/aplio --assignee "@me" --label "refresh branch" --json number,title
 
 # Gates and announcements → talk to the human — this operator's items only
 gh issue list --repo SGAOperations/aplio --assignee "@me" --label "plan review" --json number,title,labels
@@ -59,6 +60,14 @@ gh pr view <n> --repo SGAOperations/aplio --json state,mergedAt,closed --jq '{st
 ```
 
 If `state` is `MERGED` (or `closed`), announce "PR #<n> merged ✅ — dropped from tracking" once, **remove it from your announced-awaiting-merge set**, and clean up its worktree (hygiene below). This keeps `status` truthful without the human telling you.
+
+**Preview-database refresh (right after confirming merges):** each merge into `dev` frees exactly one Neon branch slot (`delete_branch_on_merge` is on), which unblocks one quota-red preview deployment (`.claude/docs/PIPELINE.md` → "Preview-database concurrency"). Count the merges you confirmed **this tick** as `k`, then label **at most `k`** PRs `refresh branch` — **oldest first**, each one open, labeled `approved`, with `Vercel` red while all three Actions checks are green, and skipping any whose `headRefOid` this session has already refreshed at that same SHA. Read the rollup per candidate:
+
+```bash
+gh pr view <n> --repo SGAOperations/aplio --json headRefOid,statusCheckRollup --jq '{sha: .headRefOid, checks: [.statusCheckRollup[] | {n: (.name // .context), s: (.conclusion // .state)}]}'
+```
+
+`Vercel` is a **StatusContext** (`.context`/`.state`) while the Actions checks are CheckRuns (`.name`/`.conclusion`) — hence the `//` fallbacks. Refreshing more than `k` would just re-exhaust the quota; a missed refresh is harmless because the next merge retries it.
 
 **Worktree hygiene (each tick):** run `git worktree prune` (clears registrations whose dir is already gone — safe). Then, for any item whose work is done (PR merged/closed or no active pipeline label) **and** whose path **appears in `git worktree list`**, remove it with `git worktree remove --force <exact path from \`git worktree list\`>`. **Only ever pass a path that `git worktree list`shows** — an orphan dir (no`.git`, not listed) is not a worktree and will error. **Never** remove a worktree for an in-flight item. On Windows, `git worktree remove`often fails with`Invalid argument`once`node_modules`exists, and orphan dirs accumulate that neither`remove`nor`prune` can clear — **do not claim "prune will fix it next tick" (it won't)**: report the failure and tell the human to run **`/worktree-clean`\*\* (the manual sweep skill) to reclaim the space.
 
@@ -92,6 +101,9 @@ Stage → trigger mapping:
 | Issue labeled `plan approved`          | `impl-agent`                                   |
 | PR labeled `ready for review`          | `review-agent`                                 |
 | PR labeled `needs revision`            | `revise-agent` — **after the cycle-cap check** |
+| PR labeled `refresh branch`            | `revise-agent` in **refresh mode**             |
+
+For a refresh, say so in the prompt so the agent takes its Refresh mode path: `Run your pipeline stage for PR #<n> in refresh mode (label: refresh branch).`
 
 ### Cycle cap (before every revise dispatch)
 
@@ -122,7 +134,7 @@ For each issue labeled `plan review`:
 
 ### Approved PRs
 
-Announce each newly `approved` PR once with a one-line summary and its URL; the human merges on GitHub. Track which you have announced in-session; re-announce only on request. **When one is merged, the next tick's merged-PR reconciliation drops it from tracking and announces the merge** — never keep listing a merged PR as awaiting merge.
+Announce each newly `approved` PR once with a one-line summary and its URL; the human merges on GitHub. If its rollup shows `Vercel` red, append `⚠️ Vercel red — not merge-ready; a slot frees on the next merge` so the human is never told to merge something GitHub will refuse (`Vercel` is a required check on `dev`/`main`). Track which you have announced in-session; re-announce only on request. **When one is merged, the next tick's merged-PR reconciliation drops it from tracking and announces the merge** — never keep listing a merged PR as awaiting merge.
 
 ### Agent questions and blockers (relay loop)
 
@@ -156,7 +168,8 @@ Interpret intent, not literal syntax:
 - **"scope out X" / "break down X"** — Stage 0 deserves a stronger model than haiku; suggest the human run `/scope` in their main session.
 - **"status"** — re-run the tick queries **live** and build the table from them (never from session memory): each in-flight item + stage, each item waiting on the human, and each PR currently labeled `approved` (the live `gh pr list --assignee "@me" --label approved` result — a merged PR has already dropped out, so it must not appear). It **inherits the assignee filter**, so it reports only this operator's items; append the unowned sweep result as a separate **"unowned"** line so a stalled ticket is diagnosable from one command.
 - **"pause #N"** — remove the item's current trigger label; confirm what was removed. Same ownership rule as opt-in: if the item belongs to **another operator**, say so and stop rather than touch its labels.
-- **"resume #N" / "retry #N"** — re-apply the trigger label for where it stalled (issue stuck in `planning` → `ready`; PR stuck in `revising` → `needs revision`; etc.). Same ownership rule as opt-in: if the item is **unassigned**, add `--add-assignee "@me"` in the same command (re-applying a trigger to an unassigned item is a no-op for every cockpit); if it belongs to **another operator**, say so and stop rather than re-trigger.
+- **"resume #N" / "retry #N"** — re-apply the trigger label for where it stalled (issue stuck in `planning` → `ready`; PR stuck in `revising` → `needs revision`; PR stuck in `refreshing` → `refresh branch`; etc.). Same ownership rule as opt-in: if the item is **unassigned**, add `--add-assignee "@me"` in the same command (re-applying a trigger to an unassigned item is a no-op for every cockpit); if it belongs to **another operator**, say so and stop rather than re-trigger.
+- **"refresh #N"** — apply `refresh branch` to that PR and dispatch it this tick, bypassing the per-merge cap. Use it to force a fresh preview deployment on a PR left quota-red. Same ownership rule as opt-in.
 
 ## Stop controls
 
@@ -164,7 +177,7 @@ A session-level **draining** flag gates dispatch. Interpret these intents:
 
 - **"drain" / "pause the pipeline" / "finish current, start nothing new"** — set draining = on. Stop dispatching new agents and **stop scheduling wakeups**; let in-flight agents finish and keep relaying their completions. Report what is still running (`TaskList`).
 - **"resume" / "start" / "unpause"** — set draining = off and run one tick immediately.
-- **"stop #N" / "cancel #N"** — stop a single item: remove its trigger label; if an agent is in flight for it, find that agent with `TaskList` and `TaskStop` it; then reset its in-flight label back to the trigger so it can be retried. Same ownership rule as opt-in: if the item belongs to **another operator**, say so and stop rather than act on it.
+- **"stop #N" / "cancel #N"** — stop a single item: remove its trigger label; if an agent is in flight for it, find that agent with `TaskList` and `TaskStop` it; then reset its in-flight label back to the trigger so it can be retried (`refreshing` → `refresh branch`). Same ownership rule as opt-in: if the item belongs to **another operator**, say so and stop rather than act on it.
 - **"stop everything" / "halt"** — set draining = on, `TaskStop` every running stage agent (`TaskList`), and reset each one's in-flight label to its trigger. Report what was halted. (No separate ownership check needed here — this only ever touches agents _this_ cockpit dispatched, which are by construction all `@me`-assigned.)
 
 While draining, a tick still reports gates/announcements and relays completions, but dispatches nothing and schedules no wakeup. Note: closing the cockpit session also halts all dispatch (it is the only dispatcher), but cuts off in-flight background agents — `retry #N` after restart.

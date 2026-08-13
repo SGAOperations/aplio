@@ -40,7 +40,7 @@ export default async function EditPositionPage({
   // Access check: admin or manager of this specific position, else 404 —
   // same denial as a genuinely missing position (no existence leak). Reuses
   // the managers list already fetched above instead of re-querying it.
-  await requireListedManagerOr404(position.managers);
+  const user = await requireListedManagerOr404(position.managers);
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
@@ -74,6 +74,8 @@ export default async function EditPositionPage({
           <PositionManagersSection
             positionId={position.id}
             initialManagers={position.managers}
+            currentUserId={user.id}
+            isAdmin={user.isAdmin}
           />
         }
       />
