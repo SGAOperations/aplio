@@ -14,7 +14,7 @@ import {
   matchesShortAnswerFormat,
 } from '@/lib/constants';
 import type { AnswerQuestion, QuestionFileTarget } from '@/lib/types';
-import { cn, partitionAnswerValue } from '@/lib/utils';
+import { ActionError, cn, partitionAnswerValue } from '@/lib/utils';
 
 import { AnswerMismatchNotice } from '@/components/features/answer-mismatch-notice';
 import { QuestionFileField } from '@/components/features/question-file-field';
@@ -31,8 +31,7 @@ interface ApplicationQuestionProps {
     onBlur: () => void;
   };
   error?: string;
-  // A returned string is a user-facing refusal; void means saved.
-  onSave: (value: string[]) => Promise<string | void>;
+  onSave: (value: string[]) => Promise<void>;
   // file_upload only: QuestionFileField calls the file actions directly.
   fileTarget: QuestionFileTarget;
 }
@@ -70,20 +69,15 @@ export function ApplicationQuestion({
     setIsSaving(true);
     setSaveError(false);
     try {
-      const refusal = await onSave(value);
-      if (refusal) {
-        // Don't advance savedValueRef, so a retry is still attempted.
-        setSaveError(true);
-        toast.error(refusal);
-        return;
-      }
+      await onSave(value);
       savedValueRef.current = serialized;
     } catch (err) {
       setSaveError(true);
+      // Only an ActionError's message is user-facing (it's a re-thrown
+      // { error } from the action) — any other throw (e.g. an
+      // authorization guard) must never surface its raw message (§3).
       toast.error(
-        err instanceof Error && err.message
-          ? err.message
-          : 'Failed to save answer',
+        err instanceof ActionError ? err.message : 'Failed to save answer',
       );
     } finally {
       setIsSaving(false);

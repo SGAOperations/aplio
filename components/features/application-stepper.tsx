@@ -31,6 +31,7 @@ import {
   type QuestionFileTarget,
 } from '@/lib/types';
 import {
+  ActionError,
   type ErrorType,
   cn,
   isAnswered,
@@ -224,8 +225,7 @@ function QuestionList({
                       value,
                       isGlobal,
                     });
-                    // Surface a refusal verbatim instead of the generic throw-path toast.
-                    return isError(result) ? result.error : undefined;
+                    if (isError(result)) throw new ActionError(result.error);
                   })();
                   // Tracked so a concurrent revert on this field waits rather than races it.
                   pendingSavesRef?.current.set(question.id, save);

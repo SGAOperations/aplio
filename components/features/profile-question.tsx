@@ -18,7 +18,7 @@ import {
   getAnswerValueError,
   matchesShortAnswerFormat,
 } from '@/lib/constants';
-import { cn, isError, partitionAnswerValue } from '@/lib/utils';
+import { ActionError, cn, isError, partitionAnswerValue } from '@/lib/utils';
 
 import { AnswerFileLink } from '@/components/features/answer-file-link';
 import { AnswerMismatchNotice } from '@/components/features/answer-mismatch-notice';
@@ -79,16 +79,17 @@ export function ProfileQuestion({
     setSaveError(false);
     try {
       const result = await updateGlobalAnswer(question.id, value);
-      if (isError(result)) throw new Error(result.error);
+      if (isError(result)) throw new ActionError(result.error);
       savedValueRef.current = serialized;
       reset({ value });
     } catch (err) {
       // savedValueRef is not advanced on failure so retries work
       setSaveError(true);
+      // Only an ActionError's message is user-facing (it's a re-thrown
+      // { error } from the action) — any other throw (e.g. an
+      // authorization guard) must never surface its raw message (§3).
       toast.error(
-        err instanceof Error && err.message
-          ? err.message
-          : 'Failed to save answer',
+        err instanceof ActionError ? err.message : 'Failed to save answer',
       );
     } finally {
       setIsSaving(false);

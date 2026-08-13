@@ -28,6 +28,11 @@ export function isError<T>(result: ResponseType<T>): result is ErrorType {
 }
 
 /**
+ * Re-thrown from a server action's `{ error }` result; its message is user-facing.
+ */
+export class ActionError extends Error {}
+
+/**
  * Default-DENY: an unset VERCEL_ENV also describes production off Vercel.
  */
 export function isBypassAllowed(): boolean {
