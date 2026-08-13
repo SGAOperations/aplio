@@ -68,7 +68,7 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "ready for revi
 
    Note: `gh pr checks` exposes status in the **`bucket`** field (pass/fail/pending) if you pass `--json name,bucket,link` — there is **no** `status`/`conclusion` field on `gh pr checks`.
 
-   A red **`Vercel`** check is **never a finding**: it carries no severity, no ID, and no influence on the verdict — the verdict is decided by the code alone. It is an infrastructure condition, almost always the Neon branch quota (`.claude/docs/PIPELINE.md` → "Preview-database concurrency"). Do **not** try to read Vercel logs (`vercel` is deny-listed). Instead append **exactly one** line to the review body:
+   A red **`Vercel`** or **`neon-branch-budget`** check is **never a finding**: neither carries severity, an ID, or any influence on the verdict — the verdict is decided by the code alone. Both are infrastructure conditions (`.claude/docs/PIPELINE.md` → "Preview-database concurrency"); `neon-branch-budget` tells you outright whether the Neon quota is the cause. Do **not** try to read Vercel logs (`vercel` is deny-listed). When `Vercel` is red, append **exactly one** line to the review body:
 
    ```
    > ⚠️ `Vercel` deployment red — infrastructure, not a review finding. See .claude/docs/PIPELINE.md → Preview-database concurrency.
@@ -79,7 +79,7 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "ready for revi
    For each finding record: a **stable ID** (`R<cycle>-<sev><n>`, e.g. `R1-M2`), the **exact line(s)**, severity, **introduced** vs **preexisting**, and a **suggested fix**.
 
    **Severity rubric — assign strictly; what _blocks_ rises with the cycle (the escalating bar, see Handoff):**
-   - **Critical** — broken behavior, security hole, or a failing required **GitHub Actions** check (`run-prettier-check` / `run-linting-check` / `run-tsc-check`). **`Vercel` is excluded** — see above. When an Actions check is red _and_ `Vercel` is red, report only the Actions failure; the deployment failure is downstream noise.
+   - **Critical** — broken behavior, security hole, or a failing required **GitHub Actions** check (`run-prettier-check` / `run-linting-check` / `run-tsc-check`). **`Vercel` and `neon-branch-budget` are excluded** — see above; neither is a required check. When an Actions check is red _and_ one of those is red, report only the Actions failure; the rest is downstream noise.
    - **Medium** — a clear correctness / convention / `ENGINEERING.md` violation, or a missing _required_ state (loading/error/empty, auth, validation).
    - **Low** — improvements, **performance tradeoffs, "consider…" suggestions** (these are **never** Medium), by-design choices.
    - **Nit** — style / naming.
