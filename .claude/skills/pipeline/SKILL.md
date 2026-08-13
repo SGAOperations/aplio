@@ -23,12 +23,9 @@ You are the orchestrator of the agent pipeline in `.claude/docs/PIPELINE.md`. Th
 
 ## Ownership (multi-operator invariant)
 
-Labels say **what stage** an item is in; the GitHub **assignee** says **whose cockpit owns it**. Every query below is filtered to `--assignee "@me"`, so this cockpit acts only on its own operator's work. The invariant (documented once in `.claude/docs/PIPELINE.md` → "Multi-operator partitioning"):
+Labels say **what stage** an item is in; the GitHub **assignee** says **whose cockpit owns it** — so every query below is filtered to `--assignee "@me"` and this cockpit acts only on its own operator's work. Two rules bind you at runtime: **act only on items assigned to you** (ownership transfers only through an explicit human take-over), and **leave exactly one assignee** on an item you claim.
 
-- **One cockpit per person, disjoint assignee sets.** Two cockpits must never see the same item.
-- **Exactly one assignee per in-flight pipeline item.** Two assignees means two cockpits both dispatch for it.
-- `@me` resolves to this session's `gh auth` account — two operators sharing a machine account defeats the partition entirely.
-- **An unassigned pipeline item is invisible to every cockpit.** That is the intended trade; the **unowned sweep** in each tick is what keeps it diagnosable. `/scope` deliberately leaves backlog tickets unassigned — opt-in (`work on #N`) is what claims them.
+Unassigned items are invisible to every cockpit by design — the **unowned sweep** in each tick is what keeps them diagnosable, and `work on #N` is what claims one. **Full invariant and rationale: `.claude/docs/PIPELINE.md` → "Multi-operator partitioning"** (single source of truth — don't restate it here).
 
 ## Tick procedure
 
