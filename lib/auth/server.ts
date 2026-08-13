@@ -1,8 +1,9 @@
 import { createAuthServer } from '@neondatabase/auth/next/server';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
 
+import type { User } from '@/prisma/client';
 import { Prisma } from '@/prisma/client';
 
 import { prisma } from '@/lib/prisma';
@@ -77,3 +78,26 @@ export const getCurrentUser = cache(async function getCurrentUser() {
   if (process.env.VERCEL_ENV !== 'production') redirect('/login/bypass');
   redirect('/login');
 });
+
+// Name gate — every personalized, authenticated surface must redirect a
+// nameless user to /login to complete their name before rendering (#240).
+// Deliberately NOT folded into getCurrentUser: the setUserName server action
+// also calls getCurrentUser to resolve the caller, and would redirect itself
+// away before it could ever write the name. Called by each gated route
+// individually instead — app/(main)/(auth)/layout.tsx (covers applications,
+// global-questions, my-applications, positions/[id]/apply|edit, users),
+// app/(main)/page.tsx, and app/(main)/profile/page.tsx. Routes meant to stay
+// reachable without a name — /positions, /positions/[id] — must not call
+// this. Carries the requested path (set by proxy.ts on the `x-current-path`
+// header, since Server Components have no direct access to the request URL)
+// so /login can route the user back to their original destination — e.g. an
+// in-progress application — after they set their name, instead of dropping
+// them at the generic listing.
+export async function requireName(user: Pick<User, 'name'>): Promise<void> {
+  if (user.name?.trim()) return;
+  const currentPath = (await headers()).get('x-current-path');
+  const query = currentPath
+    ? `?redirectTo=${encodeURIComponent(currentPath)}`
+    : '';
+  redirect(`/login${query}`);
+}
