@@ -50,7 +50,7 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "ready for revi
 
    ```bash
    gh pr diff <pr-number> --repo SGAOperations/aplio
-   gh pr checks <pr-number> --repo SGAOperations/aplio    # failing required checks are Critical
+   gh pr checks <pr-number> --repo SGAOperations/aplio    # failing required GitHub Actions checks are Critical; a red Vercel is not (see below)
    gh pr view <pr-number> --repo SGAOperations/aplio --json body,title,headRefName,headRefOid,author   # "Closes #XXX"; headRefOid = line-permalink SHA; author = self-review check
    gh issue view <issue-number> --repo SGAOperations/aplio   # the original plan
    gh api user --jq .login   # your login; equals author.login ⇒ self-authored PR ⇒ use COMMENT event (step 3)
@@ -66,21 +66,35 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "ready for revi
    gh run view <databaseId> --repo SGAOperations/aplio --log-failed
    ```
 
-   Note: `gh pr checks` exposes status in the **`bucket`** field (pass/fail/pending) if you pass `--json name,bucket,link` — there is **no** `status`/`conclusion` field on `gh pr checks`. For a failing **Vercel** check, cite the check name + its link as Critical; do not try to read Vercel logs.
+   Note: `gh pr checks` exposes status in the **`bucket`** field (pass/fail/pending) if you pass `--json name,bucket,link` — there is **no** `status`/`conclusion` field on `gh pr checks`.
+
+   **A red `run-neon-check` is never a finding.** It reports project-wide Neon capacity, not this PR — at the cap every open PR goes red, including ones deploying fine. No severity, no ID, no influence on the verdict.
+
+   **A red `Vercel` is dismissed only when capacity explains it.** Check `run-neon-check` first:
+   - **`run-neon-check` red** → the quota explains the failed deployment. Not a finding; append **exactly one** line to the review body:
+
+     ```
+     > ⚠️ `Vercel` deployment red — Neon branch quota, not a review finding. See .claude/docs/PIPELINE.md → Preview-database concurrency.
+     ```
+
+   - **`run-neon-check` green** → capacity is fine, so the deployment broke for a reason this PR may own. **Raise it as a finding** (Critical if the diff plausibly caused it, else Low) rather than dismissing it. Blanket-dismissing every red `Vercel` lets a genuinely broken build reach `approved`.
+   - **`run-neon-check` missing** (secrets unset, or a Dependabot PR) → fall back to the fingerprint in `.claude/docs/PIPELINE.md`: red on two or more open PRs at once is quota; a single PR red alone is a probable build break.
+
+   Do **not** try to read Vercel logs either way (`vercel` is deny-listed).
 
 2. **Review the diff.** Be **exhaustive on the first review** — cover the whole changed surface across every dimension below. **Later reviews are delta-scoped** (the PR already has prior `## Code Review` comments): verify each prior finding that blocked is resolved and check only for **regressions the revision introduced** — do not hunt fresh marginal issues. A genuinely-missed Critical/Medium still blocks; a new marginal item is noted Low/follow-up.
 
    For each finding record: a **stable ID** (`R<cycle>-<sev><n>`, e.g. `R1-M2`), the **exact line(s)**, severity, **introduced** vs **preexisting**, and a **suggested fix**.
 
    **Severity rubric — assign strictly; what _blocks_ rises with the cycle (the escalating bar, see Handoff):**
-   - **Critical** — broken behavior, security hole, or a failing required CI check.
+   - **Critical** — broken behavior, security hole, or a failing required **GitHub Actions** check (`run-prettier-check` / `run-linting-check` / `run-tsc-check`). **`Vercel` and `run-neon-check` are excluded** — see above; neither is a required check. When an Actions check is red _and_ one of those is red, report only the Actions failure; the rest is downstream noise.
    - **Medium** — a clear correctness / convention / `ENGINEERING.md` violation, or a missing _required_ state (loading/error/empty, auth, validation).
    - **Low** — improvements, **performance tradeoffs, "consider…" suggestions** (these are **never** Medium), by-design choices.
    - **Nit** — style / naming.
 
    Dimensions (use the **Pre-PR self-check** in `.claude/docs/ENGINEERING.md` as the checklist):
    - **UX/product quality** — is the feature _actually good_? layout & hierarchy, affordances, helpful copy, sensible defaults, the happy path **and** obvious edge/unhappy flows handled. Not just standards conformance.
-   - **CI** (failing required check = Critical) · **correctness** vs every plan checklist item.
+   - **CI** (failing required GitHub Actions check = Critical; a red `Vercel` only when `run-neon-check` is green — see step 1) · **correctness** vs every plan checklist item.
    - **Security** — auth + zod on every action, authz scoping / no IDOR, dev-only code env-gated, no sensitive/internal/other-users' fields reaching a client.
    - **Error/feedback model** — server actions return `void`/data or `{ error }` (**never `{ ok }`**), throw for unexpected; **a toast for every action**; **one global error boundary, no per-page `error.tsx`**. Apply the §4 decision test: a returned `{ error }` must be a sentence you'd show the user and they can act on; auth/authorization, should-exist-missing, DB/internal failures must **throw** (a returned internal message is a finding) — and check it against the plan's per-action error model.
    - **Conventions** — named exports (except route files); no API routes except `/api/auth`; **server actions in `prisma/actions/`, queries in `prisma/data/`, shared types/constants in `lib/`**; Tailwind/tokens; mobile-first; **no `useEffect` — empty-deps especially**; shadcn/Radix primitives over raw elements; role-gated nav; sensible abstraction / reused `lib` types (no over-abstraction).
@@ -100,7 +114,7 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "ready for revi
    - A finding **off the diff** (unchanged code, whole-file/architectural) has no thread → put it in `body` with a `blob/<headRefOid>` permalink. Don't guess line numbers; only emit `comments[]` for mapped lines.
    - Inline comments are **new findings only** — never status ("resolved"/"fixed"/"still open"); resolution is the revise-agent resolving the thread.
 
-   **Body = title + one counts line only** — no per-finding list, no provenance, no footer, no Resolved/Still-open sections. Thread state is the truth, so delta reviews look the same (prior resolved threads already show what's done).
+   **Body = title + one counts line only** (plus the single `⚠️ Vercel` infrastructure line when that check is red) — no per-finding list, no provenance, no footer, no Resolved/Still-open sections. Thread state is the truth, so delta reviews look the same (prior resolved threads already show what's done).
 
    Build the payload **with the Write tool** at `.temp/review-<pr>.json` (never `printf`/`echo`/`cat >`/heredocs, never inline `--field body="…"`), then submit with `--input`:
 

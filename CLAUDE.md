@@ -37,6 +37,10 @@ Next.js 16 (App Router, React 19) · Prisma 7 · Tailwind CSS 4 · shadcn/ui (Ra
 - **PR:** title `#XXX Ticket Name In Title Case`; **base branch `dev`** (never open feature PRs against `main`); body contains `Closes #XXX`; assign the **issue's assignee** (fallback: yourself — `@me`). `dev → main` is promoted only by `/release`.
 - **Rebase conflicts in pipeline:** `revise-agent` attempts autonomous resolution for structurally unambiguous conflicts (non-overlapping sections, generated files, dual independent imports). It escalates to `needs human` only when both sides modified the same logical unit. Agents should document every resolution in the revision summary. Full protocol: `.claude/docs/PIPELINE.md` → "Rebase conflict protocol".
 
+## Preview databases (Neon branch budget)
+
+The Neon project caps at **10 branches** and 2 are permanently held (`dev`, `production`), so **~8 PRs can hold a preview database at once**. Every open PR with a preview deployment consumes one slot. Reclamation is automatic (branch auto-delete on merge plus Neon's own sweep), so this is a **concurrency ceiling, not a housekeeping chore** — what exhausts it is too many PRs open at the same time. Exhaustion shows up as a red `Vercel` check on _every_ open PR while `run-prettier-check` / `run-linting-check` / `run-tsc-check` stay green: check the Neon branch count before debugging Prisma. Full operational detail: `.claude/docs/PIPELINE.md` → "Preview-database concurrency".
+
 ## Pre-push checks (always, before pushing)
 
 ```bash
