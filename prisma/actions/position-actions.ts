@@ -81,6 +81,11 @@ export async function updatePosition(
 
   const { id, title, description, status, opensAt, closesAt } = parsed.data;
 
+  // Authenticate before any DB work — server actions are POST endpoints, so an
+  // existence query ahead of this would let an anonymous caller probe position
+  // IDs. Cached by React, so requirePositionAccess below reuses this resolve.
+  await getCurrentUser();
+
   // Stale-link guard: a manager navigating to a deleted position should get an
   // actionable message, not a generic error toast (ENGINEERING §4 gray-area rule).
   // Runs before the access guard so a stale tab always gets this message.
@@ -147,6 +152,9 @@ export async function addPositionManager(
 
   const { positionId, userId } = parsed.data;
 
+  // Authenticate before the existence query — see updatePosition.
+  await getCurrentUser();
+
   const exists = await prisma.position.findFirst({
     where: { id: positionId, deletedAt: null },
     select: { id: true },
@@ -170,6 +178,9 @@ export async function removePositionManager(
   if (!parsed.success) return { error: 'Invalid input' };
 
   const { positionId, userId } = parsed.data;
+
+  // Authenticate before the existence query — see updatePosition.
+  await getCurrentUser();
 
   const exists = await prisma.position.findFirst({
     where: { id: positionId, deletedAt: null },

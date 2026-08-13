@@ -8,7 +8,9 @@ import { checkPositionAccess, isManager } from '@/prisma/data/managers';
 import { getCurrentUser } from '@/lib/auth/server';
 
 // ── Authorization denial convention (#356) ──────────────────────────────────
-// Two families, because the two call sites genuinely differ:
+// Codified in .claude/docs/ENGINEERING.md §3 — that doc is the source of
+// truth; this comment is the implementation note. Two families, because the
+// two call sites genuinely differ:
 //   - Action guards (below) THROW. A denial in a server action is never
 //     user-facing — the caller shows a generic toast, never the thrown
 //     message (ENGINEERING §4 decision test: "would you show this exact
@@ -23,27 +25,57 @@ import { getCurrentUser } from '@/lib/auth/server';
 // would run. Environment gates such as isBypassAllowed() are not
 // authorization and are out of scope for this module.
 
-// ─── Action guards — throw on denial, return the resolved caller ───────────
+// Each rule's predicate is defined exactly once and takes its denial as a
+// parameter, so an action guard and its `*Or404` page twin can never drift on
+// *who* is allowed — only on what happens when they aren't.
+type Deny = () => never;
 
-export async function requireAdmin(): Promise<User> {
+const denyWith =
+  (message: string): Deny =>
+  () => {
+    throw new Error(message);
+  };
+
+async function resolveAdmin(deny: Deny): Promise<User> {
   const user = await getCurrentUser();
-  if (!user.isAdmin) throw new Error('Forbidden: admin required');
+  if (!user.isAdmin) return deny();
   return user;
 }
 
 // Admin, or manages at least one non-deleted position (one `count` query for
 // non-admins — same cost as the inline `isManager` check it replaces).
-export async function requireManagerOrAdmin(): Promise<User> {
+async function resolveManagerOrAdmin(deny: Deny): Promise<User> {
   const user = await getCurrentUser();
   if (user.isAdmin || (await isManager(user.id))) return user;
-  throw new Error('Forbidden: manager or admin required');
+  return deny();
+}
+
+async function resolvePositionAccess(
+  positionId: string,
+  deny: Deny,
+): Promise<User> {
+  const user = await getCurrentUser();
+  if (!(await checkPositionAccess(positionId, user))) return deny();
+  return user;
+}
+
+// ─── Action guards — throw on denial, return the resolved caller ───────────
+
+export async function requireAdmin(): Promise<User> {
+  return resolveAdmin(denyWith('Forbidden: admin required'));
+}
+
+export async function requireManagerOrAdmin(): Promise<User> {
+  return resolveManagerOrAdmin(
+    denyWith('Forbidden: manager or admin required'),
+  );
 }
 
 export async function requirePositionAccess(positionId: string): Promise<User> {
-  const user = await getCurrentUser();
-  if (!(await checkPositionAccess(positionId, user)))
-    throw new Error(`Forbidden: no access to position ${positionId}`);
-  return user;
+  return resolvePositionAccess(
+    positionId,
+    denyWith(`Forbidden: no access to position ${positionId}`),
+  );
 }
 
 // Synchronous — the caller has already fetched the record (typically to
@@ -63,30 +95,25 @@ export function requireOwnership<T extends { userId: string } | null>(
 // ─── Page guards — notFound() on denial, return the resolved caller ────────
 
 export async function requireAdminOr404(): Promise<User> {
-  const user = await getCurrentUser();
-  if (!user.isAdmin) notFound();
-  return user;
+  return resolveAdmin(notFound);
 }
 
 export async function requireManagerOrAdminOr404(): Promise<User> {
-  const user = await getCurrentUser();
-  if (user.isAdmin || (await isManager(user.id))) return user;
-  notFound();
+  return resolveManagerOrAdmin(notFound);
 }
 
-export async function requirePositionAccessOr404(
-  positionId: string,
-): Promise<User> {
-  const user = await getCurrentUser();
-  if (!(await checkPositionAccess(positionId, user))) notFound();
-  return user;
-}
-
-// Variant for callers that already fetched the position's managers list
-// (e.g. the edit page's initial data fetch) — reuses it instead of
-// re-querying the DB for the same check `requirePositionAccessOr404` above
-// would otherwise run.
-export async function requirePositionManagerOr404(
+// Asserts the caller is an admin or appears in an ALREADY-FETCHED managers
+// list — it performs no position lookup of its own, so it cannot tell whether
+// that position still exists.
+//
+// PRECONDITION: the caller must have fetched `managers` from a query scoped
+// with `deletedAt: null` (e.g. getPositionForEdit) and must handle the
+// missing-position case itself before calling this. Deliberately not named
+// `requirePosition*` — nothing here is position-aware.
+//
+// Prefer this over a second DB round-trip when the managers list is already
+// in hand; there is no action-guard twin because no action fetches the list.
+export async function requireListedManagerOr404(
   managers: { id: string }[],
 ): Promise<User> {
   const user = await getCurrentUser();

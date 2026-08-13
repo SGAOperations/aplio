@@ -79,7 +79,8 @@ export function PositionDetailsForm({ position }: PositionDetailsFormProps) {
       } else {
         toast.success('Position updated');
       }
-    } catch {
+    } catch (error) {
+      console.error(error);
       toast.error('Something went wrong. Please try again.');
     }
   }

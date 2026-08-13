@@ -102,7 +102,8 @@ export function PositionManagersSection({
           setQuery('');
           toast.success('Manager added');
         }
-      } catch {
+      } catch (error) {
+        console.error(error);
         toast.error('Something went wrong. Please try again.');
       } finally {
         setAddingId(null);
@@ -122,7 +123,8 @@ export function PositionManagersSection({
           setManagers((prev) => prev.filter((m) => m.id !== userId));
           toast.success('Manager removed');
         }
-      } catch {
+      } catch (error) {
+        console.error(error);
         toast.error('Something went wrong. Please try again.');
       } finally {
         setRemovingId(null);

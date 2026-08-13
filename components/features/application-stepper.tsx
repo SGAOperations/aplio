@@ -367,7 +367,8 @@ export function ApplicationStepper({
         toast.success('Application submitted');
         router.push('/applications');
       }
-    } catch {
+    } catch (error) {
+      console.error(error);
       toast.error('Something went wrong. Please try again.');
     }
   });

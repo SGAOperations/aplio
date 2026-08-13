@@ -57,7 +57,8 @@ export function PositionQuestionsSection({
           setQuestions((prev) => prev.filter((q) => q.id !== id));
           toast.success('Question deleted');
         }
-      } catch {
+      } catch (error) {
+        console.error(error);
         toast.error('Something went wrong. Please try again.');
       } finally {
         setDeletingId(null);

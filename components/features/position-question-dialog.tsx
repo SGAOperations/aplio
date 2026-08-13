@@ -119,7 +119,8 @@ export function QuestionForm({
         onClose();
         onSuccess({ id: result.id, positionId, order: result.order, ...data });
       }
-    } catch {
+    } catch (error) {
+      console.error(error);
       toast.error('Something went wrong. Please try again.');
     }
   }

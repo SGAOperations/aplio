@@ -74,7 +74,8 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
       }
       toast.success('Question deleted');
       setDeletingId(null);
-    } catch {
+    } catch (error) {
+      console.error(error);
       toast.error('Something went wrong. Please try again.');
     } finally {
       setIsDeleting(false);
