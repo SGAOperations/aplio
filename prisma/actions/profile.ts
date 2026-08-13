@@ -8,9 +8,9 @@ import type { GlobalAnswer } from '@/prisma/client';
 
 import { getCurrentUser } from '@/lib/auth/server';
 import {
-  nameSchema,
   SHORT_ANSWER_FORMAT_ERROR_MESSAGES,
   matchesShortAnswerFormat,
+  nameSchema,
 } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 import { type ErrorType, type ResponseType } from '@/lib/utils';
