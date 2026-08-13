@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 
 import type { QuestionType, ShortAnswerFormat } from '@/prisma/client';
 
-import { OTHER_OPTION_LABEL } from '@/lib/constants';
+import { OTHER_OPTION_LABEL, matchesShortAnswerFormat } from '@/lib/constants';
 import type { QuestionFileTarget } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -89,6 +89,17 @@ export function ApplicationQuestion({
 
   async function handleBlur() {
     field.onBlur();
+    // Mirrors the Controller `validate` rule in application-stepper.tsx —
+    // skip the autosave when the value fails format validation so a
+    // rejected value never round-trips to the server for a second, more
+    // generic "Failed to save answer" toast on top of the inline error.
+    if (
+      question.type === 'short_answer' &&
+      question.format &&
+      field.value[0] &&
+      !matchesShortAnswerFormat(field.value[0], question.format)
+    )
+      return;
     await save(field.value);
   }
 
