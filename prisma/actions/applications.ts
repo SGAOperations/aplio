@@ -42,11 +42,8 @@ type ApplicationForRequiredAnswers = {
   position: { questions: { id: string; required: boolean }[] };
 };
 
-// Shared by submitApplication and reopenApplication so the two gates can't
-// drift. Not exported — this file's 'use server' directive requires every
-// export to be an async server action. Accepts a Prisma.TransactionClient
-// (PrismaClient is structurally assignable) so callers can pass either the
-// bare client or a transaction.
+// Shared by submitApplication and reopenApplication so the two gates can't drift.
+// Unexported because 'use server' requires every export to be an async action.
 async function findMissingRequiredAnswers(
   client: Prisma.TransactionClient,
   application: ApplicationForRequiredAnswers,
@@ -80,7 +77,6 @@ const createDraftApplicationSchema = z.object({
   positionId: z.string().min(1),
 });
 
-// Shared schema for actions that take a single application ID.
 const applicationIdSchema = z.object({ applicationId: z.string().min(1) });
 
 const createOrUpdateApplicationAnswerSchema = z.object({
@@ -209,11 +205,8 @@ export async function createOrUpdateApplicationAnswer(params: {
       : value;
 
   if (isGlobal) {
-    // file_upload answers are written exclusively by uploadQuestionFileAnswer /
-    // removeQuestionFileAnswer (prisma/actions/question-files.ts) — never trust
-    // a client-supplied blob URL here. This path only runs for the stepper's
-    // "Use profile answers" revert, so always copy the caller's own current
-    // profile value instead of whatever the client sent.
+    // Never trust a client-supplied blob URL: file answers are written only by
+    // question-files.ts, so copy the caller's own profile value instead.
     const globalPersistedValue =
       question.type === 'file_upload'
         ? ((
@@ -350,10 +343,7 @@ export async function updateApplicationStatus(
 
   const { applicationId, status } = parsed.data;
 
-  // Authorization folded into the query — same pattern as getApplicationForReview.
-  // Returns null for non-existent, soft-deleted, withdrawn, draft/deleted-position,
-  // or unauthorized callers.
-
+  // Authorization folded into the query, as in getApplicationForReview.
   const where = user.isAdmin
     ? {
         id: applicationId,
@@ -377,9 +367,8 @@ export async function updateApplicationStatus(
     select: { id: true },
   });
 
-  // Null here means non-existent, soft-deleted, withdrawn, or the caller has no
-  // right to this application ID — an IDOR-style miss that should not be
-  // reachable from the UI, so we throw rather than returning a user-facing error.
+  // An IDOR-style miss unreachable from the UI, so it throws rather than
+  // returning something the user could act on.
   if (!application) throw new Error('Application not found or not authorized');
 
   await prisma.application.update({
@@ -396,12 +385,8 @@ const updateApplicationStatusesSchema = z.object({
   status: z.enum(REVIEWER_APPLICATION_STATUSES),
 });
 
-// Bulk status update for the /applications hub. Returns { updated: number } on
-// success so the client can toast the real count. Returns { error } for
-// user-facing failures (invalid input, no-op race). Throws for unexpected errors.
-// Authorization is folded directly into the updateMany where — no separate
-// findMany/updateMany pair, so there is no window for the target set to drift
-// between an authorization check and the write.
+// Authorization lives in the updateMany where rather than a findMany/updateMany
+// pair, so the target set cannot drift between the check and the write.
 export async function updateApplicationStatuses(
   input: unknown,
 ): Promise<{ updated: number } | { error: string }> {
@@ -412,9 +397,8 @@ export async function updateApplicationStatuses(
 
   const { applicationIds, status } = parsed.data;
 
-  // Authorize: scoped where clause means forged/deleted/out-of-scope/withdrawn
-  // ids are silently excluded — the caller can only update records they may see,
-  // mirroring the exclusion updateApplicationStatus enforces.
+  // Forged and out-of-scope ids are silently excluded by the scoped where — the
+  // caller can only update what they may see.
   const where = user.isAdmin
     ? {
         id: { in: applicationIds },
@@ -487,9 +471,8 @@ export async function reopenApplication(
   const now = new Date();
 
   const result = await prisma.$transaction(async (tx) => {
-    // Ownership and source status are folded into the where clause (no IDOR
-    // surface). Unlike submitApplication, this read-then-write runs inside
-    // the $transaction below to keep the check and the update atomic.
+    // Unlike submitApplication, this read-then-write runs inside the transaction
+    // so the ownership check and the update stay atomic.
     const application = await tx.application.findFirst({
       where: {
         id: parsed.data.applicationId,

@@ -87,9 +87,8 @@ interface ApplicantActivityFeedProps {
   userId: string;
 }
 
-// Feed shows applicant's own non-draft applications ordered by updatedAt DESC.
-// Copy describes current state ("is {Status}") — avoids asserting a from-state
-// we cannot prove (no status-history table; see issue §0).
+// Copy describes the current state ("is {Status}") rather than a transition — with no
+// status-history table there is no from-state to assert.
 export async function ApplicantActivityFeed({
   userId,
 }: ApplicantActivityFeedProps) {
@@ -116,9 +115,8 @@ export async function ApplicantActivityFeed({
 
 // ─── Admin feed wrapper ───────────────────────────────────────────────────────
 
-// Feed shows most recent non-draft applications across all positions, ordered
-// by submittedAt DESC — a provable "applied" event stream (unlike updatedAt).
-// Returns cross-user data — must only be called from an admin-gated context.
+// Ordered by submittedAt, which is a provable event stream in a way updatedAt is not.
+// Returns cross-user data — admin-gated callers only.
 export async function AdminActivityFeed() {
   const applications = await getRecentApplications(10);
 

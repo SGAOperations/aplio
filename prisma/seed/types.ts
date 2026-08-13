@@ -4,10 +4,8 @@ import type {
   QuestionType,
 } from '../client';
 
-// Hand-rolled rather than derived from a single Prisma `*CreateManyInput`
-// because this shape is shared across two different models
-// (GlobalQuestion and PositionQuestion) — deriving per-model Omit<> types
-// would just produce two near-duplicate types for no benefit.
+// Hand-rolled because it spans both GlobalQuestion and PositionQuestion; deriving
+// from Prisma would mean two near-duplicate per-model types.
 export interface QuestionDef {
   order: number;
   label: string;

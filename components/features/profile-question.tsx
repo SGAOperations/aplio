@@ -47,8 +47,7 @@ export function ProfileQuestion({
   const [saveError, setSaveError] = useState(false);
   const [formatError, setFormatError] = useState<string | null>(null);
 
-  // Any answer value that isn't one of the admin-defined options is the
-  // applicant's typed "Other" text (options is a closed set — see issue #322).
+  // options is a closed set, so any value outside it is the applicant's "Other" text.
   const initialOtherValue = initialValue.find(
     (v) => !question.options.includes(v),
   );
@@ -177,9 +176,7 @@ export function ProfileQuestion({
                         save(next);
                         return;
                       }
-                      // Picking a real option hides the "Other" input and
-                      // clears any previously typed text so it is never
-                      // silently resubmitted.
+                      // Clearing the typed text stops it being silently resubmitted.
                       setOtherSelected(false);
                       setOtherText('');
                       field.onChange([v]);
@@ -254,10 +251,8 @@ export function ProfileQuestion({
                   target={{ scope: 'profile', questionId: question.id }}
                   value={field.value}
                   onChange={(v) => {
-                    // uploadQuestionFileAnswer/removeQuestionFileAnswer already
-                    // persisted this value server-side — just sync local
-                    // state, never route through save() (updateGlobalAnswer
-                    // throws for file_upload questions by design).
+                    // Already persisted by the file actions, so this only syncs local
+                    // state — save() would throw for a file_upload question.
                     field.onChange(v);
                     savedValueRef.current = JSON.stringify(v);
                     reset({ value: v });

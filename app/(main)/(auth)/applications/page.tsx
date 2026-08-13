@@ -81,10 +81,8 @@ export default async function ApplicationsPage({
     getApplicationsTotal(user),
   ]);
 
-  // `getApplications` fetches 101 rows so `> 100` (not `>= 100`) distinguishes
-  // an actually-truncated result from an exact 100-row match — independent of
-  // `total`, which is always the unfiltered count. Slice the 101st row off
-  // before rendering/counting so `shown` never exceeds the advertised cap.
+  // getApplications fetches 101 rows, so `> 100` separates a truncated result from an
+  // exact 100-row match; the extra row is sliced off before rendering.
   const shownCapped = fetchedApplications.length > 100;
   const applications = shownCapped
     ? fetchedApplications.slice(0, 100)

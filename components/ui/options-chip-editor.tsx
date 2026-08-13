@@ -13,17 +13,14 @@ interface OptionsChipEditorProps {
 }
 
 // Controlled "type and press Enter" chip editor for choice-question options.
-// Library-agnostic: works under RHF's field.value/field.onChange or plain
-// useState — shared by GlobalQuestionDialog and the position QuestionForm,
-// which previously each hand-rolled this markup (ENGINEERING §1).
+// Library-agnostic: works under RHF's field.value/field.onChange or plain useState.
 export function OptionsChipEditor({
   options,
   onChange,
   disabled,
 }: OptionsChipEditorProps) {
-  // Own id rather than relying on the surrounding FormControl's
-  // aria-describedby — that wiring targets this component's outer div, not
-  // the Input rendered inside it, since Slot merges onto the immediate child.
+  // Own id: Slot merges FormControl's aria-describedby onto the outer div, not the
+  // Input inside it.
   const hintId = useId();
 
   function addOption(value: string) {

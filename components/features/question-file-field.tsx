@@ -41,10 +41,8 @@ interface QuestionFileFieldProps {
   disabled?: boolean;
 }
 
-// Mirrors the server's zod messages exactly (see prisma/actions/question-files.ts)
-// so behavior matches whether or not the request is actually sent. This is a
-// UX pre-check only — the server is the source of truth (magic-byte sniff +
-// the same size/mime checks run again there).
+// Mirrors the zod messages in question-files.ts. A UX pre-check only — the server
+// re-runs these checks and sniffs magic bytes.
 function clientValidationError(file: File): string | null {
   if (file.size > FILE_UPLOAD_MAX_BYTES) return 'File must be 4MB or smaller.';
   if (
@@ -56,10 +54,7 @@ function clientValidationError(file: File): string | null {
   return null;
 }
 
-// Editable file-answer control shared by the applicant apply flow
-// (application-question.tsx) and the profile page (profile-question.tsx).
-// No useEffect: all state here is driven directly by user events (file
-// picker change, remove confirm), never by syncing with an external system.
+// Shared by the apply flow and the profile page.
 export function QuestionFileField({
   target,
   value,
@@ -131,10 +126,8 @@ export function QuestionFileField({
   }
 
   return (
-    // `relative` is load-bearing: the file input below is `sr-only`
-    // (position: absolute) and would otherwise resolve against the initial
-    // containing block, stretching the document past the app shell's scroll
-    // container and producing a second scrollbar.
+    // `relative` is load-bearing: the sr-only file input would otherwise resolve
+    // against the initial containing block and produce a second scrollbar.
     <div className="relative flex flex-col gap-2">
       {isPending ? (
         <span

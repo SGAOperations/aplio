@@ -10,12 +10,8 @@ import { prisma } from '@/lib/prisma';
 
 export const authServer = createAuthServer();
 
-// Provision-on-first-auth: create the app User row when a real Neon session
-// has no matching row yet, then return it. Create-only (empty update {}) so an
-// existing row is returned without any write.
-// Keyed on the unique neonAuthId → race-safe via the DB unique constraint + upsert.
-// name omitted when falsy (OTP identities often supply an empty string → store null).
-// Deactivated users (#153) are blocked by the post-upsert guard below.
+// Provision-on-first-auth. The empty update {} makes it create-only, and keying on the
+// unique neonAuthId makes the upsert race-safe.
 async function resolveRealUser() {
   const { data: session } = await authServer.getSession();
   if (!session?.user) return null;
@@ -45,17 +41,13 @@ async function resolveRealUser() {
   return row;
 }
 
-// Returns true only when a bypass cookie is present on a non-production environment.
-// Extracted so layouts share a single definition; called after getCurrentUser() resolves.
 export async function getIsBypass(): Promise<boolean> {
   if (process.env.VERCEL_ENV === 'production') return false;
   return Boolean((await cookies()).get('dev-bypass-user-id')?.value);
 }
 
-// Like getCurrentUser, but returns null instead of redirecting when no user is
-// resolved. For PUBLIC pages that optionally personalize for a logged-in visitor
-// (e.g. /positions) without forcing authentication. Provisioning still runs for a
-// real session via resolveRealUser, so a logged-in visitor always has an app row.
+// For public pages that personalize when someone is signed in but never force it.
+// Provisioning still runs, so a logged-in visitor always has an app row.
 export const getOptionalUser = cache(async function getOptionalUser() {
   if (process.env.VERCEL_ENV !== 'production') {
     const bypassUserId = (await cookies()).get('dev-bypass-user-id')?.value;

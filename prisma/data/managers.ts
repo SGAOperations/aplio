@@ -4,12 +4,8 @@ import { cache } from 'react';
 
 import { prisma } from '@/lib/prisma';
 
-// Single source of truth for global manager detection.
-// Returns true if the user manages at least one non-deleted position.
-// Per-position checks use position.managers.some(m => m.id === userId)
-// against an already-fetched list; this function is for nav/dashboard routing only.
-// React.cache deduplicates within a single render pass — the (auth) layout and
-// a page guard (lib/auth/guards.ts) both ask on the same request.
+// For nav/dashboard routing only (per-position checks use an already-fetched list).
+// cache() dedupes this per render — the (auth) layout and a page guard both ask per request.
 export const isManager = cache(async function isManager(
   userId: string,
 ): Promise<boolean> {

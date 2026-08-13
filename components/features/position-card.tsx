@@ -29,9 +29,7 @@ interface PositionStatClusterProps {
   stats: PositionApplicationStats;
 }
 
-// Co-located server sub-component — compact count+label tiles for managed position cards.
-// Renders a "Total" lead tile and a 2x2 grid of the four key pipeline statuses.
-// Zero-count tiles are dimmed rather than hidden so the cluster shape is stable.
+// Zero-count tiles are dimmed rather than hidden, so the cluster keeps a stable shape.
 function PositionStatCluster({ stats }: PositionStatClusterProps) {
   return (
     <div role="region" aria-label="Application stats" className="shrink-0">
@@ -86,9 +84,7 @@ function PositionStatCluster({ stats }: PositionStatClusterProps) {
   );
 }
 
-// Server component — flat summary card with always-visible truncated description
-// and a CTA row linking into the detail page. Managed cards (canManage=true) also
-// show a top-right-anchored application stats cluster when applicationStats is passed.
+// Managed cards additionally show a stats cluster, when applicationStats is passed.
 export function PositionCard({
   position,
   canManage = false,

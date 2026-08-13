@@ -7,7 +7,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// Type definitions for server action responses
 export type ErrorType = { error: string };
 
 export type ResponseType<T> = T | ErrorType;
@@ -22,13 +21,8 @@ export function isError<T>(result: ResponseType<T>): result is ErrorType {
 }
 
 /**
- * True only when the dev-bypass login is explicitly allowed.
- * Default-DENY: bypass is disabled unless VERCEL_ENV is explicitly
- * 'development' or 'preview' (set via .env.example for local `next dev`,
- * and by Vercel automatically for preview deployments). An unset VERCEL_ENV
- * must NOT enable bypass, since that also describes any non-Vercel-hosted
- * production deployment (self-hosted, another cloud). Never infer "local"
- * from the absence of a signal.
+ * Default-DENY: an unset VERCEL_ENV must not enable bypass, since that also
+ * describes a production deployment hosted anywhere other than Vercel.
  */
 export function isBypassAllowed(): boolean {
   return (
@@ -50,12 +44,6 @@ export function formatDate(date: Date): string {
   }).format(date);
 }
 
-/**
- * Returns a human-readable relative time string for a past date.
- * Rules: <1 min → "Just now"; <60 min → "Nm ago"; <24 h → "Nh ago";
- * <7 d → "Nd ago"; otherwise falls back to formatDate.
- * `now` is injectable for deterministic testing.
- */
 export function formatRelativeTime(date: Date, now: Date = new Date()): string {
   const diffMs = now.getTime() - date.getTime();
   const diffSec = Math.floor(diffMs / 1000);
@@ -71,17 +59,8 @@ export function formatRelativeTime(date: Date, now: Date = new Date()): string {
 }
 
 /**
- * Derives the applicant-facing availability of a position.
- *
- * Date semantics (important — positions use date-only inputs):
- *   - opensAt  → start-of-day: position opens at the beginning of opensAt day.
- *   - closesAt → inclusive of its whole day: the stored midnight value means the
- *     position is available *through* that day, so we compare against end-of-day
- *     (23:59:59.999). A naive `now > closesAt` would close it at midnight on the
- *     chosen day; inclusive end-of-day honors user intent ("open through Jun 30").
- *
- * `now` defaults to `new Date()` but is injectable for testing and so callers
- * within a single action can pass a consistent timestamp.
+ * Positions store date-only values: closesAt is inclusive of its whole day, so a
+ * naive `now > closesAt` would close a position at midnight of the chosen day.
  */
 export function getPositionAvailability(
   position: PositionWindow,
@@ -92,8 +71,7 @@ export function getPositionAvailability(
   if (position.opensAt !== null && now < position.opensAt) return 'upcoming';
 
   if (position.closesAt !== null) {
-    // End-of-day for closesAt: UTC-explicit to stay timezone-proof on any host.
-    // Advance to the next UTC calendar day and subtract 1ms → 23:59:59.999 UTC.
+    // Next UTC day minus 1ms → 23:59:59.999 UTC, explicit to stay host-timezone-proof.
     const endOfCloseDay = new Date(
       Date.UTC(
         position.closesAt.getUTCFullYear(),
@@ -107,7 +85,6 @@ export function getPositionAvailability(
   return 'accepting';
 }
 
-/** Convenience boolean: returns true only when the position is in the 'accepting' state. */
 export function isAcceptingApplications(
   position: PositionWindow,
   now?: Date,
@@ -118,31 +95,18 @@ export function isAcceptingApplications(
 interface FormatTableCountOptions {
   shown: number;
   total: number;
-  /** Singular noun, e.g. "application". Pluralized by appending "s" unless `pluralNoun` is given. */
+  /** Singular noun; pluralized by appending "s" unless `pluralNoun` is given. */
   noun: string;
-  /** Override the plural form if it is not simply `noun + "s"`. */
   pluralNoun?: string;
-  /**
-   * Set to true when the shown count is capped (e.g. `getApplications` caps at 100)
-   * so the display reads "100+" rather than a misleadingly exact number.
-   */
+  /** Displays the shown count as "100+" when the query capped it. */
   shownCapped?: boolean;
-  /**
-   * Whether any filters are currently active. When false (unfiltered), the
-   * function always collapses to "{total} {noun}" regardless of shown vs total —
-   * this matters when capping is in play (shown=100, total=250, no filters).
-   */
+  /** When false, collapses to "{total} {noun}" even if shown and total differ. */
   isFiltered?: boolean;
 }
 
 /**
- * Formats a table row count for display in a toolbar.
- *
- * When unfiltered and not capped returns "{total} {noun}" (no x/x) — nothing
- * is hidden, so a bare count is clearest.
- * Otherwise (filtered, or unfiltered but capped) returns "{shown} / {total} {noun}",
- * since the table is truncated relative to `total` and that should be visible.
- * When shownCapped uses "100+" for the shown side.
+ * "{total} {noun}" when nothing is hidden, otherwise "{shown} / {total} {noun}" —
+ * a truncated table should say so.
  */
 export function formatTableCount({
   shown,

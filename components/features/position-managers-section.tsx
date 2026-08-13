@@ -50,9 +50,8 @@ export function PositionManagersSection({
   // Ref holds the debounce timer so typing does not trigger a search per keystroke.
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Clear a pending debounced search on unmount — without this, navigating away
-  // within the debounce window still fires the stale closure's searchUsers call.
-  // A DOM/timer handle has no non-effect home, so this is the sanctioned exception (§1).
+  // Navigating away inside the debounce window would otherwise fire the stale
+  // closure's searchUsers call. A timer handle has no non-effect home.
   useEffect(() => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);

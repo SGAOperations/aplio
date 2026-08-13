@@ -5,11 +5,8 @@ import { PrismaClient } from '@/prisma/client';
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
 /**
- * Normalize legacy sslmode aliases to verify-full so pg/pg-connection-string
- * does not emit the v9 deprecation warning. The require/prefer/verify-ca modes
- * are treated identically to verify-full by Neon and current pg versions; this
- * rewrite makes that explicit and silences the warning before it becomes a
- * breaking change in pg v9.
+ * Neon and current pg treat the legacy sslmode aliases as verify-full anyway; making
+ * that explicit silences a deprecation warning that becomes breaking in pg v9.
  */
 function normalizeConnectionString(url: string): string {
   try {

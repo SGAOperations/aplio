@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Per-tier rate limit caps (requests per minute per IP).
-// Webhook is matched before the /api/auth prefix so it gets the higher cap.
+// Order matters: webhook is matched before the /api/auth prefix to get the higher cap.
 const LIMITS = {
   webhook: { windowMs: 60_000, max: 100 },
   api: { windowMs: 60_000, max: 20 },
@@ -9,22 +8,15 @@ const LIMITS = {
   private: { windowMs: 60_000, max: 120 },
 };
 
-// Module-level hit store: `${tier}:${ip}` → sorted array of request timestamps.
-// Reused across middleware invocations within a single worker instance.
-// Not shared across instances — see PR notes for the per-instance limitation.
+// `${tier}:${ip}` → request timestamps. Per worker instance, not shared across them,
+// so the effective limit scales with instance count.
 const hits = new Map<string, number[]>();
 
-// Sweep threshold: when the map grows beyond this size, evict stale buckets so
-// abandoned IPs don't accumulate memory over the lifetime of the worker.
+// Past this size, stale buckets are evicted so abandoned IPs don't leak memory.
 const SWEEP_THRESHOLD = 5_000;
 
-// NOTE — Vercel deployment prerequisite: Vercel's infrastructure overwrites
-// x-forwarded-for before it reaches the middleware, preventing spoofing.
-// On non-Vercel proxies (staging tunnels, custom reverse proxies) a client can
-// set x-forwarded-for to an arbitrary IP and bypass per-IP limiting entirely.
-// If this middleware is ever deployed behind a non-Vercel proxy, add header-
-// trust validation (e.g. only trust the rightmost IP, or use a separate trusted
-// header set by the proxy) before relying on the rate-limit for security.
+// Safe only because Vercel overwrites x-forwarded-for before middleware sees it.
+// Behind any other proxy a client can spoof the header and bypass per-IP limiting.
 function getClientIp(request: NextRequest): string {
   const forwarded = request.headers.get('x-forwarded-for');
   if (forwarded) {
@@ -36,8 +28,6 @@ function getClientIp(request: NextRequest): string {
   return 'unknown';
 }
 
-// Single source of truth for the pathname → tier routing rule — previously
-// duplicated between getLimit and tierKey (ENGINEERING §1: abstract at 2+).
 function classifyRequest(pathname: string): {
   tier: string;
   limit: { windowMs: number; max: number };
@@ -74,7 +64,6 @@ export function applyRateLimit(request: NextRequest): NextResponse | null {
     maybeSweep(now);
 
     const timestamps = hits.get(bucket) ?? [];
-    // Prune entries outside the current window.
     const windowStart = now - limit.windowMs;
     const recent = timestamps.filter((t) => t >= windowStart);
 
@@ -102,9 +91,8 @@ export function applyRateLimit(request: NextRequest): NextResponse | null {
     hits.set(bucket, recent);
     return null;
   } catch (error) {
-    // Fail open: an internal error in the gate must not block legitimate traffic.
-    // Still logged so a future regression here leaves a trace instead of
-    // silently degrading to "no rate limiting".
+    // Fail open: a broken gate must not block legitimate traffic. Logged so the
+    // degradation to "no rate limiting" leaves a trace.
     console.error('applyRateLimit failed, allowing request', error);
     return null;
   }

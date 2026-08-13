@@ -2,19 +2,8 @@ import 'server-only';
 
 import { compactVerify, importJWK } from 'jose';
 
-// Neon Auth webhook signature verification.
-//
-// Neon signs webhook requests using EdDSA (Ed25519) with a detached JWS format:
-//   X-Neon-Signature     — detached JWS: headerB64..signatureB64 (empty middle section)
-//   X-Neon-Signature-Kid — key ID matching a JWK in the JWKS endpoint
-//   X-Neon-Timestamp     — Unix timestamp (ms) when the request was signed
-//
-// The signing input is reconstructed as a compact JWS by filling in the detached
-// payload: headerB64.base64url(timestamp + "." + base64url(rawBody)).signatureB64
-//
-// jose is used for key import and verification rather than Node's crypto.createPublicKey
-// because the latter delegates Ed25519 JWK handling to Web Crypto internally and throws
-// InvalidCharacterError in the Next.js runtime despite the key being valid.
+// Neon signs with EdDSA (Ed25519) in detached JWS form. jose rather than Node's
+// crypto.createPublicKey, which throws InvalidCharacterError on valid Ed25519 JWKs here.
 
 interface JWK {
   kid: string;

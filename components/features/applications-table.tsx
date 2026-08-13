@@ -17,11 +17,8 @@ import type {
 import { formatDate } from '@/lib/utils';
 
 import { ApplicationsBulkBar } from '@/components/features/applications-bulk-bar';
-// SortableHeader is the shared indicator component — this table keeps its own
-// server-side sort mechanism (router.push re-fetches within the 100-row cap),
-// unlike the client-sorted tables that use useSortableTable. The ?sort=field:direction
-// param format here is intentionally different from the client tables' ?sort=&dir=
-// to avoid coupling the server re-fetch contract to a client-state abstraction.
+// Shared indicator only: this table sorts server-side via router.push, so its
+// ?sort=field:direction format stays decoupled from useSortableTable's ?sort=&dir=.
 import { SortableHeader } from '@/components/features/sortable-header';
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
 import { Button } from '@/components/ui/button';

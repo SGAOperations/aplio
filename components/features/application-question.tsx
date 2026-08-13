@@ -63,8 +63,7 @@ export function ApplicationQuestion({
     ? question.options.filter((o): o is string => typeof o === 'string')
     : [];
 
-  // Any answer value that isn't one of the admin-defined options is the
-  // applicant's typed "Other" text (options is a closed set — see issue #322).
+  // options is a closed set, so any value outside it is the applicant's "Other" text.
   const initialOtherValue = field.value.find((v) => !options.includes(v));
   const [otherSelected, setOtherSelected] = useState(
     initialOtherValue !== undefined,

@@ -23,8 +23,8 @@ interface UseNavItemsResult {
   isActive: (href: string) => boolean;
 }
 
-// Single source of truth for nav composition, shared by Sidebar and MobileNav
-// so both agree on item order/visibility and on what counts as "active" (ENGINEERING §1).
+// Shared by Sidebar and MobileNav so both agree on item order, visibility, and what
+// counts as active.
 export function useNavItems({
   identity,
   isAdmin,

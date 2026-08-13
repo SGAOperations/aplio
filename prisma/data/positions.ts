@@ -17,8 +17,6 @@ import {
 } from '@/lib/types';
 import { getPositionAvailability, isAcceptingApplications } from '@/lib/utils';
 
-// Shared select shape for PositionWithQuestions queries — extracted once so
-// every function returns the same type without duplicating the object literal.
 const positionWithQuestionsSelect = {
   id: true,
   title: true,
@@ -42,10 +40,8 @@ const positionWithQuestionsSelect = {
   },
 } as const;
 
-// Public: positions currently accepting applications (status 'open', non-deleted).
-// Post-fetch filter via isAcceptingApplications drops 'upcoming' and 'closed_by_date'
-// rows — the end-of-day-inclusive closesAt math cannot be expressed cleanly in a
-// Prisma where clause, so filtering post-fetch keeps one source of truth.
+// Filtered post-fetch because the end-of-day-inclusive closesAt math has no clean
+// Prisma where equivalent, and one source of truth beats two.
 export async function getOpenPositions(): Promise<PositionWithQuestions[]> {
   const positions = await prisma.position.findMany({
     where: { status: 'open', deletedAt: null },
@@ -55,13 +51,8 @@ export async function getOpenPositions(): Promise<PositionWithQuestions[]> {
   return positions.filter((p) => isAcceptingApplications(p));
 }
 
-// Public: positions closed within the last RECENTLY_CLOSED_WINDOW_DAYS days.
-// Three OR branches cover the different ways a position can be "recently closed":
-//   1. status:'closed' with an explicit closesAt within the window
-//   2. status:'closed' with no closesAt — fall back to updatedAt recency
-//   3. status:'open' with a closesAt in the past (within the window) — closed_by_date
-// Post-fetch filter keeps only rows that are actually closed (status:'closed' or
-// availability:'closed_by_date') so a still-accepting or upcoming open row never lands here.
+// "Recently closed" spans three cases: an explicit closesAt in the window, a closed
+// position with no closesAt (updatedAt stands in), and an open row past its closesAt.
 export async function getRecentlyClosedPositions(): Promise<
   PositionWithQuestions[]
 > {
@@ -73,11 +64,8 @@ export async function getRecentlyClosedPositions(): Promise<
     where: {
       deletedAt: null,
       OR: [
-        // Explicitly closed, close date within the window
         { status: 'closed', closesAt: { gte: cutoff } },
-        // Closed without an explicit close date — use updatedAt as a proxy
         { status: 'closed', closesAt: null, updatedAt: { gte: cutoff } },
-        // Still 'open' in the DB but past its closesAt within the window
         { status: 'open', closesAt: { gte: cutoff, lte: now } },
       ],
     },
@@ -85,9 +73,7 @@ export async function getRecentlyClosedPositions(): Promise<
     orderBy: [{ closesAt: 'desc' }, { title: 'asc' }],
   });
 
-  // Keep only rows that are genuinely closed — drops any open row that is
-  // still accepting or upcoming (should not happen given the where, but
-  // ensures correctness if closesAt end-of-day math creates an edge case).
+  // Defensive against a closesAt end-of-day edge case slipping an open row through.
   return positions.filter((p) => {
     if (p.status === 'closed') return true;
     const availability = getPositionAvailability(p);
@@ -95,16 +81,8 @@ export async function getRecentlyClosedPositions(): Promise<
   });
 }
 
-// Manager-facing: positions the user manages that still warrant attention.
-// A managed position is included when any of these hold:
-//   - status is 'open' (always active)
-//   - status is 'closed' and closesAt is within the last 30 days
-//   - status is 'closed' and closesAt is null, but updatedAt is within 30 days
-//   - has at least one application in a non-terminal status (including 'draft')
-// Long-dead managed positions (closed >30 days ago, all applications resolved) are hidden.
-// The 30-day window deliberately differs from RECENTLY_CLOSED_WINDOW_DAYS (7 days)
-// so managers retain visibility for longer while the public "Recently Closed" section
-// stays concise.
+// A closed position stays listed while it still has non-terminal applications, so
+// long-dead ones (closed past the window, everything resolved) drop off.
 export async function getManagedPositions(
   userId: string,
 ): Promise<PositionWithQuestions[]> {
@@ -117,11 +95,8 @@ export async function getManagedPositions(
       deletedAt: null,
       OR: [
         { status: 'open' },
-        // Recently closed via explicit close date (30-day window)
         { status: 'closed', closesAt: { gte: cutoff30 } },
-        // Recently closed fallback when closesAt is null — use updatedAt recency
         { status: 'closed', closesAt: null, updatedAt: { gte: cutoff30 } },
-        // Closed but still has non-terminal applications
         {
           applications: {
             some: {
@@ -137,14 +112,8 @@ export async function getManagedPositions(
   });
 }
 
-// Admin-only: returns all positions still worth an admin's attention.
-// A position is included when any of these hold:
-//   - status is 'open' or 'draft' (always show)
-//   - status is 'closed' and closesAt is within the last 30 days
-//   - status is 'closed' and closesAt is null, but updatedAt is within the last 30 days
-//   - status is 'closed' with at least one unresolved applicant
-// Fully-resolved closed positions (closed >30 days ago, no pending work) are hidden.
-// Returns cross-position data — must only be called from an admin-gated context.
+// Cross-position data — admin-gated callers only. A closed position stays listed
+// while it still has unresolved applicants, so fully-resolved ones drop off.
 export async function getAdminPositions(): Promise<PositionWithQuestions[]> {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - MANAGED_POSITIONS_WINDOW_DAYS);
@@ -154,11 +123,8 @@ export async function getAdminPositions(): Promise<PositionWithQuestions[]> {
       deletedAt: null,
       OR: [
         { status: { in: ['open', 'draft'] } },
-        // Recently closed via explicit close date
         { status: 'closed', closesAt: { gte: cutoff } },
-        // Recently closed fallback when closesAt is null — use updatedAt recency
         { status: 'closed', closesAt: null, updatedAt: { gte: cutoff } },
-        // Closed but still has unresolved applicants (work in progress)
         {
           status: 'closed',
           applications: {
@@ -183,14 +149,12 @@ export async function getPositionForApply(
     select: positionWithQuestionsSelect,
   });
 
-  // Gate: return null for positions outside their date window so the apply route
-  // redirects to /positions (which shows the effective state on the card).
+  // null outside the date window sends the apply route to /positions, where the
+  // card shows the effective state.
   if (!position || !isAcceptingApplications(position)) return null;
   return position;
 }
 
-// Minimal fetch for the applications page access check: avoids over-fetching
-// the full edit payload when only the title and manager list are needed.
 export async function getPositionAccess(
   id: string,
 ): Promise<{ id: string; title: string; managers: { id: string }[] } | null> {
@@ -200,9 +164,7 @@ export async function getPositionAccess(
   });
 }
 
-// Admin-only: open positions with filtered non-draft application counts in a single query.
-// Returns cross-position data — must only be called from an admin-gated context.
-// Optional `take` limits the result set; pass 3 for the compact dashboard widget.
+// Cross-position data — admin-gated callers only.
 export async function getOpenPositionsSummary(
   take?: number,
 ): Promise<OpenPositionSummaryItem[]> {
@@ -224,8 +186,8 @@ export async function getOpenPositionsSummary(
   });
 }
 
-// Full read payload for the detail page: any non-deleted status (no status filter),
-// no applications, managers fetched as id-only for the draft gate check (§3).
+// No status filter — the detail page handles drafts itself, using the id-only
+// manager list as its gate.
 export async function getPositionDetail(
   id: string,
 ): Promise<PositionDetail | null> {
@@ -257,10 +219,8 @@ export async function getPositionDetail(
   });
 }
 
-// Applicant-facing: count of positions currently accepting applications
-// (status open AND inside the date window). Date-window logic is delegated to
-// isAcceptingApplications to stay in sync with getPositionAvailability — a pure
-// DB count({ where: { status: 'open' } }) would include upcoming/closed-by-date.
+// A plain count({ where: { status: 'open' } }) would wrongly include upcoming and
+// closed-by-date positions, so the date window is applied in JS.
 export async function getAcceptingPositionsCount(): Promise<number> {
   const positions = await prisma.position.findMany({
     where: { status: 'open', deletedAt: null },
@@ -269,10 +229,7 @@ export async function getAcceptingPositionsCount(): Promise<number> {
   return positions.filter((p) => isAcceptingApplications(p)).length;
 }
 
-// Public detail page: only open, non-deleted positions with an explicit select of
-// non-sensitive fields. Drafts/closed return null → notFound() at the call site.
-// Wrapped in React.cache so generateMetadata and the page component share one DB
-// round-trip per request even when both call this function independently.
+// Cached so generateMetadata and the page component share one round-trip per request.
 export const getPublicPosition = cache(async function getPublicPosition(
   id: string,
 ): Promise<PositionWithQuestions | null> {

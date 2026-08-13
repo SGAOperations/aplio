@@ -40,9 +40,7 @@ const defaultValues: PositionFormValues = {
   closesAt: '',
 };
 
-// Rendered as a child of FormDialog (which wraps children in FormProvider),
-// so this can read isSubmitting via context to disable every field while the
-// create request is in flight — matches PositionDetailsForm's pattern.
+// FormDialog wraps children in FormProvider, so isSubmitting comes from context.
 function PositionFormFields() {
   const { formState } = useFormContext<PositionFormValues>();
   const isSubmitting = formState.isSubmitting;
@@ -141,9 +139,7 @@ function PositionFormFields() {
   );
 }
 
-// Dialog-triggered, so this adopts FormDialog + positionFormSchema directly,
-// matching GlobalQuestionDialog's pattern (ENGINEERING §1: reconcile ad-hoc
-// forms onto the established RHF + zod convention).
+// Dialog-triggered, so it uses FormDialog directly, as GlobalQuestionDialog does.
 export function PositionCreateDialog() {
   const router = useRouter();
 

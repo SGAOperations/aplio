@@ -86,9 +86,8 @@ export async function updatePosition(
   // IDs. Cached by React, so requirePositionAccess below reuses this resolve.
   await getCurrentUser();
 
-  // Stale-link guard: a manager navigating to a deleted position should get an
-  // actionable message, not a generic error toast (ENGINEERING §4 gray-area rule).
-  // Runs before the access guard so a stale tab always gets this message.
+  // Stale-link guard (ENGINEERING §4 gray-area rule): runs before the access
+  // guard so a deleted position always gets an actionable message, not a toast.
   const exists = await prisma.position.findFirst({
     where: { id, deletedAt: null },
     select: { id: true },
@@ -112,8 +111,8 @@ export async function updatePosition(
   revalidatePath('/positions');
   revalidatePath(`/positions/${id}`);
   revalidatePath(`/positions/${id}/edit`);
-  // status can flip open <-> draft here, which changes which applications are
-  // visible on every cross-position surface (issue #348) — clear them too.
+  // status can flip open <-> draft here, changing which applications are visible
+  // on every cross-position surface.
   revalidatePath('/');
   revalidatePath('/my-applications');
   revalidatePath('/applications');
@@ -138,7 +137,7 @@ export async function deletePosition(
     return { error: 'This position no longer exists.' };
 
   revalidatePath('/positions');
-  // Soft-deleting hides this position's applications everywhere (issue #348).
+  // Soft-deleting hides this position's applications everywhere.
   revalidatePath('/');
   revalidatePath('/my-applications');
   revalidatePath('/applications');
@@ -226,9 +225,8 @@ export async function removePositionManager(
 
 const searchUsersSchema = z.object({ query: z.string().max(200) });
 
-// Authenticated directory lookup used to assign position managers.
-// Intentionally exposes name+email to any logged-in user — only id/displayName/email
-// are returned (no sensitive/internal fields). Capped at 10 results.
+// Deliberately exposes name and email to any logged-in user; nothing else is
+// returned, and results are capped at 10.
 export async function searchUsers(
   input: unknown,
 ): Promise<

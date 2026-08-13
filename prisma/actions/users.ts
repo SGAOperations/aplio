@@ -81,21 +81,16 @@ export async function createUser(input: unknown): Promise<ActionError | void> {
 
   const { email, name, isAdmin } = parsed.data;
 
-  // Check our own table before calling Neon, so the common duplicate case is decided
-  // deterministically rather than depending on a status code Neon does not document,
-  // and no identity is provisioned only to be rolled back. Soft-deleted rows keep
-  // their email (see deactivateUser above), so a deactivated address is still taken.
-  // Racy by nature — the P2002 catch below is what actually guarantees uniqueness.
+  // Checked here so the common duplicate case doesn't depend on an undocumented Neon
+  // status code. Racy — the P2002 catch below is what guarantees uniqueness.
   const existing = await prisma.user.findFirst({
     where: { email },
     select: { id: true },
   });
   if (existing) return { error: 'A user with this email already exists.' };
 
-  // Neon Auth identity next: the app row needs its id, and provisioning it is what
-  // lets the invitee sign in via the normal OTP flow without ever having requested a
-  // code. Uses the app's own credential, not the caller's session — see
-  // lib/auth/admin.ts for why authServer.admin.createUser cannot work.
+  // Provisioned before the app row, which needs its id, and what lets the invitee sign
+  // in via the normal OTP flow without having requested a code.
   const created = await createNeonAuthUser({ email, name });
   // Residual case only: present in Neon Auth but not in our table.
   if ('duplicate' in created)
@@ -112,13 +107,11 @@ export async function createUser(input: unknown): Promise<ActionError | void> {
       },
     });
   } catch (error) {
-    // Any failure here leaves the identity orphaned in Neon Auth, so always roll it
-    // back before surfacing — otherwise each retry accumulates another one. If the
-    // rollback itself fails it throws, superseding the error below by design.
+    // Rolled back unconditionally, or each retry strands another Neon Auth identity.
     await deleteNeonAuthUser(created.id);
 
-    // Soft-deleted rows keep their email and neonAuthId (unique, not partial — see
-    // deactivateUser above), so a previously deactivated address collides here too.
+    // Soft-deleted rows keep their email and neonAuthId, so a deactivated address
+    // collides here too.
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === 'P2002'

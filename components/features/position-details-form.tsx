@@ -49,9 +49,8 @@ function formatDateForInput(iso: string | null): string {
   return iso.slice(0, 16);
 }
 
-// Always-visible inline edit form on the position edit page (no Dialog), so
-// this uses the shadcn Form primitives directly rather than FormDialog.
-// Shares positionFormSchema with PositionCreateDialog (ENGINEERING §1).
+// Always visible rather than dialog-triggered, so it uses the shadcn Form primitives
+// directly rather than FormDialog.
 export function PositionDetailsForm({ position }: PositionDetailsFormProps) {
   const form = useForm<PositionFormValues>({
     resolver: zodResolver(positionFormSchema),

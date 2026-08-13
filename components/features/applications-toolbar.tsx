@@ -41,21 +41,16 @@ export function ApplicationsToolbar({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // useRef is the correct home for a timer handle in a client component — it
-  // persists across renders without triggering re-renders, and avoids the
-  // react-hooks/immutability lint error that a plain `let` produces.
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );
 
-  // Clear a pending debounced search on unmount — without this, navigating away
-  // within the debounce window still fires the stale closure's router.replace.
-  // A DOM/timer handle has no non-effect home, so this is the sanctioned exception (§1).
+  // Navigating away inside the debounce window would otherwise fire the stale
+  // closure's router.replace. A timer handle has no non-effect home.
   useEffect(() => () => clearTimeout(debounceTimer.current), []);
 
-  // Track the search input value in local state so the X button reflects the
-  // current input value both on initial page load (from URL param) and after
-  // typing (without waiting for the debounce to update the URL).
+  // Local state so the X button tracks the input immediately, rather than waiting
+  // for the debounce to reach the URL.
   const [searchValue, setSearchValue] = useState(filters.q ?? '');
 
   function updateParam(key: string, value: string | undefined) {
@@ -65,7 +60,7 @@ export function ApplicationsToolbar({
     } else {
       params.delete(key);
     }
-    // Always preserve userId across filter changes (powers #77 deep-link).
+    // userId survives filter changes so the per-user deep link stays intact.
     router.push(`${pathname}?${params.toString()}`);
   }
 
@@ -94,17 +89,14 @@ export function ApplicationsToolbar({
 
   function clearFilters() {
     setSearchValue('');
-    // Drop all filters including userId so the user can escape the deep-link
-    // context (#77) when the filter set returns zero results.
+    // Drops userId too, so a zero-result filter set isn't a dead end inside the
+    // per-user deep link.
     router.push(pathname);
   }
 
   return (
-    // w-full spans the full content column to match the table sibling below.
-    // p-1 gives ≥3px clearance on all sides so 3px focus rings (input.tsx,
-    // select.tsx) are not clipped: overflow-x: auto forces overflow-y to auto
-    // per the CSS spec, silently clipping any ring bleed outside the box.
-    // min-w-0 + overflow-x-auto preserve narrow-viewport horizontal scrolling.
+    // p-1 keeps 3px focus rings clear of the box: overflow-x auto forces overflow-y
+    // to auto per spec, which would silently clip them.
     <div className="w-full min-w-0 overflow-x-auto p-1">
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
         <div className="flex flex-col gap-1.5">

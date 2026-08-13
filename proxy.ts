@@ -3,14 +3,11 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { applyRateLimit } from '@/lib/rate-limit';
 
-// Auth redirects are owned by layouts: app/(main)/(auth)/layout.tsx redirects
-// unauthenticated visitors to /login (prod) or /login/bypass (dev) via getCurrentUser().
-// Middleware only handles the Neon OAuth callback — the token exchange must run before
-// any page renders, but only fires when the verifier param is present.
+// Layouts own auth redirects. Middleware handles only the Neon OAuth callback, whose
+// token exchange must run before any page renders.
 export async function proxy(request: NextRequest): Promise<NextResponse> {
-  // Rate limiting only applies outside development: in dev there is no proxy to set
-  // x-forwarded-for/x-real-ip, so every request maps to 'unknown' and all local
-  // traffic to a capped route would share one bucket.
+  // Skipped in dev, where nothing sets x-forwarded-for and all local traffic would
+  // collapse into one 'unknown' bucket.
   if (process.env.NODE_ENV !== 'development') {
     const limited = applyRateLimit(request);
     if (limited) return limited;
@@ -31,10 +28,8 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 }
 
 export const config = {
-  // Exclude Next internals, public metadata/icon assets, and static images so
-  // they load on unauthenticated routes without being redirected to login.
-  // `icon` matches any path starting with /icon (e.g. static icon files);
-  // `apple-icon` covers app/apple-icon.tsx similarly.
+  // Next internals and public assets are excluded so they load on unauthenticated
+  // routes instead of redirecting to login.
   matcher: [
     '/((?!_next/static|_next/image|favicon.ico|icon|logo-dark.svg|logo-light.svg|apple-icon|sitemap.xml|robots.txt).*)',
   ],

@@ -65,11 +65,8 @@ export interface QuestionFormProps {
 
 type QuestionFormValues = z.infer<typeof questionFormSchema>;
 
-// Rendered inline in a Card by PositionQuestionsSection — not behind a
-// trigger/Dialog — so this uses the shadcn Form primitives directly rather
-// than FormDialog. Shares questionFormSchema/OptionsChipEditor with
-// GlobalQuestionDialog (ENGINEERING §1), including the "at least one option
-// for choice types" validation this form previously never enforced.
+// Rendered inline in a Card rather than behind a trigger, so it uses the shadcn Form
+// primitives directly rather than FormDialog.
 export function QuestionForm({
   positionId,
   question,

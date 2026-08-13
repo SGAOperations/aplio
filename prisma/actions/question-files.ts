@@ -27,24 +27,19 @@ const GENERIC_TYPE_ERROR = 'Only PDF, PNG and JPG files are allowed.';
 const SUBMITTED_ERROR = 'This application has already been submitted.';
 const NOT_AVAILABLE_ERROR = 'This file is no longer available.';
 
-// Thrown by readAndWriteAnswerValue when the transaction's authoritative
-// status re-check finds the application is no longer a draft — signals the
-// caller to surface SUBMITTED_ERROR instead of rethrowing as unexpected.
+// Signals the caller to surface SUBMITTED_ERROR rather than rethrow as unexpected.
 class ApplicationSubmittedError extends Error {}
 
-// zod's messages double as the user-facing copy — the first issue is
-// returned verbatim, so this is the single source of truth for both the
-// server response and the client's identical pre-check (question-file-field.tsx).
+// These messages are returned verbatim as user-facing copy, shared with the client
+// pre-check in question-file-field.tsx.
 const fileSchema = z
   .file()
   .min(1, 'Select a file to upload.')
   .max(FILE_UPLOAD_MAX_BYTES, 'File must be 4MB or smaller.')
   .mime([...FILE_UPLOAD_MIME_TYPES], GENERIC_TYPE_ERROR);
 
-// FormData values arrive as strings, so isGlobal is coerced from 'true'/'false'
-// before the discriminated union parse. Unknown/extra keys are stripped by
-// the zod object schemas (default behavior), so passing all fields regardless
-// of scope is safe.
+// FormData is all strings, so isGlobal is coerced before the union parse. Extra keys
+// are stripped by zod, so passing every field regardless of scope is safe.
 function parseTarget(
   formData: FormData,
 ): z.ZodSafeParseResult<QuestionFileTarget> {
@@ -61,11 +56,8 @@ type ResolvedTarget =
   | { scope: 'profile' }
   | { scope: 'application'; positionId: string };
 
-// Shared authorization for upload/remove: verifies the question exists, is
-// file_upload, and (for the application scope) belongs to an application the
-// caller owns and that is still a draft. A miss on existence/type/ownership
-// is an IDOR-style condition unreachable from the gated UI → throw. A
-// submitted application is reachable via a stale tab → user-facing { error }.
+// An existence/type/ownership miss is IDOR-style and unreachable from the gated UI,
+// so it throws; a submitted application is reachable via a stale tab, so it returns.
 async function authorizeTarget(
   userId: string,
   target: QuestionFileTarget,
@@ -114,16 +106,8 @@ function revalidateTarget(resolved: ResolvedTarget) {
   else revalidatePath(`/positions/${resolved.positionId}/apply`);
 }
 
-// Reads the current stored value (for reference-counted cleanup) and writes
-// the new one in a single transaction, so a concurrent write can't cause a
-// lost update. Shared by upload (value=[url]) and remove (value=[]) — the
-// only difference between the two actions is what value gets written.
-//
-// For the application scope, status is re-checked here (authoritatively,
-// inside the same transaction as the write) rather than relying solely on
-// authorizeTarget's earlier check — that check and this write aren't
-// otherwise atomic, so a concurrent submit (e.g. a second tab) could
-// otherwise land a file write on an already-submitted application.
+// Read and write share one transaction so a concurrent write can't lose the update,
+// and so a concurrent submit can't land a file write on an already-submitted application.
 async function readAndWriteAnswerValue(
   tx: Prisma.TransactionClient,
   target: QuestionFileTarget,
@@ -217,13 +201,8 @@ async function readAndWriteAnswerValue(
   return existing?.value[0] ?? null;
 }
 
-// Deletes a blob only when no answer row still references its URL. Profile
-// answers are copied into GlobalApplicationAnswer rows on draft creation, so
-// one blob can be referenced by several rows — this must never remove a blob
-// a submitted application still points to. Best-effort: an orphaned blob
-// isn't user-actionable and must never fail a successful save/delete. Also
-// called from prisma/actions/applications.ts#deleteDraftApplication, which is
-// why it's exported rather than kept module-private.
+// Profile answers are copied into application rows, so several rows can reference one
+// blob — it is deleted only when the last reference goes. Best-effort by design.
 export async function cleanupOrphanedBlob(url: string): Promise<void> {
   try {
     const [profileCount, globalAppCount, positionAppCount] = await Promise.all([
@@ -235,7 +214,7 @@ export async function cleanupOrphanedBlob(url: string): Promise<void> {
     ]);
     if (profileCount + globalAppCount + positionAppCount === 0) await del(url);
   } catch {
-    // swallowed — see doc comment above
+    // Swallowed: an orphaned blob is never user-actionable.
   }
 }
 
@@ -347,8 +326,7 @@ export async function downloadQuestionFileAnswer(
     if (!answer) throw new Error('Answer not found or not authorized');
     url = answer.value[0] ?? null;
   } else {
-    // application owned by the caller, or within the caller's reviewer scope
-    // (admin → any; manager → positions they manage) — same shape as
+    // Owned by the caller or within their reviewer scope — same shape as
     // getApplicationForReview.
     const where = user.isAdmin
       ? { id: target.applicationId, deletedAt: null }

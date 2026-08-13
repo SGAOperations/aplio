@@ -11,8 +11,7 @@ import { isBypassAllowed } from '@/lib/utils';
 // instead of racing to create duplicate "Bypass Position" rows.
 const BYPASS_POSITION_ID = 'bypass-position';
 
-// Hard no-op unless bypass is explicitly enabled (ENGINEERING §3) — see
-// isBypassAllowed for the default-deny rationale.
+// Hard no-op unless isBypassAllowed() says otherwise.
 export async function loginAsBypassUser(role: BypassRole) {
   if (!isBypassAllowed()) return;
 
@@ -56,8 +55,7 @@ export async function loginAsBypassUser(role: BypassRole) {
 }
 
 // Clears the bypass session cookie and returns the caller to the picker.
-// Hard no-op unless bypass is explicitly enabled (ENGINEERING §3) — see
-// isBypassAllowed for the default-deny rationale.
+// Hard no-op unless isBypassAllowed() says otherwise.
 export async function logoutBypassUser() {
   if (!isBypassAllowed()) return;
 

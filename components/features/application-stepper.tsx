@@ -55,10 +55,8 @@ interface QuestionListProps {
   profileAnswers?: GlobalAnswer[];
   formValues?: StepperFormValues;
   missingGlobalIds?: Set<string>;
-  // Keyed by question id — lets the "Use profile answers" revert wait for any
-  // in-flight blur autosave on the same field before writing over it, so the
-  // revert (issued later) is always the last write and what's displayed
-  // matches what's persisted.
+  // Keyed by question id, so a "Use profile answers" revert can wait for an in-flight
+  // blur autosave on the same field and still be the last write.
   pendingSavesRef?: RefObject<Map<string, Promise<unknown>>>;
 }
 
@@ -203,9 +201,8 @@ function QuestionList({
                     });
                     if (isError(result)) throw new Error(result.error);
                   })();
-                  // Track this in-flight save so a concurrent "Use profile
-                  // answers" revert on the same field can wait for it and
-                  // write last, rather than racing it (see revert loop).
+                  // Tracked so a concurrent revert on this field can wait rather
+                  // than race it.
                   pendingSavesRef?.current.set(question.id, save);
                   try {
                     await save;
@@ -298,9 +295,8 @@ export function ApplicationStepper({
       return;
     }
 
-    // Read-only mode never registers Controllers for global fields, so
-    // `trigger` can't validate them — check required-ness against the
-    // profile's actual answers instead.
+    // Read-only mode registers no Controllers for global fields, so `trigger` can't
+    // validate them — required-ness is checked against the profile's answers.
     const missing = new Set(
       globalQuestions
         .filter(
@@ -351,9 +347,8 @@ export function ApplicationStepper({
           if (JSON.stringify(current) === JSON.stringify(profileValue))
             return null;
 
-          // Let any blur-triggered autosave already in flight for this field
-          // settle first, so the revert write is issued last and the value
-          // that ends up persisted matches what we're about to display.
+          // Let an in-flight autosave settle first, so the revert write lands last
+          // and the displayed value matches what persisted.
           const pending = pendingSavesRef.current.get(q.id);
           if (pending) await pending.catch(() => {});
 
@@ -364,9 +359,8 @@ export function ApplicationStepper({
             value: profileValue,
             isGlobal: true,
           });
-          // Only reflect the revert in the form once it's actually persisted —
-          // a failed field keeps whatever was last successfully saved rather
-          // than showing a value the server never accepted.
+          // Reflected only once persisted, so a failed field keeps its last saved
+          // value rather than one the server never accepted.
           if (!isError(result)) setValue(`g_${q.id}`, profileValue);
           return result;
         }),

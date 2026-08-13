@@ -151,7 +151,7 @@ if (applications.length === 0)
 - **Prisma-generated types** (`Prisma.ApplicationGetPayload<...>`, generated enums) over hand-written duplicates that drift.
 - **Naming follows the neighborhood.** Match the file's existing patterns for casing, ordering, and component structure before introducing anything new.
 - **Comments are rare and short.** Default to none — name things so the code reads without help. Write one only where a reader fluent in the language and this codebase would still get it wrong: a non-obvious invariant, an external requirement, a deliberate exclusion, or a workaround for someone else's bug.
-  - **Two lines, max.** If it needs a paragraph, the code is wrong, not underdocumented — restructure it, or put the narrative in the PR body where it belongs.
+  - **Two lines of prose, max** (JSDoc `/**` and `*/` delimiters don't count). If it needs a paragraph, the code is wrong, not underdocumented — restructure it, or put the narrative in the PR body where it belongs.
   - **No provenance.** Never cite an issue, PR, review thread, or `ENGINEERING §` ref. `git blame` links every line to its PR and its review permanently; a hardcoded `#334` only rots.
   - **No narration.** Never restate what the next line does; never label an obvious section.
   - **Function docs get the same bar.** A JSDoc block only where the contract isn't clear from the name and signature, still ≤2 lines, and no `@param`/`@returns` that merely restate types.
