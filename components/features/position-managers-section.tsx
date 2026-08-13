@@ -29,11 +29,15 @@ interface UserResult {
 interface PositionManagersSectionProps {
   positionId: string;
   initialManagers: PositionManager[];
+  currentUserId: string;
+  isAdmin: boolean;
 }
 
 export function PositionManagersSection({
   positionId,
   initialManagers,
+  currentUserId,
+  isAdmin,
 }: PositionManagersSectionProps) {
   const [managers, setManagers] = useState<PositionManager[]>(initialManagers);
   const [query, setQuery] = useState('');
@@ -112,6 +116,11 @@ export function PositionManagersSection({
   }
 
   function handleRemove(userId: string) {
+    // The click can't happen through the disabled button, but keeps the
+    // client and server rules in one place rather than relying solely on the
+    // disabled attribute.
+    if (userId === currentUserId && !isAdmin) return;
+
     setRemovingId(userId);
     startTransition(async () => {
       try {
@@ -140,36 +149,51 @@ export function PositionManagersSection({
 
       {managers.length > 0 && (
         <ul className="flex flex-col gap-2">
-          {managers.map((manager) => (
-            <li
-              key={manager.id}
-              className="flex items-center justify-between gap-2 rounded-md border p-3"
-            >
-              <div>
-                <p className="text-sm font-medium">
-                  {manager.name ?? manager.email}
-                </p>
-                {manager.name && (
-                  <p className="text-muted-foreground text-xs">
-                    {manager.email}
-                  </p>
-                )}
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handleRemove(manager.id)}
-                disabled={removingId === manager.id}
+          {managers.map((manager) => {
+            const isSelf = manager.id === currentUserId;
+            const blockSelfRemoval = isSelf && !isAdmin;
+
+            return (
+              <li
+                key={manager.id}
+                className="flex items-center justify-between gap-2 rounded-md border p-3"
               >
-                {removingId === manager.id ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <UserMinus className="size-4" />
-                )}
-                <span className="sr-only">Remove manager</span>
-              </Button>
-            </li>
-          ))}
+                <div>
+                  <p className="text-sm font-medium">
+                    {manager.name ?? manager.email}
+                  </p>
+                  {manager.name && (
+                    <p className="text-muted-foreground text-xs">
+                      {manager.email}
+                    </p>
+                  )}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleRemove(manager.id)}
+                  disabled={removingId === manager.id || blockSelfRemoval}
+                  aria-disabled={blockSelfRemoval}
+                  title={
+                    blockSelfRemoval
+                      ? 'You cannot remove yourself as a manager'
+                      : undefined
+                  }
+                >
+                  {removingId === manager.id ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <UserMinus className="size-4" />
+                  )}
+                  <span className="sr-only">
+                    {blockSelfRemoval
+                      ? 'Remove manager (you cannot remove yourself)'
+                      : 'Remove manager'}
+                  </span>
+                </Button>
+              </li>
+            );
+          })}
         </ul>
       )}
 
