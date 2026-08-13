@@ -41,7 +41,10 @@ const positionWithQuestionsSelect = {
   },
 } as const;
 
-// Shared fragment for the isPositionActive predicate (lib/utils.ts). The `where`
+// Shared fragment for the isPositionActive predicate (lib/utils.ts). Always spread
+// alongside positionWithQuestionsSelect, which supplies the status/opensAt/closesAt
+// fields isPositionActive also needs (via getPositionAvailability) — this fragment
+// only adds the two fields that select doesn't already cover. The `where`
 // inside `_count` is the one fragile joint Prisma cannot type-check — any hand-written
 // _count.applications select that omits this non-terminal filter will silently mark an
 // archived position active. Reused unchanged by #360's getPositionForEdit widening so

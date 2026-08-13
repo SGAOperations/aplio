@@ -137,13 +137,15 @@ export type PositionWindow = {
   closesAt: Date | null;
 };
 
-// Minimal structural input for isPositionActive (lib/utils.ts). _count.applications
-// must be the count of non-deleted applications in NON_TERMINAL_APPLICATION_STATUSES —
-// populated only via prisma/data/positions.ts's positionActivitySelect fragment; any
-// other _count select silently produces a wrong active/archived answer.
-export type PositionActivity = {
-  status: PositionStatus;
-  closesAt: Date | null;
+// Minimal structural input for isPositionActive (lib/utils.ts). Extends PositionWindow
+// (not just status/closesAt) because isPositionActive delegates its "is this position
+// actually closed" check to getPositionAvailability, which also needs opensAt — a
+// status:'open' position past its closesAt is closed_by_date even though the status
+// column never flips to 'closed'. _count.applications must be the count of non-deleted
+// applications in NON_TERMINAL_APPLICATION_STATUSES — populated only via
+// prisma/data/positions.ts's positionActivitySelect fragment; any other _count select
+// silently produces a wrong active/archived answer.
+export type PositionActivity = PositionWindow & {
   updatedAt: Date;
   _count: { applications: number };
 };

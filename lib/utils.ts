@@ -105,7 +105,13 @@ export function isAcceptingApplications(
  * predicate is an authorization bug, not just a display bug.
  *
  * Active when any of:
- *   1. status !== 'closed' — draft and open positions are always active.
+ *   1. the position is not actually closed — draft, open-and-accepting, and
+ *      open-and-upcoming are always active. "Closed" is the same effective
+ *      state PositionStatusBadge and getRecentlyClosedPositions use: status
+ *      literally 'closed', OR status 'open' with closesAt already past
+ *      (getPositionAvailability's 'closed_by_date') — the status column does
+ *      not auto-flip to 'closed' when closesAt elapses, so checking the raw
+ *      `status` field alone would leave date-closed positions active forever.
  *   2. position._count.applications > 0 — an in-flight (non-terminal) application
  *      keeps a position active regardless of status, deliberately unscoped per
  *      the ACs (an old closed position with a lingering draft still needs attention).
@@ -119,7 +125,10 @@ export function isPositionActive(
   position: PositionActivity,
   now: Date = new Date(),
 ): boolean {
-  if (position.status !== 'closed') return true;
+  const isClosed =
+    position.status === 'closed' ||
+    getPositionAvailability(position, now) === 'closed_by_date';
+  if (!isClosed) return true;
   if (position._count.applications > 0) return true;
 
   const cutoff = new Date(now);
