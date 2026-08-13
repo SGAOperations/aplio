@@ -29,6 +29,7 @@ enum QuestionType {
   long_answer
   single_choice
   multiple_choice
+  file_upload
 }
 
 model User {

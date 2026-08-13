@@ -3,7 +3,10 @@ import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 
 import { PrismaClient } from './client';
-import { applicationAssignments } from './seed/applications';
+import {
+  applicationAssignments,
+  draftApplicationAssignments,
+} from './seed/applications';
 import { globalQuestionDefs } from './seed/global-questions';
 import { toQuestionCreateInput } from './seed/helpers';
 import { positionAnswers, positionDefs } from './seed/positions';
@@ -63,9 +66,14 @@ async function main() {
             data: {
               title: p.title,
               description: p.description,
-              status: 'open',
+              status: p.status ?? 'open',
               createdById: admin.id,
               updatedById: admin.id,
+              // Regression fixture for issue #348 — soft-deleted, so every
+              // cross-position surface must exclude its applications.
+              ...(p.deleted
+                ? { deletedAt: new Date(), deletedById: admin.id }
+                : {}),
               questions: {
                 createMany: {
                   data: p.questions.map((q) =>
@@ -134,6 +142,36 @@ async function main() {
             });
           }),
         ),
+      );
+
+      // Regression fixture for issue #348 — a draft (unsubmitted) application
+      // against the soft-deleted position, alongside the submitted one above.
+      await Promise.all(
+        draftApplicationAssignments.map(({ applicantIdx, positionIdx }) => {
+          const applicant = applicants[applicantIdx];
+          const position = positions[positionIdx];
+
+          return tx.application.create({
+            data: {
+              userId: applicant.id,
+              positionId: position.id,
+              status: 'draft',
+              createdById: applicant.id,
+              updatedById: applicant.id,
+              globalAnswers: {
+                createMany: {
+                  data: globalQuestions.map((q) => ({
+                    globalQuestionId: q.id,
+                    questionLabel: q.label,
+                    value: profileAnswers[applicantIdx][q.label] ?? [],
+                    createdById: applicant.id,
+                    updatedById: applicant.id,
+                  })),
+                },
+              },
+            },
+          });
+        }),
       );
     },
     { timeout: 30_000 },

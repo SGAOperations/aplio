@@ -7,6 +7,8 @@ import { UserDashboard } from '@/components/features/user-dashboard';
 
 export default async function Home() {
   const user = await getOptionalUser();
+  // Routing, not an authorization denial — a signed-out visitor just lands on
+  // the public positions list instead of the dashboard (lib/auth/guards.ts).
   if (!user) redirect('/positions');
 
   if (user.isAdmin) return <AdminDashboard />;

@@ -1,4 +1,4 @@
-import type { PositionStatus } from '@/prisma/client';
+import type { PositionStatus, QuestionType } from '@/prisma/client';
 import type { $Enums, Prisma } from '@/prisma/client';
 
 import type { REVIEWER_APPLICATION_STATUSES } from '@/lib/constants';
@@ -191,14 +191,21 @@ export type ProfileCompleteness = {
 
 // Answer row shape for the review detail page — same for global and position answers.
 // Audit columns are excluded; value is String[] (multi-value answers are supported).
+// questionId/type/isGlobal let the download control address and render a
+// file_upload answer without a dedicated file-metadata model.
 export type ApplicationReviewAnswer = {
   id: string;
+  questionId: string;
   questionLabel: string;
   value: string[];
+  type: QuestionType;
+  isGlobal: boolean;
 };
 
-// Full application shape for the admin/manager review page.
-// Prisma-generated payload keeps it in sync with the schema automatically.
+// Full application shape for the admin/manager review page. Base fields come
+// from the Prisma-generated payload; the two answer arrays are overridden with
+// the normalized ApplicationReviewAnswer shape (getApplicationForReview maps
+// the raw payload into it — see prisma/data/applications.ts).
 export type ApplicationForReview = Prisma.ApplicationGetPayload<{
   select: {
     id: true;
@@ -206,18 +213,32 @@ export type ApplicationForReview = Prisma.ApplicationGetPayload<{
     submittedAt: true;
     user: { select: { name: true; email: true } };
     position: { select: { id: true; title: true } };
-    globalAnswers: {
-      where: { deletedAt: null };
-      orderBy: { createdAt: 'asc' };
-      select: { id: true; questionLabel: true; value: true };
-    };
-    positionAnswers: {
-      where: { deletedAt: null };
-      orderBy: { createdAt: 'asc' };
-      select: { id: true; questionLabel: true; value: true };
-    };
   };
-}>;
+}> & {
+  globalAnswers: ApplicationReviewAnswer[];
+  positionAnswers: ApplicationReviewAnswer[];
+};
+
+// Discriminated union addressing a file answer by question, not by answer row
+// id — mirrors createOrUpdateApplicationAnswer's (applicationId, questionId,
+// isGlobal) addressing so no answer row id needs to be plumbed through the
+// stepper. Kept in sync with lib/constants.ts#questionFileTargetSchema.
+export type QuestionFileTarget =
+  | { scope: 'profile'; questionId: string }
+  | {
+      scope: 'application';
+      applicationId: string;
+      questionId: string;
+      isGlobal: boolean;
+    };
+
+// Result of downloadQuestionFileAnswer — base64-encoded so it can cross the
+// server-action boundary without a Route Handler (this repo forbids one).
+export type QuestionFileDownload = {
+  filename: string;
+  contentType: string;
+  data: string;
+};
 
 // Activity feed item — role-agnostic shape produced by the applicant/admin
 // feed wrappers and consumed by the shared ActivityFeedList leaf.
@@ -241,7 +262,16 @@ export type AdminUserListItem = Prisma.UserGetPayload<{
     managedPositions: { select: { id: true; title: true } };
     _count: {
       select: {
-        applications: { where: { deletedAt: null; status: { not: 'draft' } } };
+        // Mirrors prisma/data/users.ts#getUsersForAdmin's `applications` where
+        // (PUBLISHED_POSITION_WHERE inlined — a value import can't feed a type
+        // position) so the payload type stays in lockstep with the query.
+        applications: {
+          where: {
+            deletedAt: null;
+            status: { not: 'draft' };
+            position: { deletedAt: null; status: { not: 'draft' } };
+          };
+        };
       };
     };
   };

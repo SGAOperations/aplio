@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { PUBLISHED_POSITION_WHERE } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 import type { AdminUserListItem } from '@/lib/types';
 
@@ -22,7 +23,11 @@ export async function getUsersForAdmin(): Promise<AdminUserListItem[]> {
       _count: {
         select: {
           applications: {
-            where: { deletedAt: null, status: { not: 'draft' } },
+            where: {
+              deletedAt: null,
+              status: { not: 'draft' },
+              position: PUBLISHED_POSITION_WHERE,
+            },
           },
         },
       },

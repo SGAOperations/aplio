@@ -1,13 +1,17 @@
 import { type ApplicationReviewAnswer } from '@/lib/types';
 
+import { AnswerFileLink } from '@/components/features/answer-file-link';
+
 interface ApplicationAnswersListProps {
   answers: ApplicationReviewAnswer[];
   emptyMessage: string;
+  applicationId: string;
 }
 
 export function ApplicationAnswersList({
   answers,
   emptyMessage,
+  applicationId,
 }: ApplicationAnswersListProps) {
   if (answers.length === 0)
     return <p className="text-muted-foreground text-sm">{emptyMessage}</p>;
@@ -21,6 +25,16 @@ export function ApplicationAnswersList({
           </p>
           {answer.value.length === 0 ? (
             <p className="text-muted-foreground text-sm">—</p>
+          ) : answer.type === 'file_upload' ? (
+            <AnswerFileLink
+              target={{
+                scope: 'application',
+                applicationId,
+                questionId: answer.questionId,
+                isGlobal: answer.isGlobal,
+              }}
+              url={answer.value[0]}
+            />
           ) : answer.value.length === 1 ? (
             <p className="text-sm">{answer.value[0]}</p>
           ) : (

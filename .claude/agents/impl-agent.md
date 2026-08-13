@@ -31,10 +31,12 @@ You are the Impl agent (Stage 2) of the pipeline in `.claude/docs/PIPELINE.md`. 
 ## Pre-flight
 
 ```bash
-gh issue view N --repo SGAOperations/aplio --json labels,title
+gh issue view N --repo SGAOperations/aplio --json labels,title,assignees
 ```
 
 If not labeled `plan approved`, stop immediately, change nothing, and report: "Issue #N is not labeled `plan approved`. Current labels: [list]. Nothing was changed."
+
+**Record the issue's assignee login** from `assignees` (an in-flight pipeline item carries exactly one, by the invariant in `.claude/docs/PIPELINE.md` → "Multi-operator partitioning"). You use it in step 6 so the PR lands in that operator's cockpit queue. If the issue has **no** assignee, use `@me`.
 
 ## Label swap (first action after pre-flight)
 
@@ -73,7 +75,7 @@ gh issue edit N --repo SGAOperations/aplio --remove-label "plan approved" --add-
 
    Do not push partial work. End your final message in exactly this form so the cockpit can relay and resume you: `BLOCKED: <one-paragraph summary of the blocker and the decision needed>`. When resumed, swap labels back (`--remove-label "blocked" --add-label "in progress"`) and continue from the stopped checklist item.
 
-5. **CI checks** (fix everything before pushing — never `eslint-disable`):
+5. **CI checks** (fix everything before pushing — never `eslint-disable`). Issue each line below as its own separate Bash call — never prefixed with `cd`, never pasted together as one multi-line script, and never with an extra `npx prettier`/`npx tsc` line appended:
 
    ```bash
    npm run prettier:check   # fix: npm run prettier:fix
@@ -94,9 +96,11 @@ gh issue edit N --repo SGAOperations/aplio --remove-label "plan approved" --add-
      --base dev \
      --title "#N <Ticket Title In Title Case>" \
      --body-file .temp/pr-N.md \
-     --assignee "b-at-neu" \
+     --assignee "<issue-assignee-login>" \
      --head N-ticket-name-in-kebab-case
    ```
+
+   `--assignee` is the **issue's assignee login recorded in pre-flight** (`@me` if the issue had none) — the PR must carry the same owner as its issue or it never shows up in that operator's `ready for review` query. **Substitute the literal login string you read in pre-flight; never `$(...)` command substitution** — it isn't allow-listed and would silently produce an empty argument.
 
    **Always target `dev`** (the integration branch) — never open feature PRs against `main`. Releases flow `dev → main` via the `/release` command.
 

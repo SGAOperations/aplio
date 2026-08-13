@@ -17,6 +17,8 @@ export default async function AuthGateLayout({
 
   if (await isManager(user.id)) return <>{children}</>;
 
+  // Onboarding gate, not an authorization denial — every applicant belongs
+  // here, they just need to finish their profile first (lib/auth/guards.ts).
   const { complete } = await getProfileCompleteness(user.id);
   if (!complete) redirect('/profile');
 

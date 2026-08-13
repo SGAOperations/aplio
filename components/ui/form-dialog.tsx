@@ -10,6 +10,7 @@ import {
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { z } from 'zod/v4';
 
 import { Button } from '@/components/ui/button';
@@ -55,10 +56,19 @@ function FormDialog<
   const isSubmitting = form.formState.isSubmitting;
 
   async function handleSubmit(data: TOutput) {
-    const success = await onSubmit(data);
-    if (success) {
-      form.reset(defaultValues);
-      setOpen(false);
+    try {
+      const success = await onSubmit(data);
+      if (success) {
+        form.reset(defaultValues);
+        setOpen(false);
+      }
+    } catch (error) {
+      // onSubmit already toasts a specific { error }; a throw here means an
+      // unexpected/authorization denial that must never surface its message.
+      // Logged so a genuine bug stays diagnosable rather than being
+      // indistinguishable from a stale-permission denial.
+      console.error(error);
+      toast.error('Something went wrong. Please try again.');
     }
   }
 

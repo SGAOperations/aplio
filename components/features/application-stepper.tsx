@@ -19,9 +19,14 @@ import type {
   PositionApplicationAnswer,
 } from '@/prisma/client';
 
-import { type DraftApplication, type PositionWithQuestions } from '@/lib/types';
+import {
+  type DraftApplication,
+  type PositionWithQuestions,
+  type QuestionFileTarget,
+} from '@/lib/types';
 import { cn, isError, toStringArray } from '@/lib/utils';
 
+import { AnswerFileLink } from '@/components/features/answer-file-link';
 import { ApplicationQuestion } from '@/components/features/application-question';
 import { Button } from '@/components/ui/button';
 
@@ -74,6 +79,13 @@ function ReadOnlyQuestionCard({
       </p>
       {displayValue.length === 0 ? (
         <p className="text-muted-foreground text-sm italic">No answer yet</p>
+      ) : question.type === 'file_upload' ? (
+        // Read-only mode always displays the profile's own answer (never a
+        // per-application override), so the target is always profile-scoped.
+        <AnswerFileLink
+          target={{ scope: 'profile', questionId: question.id }}
+          url={displayValue[0]}
+        />
       ) : question.type === 'multiple_choice' ? (
         <div className="flex flex-wrap gap-1.5">
           {displayValue.map((v) => (
@@ -153,6 +165,14 @@ function QuestionList({
                 question={question}
                 field={field}
                 error={fieldState.error?.message}
+                fileTarget={
+                  {
+                    scope: 'application',
+                    applicationId,
+                    questionId: question.id,
+                    isGlobal,
+                  } satisfies QuestionFileTarget
+                }
                 onSave={async (value) => {
                   const save = (async () => {
                     const result = await createOrUpdateApplicationAnswer({
@@ -338,13 +358,18 @@ export function ApplicationStepper({
   }
 
   const onSubmit = handleSubmit(async () => {
-    const result = await submitApplication(application.id);
-    if (isError(result)) {
-      setError('root', { message: result.error });
-      toast.error(result.error);
-    } else {
-      toast.success('Application submitted');
-      router.push('/applications');
+    try {
+      const result = await submitApplication(application.id);
+      if (isError(result)) {
+        setError('root', { message: result.error });
+        toast.error(result.error);
+      } else {
+        toast.success('Application submitted');
+        router.push('/applications');
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error('Something went wrong. Please try again.');
     }
   });
 

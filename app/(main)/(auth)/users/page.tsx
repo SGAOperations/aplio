@@ -1,9 +1,8 @@
 import type { Metadata } from 'next';
-import { redirect } from 'next/navigation';
 
 import { getUsersForAdmin } from '@/prisma/data/users';
 
-import { getCurrentUser } from '@/lib/auth/server';
+import { requireAdminOr404 } from '@/lib/auth/guards';
 
 import { CreateUserDialog } from '@/components/features/create-user-dialog';
 import { UsersTable } from '@/components/features/users-table';
@@ -13,8 +12,7 @@ import { Button } from '@/components/ui/button';
 export const metadata: Metadata = { title: 'Users' };
 
 export default async function UsersPage() {
-  const user = await getCurrentUser();
-  if (!user.isAdmin) redirect('/');
+  const user = await requireAdminOr404();
 
   const users = await getUsersForAdmin();
 

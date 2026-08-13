@@ -2,6 +2,10 @@ import 'server-only';
 
 import { $Enums } from '@/prisma/client';
 
+import {
+  PUBLISHED_POSITION_WHERE,
+  VISIBLE_POSITION_WHERE,
+} from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 import {
   type AdminApplicationListItem,
@@ -21,15 +25,25 @@ const applicationSelect = {
   position: { select: { id: true, title: true } },
 } as const;
 
-// Shared by getApplications and getApplicationsTotal so the two always cover
-// the same universe of rows (list and denominator stay in sync).
+// Shared by getApplications, getApplicationsTotal and getApplicationForReview
+// so the list, the denominator and the detail page all agree on what a
+// reviewer may see (drafts excluded, withdrawn included).
 function buildBaseWhere(user: { id: string; isAdmin: boolean }) {
   return user.isAdmin
-    ? { deletedAt: null, status: { not: 'draft' as const } }
+    ? {
+        deletedAt: null,
+        status: { not: 'draft' as const },
+        position: PUBLISHED_POSITION_WHERE,
+      }
     : {
         deletedAt: null,
         status: { not: 'draft' as const },
-        position: { managers: { some: { id: user.id } } },
+        // Merge, don't overwrite — losing managers scoping here is an
+        // authorization regression (see plan risks/notes).
+        position: {
+          ...PUBLISHED_POSITION_WHERE,
+          managers: { some: { id: user.id } },
+        },
       };
 }
 
@@ -37,7 +51,7 @@ export async function getMyApplications(
   userId: string,
 ): Promise<MyApplicationListItem[]> {
   return prisma.application.findMany({
-    where: { userId, deletedAt: null },
+    where: { userId, deletedAt: null, position: PUBLISHED_POSITION_WHERE },
     select: applicationSelect,
     orderBy: { updatedAt: 'desc' },
   });
@@ -48,7 +62,7 @@ export async function getRecentMyApplications(
   take = 5,
 ): Promise<MyApplicationListItem[]> {
   return prisma.application.findMany({
-    where: { userId, deletedAt: null },
+    where: { userId, deletedAt: null, position: PUBLISHED_POSITION_WHERE },
     select: applicationSelect,
     orderBy: { updatedAt: 'desc' },
     take,
@@ -70,6 +84,9 @@ export async function getPositionApplications(
       positionId,
       deletedAt: null,
       status: { notIn: ['draft', 'withdrawn'] },
+      // Draft positions stay visible here (escape hatch); callers already
+      // pass non-deleted ids, so this is defence in depth (see plan).
+      position: VISIBLE_POSITION_WHERE,
     },
     select: positionApplicationSelect,
     orderBy: { submittedAt: 'desc' },
@@ -77,22 +94,18 @@ export async function getPositionApplications(
 }
 
 // Authorization is folded into the where clause: admins see any application;
-// managers only see applications for positions they manage. Unauthorized callers
-// and soft-deleted records both return null, which the page converts to notFound().
+// managers only see applications for positions they manage. Unauthorized callers,
+// soft-deleted records, and draft/deleted-position applications all return null,
+// which the page converts to notFound().
+// The question's type is selected through the relation (one query, no N+1) and
+// both answer arrays are normalized to ApplicationReviewAnswer[] so the review
+// UI can render file_upload answers via AnswerFileLink.
 export async function getApplicationForReview(
   id: string,
   user: { id: string; isAdmin: boolean },
 ): Promise<ApplicationForReview | null> {
-  const where = user.isAdmin
-    ? { id, deletedAt: null }
-    : {
-        id,
-        deletedAt: null,
-        position: { managers: { some: { id: user.id } } },
-      };
-
-  return prisma.application.findFirst({
-    where,
+  const application = await prisma.application.findFirst({
+    where: { id, ...buildBaseWhere(user) },
     select: {
       id: true,
       status: true,
@@ -102,15 +115,51 @@ export async function getApplicationForReview(
       globalAnswers: {
         where: { deletedAt: null },
         orderBy: { createdAt: 'asc' },
-        select: { id: true, questionLabel: true, value: true },
+        select: {
+          id: true,
+          globalQuestionId: true,
+          questionLabel: true,
+          value: true,
+          globalQuestion: { select: { type: true } },
+        },
       },
       positionAnswers: {
         where: { deletedAt: null },
         orderBy: { createdAt: 'asc' },
-        select: { id: true, questionLabel: true, value: true },
+        select: {
+          id: true,
+          positionQuestionId: true,
+          questionLabel: true,
+          value: true,
+          positionQuestion: { select: { type: true } },
+        },
       },
     },
   });
+
+  if (!application) return null;
+
+  const { globalAnswers, positionAnswers, ...rest } = application;
+
+  return {
+    ...rest,
+    globalAnswers: globalAnswers.map((a) => ({
+      id: a.id,
+      questionId: a.globalQuestionId,
+      questionLabel: a.questionLabel,
+      value: a.value,
+      type: a.globalQuestion.type,
+      isGlobal: true,
+    })),
+    positionAnswers: positionAnswers.map((a) => ({
+      id: a.id,
+      questionId: a.positionQuestionId,
+      questionLabel: a.questionLabel,
+      value: a.value,
+      type: a.positionQuestion.type,
+      isGlobal: false,
+    })),
+  };
 }
 
 export async function getMyApplicationStatusCounts(
@@ -118,7 +167,7 @@ export async function getMyApplicationStatusCounts(
 ): Promise<Partial<Record<$Enums.ApplicationStatus, number>>> {
   const rows = await prisma.application.groupBy({
     by: ['status'],
-    where: { userId, deletedAt: null },
+    where: { userId, deletedAt: null, position: PUBLISHED_POSITION_WHERE },
     _count: true,
   });
 
@@ -131,7 +180,11 @@ export async function getApplicationStatusCounts(): Promise<
 > {
   const rows = await prisma.application.groupBy({
     by: ['status'],
-    where: { deletedAt: null, status: { notIn: ['draft', 'withdrawn'] } },
+    where: {
+      deletedAt: null,
+      status: { notIn: ['draft', 'withdrawn'] },
+      position: PUBLISHED_POSITION_WHERE,
+    },
     _count: true,
   });
 
@@ -144,7 +197,11 @@ export async function getRecentApplications(
   take = 10,
 ): Promise<AdminApplicationListItem[]> {
   return prisma.application.findMany({
-    where: { deletedAt: null, status: { notIn: ['draft', 'withdrawn'] } },
+    where: {
+      deletedAt: null,
+      status: { notIn: ['draft', 'withdrawn'] },
+      position: PUBLISHED_POSITION_WHERE,
+    },
     select: {
       id: true,
       status: true,
@@ -278,7 +335,12 @@ export async function getApplications(
 // Uses a direct count rather than re-fetching the full groupBy result to keep it cheap.
 export async function getMySubmittedCount(userId: string): Promise<number> {
   return prisma.application.count({
-    where: { userId, deletedAt: null, status: { not: 'draft' } },
+    where: {
+      userId,
+      deletedAt: null,
+      status: { not: 'draft' },
+      position: PUBLISHED_POSITION_WHERE,
+    },
   });
 }
 
@@ -287,7 +349,12 @@ export async function getMyRecentActivity(
   take = 10,
 ): Promise<MyApplicationListItem[]> {
   return prisma.application.findMany({
-    where: { userId, deletedAt: null, status: { not: 'draft' } },
+    where: {
+      userId,
+      deletedAt: null,
+      status: { not: 'draft' },
+      position: PUBLISHED_POSITION_WHERE,
+    },
     select: applicationSelect,
     orderBy: { updatedAt: 'desc' },
     take,
@@ -305,9 +372,11 @@ export async function getReviewablePositions(user: {
   id: string;
   isAdmin: boolean;
 }): Promise<{ id: string; title: string }[]> {
+  // Excludes draft too — a position filter shouldn't offer a position with
+  // zero visible rows (getMyApplications/getApplications hide draft applications).
   const where = user.isAdmin
-    ? { deletedAt: null }
-    : { deletedAt: null, managers: { some: { id: user.id } } };
+    ? PUBLISHED_POSITION_WHERE
+    : { ...PUBLISHED_POSITION_WHERE, managers: { some: { id: user.id } } };
 
   return prisma.position.findMany({
     where,
@@ -330,6 +399,9 @@ export async function getPositionApplicationStats(
       positionId: { in: positionIds },
       deletedAt: null,
       status: { notIn: ['draft', 'withdrawn'] },
+      // Draft positions stay visible here (escape hatch); callers already
+      // pass non-deleted ids, so this is defence in depth (see plan).
+      position: VISIBLE_POSITION_WHERE,
     },
     _count: true,
   });

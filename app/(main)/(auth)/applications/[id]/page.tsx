@@ -43,10 +43,7 @@ export default async function ApplicationDetailPage({
   if (!application) notFound();
 
   const applicantName = application.user.name ?? application.user.email;
-  const isDraft = application.status === 'draft';
-  const metaLine = isDraft
-    ? `${application.position.title} · Draft — not yet submitted`
-    : `${application.position.title} · Applied ${formatDate(application.submittedAt)}`;
+  const metaLine = `${application.position.title} · Applied ${formatDate(application.submittedAt)}`;
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -72,6 +69,7 @@ export default async function ApplicationDetailPage({
               <ApplicationAnswersList
                 answers={application.globalAnswers}
                 emptyMessage="No profile answers."
+                applicationId={application.id}
               />
             </CardContent>
           </Card>
@@ -87,6 +85,7 @@ export default async function ApplicationDetailPage({
               <ApplicationAnswersList
                 answers={application.positionAnswers}
                 emptyMessage="No position-specific answers."
+                applicationId={application.id}
               />
             </CardContent>
           </Card>
