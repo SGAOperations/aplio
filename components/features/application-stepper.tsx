@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { type RefObject, useRef, useState } from 'react';
+import { type RefObject, useMemo, useRef, useState } from 'react';
 import { type Control, Controller, useForm, useWatch } from 'react-hook-form';
 
 import { CheckIcon } from 'lucide-react';
@@ -256,39 +256,68 @@ export function ApplicationStepper({
 
   // Snapshot ?? profile — exactly what the server sees before it backfills
   // (see syncGlobalAnswersFromProfile in prisma/actions/applications.ts).
-  const initialGlobalValues = Object.fromEntries(
-    globalQuestions.map((q) => {
-      const appAnswer = application.globalAnswers.find(
-        (a: GlobalApplicationAnswer) => a.globalQuestionId === q.id,
-      );
-      const profileAnswer = globalAnswers.find(
-        (a: GlobalAnswer) => a.globalQuestionId === q.id,
-      );
-      const value =
-        toStringArray(appAnswer?.value).length > 0
-          ? toStringArray(appAnswer?.value)
-          : toStringArray(profileAnswer?.value);
-      return [`g_${q.id}`, value];
-    }),
-  );
-
-  const initialPositionValues = Object.fromEntries(
-    positionQuestions.map((q) => [
-      `p_${q.id}`,
-      toStringArray(
-        application.positionAnswers.find(
-          (a: PositionApplicationAnswer) => a.positionQuestionId === q.id,
-        )?.value,
+  // Branches on row *presence*, not value length: a snapshot row that exists
+  // but is empty is a deliberately cleared answer and must stay empty, not
+  // fall back to the profile value (only a missing row backfills).
+  // Memoized: this component re-renders on every keystroke (via useWatch
+  // below) but these only depend on props that don't change after mount.
+  const initialGlobalValues = useMemo(
+    () =>
+      Object.fromEntries(
+        globalQuestions.map((q) => {
+          const appAnswer = application.globalAnswers.find(
+            (a: GlobalApplicationAnswer) => a.globalQuestionId === q.id,
+          );
+          const profileAnswer = globalAnswers.find(
+            (a: GlobalAnswer) => a.globalQuestionId === q.id,
+          );
+          const value = appAnswer
+            ? toStringArray(appAnswer.value)
+            : toStringArray(profileAnswer?.value);
+          return [`g_${q.id}`, value];
+        }),
       ),
-    ]),
+    [globalQuestions, globalAnswers, application.globalAnswers],
   );
 
-  // A required global question with no answer anywhere (snapshot or profile)
-  // opens straight into Customize mode as an editable empty field, rather
-  // than a read-only "No answer yet" card the applicant has to discover.
+  // Presence of a snapshot row per question — shared by hasNewRequiredGlobals
+  // below so "no row" (new question) and "row exists but empty" (deliberately
+  // cleared) can't be conflated the way a value-length check would.
+  const hasGlobalRow = useMemo(
+    () =>
+      new Set(
+        application.globalAnswers.map(
+          (a: GlobalApplicationAnswer) => a.globalQuestionId,
+        ),
+      ),
+    [application.globalAnswers],
+  );
+
+  const initialPositionValues = useMemo(
+    () =>
+      Object.fromEntries(
+        positionQuestions.map((q) => [
+          `p_${q.id}`,
+          toStringArray(
+            application.positionAnswers.find(
+              (a: PositionApplicationAnswer) => a.positionQuestionId === q.id,
+            )?.value,
+          ),
+        ]),
+      ),
+    [positionQuestions, application.positionAnswers],
+  );
+
+  // A required global question with no snapshot row at all (i.e. added since
+  // the draft started) opens straight into Customize mode as an editable
+  // empty field, rather than a read-only "No answer yet" card the applicant
+  // has to discover. Keyed off row presence, not value emptiness, so a
+  // deliberately cleared answer (row exists, empty) doesn't also trigger
+  // this — that's a distinct, already-acknowledged state, not a new question.
   // Derived once from props, not synced via an effect.
-  const hasNewRequiredGlobals = globalQuestions.some(
-    (q) => q.required && initialGlobalValues[`g_${q.id}`].length === 0,
+  const hasNewRequiredGlobals = useMemo(
+    () => globalQuestions.some((q) => q.required && !hasGlobalRow.has(q.id)),
+    [globalQuestions, hasGlobalRow],
   );
 
   const [isCustomizing, setIsCustomizing] = useState(hasNewRequiredGlobals);
