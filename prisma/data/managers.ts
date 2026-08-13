@@ -4,8 +4,7 @@ import { cache } from 'react';
 
 import { prisma } from '@/lib/prisma';
 
-// For nav/dashboard routing only (per-position checks use an already-fetched list).
-// cache() dedupes this per render — the (auth) layout and a page guard both ask per request.
+// Nav/dashboard routing only; cache() dedupes it across the layout and a page guard.
 export const isManager = cache(async function isManager(
   userId: string,
 ): Promise<boolean> {
