@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { isManager } from '@/prisma/data/managers';
 import { getProfileCompleteness } from '@/prisma/data/profile';
 
-import { getCurrentUser } from '@/lib/auth/server';
+import { getCurrentUser, requireName } from '@/lib/auth/server';
 
 export default async function AuthGateLayout({
   children,
@@ -12,6 +12,10 @@ export default async function AuthGateLayout({
   children: ReactNode;
 }) {
   const user = await getCurrentUser();
+
+  // Name gate (see lib/auth/server.ts for the full rationale) — covers every
+  // route this layout wraps.
+  await requireName(user);
 
   if (user.isAdmin) return <>{children}</>;
 
