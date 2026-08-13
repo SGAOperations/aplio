@@ -25,8 +25,7 @@ async function resolveRealUser() {
       create: { neonAuthId, email, ...(name ? { name } : {}), isAdmin: false },
     });
   } catch (error) {
-    // Soft-deleted rows still hold their email/neonAuthId (unique, not partial),
-    // so re-signup collides with P2002 — not user-actionable, so throw generic.
+    // Soft-deleted rows keep their email, so re-signup hits P2002.
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === 'P2002'
@@ -59,8 +58,7 @@ export const getOptionalUser = cache(async function getOptionalUser() {
   return resolveRealUser(); // null when no session; provisions when there is one
 });
 
-// React.cache deduplicates calls within a single server render pass,
-// avoiding a redundant DB round-trip when layout and page both call getCurrentUser().
+// Cached, so layout and page share one round-trip per render pass.
 export const getCurrentUser = cache(async function getCurrentUser() {
   const user = await getOptionalUser();
   if (user) return user;

@@ -40,8 +40,7 @@ const positionWithQuestionsSelect = {
   },
 } as const;
 
-// Filtered post-fetch because the end-of-day-inclusive closesAt math has no clean
-// Prisma where equivalent, and one source of truth beats two.
+// Filtered post-fetch: the end-of-day closesAt math has no clean Prisma where.
 export async function getOpenPositions(): Promise<PositionWithQuestions[]> {
   const positions = await prisma.position.findMany({
     where: { status: 'open', deletedAt: null },
@@ -51,8 +50,7 @@ export async function getOpenPositions(): Promise<PositionWithQuestions[]> {
   return positions.filter((p) => isAcceptingApplications(p));
 }
 
-// "Recently closed" spans three cases: an explicit closesAt in the window, a closed
-// position with no closesAt (updatedAt stands in), and an open row past its closesAt.
+// Three cases: explicit closesAt, closed with updatedAt standing in, open past close.
 export async function getRecentlyClosedPositions(): Promise<
   PositionWithQuestions[]
 > {
@@ -81,8 +79,7 @@ export async function getRecentlyClosedPositions(): Promise<
   });
 }
 
-// A closed position stays listed while it still has non-terminal applications, so
-// long-dead ones (closed past the window, everything resolved) drop off.
+// A closed position stays listed while non-terminal applications remain.
 export async function getManagedPositions(
   userId: string,
 ): Promise<PositionWithQuestions[]> {
@@ -112,8 +109,7 @@ export async function getManagedPositions(
   });
 }
 
-// Cross-position data — admin-gated callers only. A closed position stays listed
-// while it still has unresolved applicants, so fully-resolved ones drop off.
+// Cross-position data — admin-gated callers only. Closed stays while unresolved.
 export async function getAdminPositions(): Promise<PositionWithQuestions[]> {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - MANAGED_POSITIONS_WINDOW_DAYS);
@@ -149,8 +145,7 @@ export async function getPositionForApply(
     select: positionWithQuestionsSelect,
   });
 
-  // null outside the date window sends the apply route to /positions, where the
-  // card shows the effective state.
+  // null outside the window sends the apply route back to /positions.
   if (!position || !isAcceptingApplications(position)) return null;
   return position;
 }
@@ -186,8 +181,7 @@ export async function getOpenPositionsSummary(
   });
 }
 
-// No status filter — the detail page handles drafts itself, using the id-only
-// manager list as its gate.
+// No status filter — the detail page gates drafts on the id-only manager list.
 export async function getPositionDetail(
   id: string,
 ): Promise<PositionDetail | null> {
@@ -219,8 +213,7 @@ export async function getPositionDetail(
   });
 }
 
-// A plain count({ where: { status: 'open' } }) would wrongly include upcoming and
-// closed-by-date positions, so the date window is applied in JS.
+// A plain count would include upcoming and closed-by-date, so JS applies the window.
 export async function getAcceptingPositionsCount(): Promise<number> {
   const positions = await prisma.position.findMany({
     where: { status: 'open', deletedAt: null },

@@ -11,15 +11,13 @@ import { NameField } from '@/components/features/name-field';
 
 export const metadata: Metadata = { title: 'Sign In' };
 
-// Constrain redirectTo to a same-origin relative path — accept only values
-// starting with a single "/" and not "//" to prevent open-redirect attacks.
+// Same-origin relative paths only — "//" would be an open redirect.
 function safeRedirectTo(value: string | undefined): string {
   if (value && /^\/(?!\/)/.test(value)) return value;
   return '/positions';
 }
 
-// When the destination is an application form, hide all sign-in / account
-// creation language so applicants only see copy about submitting an application.
+// Applying: hide sign-in language, show only application copy.
 function isApplyRedirect(value: string): boolean {
   return /^\/positions\/[^/]+\/apply/.test(value);
 }
@@ -38,8 +36,7 @@ export default async function SignInPage({
   if (user?.name?.trim()) redirect(safeTo);
   // Authenticated user with no name — fall through to render the name form below.
 
-  // Must match the isBypassAllowed guard in loginAsBypassUser/logoutBypassUser
-  // (prisma/services/dev-bypass.ts) so the affordance and the action agree.
+  // Must match isBypassAllowed, so the affordance and the action agree.
   const isDev = isBypassAllowed();
 
   const copy = applyContext

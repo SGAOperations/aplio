@@ -14,8 +14,7 @@ export const isManager = cache(async function isManager(
   return count > 0;
 });
 
-// Returns the set of position IDs managed by the given user (non-deleted only).
-// Admins should pass the full positions list instead of calling this function.
+// Admins should pass the full positions list rather than call this.
 export async function getManagedPositionIds(
   userId: string,
 ): Promise<Set<string>> {
@@ -26,10 +25,7 @@ export async function getManagedPositionIds(
   return new Set(managed.map((p) => p.id));
 }
 
-// Returns true if the user is an admin or a manager of the given position.
-// This is the query behind lib/auth/guards.ts's requirePositionAccess — call
-// that from actions/pages instead of this function directly, so denial
-// handling stays centralized (#356).
+// Call requirePositionAccess instead, so denial handling stays centralized.
 export async function checkPositionAccess(
   positionId: string,
   user: { id: string; isAdmin: boolean },

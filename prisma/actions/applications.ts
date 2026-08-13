@@ -42,8 +42,7 @@ type ApplicationForRequiredAnswers = {
   position: { questions: { id: string; required: boolean }[] };
 };
 
-// Shared by submitApplication and reopenApplication so the two gates can't drift.
-// Unexported because 'use server' requires every export to be an async action.
+// Shared by submit and reopen so the gates can't drift; unexported per 'use server'.
 async function findMissingRequiredAnswers(
   client: Prisma.TransactionClient,
   application: ApplicationForRequiredAnswers,
@@ -97,7 +96,7 @@ export async function createDraftApplication(
   const parsed = createDraftApplicationSchema.safeParse({ positionId });
   if (!parsed.success) return { error: 'Invalid input' };
 
-  // Use a single consistent `now` for both the transaction and any window checks.
+  // One `now` across the transaction and the window checks.
   const now = new Date();
 
   return prisma.$transaction(async (tx) => {
@@ -111,12 +110,10 @@ export async function createDraftApplication(
       include: { globalAnswers: true, positionAnswers: true },
     });
 
-    // Return an existing draft even if the window has since closed — the applicant
-    // can still see their in-progress work; submitApplication will block the submit.
+    // Existing drafts survive a closed window; submit is what blocks.
     if (existing) return existing;
 
-    // Authoritative window gate: verify the position exists and is currently accepting
-    // before creating a new draft. Reads server-trusted DB fields — no IDOR surface.
+    // Server-trusted window gate before a draft is created.
     const position = await tx.position.findUnique({
       where: { id: parsed.data.positionId, deletedAt: null },
       select: { status: true, opensAt: true, closesAt: true },
@@ -175,8 +172,7 @@ export async function createOrUpdateApplicationAnswer(params: {
 
   requireOwnership(application, currentUser.id);
 
-  // Re-validate the format preset server-side — the client's on-blur check
-  // (application-stepper.tsx) is UX only and can be bypassed.
+  // The client's on-blur check is UX only, and bypassable.
   const question = isGlobal
     ? await prisma.globalQuestion.findUnique({
         where: { id: questionId },
@@ -196,17 +192,14 @@ export async function createOrUpdateApplicationAnswer(params: {
   )
     return { error: SHORT_ANSWER_FORMAT_ERROR_MESSAGES[question.format] };
 
-  // Persist what was actually validated: matchesShortAnswerFormat trims
-  // internally, so a format-validated answer must be trimmed before saving
-  // too, or a pasted value with incidental whitespace saves verbatim.
+  // matchesShortAnswerFormat trims internally, so save the trimmed value.
   const persistedValue =
     question.type === 'short_answer' && question.format
       ? value.map((v) => v.trim())
       : value;
 
   if (isGlobal) {
-    // Never trust a client-supplied blob URL: file answers are written only by
-    // question-files.ts, so copy the caller's own profile value instead.
+    // Never trust a client blob URL — copy the caller's own profile value.
     const globalPersistedValue =
       question.type === 'file_upload'
         ? ((
@@ -243,8 +236,7 @@ export async function createOrUpdateApplicationAnswer(params: {
     return result;
   }
 
-  // Not reachable from the UI — file_upload position answers can only be
-  // written by uploadQuestionFileAnswer.
+  // Unreachable from the UI; file answers go through uploadQuestionFileAnswer.
   if (question.type === 'file_upload')
     throw new Error('Invalid question type for this action');
 
@@ -296,13 +288,11 @@ export async function submitApplication(
 
   requireOwnership(application, currentUser.id);
 
-  // Same copy as createDraftApplication's equivalent gate — a draft's position
-  // can be soft-deleted after the draft was created, before submit.
+  // A draft's position can be soft-deleted between creation and submit.
   if (application.position.deletedAt !== null)
     return { error: 'This position is no longer available.' };
 
-  // Window re-check: a window can close while a draft is open. Checked before
-  // required-answer validation so a closed window gives the clearest message.
+  // Before required-answer validation, so a closed window gives the clearest message.
   if (!isAcceptingApplications(application.position))
     return { error: 'This position is no longer accepting applications.' };
 
@@ -367,8 +357,7 @@ export async function updateApplicationStatus(
     select: { id: true },
   });
 
-  // An IDOR-style miss unreachable from the UI, so it throws rather than
-  // returning something the user could act on.
+  // IDOR-style miss, unreachable from the UI — throw, don't return.
   if (!application) throw new Error('Application not found or not authorized');
 
   await prisma.application.update({
@@ -385,8 +374,7 @@ const updateApplicationStatusesSchema = z.object({
   status: z.enum(REVIEWER_APPLICATION_STATUSES),
 });
 
-// Authorization lives in the updateMany where rather than a findMany/updateMany
-// pair, so the target set cannot drift between the check and the write.
+// Authorization in the updateMany where, so the target set can't drift mid-write.
 export async function updateApplicationStatuses(
   input: unknown,
 ): Promise<{ updated: number } | { error: string }> {
@@ -397,8 +385,7 @@ export async function updateApplicationStatuses(
 
   const { applicationIds, status } = parsed.data;
 
-  // Forged and out-of-scope ids are silently excluded by the scoped where — the
-  // caller can only update what they may see.
+  // The scoped where silently excludes forged and out-of-scope ids.
   const where = user.isAdmin
     ? {
         id: { in: applicationIds },
@@ -425,8 +412,7 @@ export async function updateApplicationStatuses(
   if (result.count === 0) return { error: 'No applications were updated.' };
 
   revalidatePath('/applications');
-  // Clears all cached detail-page renders — bulk updates don't have individual
-  // positionIds at hand, so the wildcard layout segment is the right scope.
+  // Wildcard segment: a bulk update has no individual positionIds to hand.
   revalidatePath('/applications/[id]', 'layout');
 
   return { updated: result.count };
@@ -466,13 +452,11 @@ export async function reopenApplication(
   const parsed = applicationIdSchema.safeParse({ applicationId });
   if (!parsed.success) throw new Error('Invalid input');
 
-  // Single `now` shared by the window check below, to avoid a race between
-  // reads at slightly different instants inside the transaction.
+  // One `now`, so reads inside the transaction can't drift apart.
   const now = new Date();
 
   const result = await prisma.$transaction(async (tx) => {
-    // Unlike submitApplication, this read-then-write runs inside the transaction
-    // so the ownership check and the update stay atomic.
+    // Inside the transaction, unlike submitApplication, to stay atomic.
     const application = await tx.application.findFirst({
       where: {
         id: parsed.data.applicationId,
@@ -495,8 +479,7 @@ export async function reopenApplication(
       },
     });
 
-    // Not found / not owned / not withdrawn / a concurrent race. Reachable
-    // normally from a stale /my-applications tab, so this stays a toast.
+    // Reachable from a stale tab, so a toast rather than a throw.
     if (!application)
       return { error: 'This application can no longer be re-opened.' };
 
@@ -519,8 +502,7 @@ export async function reopenApplication(
           'Answer all required questions on this application before re-opening it.',
       };
 
-    // updateMany (not update) to keep the same ownership/status where clause
-    // as the read — count === 0 means a concurrent transition beat us here.
+    // updateMany keeps the read's where; count === 0 means a concurrent transition won.
     const updateResult = await tx.application.updateMany({
       where: {
         id: parsed.data.applicationId,
@@ -528,8 +510,7 @@ export async function reopenApplication(
         deletedAt: null,
         status: 'withdrawn',
       },
-      // submittedAt is left untouched — it reflects the original submission
-      // time reviewers sort by, not the re-open time.
+      // submittedAt keeps the original submission time reviewers sort by.
       data: { status: 'applied', updatedById: currentUser.id },
     });
 
@@ -554,8 +535,7 @@ export async function deleteDraftApplication(
 
   const id = parsed.data.applicationId;
 
-  // Collected inside the transaction, before the rows are removed, so any
-  // uploaded file answers can be reference-counted and cleaned up after commit.
+  // Collected pre-delete so blobs can be reference-counted after commit.
   let fileUrls: string[] = [];
 
   const deleteResult = await prisma.$transaction(async (tx) => {
@@ -566,8 +546,7 @@ export async function deleteDraftApplication(
 
     if (!app) return { error: 'This draft can no longer be deleted.' };
 
-    // Scoped to file_upload questions only — other answer values are plain
-    // text, not blob URLs, and must never be sent to the Blob API.
+    // file_upload only — other answers are plain text, never blob URLs.
     const [globalAnswers, positionAnswers] = await Promise.all([
       tx.globalApplicationAnswer.findMany({
         where: { applicationId: id, globalQuestion: { type: 'file_upload' } },

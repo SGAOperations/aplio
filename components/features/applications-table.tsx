@@ -17,8 +17,7 @@ import type {
 import { formatDate } from '@/lib/utils';
 
 import { ApplicationsBulkBar } from '@/components/features/applications-bulk-bar';
-// Server-side sort (router.push); its param format deliberately differs from
-// useSortableTable's, to avoid coupling the two.
+// Server-side sort; its param format stays decoupled from useSortableTable's.
 import { SortableHeader } from '@/components/features/sortable-header';
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
 import { Button } from '@/components/ui/button';
@@ -93,8 +92,7 @@ export function ApplicationsTable({
   ) {
     const params = new URLSearchParams(searchParams.toString());
     params.set('sort', `${field}:${direction}`);
-    // router.push triggers a server re-fetch — required because this table is
-    // capped at 100 rows and must sort server-side for correct ordering.
+    // Re-fetches server-side: a 100-row cap can't be sorted correctly on the client.
     router.push(`${pathname}?${params.toString()}`);
   }
 

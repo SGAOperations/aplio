@@ -34,8 +34,7 @@ interface CreateUserDialogProps {
 
 export function CreateUserDialog({ trigger }: CreateUserDialogProps) {
   async function onSubmit(data: CreateUserFormValues): Promise<boolean> {
-    // An unexpected throw propagates to FormDialog's own try/catch, which
-    // shows the same generic toast — no need to duplicate it here.
+    // FormDialog's own catch toasts this; no need to duplicate.
     const result = await createUser(data);
     if (result?.error) {
       toast.error(result.error);

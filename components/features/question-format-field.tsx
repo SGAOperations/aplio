@@ -26,13 +26,10 @@ import {
 
 type QuestionFormValues = z.infer<typeof questionFormSchema>;
 
-// Radix Select can't hold an empty-string item, so 'none' is an internal-only
-// sentinel mapped back to null on change — never persisted as a string.
+// Radix Select rejects an empty-string item, so 'none' maps back to null on change.
 const NONE_VALUE = 'none';
 
-// Shown only when type === 'short_answer'. Shared between GlobalQuestionDialog
-// and the position QuestionForm — both use questionFormSchema/FormProvider, so
-// this is the single implementation of the format Select (ENGINEERING §1).
+// Shown only for short_answer.
 export function FormatField() {
   const { control, setValue } = useFormContext<QuestionFormValues>();
   const type = useWatch({ control, name: 'type' });

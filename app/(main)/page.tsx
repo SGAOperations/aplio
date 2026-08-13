@@ -7,8 +7,7 @@ import { UserDashboard } from '@/components/features/user-dashboard';
 
 export default async function Home() {
   const user = await getOptionalUser();
-  // Routing, not an authorization denial — a signed-out visitor just lands on
-  // the public positions list instead of the dashboard (lib/auth/guards.ts).
+  // Routing, not an authorization denial.
   if (!user) redirect('/positions');
 
   // Name gate — this personalized dashboard sits outside app/(main)/(auth)/,

@@ -8,15 +8,13 @@ const LIMITS = {
   private: { windowMs: 60_000, max: 120 },
 };
 
-// `${tier}:${ip}` → request timestamps. Per worker instance, not shared across them,
-// so the effective limit scales with instance count.
+// Per worker instance, so the effective limit scales with instance count.
 const hits = new Map<string, number[]>();
 
 // Past this size, stale buckets are evicted so abandoned IPs don't leak memory.
 const SWEEP_THRESHOLD = 5_000;
 
-// Safe only because Vercel overwrites x-forwarded-for before middleware sees it.
-// Behind any other proxy a client can spoof the header and bypass per-IP limiting.
+// Safe only on Vercel, which overwrites x-forwarded-for; elsewhere it's spoofable.
 function getClientIp(request: NextRequest): string {
   const forwarded = request.headers.get('x-forwarded-for');
   if (forwarded) {
@@ -91,8 +89,7 @@ export function applyRateLimit(request: NextRequest): NextResponse | null {
     hits.set(bucket, recent);
     return null;
   } catch (error) {
-    // Fail open: a broken gate must not block legitimate traffic. Logged so the
-    // degradation to "no rate limiting" leaves a trace.
+    // Fail open, but logged: silent degradation to no rate limiting is worse.
     console.error('applyRateLimit failed, allowing request', error);
     return null;
   }

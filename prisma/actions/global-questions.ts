@@ -36,8 +36,7 @@ export async function createGlobalQuestion(
 
   const { label, type, required, options, allowOther, format } = parsed.data;
 
-  // Aggregate and create run in a transaction to prevent duplicate order values
-  // under concurrent inserts.
+  // Transactional, or concurrent inserts collide on order.
   await prisma.$transaction(async (tx) => {
     const aggregate = await tx.globalQuestion.aggregate({
       where: { deletedAt: null },

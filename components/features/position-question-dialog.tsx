@@ -158,14 +158,12 @@ export function QuestionForm({
               <Select
                 onValueChange={(v) => {
                   field.onChange(v);
-                  // Clear stale options/allowOther when switching to a
-                  // non-choice type so they are not persisted to the DB (R3-M1).
+                  // Clear stale options/allowOther so a non-choice type can't persist them.
                   if (!CHOICE_TYPES.includes(v as ChoiceType)) {
                     form.setValue('options', []);
                     form.setValue('allowOther', false);
                   }
-                  // Clear format at the same moment — it's only meaningful for
-                  // short_answer questions.
+                  // format is meaningful only for short_answer.
                   if (v !== 'short_answer') form.setValue('format', null);
                 }}
                 value={field.value}

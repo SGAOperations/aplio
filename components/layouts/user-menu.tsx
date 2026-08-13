@@ -64,8 +64,7 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
         try {
           await logoutBypassUser();
         } catch (error) {
-          // Let Next's internal redirect signal through — only a genuine
-          // failure before the redirect() call should surface a toast.
+          // Let Next's redirect signal through; only a real failure toasts.
           unstable_rethrow(error);
           toast.error('Could not sign out. Please try again.');
         }

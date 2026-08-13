@@ -42,8 +42,7 @@ export function useNavItems({
   // Anonymous visitors land on /positions; authenticated users go to the dashboard.
   const logoHref = identity ? '/' : '/positions';
 
-  // Exact match or a nested sub-route — a plain startsWith would falsely
-  // highlight a future sibling route sharing the same prefix (e.g. /positions-archive).
+  // A plain startsWith would also highlight a sibling like /positions-archive.
   function isActive(href: string): boolean {
     return pathname === href || pathname.startsWith(`${href}/`);
   }

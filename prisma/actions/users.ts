@@ -81,16 +81,14 @@ export async function createUser(input: unknown): Promise<ActionError | void> {
 
   const { email, name, isAdmin } = parsed.data;
 
-  // Checked here so the common duplicate case doesn't depend on an undocumented Neon
-  // status code. Racy — the P2002 catch below is what guarantees uniqueness.
+  // Racy — the P2002 catch below is what actually guarantees uniqueness.
   const existing = await prisma.user.findFirst({
     where: { email },
     select: { id: true },
   });
   if (existing) return { error: 'A user with this email already exists.' };
 
-  // Provisioned before the app row, which needs its id, and what lets the invitee sign
-  // in via the normal OTP flow without having requested a code.
+  // Before the app row, which needs its id.
   const created = await createNeonAuthUser({ email, name });
   // Residual case only: present in Neon Auth but not in our table.
   if ('duplicate' in created)
@@ -110,8 +108,7 @@ export async function createUser(input: unknown): Promise<ActionError | void> {
     // Rolled back unconditionally, or each retry strands another Neon Auth identity.
     await deleteNeonAuthUser(created.id);
 
-    // Soft-deleted rows keep their email and neonAuthId, so a deactivated address
-    // collides here too.
+    // Soft-deleted rows keep their email, so a deactivated address collides too.
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === 'P2002'

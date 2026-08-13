@@ -30,16 +30,14 @@ const NOT_AVAILABLE_ERROR = 'This file is no longer available.';
 // Signals the caller to surface SUBMITTED_ERROR rather than rethrow as unexpected.
 class ApplicationSubmittedError extends Error {}
 
-// These messages are returned verbatim as user-facing copy, shared with the client
-// pre-check in question-file-field.tsx.
+// Returned verbatim as user-facing copy; question-file-field.tsx mirrors them.
 const fileSchema = z
   .file()
   .min(1, 'Select a file to upload.')
   .max(FILE_UPLOAD_MAX_BYTES, 'File must be 4MB or smaller.')
   .mime([...FILE_UPLOAD_MIME_TYPES], GENERIC_TYPE_ERROR);
 
-// FormData is all strings, so isGlobal is coerced before the union parse. Extra keys
-// are stripped by zod, so passing every field regardless of scope is safe.
+// FormData is all strings, so isGlobal is coerced before the union parse.
 function parseTarget(
   formData: FormData,
 ): z.ZodSafeParseResult<QuestionFileTarget> {
@@ -56,8 +54,7 @@ type ResolvedTarget =
   | { scope: 'profile' }
   | { scope: 'application'; positionId: string };
 
-// An existence/type/ownership miss is IDOR-style and unreachable from the gated UI,
-// so it throws; a submitted application is reachable via a stale tab, so it returns.
+// An ownership miss is IDOR-style and throws; a stale tab's submit returns.
 async function authorizeTarget(
   userId: string,
   target: QuestionFileTarget,
@@ -106,8 +103,7 @@ function revalidateTarget(resolved: ResolvedTarget) {
   else revalidatePath(`/positions/${resolved.positionId}/apply`);
 }
 
-// Read and write share one transaction so a concurrent write can't lose the update,
-// and so a concurrent submit can't land a file write on an already-submitted application.
+// One transaction, so neither a concurrent write nor a concurrent submit can slip in.
 async function readAndWriteAnswerValue(
   tx: Prisma.TransactionClient,
   target: QuestionFileTarget,
@@ -201,8 +197,7 @@ async function readAndWriteAnswerValue(
   return existing?.value[0] ?? null;
 }
 
-// Profile answers are copied into application rows, so several rows can reference one
-// blob — it is deleted only when the last reference goes. Best-effort by design.
+// Several rows can share one blob, so it goes only with the last reference.
 export async function cleanupOrphanedBlob(url: string): Promise<void> {
   try {
     const [profileCount, globalAppCount, positionAppCount] = await Promise.all([
@@ -232,8 +227,7 @@ export async function uploadQuestionFileAnswer(
     return { error: fileParsed.error.issues[0]?.message ?? GENERIC_TYPE_ERROR };
   const file = fileParsed.data;
 
-  // file.type is client-supplied and spoofable — the sniffed magic-byte type
-  // (never file.type) is what gets stored as the blob's contentType.
+  // file.type is spoofable; the sniffed type is what gets stored.
   const sniffed = sniffMimeType(
     new Uint8Array(await file.slice(0, 8).arrayBuffer()),
   );
@@ -245,8 +239,7 @@ export async function uploadQuestionFileAnswer(
   const ext = FILE_UPLOAD_MIME_EXTENSIONS[sniffed];
   const pathname = buildAnswerFilePathname(target, user.id, file.name, ext);
 
-  // A put() failure is a third-party/network failure, not user-actionable —
-  // let it throw for the generic toast.
+  // A put() failure isn't user-actionable — throw for the generic toast.
   const blob = await put(pathname, file, {
     access: 'private',
     addRandomSuffix: true,
@@ -326,8 +319,7 @@ export async function downloadQuestionFileAnswer(
     if (!answer) throw new Error('Answer not found or not authorized');
     url = answer.value[0] ?? null;
   } else {
-    // Owned by the caller or within their reviewer scope — same shape as
-    // getApplicationForReview.
+    // Owned by the caller or in their reviewer scope, as in getApplicationForReview.
     const where = user.isAdmin
       ? { id: target.applicationId, deletedAt: null }
       : {

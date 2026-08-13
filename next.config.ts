@@ -4,8 +4,7 @@ import config from './package.json' with { type: 'json' };
 
 const nextConfig: NextConfig = {
   env: { version: config.version },
-  // Raised from the 1MB default to clear the 4MB file cap, and no higher than
-  // Vercel's hard 4.5MB Function body ceiling.
+  // Clears the 4MB file cap without passing Vercel's hard 4.5MB ceiling.
   experimental: { serverActions: { bodySizeLimit: '4.5mb' } },
 };
 

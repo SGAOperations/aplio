@@ -21,8 +21,7 @@ export function isError<T>(result: ResponseType<T>): result is ErrorType {
 }
 
 /**
- * Default-DENY: an unset VERCEL_ENV must not enable bypass, since that also
- * describes a production deployment hosted anywhere other than Vercel.
+ * Default-DENY: an unset VERCEL_ENV also describes production off Vercel.
  */
 export function isBypassAllowed(): boolean {
   return (
@@ -45,8 +44,7 @@ export function formatDate(date: Date): string {
 }
 
 /**
- * Buckets to "Just now"/"Nm ago"/"Nh ago"/"Nd ago", falling back to formatDate
- * beyond a week.
+ * Buckets to "Nm/Nh/Nd ago", falling back to formatDate beyond a week.
  */
 export function formatRelativeTime(date: Date, now: Date = new Date()): string {
   const diffMs = now.getTime() - date.getTime();
@@ -63,8 +61,7 @@ export function formatRelativeTime(date: Date, now: Date = new Date()): string {
 }
 
 /**
- * Positions store date-only values: closesAt is inclusive of its whole day, so a
- * naive `now > closesAt` would close a position at midnight of the chosen day.
+ * closesAt is inclusive of its whole day; `now > closesAt` would close it at midnight.
  */
 export function getPositionAvailability(
   position: PositionWindow,
@@ -109,8 +106,7 @@ interface FormatTableCountOptions {
 }
 
 /**
- * "{total} {noun}" when nothing is hidden, otherwise "{shown} / {total} {noun}" —
- * a truncated table should say so.
+ * Bare count when nothing is hidden, "{shown} / {total}" when the table is truncated.
  */
 export function formatTableCount({
   shown,

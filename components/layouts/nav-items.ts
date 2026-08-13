@@ -13,8 +13,7 @@ export const baseNavItems = [
   { href: '/my-applications', label: 'My Applications', icon: Inbox },
 ];
 
-// Anonymous visitors may only reach Positions without being redirected to login.
-// Home and My Applications are auth-gated and would bounce an unauthenticated user.
+// Positions only: the others are auth-gated and would bounce to login.
 export const anonymousNavItems = baseNavItems.filter(
   (item) => item.href === '/positions',
 );

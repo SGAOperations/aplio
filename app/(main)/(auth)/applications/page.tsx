@@ -32,9 +32,7 @@ const VALID_SORT_DIRECTIONS: ApplicationSortDirection[] = ['asc', 'desc'];
 export default async function ApplicationsPage({
   searchParams,
 }: ApplicationsPageProps) {
-  // Authorization guard: admins pass; managers pass only while they have ≥1
-  // position. Regular applicants get the shared 404 — the (auth) layout is
-  // not sufficient (it only gates on profile completeness).
+  // The (auth) layout only gates profile completeness, so this gates the role.
   const user = await requireManagerOrAdminOr404();
 
   const sp = await searchParams;

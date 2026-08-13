@@ -2,14 +2,7 @@ import { BYPASS_USERS } from '@/lib/bypass-users';
 
 import type { ApplicationDef } from './types';
 
-// Every ApplicationStatus is represented at least once. Deliberate edges
-// encoded below (see issue #383's plan): a draft a reviewer must never see
-// (#349); an accepted application that must refuse withdrawal (#346); a
-// withdrawn one that can be re-opened; a manager who is also an applicant on
-// a position they manage; an application belonging to a deactivated user; an
-// application on a soft-deleted position; a long-closed position whose
-// applications are all terminal so it drops out of both 30-day windows;
-// submittedAt offsets spanning formatRelativeTime's Nh/Nd/date branches.
+// Every ApplicationStatus appears once, plus the deliberate edge cases below.
 export const applicationDefs: ApplicationDef[] = [
   {
     applicantEmail: BYPASS_USERS.applicant.email,
@@ -45,9 +38,7 @@ export const applicationDefs: ApplicationDef[] = [
     submittedInDays: 45,
     answers: 'full',
   },
-  // Blocked by the applicant's own incomplete profile, not by this
-  // application's answers — exercises the profile-completeness gate on
-  // submit rather than the required-question gate.
+  // Blocked by the incomplete profile, not by this application's answers.
   {
     applicantEmail: BYPASS_USERS['position-manager'].email,
     positionTitle: 'Director of Technology',
@@ -76,10 +67,7 @@ export const applicationDefs: ApplicationDef[] = [
     submittedInDays: 8,
     answers: 'full',
   },
-  // Regression fixture for issue #348 — a draft (unsubmitted) application on
-  // the same soft-deleted position as the submitted one above; the draft +
-  // soft-deleted combination is what the original regression was about, so
-  // this must stay invisible everywhere alongside it.
+  // Draft on the same soft-deleted position; must stay invisible everywhere.
   {
     applicantEmail: 'carol@example.com',
     positionTitle: 'Elections Commissioner',
@@ -107,8 +95,7 @@ export const applicationDefs: ApplicationDef[] = [
     submittedInDays: 6,
     answers: 'full',
   },
-  // Long-closed position; this is the only application on it and it is
-  // terminal, so the position must drop out of both 30-day admin/manager windows.
+  // Its only application, and terminal, so the position drops out of both windows.
   {
     applicantEmail: 'carol@example.com',
     positionTitle: 'Sustainability Chair',

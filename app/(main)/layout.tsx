@@ -17,8 +17,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   let canReviewApplications = false;
 
   if (user) {
-    // Admins always see reviewer nav; check manager status only for non-admins.
-    // Run both independent fetches in parallel for non-admin visitors.
+    // Admins always see reviewer nav, so manager status matters only for the rest.
     const [userIsManager, isBypass] = await Promise.all([
       user.isAdmin ? Promise.resolve(false) : isManager(user.id),
       getIsBypass(),

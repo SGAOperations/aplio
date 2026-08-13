@@ -13,8 +13,7 @@ import { getCurrentUser } from '@/lib/auth/server';
 import { prisma } from '@/lib/prisma';
 import { type ResponseType } from '@/lib/utils';
 
-// description is optional at the server boundary (defaults to '') to support creating
-// draft positions quickly; the plan spec intended required but UI allows empty drafts.
+// description defaults to '' so a draft can be created quickly.
 const createPositionSchema = z.object({
   title: z.string().min(1),
   description: z.string().optional().default(''),
@@ -81,13 +80,10 @@ export async function updatePosition(
 
   const { id, title, description, status, opensAt, closesAt } = parsed.data;
 
-  // Authenticate before any DB work — server actions are POST endpoints, so an
-  // existence query ahead of this would let an anonymous caller probe position
-  // IDs. Cached by React, so requirePositionAccess below reuses this resolve.
+  // Before any DB work: an earlier query would let an anonymous caller probe ids.
   await getCurrentUser();
 
-  // Stale-link guard: runs before the access guard so a manager on a stale
-  // link gets an actionable message instead of a generic error toast.
+  // Before the access guard, so a stale link gives an actionable message.
   const exists = await prisma.position.findFirst({
     where: { id, deletedAt: null },
     select: { id: true },
@@ -111,8 +107,7 @@ export async function updatePosition(
   revalidatePath('/positions');
   revalidatePath(`/positions/${id}`);
   revalidatePath(`/positions/${id}/edit`);
-  // status can flip open <-> draft here, changing which applications are visible
-  // on every cross-position surface.
+  // status can flip open <-> draft, changing what every surface shows.
   revalidatePath('/');
   revalidatePath('/my-applications');
   revalidatePath('/applications');
@@ -162,9 +157,7 @@ export async function addPositionManager(
 
   const user = await requirePositionAccess(positionId);
 
-  // A stale search result (e.g. loaded before the target was deactivated)
-  // must not silently connect a deleted user, and would otherwise surface as
-  // a raw Prisma P2025 from `connect` — user-facing and actionable (§4).
+  // A stale search result must not connect a deleted user via a raw P2025.
   const target = await prisma.user.findFirst({
     where: { id: userId, deletedAt: null },
     select: { id: true },
@@ -176,8 +169,7 @@ export async function addPositionManager(
     data: { managers: { connect: { id: userId } }, updatedById: user.id },
   });
 
-  // Manager membership drives the positions list a manager sees and the
-  // Roles / Managed Positions columns on /users, beyond the edit page itself.
+  // Membership also drives the manager's positions list and the /users columns.
   revalidatePath(`/positions/${positionId}/edit`);
   revalidatePath('/positions');
   revalidatePath('/users');
@@ -202,10 +194,7 @@ export async function removePositionManager(
 
   const user = await requirePositionAccess(positionId);
 
-  // Defense in depth beyond the UI guard, matching toggleUserAdmin/deactivateUser:
-  // a manager may remove any other manager but never themselves, so a position
-  // can never reach zero managers through manager action. Admins are exempt —
-  // they may deliberately leave a position with no managers.
+  // A manager may remove any other but never themselves; admins are exempt.
   if (userId === user.id && !user.isAdmin)
     return {
       error: 'You cannot remove yourself as a manager. Ask an admin to do it.',
@@ -216,8 +205,7 @@ export async function removePositionManager(
     data: { managers: { disconnect: { id: userId } }, updatedById: user.id },
   });
 
-  // Manager membership drives the positions list a manager sees and the
-  // Roles / Managed Positions columns on /users, beyond the edit page itself.
+  // Membership also drives the manager's positions list and the /users columns.
   revalidatePath(`/positions/${positionId}/edit`);
   revalidatePath('/positions');
   revalidatePath('/users');
@@ -225,8 +213,7 @@ export async function removePositionManager(
 
 const searchUsersSchema = z.object({ query: z.string().max(200) });
 
-// Deliberately exposes name and email to any logged-in user; nothing else is
-// returned, and results are capped at 10.
+// Deliberately exposes name and email to any logged-in user. Capped at 10.
 export async function searchUsers(
   input: unknown,
 ): Promise<

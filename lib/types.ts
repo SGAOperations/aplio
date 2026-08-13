@@ -38,8 +38,7 @@ export type PositionDetail = PositionWithQuestions & {
   managers: { id: string }[];
 };
 
-// Matches getPositionForEdit's select; audit columns excluded so they never
-// cross the server/client prop boundary.
+// Matches getPositionForEdit's select; no audit columns cross to the client.
 export type PositionQuestionForEdit = Prisma.PositionQuestionGetPayload<{
   select: {
     id: true;
@@ -54,8 +53,7 @@ export type PositionQuestionForEdit = Prisma.PositionQuestionGetPayload<{
   };
 }>;
 
-// Matches getPositionForEdit's select; audit columns excluded so they never
-// cross the server/client prop boundary.
+// Matches getPositionForEdit's select; no audit columns cross to the client.
 export type PositionForEdit = Prisma.PositionGetPayload<{
   select: {
     id: true;
@@ -132,16 +130,14 @@ export type AdminApplicationListItem = Prisma.ApplicationGetPayload<{
   };
 }>;
 
-// Structural type satisfied by PositionWithQuestions, PositionForEdit, and raw
-// Prisma rows alike, so the window helper needs no conversion at its call sites.
+// Structural, so the window helper needs no conversion at its call sites.
 export type PositionWindow = {
   status: PositionStatus;
   opensAt: Date | null;
   closesAt: Date | null;
 };
 
-// 'unavailable' covers draft and closed positions — status is the master switch,
-// overriding the date window.
+// 'unavailable' covers draft and closed — status overrides the date window.
 export type PositionAvailability =
   | 'accepting'
   | 'upcoming'
@@ -179,8 +175,7 @@ export type ProfileCompleteness = {
   requiredCount: number;
 };
 
-// questionId/type/isGlobal let the download control address a file_upload answer
-// without a dedicated file-metadata model.
+// questionId/type/isGlobal address a file answer without a file-metadata model.
 export type ApplicationReviewAnswer = {
   id: string;
   questionId: string;
@@ -190,8 +185,7 @@ export type ApplicationReviewAnswer = {
   isGlobal: boolean;
 };
 
-// The answer arrays override the generated payload with the normalized shape that
-// getApplicationForReview maps into.
+// Answer arrays overridden with the shape getApplicationForReview maps into.
 export type ApplicationForReview = Prisma.ApplicationGetPayload<{
   select: {
     id: true;
@@ -215,8 +209,7 @@ export type QuestionFileTarget =
       isGlobal: boolean;
     };
 
-// base64 so the payload can cross the server-action boundary — this repo forbids
-// the Route Handler that would otherwise stream it.
+// base64 to cross the server-action boundary; no Route Handler to stream it.
 export type QuestionFileDownload = {
   filename: string;
   contentType: string;
@@ -242,8 +235,7 @@ export type AdminUserListItem = Prisma.UserGetPayload<{
     managedPositions: { select: { id: true; title: true } };
     _count: {
       select: {
-        // PUBLISHED_POSITION_WHERE inlined — a value import can't feed a type
-        // position — mirroring prisma/data/users.ts#getUsersForAdmin's where.
+        // PUBLISHED_POSITION_WHERE inlined: a value import can't feed a type.
         applications: {
           where: {
             deletedAt: null;

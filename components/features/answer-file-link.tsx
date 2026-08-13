@@ -57,8 +57,7 @@ export function AnswerFileLink({ target, url }: AnswerFileLinkProps) {
   }
 
   return (
-    // Fills its container so the growing filename pushes Download to the
-    // right edge on every surface that renders this leaf.
+    // Fills the container so a long filename still pushes Download right.
     <div className="flex w-full min-w-0 items-center gap-2">
       <Icon
         className="text-muted-foreground size-4 shrink-0"

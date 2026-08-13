@@ -78,9 +78,7 @@ export function ProfileQuestion({
     }
   }
 
-  // Format mismatches never reach the network — this autosave's failure path
-  // is silent by design (see the catch above), so blocking the save
-  // client-side is the only way the user ever sees this message.
+  // This autosave fails silently, so blocking here is the only way the user sees it.
   function handleBlur() {
     const value = getValues('value');
     if (
@@ -304,8 +302,7 @@ export function ProfileQuestion({
                           field.onChange(next);
                           save(next);
                         } else {
-                          // Uncheck removes the typed text from the saved
-                          // array immediately so it isn't silently resubmitted.
+                          // Drops the typed text immediately, so it isn't resubmitted.
                           setOtherText('');
                           field.onChange(checkedOptions);
                           save(checkedOptions);

@@ -3,11 +3,9 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { applyRateLimit } from '@/lib/rate-limit';
 
-// Layouts own auth redirects. Middleware handles only the Neon OAuth callback, whose
-// token exchange must run before any page renders.
+// Layouts own auth redirects; only the OAuth token exchange must precede rendering.
 export async function proxy(request: NextRequest): Promise<NextResponse> {
-  // Skipped in dev, where nothing sets x-forwarded-for and all local traffic would
-  // collapse into one 'unknown' bucket.
+  // Skipped in dev, where every request would land in one 'unknown' bucket.
   if (process.env.NODE_ENV !== 'development') {
     const limited = applyRateLimit(request);
     if (limited) return limited;
@@ -28,8 +26,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 }
 
 export const config = {
-  // Next internals and public assets are excluded so they load on unauthenticated
-  // routes instead of redirecting to login.
+  // Next internals and public assets must load without redirecting to login.
   matcher: [
     '/((?!_next/static|_next/image|favicon.ico|icon|logo-dark.svg|logo-light.svg|apple-icon|sitemap.xml|robots.txt).*)',
   ],

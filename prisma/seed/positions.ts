@@ -2,9 +2,7 @@ import { BYPASS_USERS } from '@/lib/bypass-users';
 
 import type { PositionDef } from './types';
 
-// Day offsets are resolved against the seed run's `now` via utcDayOffset, so
-// every window below (opens-today boundary, upcoming, closing soon,
-// closed-by-date, long-closed) stays correct no matter when the seed runs.
+// Offsets resolve against the seed run's `now`, so every window stays correct.
 export const positionDefs: PositionDef[] = [
   {
     title: 'Senator — College of Engineering',
@@ -231,8 +229,7 @@ export const positionAnswers: Record<string, Record<string, string[]>> = {
       ],
   },
   'Director of Technology': {
-    // 'Rust' is not in the question's options — exercises the virtual "Other"
-    // choice's custom-value render path (allowOther is set on this question).
+    // 'Rust' isn't an option, so this exercises the virtual "Other" render path.
     'What technologies are you proficient in?': [
       'JavaScript',
       'Python',

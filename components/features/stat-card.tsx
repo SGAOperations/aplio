@@ -6,8 +6,7 @@ interface StatCardProps {
   dotClassName: string;
 }
 
-// Presentational stat card used by PipelineSummary (admin) and ApplicantSummary.
-// Server-safe — no 'use client' needed.
+// Presentational and server-safe — no 'use client' needed.
 export function StatCard({ label, value, dotClassName }: StatCardProps) {
   return (
     <Card className="p-4">

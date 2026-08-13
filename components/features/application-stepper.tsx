@@ -82,8 +82,7 @@ function ReadOnlyQuestionCard({
       {displayValue.length === 0 ? (
         <p className="text-muted-foreground text-sm italic">No answer yet</p>
       ) : question.type === 'file_upload' ? (
-        // Read-only mode always displays the profile's own answer (never a
-        // per-application override), so the target is always profile-scoped.
+        // Read-only shows the profile's own answer, so the target is profile-scoped.
         <AnswerFileLink
           target={{ scope: 'profile', questionId: question.id }}
           url={displayValue[0]}
@@ -163,9 +162,7 @@ function QuestionList({
                   !(Array.isArray(value) && value.length > 0)
                 )
                   return 'This field is required';
-                // Format re-check runs on blur (mode: 'onBlur' below) — mirrors
-                // the server-side check in createOrUpdateApplicationAnswer so
-                // the same rule is enforced client- and server-side.
+                // Mirrors the server check in createOrUpdateApplicationAnswer.
                 if (
                   question.type === 'short_answer' &&
                   question.format &&
@@ -255,8 +252,7 @@ export function ApplicationStepper({
     clearErrors,
     formState: { errors, isSubmitting },
   } = useForm<StepperFormValues>({
-    // Required and format field-validation both need to surface on blur, not
-    // only on an explicit trigger()/submit.
+    // Required and format errors surface on blur, not only on submit.
     mode: 'onBlur',
     defaultValues: Object.fromEntries([
       ...globalQuestions.map((q) => {

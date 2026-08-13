@@ -114,9 +114,7 @@ export function PositionManagersSection({
   }
 
   function handleRemove(userId: string) {
-    // The click can't happen through the disabled button, but keeps the
-    // client and server rules in one place rather than relying solely on the
-    // disabled attribute.
+    // Unreachable past the disabled button, but keeps both rules in one place.
     if (userId === currentUserId && !isAdmin) return;
 
     setRemovingId(userId);

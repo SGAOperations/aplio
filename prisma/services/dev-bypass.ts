@@ -7,8 +7,7 @@ import { BYPASS_USERS, type BypassRole } from '@/lib/bypass-users';
 import { prisma } from '@/lib/prisma';
 import { isBypassAllowed } from '@/lib/utils';
 
-// Well-known id so concurrent bypass logins upsert the same fixture row
-// instead of racing to create duplicate "Bypass Position" rows.
+// Well-known id, so concurrent bypass logins upsert one row instead of racing.
 const BYPASS_POSITION_ID = 'bypass-position';
 
 // Hard no-op unless isBypassAllowed() says otherwise.
@@ -54,7 +53,6 @@ export async function loginAsBypassUser(role: BypassRole) {
   redirect('/');
 }
 
-// Clears the bypass session cookie and returns the caller to the picker.
 // Hard no-op unless isBypassAllowed() says otherwise.
 export async function logoutBypassUser() {
   if (!isBypassAllowed()) return;

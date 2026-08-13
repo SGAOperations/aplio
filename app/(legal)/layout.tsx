@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 
-// Public layout — no getCurrentUser, no auth gate, no app chrome.
-// Mirrors app/login/layout.tsx as the precedent for public-only routes.
+// Public: no auth gate, no app chrome. Mirrors app/login/layout.tsx.
 export default function LegalLayout({ children }: { children: ReactNode }) {
   return (
     <div className="bg-background min-h-dvh">

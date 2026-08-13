@@ -43,8 +43,7 @@ export async function getProfileCompleteness(
     select: { globalQuestionId: true, value: true },
   });
 
-  // Match submitApplication's check: a required question only counts as
-  // answered when its value is non-empty, not merely when a row exists.
+  // As in submitApplication: a row isn't an answer unless its value is non-empty.
   const answeredCount = answers.filter(
     (a) => toStringArray(a.value).length > 0,
   ).length;

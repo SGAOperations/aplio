@@ -102,29 +102,17 @@ export const SHORT_ANSWER_FORMAT_OPTIONS: {
   label: SHORT_ANSWER_FORMAT_LABELS[value],
 }));
 
-// Single source of truth for each format preset's validation pattern — shared
-// by client (inline blur validation) and server (re-validation on save) so
-// they can never drift. Intentionally permissive: favor not blocking a
-// legitimate answer over strict/RFC-grade enforcement, and each pattern
-// accepts multiple real-world variants of its format rather than one
-// canonical shape (see human feedback on PR #333).
+// Deliberately permissive — never block a legitimate answer for RFC-grade strictness.
 export const SHORT_ANSWER_FORMAT_PATTERNS: Record<
   ShortAnswerFormatValue,
   RegExp
 > = {
   email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-  // Optional leading + (country code) or 00 international prefix, then digits
-  // with any mix of spaces, dots, hyphens, and parens as separators — covers
-  // "555-123-4567", "(555) 123-4567", "555.123.4567", "+1 555 123 4567", and
-  // "00 44 20 7946 0958" without requiring a single canonical layout.
+  // Optional + or 00 prefix, then digits with any mix of common separators.
   phone_number: /^(\+|00)?[\d\s().-]{7,20}$/,
-  // Scheme (http/https) and "www." are both optional so a bare domain like
-  // "google.com" or a "www."-prefixed host passes alongside a full
-  // "https://google.com/path" URL — only the host needs a dot-separated
-  // label plus a TLD; no nested quantifiers, to keep this ReDoS-safe.
+  // Scheme and "www." optional; no nested quantifiers, to stay ReDoS-safe.
   url: /^(https?:\/\/)?(www\.)?[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(:\d+)?([/?#]\S*)?$/,
-  // 5-digit ZIP, ZIP+4 with or without the hyphen (some autofill/paste
-  // sources omit it) — still US ZIP-shaped, not a general postal code.
+  // US ZIP shape only, not a general postal code.
   zip_code: /^\d{5}(-?\d{4})?$/,
 };
 
@@ -138,12 +126,7 @@ export const SHORT_ANSWER_FORMAT_ERROR_MESSAGES: Record<
   zip_code: 'Enter a valid ZIP code',
 };
 
-// Single source of truth for testing a value against a format preset — trims
-// before matching since every pattern above is anchored against character
-// classes that exclude (or only tolerate mid-string) whitespace, so a
-// legitimate pasted value with incidental leading/trailing whitespace must
-// not be rejected. Shared by every call site (client blur checks, server
-// re-validation) so none can drift and re-introduce the untrimmed check.
+// Trims first: the patterns are anchored, so pasted whitespace would falsely fail.
 export function matchesShortAnswerFormat(
   value: string,
   format: ShortAnswerFormatValue,
@@ -160,9 +143,7 @@ export const baseQuestionSchema = z.object({
   format: z.enum(SHORT_ANSWER_FORMAT_VALUES).nullable(),
 });
 
-// Shared superRefine used by both the admin dialogs and the server actions
-// (no 'use server' boundary here) so a format set on a non-short-answer
-// question is always rejected as a zod field error, never silently persisted.
+// Rejects a format on a non-short-answer question as a field error, never silently.
 export function validateShortAnswerFormat(
   data: { type: string; format: ShortAnswerFormatValue | null },
   ctx: z.RefinementCtx,
