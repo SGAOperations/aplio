@@ -329,8 +329,9 @@ export async function submitApplication(
       updatedById: currentUser.id,
     },
   });
+  revalidatePath('/my-applications');
   revalidatePath('/applications');
-  revalidatePath('/positions');
+  revalidatePath('/positions', 'layout');
   return updated;
 }
 

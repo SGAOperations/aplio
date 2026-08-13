@@ -240,6 +240,10 @@ export function ApplicationStepper({
   const [step, setStep] = useState<1 | 2>(1);
   const [isCustomizing, setIsCustomizing] = useState(false);
   const [isReverting, setIsReverting] = useState(false);
+  // Set right before the un-awaited router.replace() fires — handleSubmit's
+  // own isSubmitting flips back to false as soon as that call returns, which
+  // would otherwise re-enable Submit while /my-applications is still loading.
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const [missingGlobalIds, setMissingGlobalIds] = useState<Set<string>>(
     new Set(),
   );
@@ -387,7 +391,8 @@ export function ApplicationStepper({
         toast.error(result.error);
       } else {
         toast.success('Application submitted');
-        router.push('/applications');
+        setIsRedirecting(true);
+        router.replace('/my-applications');
       }
     } catch (error) {
       console.error(error);
@@ -479,11 +484,13 @@ export function ApplicationStepper({
           <div className="flex justify-end">
             <Button
               onClick={hasPositionQuestions ? handleNext : onSubmit}
-              disabled={!hasPositionQuestions && isSubmitting}
+              disabled={
+                !hasPositionQuestions && (isSubmitting || isRedirecting)
+              }
             >
               {hasPositionQuestions
                 ? 'Next'
-                : isSubmitting
+                : isSubmitting || isRedirecting
                   ? 'Submitting...'
                   : 'Submit Application'}
             </Button>
@@ -524,8 +531,10 @@ export function ApplicationStepper({
             >
               Back
             </Button>
-            <Button onClick={onSubmit} disabled={isSubmitting}>
-              {isSubmitting ? 'Submitting...' : 'Submit Application'}
+            <Button onClick={onSubmit} disabled={isSubmitting || isRedirecting}>
+              {isSubmitting || isRedirecting
+                ? 'Submitting...'
+                : 'Submit Application'}
             </Button>
           </div>
         </div>
