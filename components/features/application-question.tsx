@@ -4,38 +4,19 @@ import { useRef, useState } from 'react';
 
 import { toast } from 'sonner';
 
-import type { QuestionType, ShortAnswerFormat } from '@/prisma/client';
-
 import { OTHER_OPTION_LABEL, matchesShortAnswerFormat } from '@/lib/constants';
-import type { QuestionFileTarget } from '@/lib/types';
-import { cn } from '@/lib/utils';
+import type { AnswerQuestion, QuestionFileTarget } from '@/lib/types';
+import { cn, partitionAnswerValue } from '@/lib/utils';
 
+import { AnswerMismatchNotice } from '@/components/features/answer-mismatch-notice';
 import { QuestionFileField } from '@/components/features/question-file-field';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 
-type QuestionShape = {
-  id: string;
-  label: string;
-  type: QuestionType;
-  required: boolean;
-  options: string[];
-  allowOther: boolean;
-  format: ShortAnswerFormat | null;
-};
-
-// For the mobile keyboard only; the format regex remains the validation.
-const FORMAT_INPUT_TYPES: Record<ShortAnswerFormat, string> = {
-  email: 'email',
-  phone_number: 'tel',
-  url: 'url',
-  zip_code: 'text',
-};
-
 interface ApplicationQuestionProps {
-  question: QuestionShape;
+  question: AnswerQuestion;
   field: {
     value: string[];
     onChange: (value: string[]) => void;
@@ -57,13 +38,25 @@ export function ApplicationQuestion({
 }: ApplicationQuestionProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
+  // Seeded with the RAW stored value (not `fitted`) and never re-seeded from
+  // it: mount + focus + blur with no edit must serialize back to the raw
+  // value and write nothing. field.value is read only here, for the notice
+  // below, and for this comparison — every write is built from `fitted`.
   const savedValueRef = useRef(JSON.stringify(field.value));
   const options = Array.isArray(question.options)
     ? question.options.filter((o): o is string => typeof o === 'string')
     : [];
+  const { fitted, orphaned } = partitionAnswerValue(question, field.value);
+  const noticeId = `${question.id}-mismatch`;
+  const labelId = `${question.id}-label`;
 
-  // options is a closed set, so any value outside it is the applicant's "Other" text.
-  const initialOtherValue = field.value.find((v) => !options.includes(v));
+  // Any fitted value that isn't one of the admin-defined options is the
+  // applicant's typed "Other" text (options is a closed set — see issue
+  // #322). Gated on allowOther so an orphaned value can never masquerade as
+  // "Other" once the option is turned off for this question.
+  const initialOtherValue = question.allowOther
+    ? fitted.find((v) => !options.includes(v))
+    : undefined;
   const [otherSelected, setOtherSelected] = useState(
     initialOtherValue !== undefined,
   );
@@ -111,37 +104,54 @@ export function ApplicationQuestion({
         error && 'border-destructive',
       )}
     >
-      <p className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase">
+      <p
+        id={labelId}
+        className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase"
+      >
         {question.label}
         {question.required && <span className="text-destructive ml-1">*</span>}
       </p>
 
+      {orphaned.length > 0 && (
+        <AnswerMismatchNotice
+          id={noticeId}
+          values={orphaned}
+          questionType={question.type}
+        />
+      )}
+
       {question.type === 'short_answer' && (
         <Input
-          type={question.format ? FORMAT_INPUT_TYPES[question.format] : 'text'}
-          value={field.value[0] ?? ''}
+          value={fitted[0] ?? ''}
           onChange={(e) =>
             field.onChange(e.target.value ? [e.target.value] : [])
           }
           onBlur={handleBlur}
           placeholder="Your answer"
+          aria-describedby={orphaned.length > 0 ? noticeId : undefined}
         />
       )}
 
       {question.type === 'long_answer' && (
         <Textarea
-          value={field.value[0] ?? ''}
+          value={fitted[0] ?? ''}
           onChange={(e) =>
             field.onChange(e.target.value ? [e.target.value] : [])
           }
           onBlur={handleBlur}
           placeholder="Your answer"
           className="min-h-[120px]"
+          aria-describedby={orphaned.length > 0 ? noticeId : undefined}
         />
       )}
 
       {question.type === 'single_choice' && (
-        <div className="flex flex-col gap-2">
+        <div
+          role="group"
+          aria-labelledby={labelId}
+          aria-describedby={orphaned.length > 0 ? noticeId : undefined}
+          className="flex flex-col gap-2"
+        >
           {options.map((option) => (
             <Label
               key={option}
@@ -151,7 +161,7 @@ export function ApplicationQuestion({
                 type="radio"
                 name={question.id}
                 value={option}
-                checked={!otherSelected && field.value[0] === option}
+                checked={!otherSelected && fitted[0] === option}
                 onChange={() => {
                   // Clearing the typed text stops it being silently resubmitted.
                   setOtherSelected(false);
@@ -213,18 +223,23 @@ export function ApplicationQuestion({
       )}
 
       {question.type === 'multiple_choice' && (
-        <div className="flex flex-col gap-2">
+        <div
+          role="group"
+          aria-labelledby={labelId}
+          aria-describedby={orphaned.length > 0 ? noticeId : undefined}
+          className="flex flex-col gap-2"
+        >
           {options.map((option) => (
             <Label
               key={option}
               className="flex cursor-pointer items-center gap-2 font-normal"
             >
               <Checkbox
-                checked={field.value.includes(option)}
+                checked={fitted.includes(option)}
                 onCheckedChange={(checked) => {
                   const next = checked
-                    ? [...field.value, option]
-                    : field.value.filter((v) => v !== option);
+                    ? [...fitted, option]
+                    : fitted.filter((v) => v !== option);
                   field.onChange(next);
                   save(next);
                 }}
@@ -240,7 +255,7 @@ export function ApplicationQuestion({
                   checked={otherSelected}
                   onCheckedChange={(checked) => {
                     setOtherSelected(!!checked);
-                    const checkedOptions = field.value.filter((v) =>
+                    const checkedOptions = fitted.filter((v) =>
                       options.includes(v),
                     );
                     if (checked) {
@@ -276,7 +291,7 @@ export function ApplicationQuestion({
                     value={otherText}
                     onChange={(e) => {
                       setOtherText(e.target.value);
-                      const checkedOptions = field.value.filter((v) =>
+                      const checkedOptions = fitted.filter((v) =>
                         options.includes(v),
                       );
                       field.onChange(
@@ -298,7 +313,7 @@ export function ApplicationQuestion({
       {question.type === 'file_upload' && (
         <QuestionFileField
           target={fileTarget}
-          value={field.value}
+          value={fitted}
           onChange={field.onChange}
         />
       )}
