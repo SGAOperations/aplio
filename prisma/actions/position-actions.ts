@@ -1,12 +1,14 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { notFound } from 'next/navigation';
 
 import { z } from 'zod/v4';
 
-import { checkPositionAccess, isManager } from '@/prisma/data/managers';
-
+import {
+  requireAdmin,
+  requireManagerOrAdmin,
+  requirePositionAccess,
+} from '@/lib/auth/guards';
 import { getCurrentUser } from '@/lib/auth/server';
 import { prisma } from '@/lib/prisma';
 import { type ResponseType } from '@/lib/utils';
@@ -45,10 +47,7 @@ const removePositionManagerSchema = z.object({
 export async function createPosition(
   input: unknown,
 ): Promise<{ id: string } | { error: string }> {
-  const user = await getCurrentUser();
-
-  const allowed = user.isAdmin || (await isManager(user.id));
-  if (!allowed) return { error: 'Unauthorized' };
+  const user = await requireManagerOrAdmin();
 
   const parsed = createPositionSchema.safeParse(input);
   if (!parsed.success) return { error: 'Invalid input' };
@@ -77,23 +76,26 @@ export async function createPosition(
 export async function updatePosition(
   input: unknown,
 ): Promise<void | { error: string }> {
-  const user = await getCurrentUser();
-
   const parsed = updatePositionSchema.safeParse(input);
   if (!parsed.success) return { error: 'Invalid input' };
 
   const { id, title, description, status, opensAt, closesAt } = parsed.data;
 
+  // Authenticate before any DB work — server actions are POST endpoints, so an
+  // existence query ahead of this would let an anonymous caller probe position
+  // IDs. Cached by React, so requirePositionAccess below reuses this resolve.
+  await getCurrentUser();
+
   // Stale-link guard: a manager navigating to a deleted position should get an
   // actionable message, not a generic error toast (ENGINEERING §4 gray-area rule).
+  // Runs before the access guard so a stale tab always gets this message.
   const exists = await prisma.position.findFirst({
     where: { id, deletedAt: null },
     select: { id: true },
   });
-  if (!exists) return { error: 'Position no longer exists' };
+  if (!exists) return { error: 'This position no longer exists.' };
 
-  const hasAccess = await checkPositionAccess(id, user.id, user.isAdmin);
-  if (!hasAccess) throw new Error('Forbidden');
+  const user = await requirePositionAccess(id);
 
   await prisma.position.update({
     where: { id },
@@ -120,8 +122,7 @@ export async function updatePosition(
 export async function deletePosition(
   input: unknown,
 ): Promise<void | { error: string }> {
-  const user = await getCurrentUser();
-  if (!user.isAdmin) return { error: 'Unauthorized' };
+  const user = await requireAdmin();
 
   const parsed = deletePositionSchema.safeParse(input);
   if (!parsed.success) return { error: 'Invalid input' };
@@ -133,7 +134,8 @@ export async function deletePosition(
     data: { deletedAt: new Date(), deletedById: user.id },
   });
 
-  if (deleteResult.count === 0) return { error: 'Not found' };
+  if (deleteResult.count === 0)
+    return { error: 'This position no longer exists.' };
 
   revalidatePath('/positions');
   // Soft-deleting hides this position's applications everywhere (issue #348).
@@ -145,25 +147,21 @@ export async function deletePosition(
 export async function addPositionManager(
   input: unknown,
 ): Promise<void | { error: string }> {
-  const user = await getCurrentUser();
-
   const parsed = addPositionManagerSchema.safeParse(input);
   if (!parsed.success) return { error: 'Invalid input' };
 
   const { positionId, userId } = parsed.data;
 
+  // Authenticate before the existence query — see updatePosition.
+  await getCurrentUser();
+
   const exists = await prisma.position.findFirst({
     where: { id: positionId, deletedAt: null },
     select: { id: true },
   });
-  if (!exists) notFound();
+  if (!exists) return { error: 'This position no longer exists.' };
 
-  const hasAccess = await checkPositionAccess(
-    positionId,
-    user.id,
-    user.isAdmin,
-  );
-  if (!hasAccess) throw new Error('Forbidden');
+  const user = await requirePositionAccess(positionId);
 
   await prisma.position.update({
     where: { id: positionId },
@@ -176,25 +174,21 @@ export async function addPositionManager(
 export async function removePositionManager(
   input: unknown,
 ): Promise<void | { error: string }> {
-  const user = await getCurrentUser();
-
   const parsed = removePositionManagerSchema.safeParse(input);
   if (!parsed.success) return { error: 'Invalid input' };
 
   const { positionId, userId } = parsed.data;
 
+  // Authenticate before the existence query — see updatePosition.
+  await getCurrentUser();
+
   const exists = await prisma.position.findFirst({
     where: { id: positionId, deletedAt: null },
     select: { id: true },
   });
-  if (!exists) notFound();
+  if (!exists) return { error: 'This position no longer exists.' };
 
-  const hasAccess = await checkPositionAccess(
-    positionId,
-    user.id,
-    user.isAdmin,
-  );
-  if (!hasAccess) throw new Error('Forbidden');
+  const user = await requirePositionAccess(positionId);
 
   await prisma.position.update({
     where: { id: positionId },

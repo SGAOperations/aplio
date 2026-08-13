@@ -36,6 +36,8 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
     getProfileData(user.id),
   ]);
 
+  // Resource-state redirect, not an authorization denial — any authenticated
+  // user may apply; a missing position sends them back to browse (lib/auth/guards.ts).
   if (!position) redirect('/positions');
 
   const globalQuestions = profileData.map((d) => d.question);

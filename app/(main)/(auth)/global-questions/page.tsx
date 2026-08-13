@@ -1,9 +1,8 @@
 import type { Metadata } from 'next';
-import { redirect } from 'next/navigation';
 
 import { getGlobalQuestions } from '@/prisma/data/global-questions';
 
-import { getCurrentUser } from '@/lib/auth/server';
+import { requireAdminOr404 } from '@/lib/auth/guards';
 
 import { GlobalQuestionDialog } from '@/components/features/global-question-dialog';
 import { GlobalQuestionsTable } from '@/components/features/global-questions-table';
@@ -13,8 +12,7 @@ import { Button } from '@/components/ui/button';
 export const metadata: Metadata = { title: 'Global Questions' };
 
 export default async function GlobalQuestionsPage() {
-  const user = await getCurrentUser();
-  if (!user.isAdmin) redirect('/');
+  await requireAdminOr404();
 
   const questions = await getGlobalQuestions();
 

@@ -7,7 +7,7 @@ import { z } from 'zod/v4';
 import { Prisma } from '@/prisma/client';
 
 import { createNeonAuthUser, deleteNeonAuthUser } from '@/lib/auth/admin';
-import { getCurrentUser } from '@/lib/auth/server';
+import { requireAdmin } from '@/lib/auth/guards';
 import { createUserSchema } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 
@@ -23,8 +23,7 @@ type ActionError = { error: string };
 export async function toggleUserAdmin(
   input: unknown,
 ): Promise<ActionError | void> {
-  const user = await getCurrentUser();
-  if (!user.isAdmin) return { error: 'Unauthorized' };
+  const user = await requireAdmin();
 
   const parsed = toggleAdminSchema.safeParse(input);
   if (!parsed.success) return { error: 'Invalid input' };
@@ -50,8 +49,7 @@ export async function toggleUserAdmin(
 export async function deactivateUser(
   input: unknown,
 ): Promise<ActionError | void> {
-  const user = await getCurrentUser();
-  if (!user.isAdmin) return { error: 'Unauthorized' };
+  const user = await requireAdmin();
 
   const parsed = deactivateSchema.safeParse(input);
   if (!parsed.success) return { error: 'Invalid input' };
@@ -76,8 +74,7 @@ export async function deactivateUser(
 }
 
 export async function createUser(input: unknown): Promise<ActionError | void> {
-  const admin = await getCurrentUser();
-  if (!admin.isAdmin) return { error: 'Unauthorized' };
+  const admin = await requireAdmin();
 
   const parsed = createUserSchema.safeParse(input);
   if (!parsed.success) return { error: 'Invalid input' };

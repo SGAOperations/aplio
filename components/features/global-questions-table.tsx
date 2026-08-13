@@ -66,14 +66,20 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
   async function handleDelete() {
     if (!deletingId) return;
     setIsDeleting(true);
-    const result = await deleteGlobalQuestion({ id: deletingId });
-    setIsDeleting(false);
-    if (result?.error) {
-      toast.error(result.error);
-      return;
+    try {
+      const result = await deleteGlobalQuestion({ id: deletingId });
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success('Question deleted');
+      setDeletingId(null);
+    } catch (error) {
+      console.error(error);
+      toast.error('Something went wrong. Please try again.');
+    } finally {
+      setIsDeleting(false);
     }
-    toast.success('Question deleted');
-    setDeletingId(null);
   }
 
   if (questions.length === 0)
