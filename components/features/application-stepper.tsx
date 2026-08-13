@@ -21,6 +21,7 @@ import type {
 
 import {
   SHORT_ANSWER_FORMAT_ERROR_MESSAGES,
+  getAnswerValueError,
   matchesShortAnswerFormat,
 } from '@/lib/constants';
 import {
@@ -190,7 +191,8 @@ function QuestionList({
                         return SHORT_ANSWER_FORMAT_ERROR_MESSAGES[
                           question.format
                         ];
-                      return true;
+                      // Mirrors the server check in createOrUpdateApplicationAnswer.
+                      return getAnswerValueError(question, arr) ?? true;
                     },
                   }
             }

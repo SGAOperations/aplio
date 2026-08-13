@@ -9,12 +9,16 @@ import { updateGlobalAnswer } from '@/prisma/actions/profile';
 import type { GlobalAnswer, GlobalQuestion } from '@/prisma/client';
 
 import {
+  ANSWER_LONG_MAX_LENGTH,
+  ANSWER_OTHER_MAX_LENGTH,
+  ANSWER_SHORT_MAX_LENGTH,
   OTHER_OPTION_LABEL,
   OTHER_OPTION_VALUE,
   SHORT_ANSWER_FORMAT_ERROR_MESSAGES,
+  getAnswerValueError,
   matchesShortAnswerFormat,
 } from '@/lib/constants';
-import { isError, partitionAnswerValue } from '@/lib/utils';
+import { cn, isError, partitionAnswerValue } from '@/lib/utils';
 
 import { AnswerFileLink } from '@/components/features/answer-file-link';
 import { AnswerMismatchNotice } from '@/components/features/answer-mismatch-notice';
@@ -46,7 +50,7 @@ export function ProfileQuestion({
   const savedValueRef = useRef(JSON.stringify(initialValue));
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
-  const [formatError, setFormatError] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const noticeId = `${question.id}-mismatch`;
   const labelId = `${question.id}-label`;
 
@@ -78,10 +82,14 @@ export function ProfileQuestion({
       if (isError(result)) throw new Error(result.error);
       savedValueRef.current = serialized;
       reset({ value });
-    } catch {
+    } catch (err) {
       // savedValueRef is not advanced on failure so retries work
       setSaveError(true);
-      toast.error('Failed to save answer');
+      toast.error(
+        err instanceof Error && err.message
+          ? err.message
+          : 'Failed to save answer',
+      );
     } finally {
       setIsSaving(false);
     }
@@ -98,10 +106,15 @@ export function ProfileQuestion({
       fitted[0] &&
       !matchesShortAnswerFormat(fitted[0], question.format)
     ) {
-      setFormatError(SHORT_ANSWER_FORMAT_ERROR_MESSAGES[question.format]);
+      setValidationError(SHORT_ANSWER_FORMAT_ERROR_MESSAGES[question.format]);
       return;
     }
-    setFormatError(null);
+    const answerError = getAnswerValueError(question, value);
+    if (answerError) {
+      setValidationError(answerError);
+      return;
+    }
+    setValidationError(null);
     save(value);
   }
 
@@ -174,10 +187,12 @@ export function ProfileQuestion({
                     value={fitted[0] ?? ''}
                     onChange={(e) => {
                       field.onChange(e.target.value ? [e.target.value] : []);
-                      setFormatError(null);
+                      setValidationError(null);
                     }}
                     onBlur={handleBlur}
                     placeholder="Your answer"
+                    maxLength={ANSWER_SHORT_MAX_LENGTH}
+                    aria-invalid={!!validationError}
                     aria-describedby={
                       orphaned.length > 0 ? noticeId : undefined
                     }
@@ -190,17 +205,34 @@ export function ProfileQuestion({
                 <>
                   {notice}
                   <Textarea
+                    id={`${question.id}-long-answer`}
                     value={fitted[0] ?? ''}
-                    onChange={(e) =>
-                      field.onChange(e.target.value ? [e.target.value] : [])
-                    }
+                    onChange={(e) => {
+                      field.onChange(e.target.value ? [e.target.value] : []);
+                      setValidationError(null);
+                    }}
                     onBlur={handleBlur}
                     placeholder="Your answer"
                     className="min-h-[100px]"
+                    maxLength={ANSWER_LONG_MAX_LENGTH}
+                    aria-invalid={!!validationError}
                     aria-describedby={
-                      orphaned.length > 0 ? noticeId : undefined
+                      orphaned.length > 0
+                        ? `${noticeId} ${question.id}-long-answer-count`
+                        : `${question.id}-long-answer-count`
                     }
                   />
+                  <p
+                    id={`${question.id}-long-answer-count`}
+                    className={cn(
+                      'text-muted-foreground mt-1 text-right text-xs',
+                      (fitted[0]?.length ?? 0) >= ANSWER_LONG_MAX_LENGTH &&
+                        'text-destructive',
+                    )}
+                  >
+                    {(fitted[0]?.length ?? 0).toLocaleString()}/
+                    {ANSWER_LONG_MAX_LENGTH.toLocaleString()}
+                  </p>
                 </>
               );
 
@@ -287,6 +319,7 @@ export function ProfileQuestion({
                         }}
                         onBlur={handleBlur}
                         placeholder="Type your answer"
+                        maxLength={ANSWER_OTHER_MAX_LENGTH}
                       />
                     </div>
                   )}
@@ -404,6 +437,7 @@ export function ProfileQuestion({
                       }}
                       onBlur={handleBlur}
                       placeholder="Type your answer"
+                      maxLength={ANSWER_OTHER_MAX_LENGTH}
                     />
                   </div>
                 )}
@@ -413,8 +447,8 @@ export function ProfileQuestion({
         />
       )}
 
-      {isEditing && formatError && (
-        <p className="text-destructive mt-2 text-xs">{formatError}</p>
+      {isEditing && validationError && (
+        <p className="text-destructive mt-2 text-xs">{validationError}</p>
       )}
       {isEditing && isSaving && (
         <span className="text-muted-foreground mt-2 block text-xs">

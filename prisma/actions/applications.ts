@@ -16,12 +16,15 @@ import type {
 import { requireOwnership } from '@/lib/auth/guards';
 import { getCurrentUser } from '@/lib/auth/server';
 import {
+  ANSWER_LONG_MAX_LENGTH,
+  ANSWER_MAX_VALUES,
   APPLICANT_EDITABLE_APPLICATION_STATUSES,
   NON_REVIEWABLE_APPLICATION_STATUSES,
   PUBLISHED_POSITION_WHERE,
   REVIEWER_APPLICATION_STATUSES,
   SHORT_ANSWER_FORMAT_ERROR_MESSAGES,
   TERMINAL_DECISION_STATUSES,
+  getAnswerValueError,
   matchesShortAnswerFormat,
 } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
@@ -125,7 +128,9 @@ const createOrUpdateApplicationAnswerSchema = z.object({
   applicationId: z.string().min(1),
   questionId: z.string().min(1),
   questionLabel: z.string().min(1),
-  value: z.array(z.string()),
+  // Pre-DB size guard, not the product rule — getAnswerValueError below
+  // enforces the real per-type/membership limits after the question lookup.
+  value: z.array(z.string().max(ANSWER_LONG_MAX_LENGTH)).max(ANSWER_MAX_VALUES),
   isGlobal: z.boolean(),
 });
 
@@ -230,11 +235,11 @@ export async function createOrUpdateApplicationAnswer(params: {
   const question = isGlobal
     ? await prisma.globalQuestion.findUnique({
         where: { id: questionId },
-        select: { type: true, format: true },
+        select: { type: true, format: true, options: true, allowOther: true },
       })
     : await prisma.positionQuestion.findUnique({
         where: { id: questionId },
-        select: { type: true, format: true },
+        select: { type: true, format: true, options: true, allowOther: true },
       });
   if (!question) throw new Error('Question not found');
 
@@ -245,6 +250,10 @@ export async function createOrUpdateApplicationAnswer(params: {
     !matchesShortAnswerFormat(value[0], question.format)
   )
     return { error: SHORT_ANSWER_FORMAT_ERROR_MESSAGES[question.format] };
+
+  // Membership, "how many values", and length-limit backstop.
+  const answerError = getAnswerValueError(question, value);
+  if (answerError) return { error: answerError };
 
   // matchesShortAnswerFormat trims internally, so save the trimmed value.
   const persistedValue =
