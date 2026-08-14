@@ -8,7 +8,7 @@ import { Prisma } from '@/prisma/client';
 
 import { createNeonAuthUser, deleteNeonAuthUser } from '@/lib/auth/admin';
 import { requireAdmin } from '@/lib/auth/guards';
-import { AUTH_NAME_PLACEHOLDER, createUserSchema } from '@/lib/constants';
+import { createUserSchema } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 
 const toggleAdminSchema = z.object({
@@ -88,11 +88,8 @@ export async function createUser(input: unknown): Promise<ActionError | void> {
   });
   if (existing) return { error: 'A user with this email already exists.' };
 
-  // Before the app row, which needs its id; name is optional here but not to Neon.
-  const created = await createNeonAuthUser({
-    email,
-    name: name || AUTH_NAME_PLACEHOLDER,
-  });
+  // Before the app row, which needs its id.
+  const created = await createNeonAuthUser({ email, name });
   // Residual case only: present in Neon Auth but not in our table.
   if ('duplicate' in created)
     return { error: 'A user with this email already exists.' };
@@ -102,7 +99,7 @@ export async function createUser(input: unknown): Promise<ActionError | void> {
       data: {
         neonAuthId: created.id,
         email,
-        ...(name ? { name } : {}),
+        name,
         isAdmin,
         createdById: admin.id,
       },

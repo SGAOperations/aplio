@@ -360,9 +360,19 @@ export const AVAILABILITY_VARIANTS: Record<PositionAvailability, BadgeVariant> =
 export const PRIVACY_HREF = '/privacy';
 export const TERMS_HREF = '/terms';
 
+// Max length for a user's full name, shared by the name schemas and NameField.
+export const NAME_MAX_LENGTH = 100;
+
 export const createUserSchema = z.object({
   email: z.string().trim().email('Enter a valid email address.'),
-  name: z.string().trim().optional(),
+  name: z
+    .string()
+    .trim()
+    .min(1, "Enter the user's full name.")
+    .max(
+      NAME_MAX_LENGTH,
+      `Name must be ${NAME_MAX_LENGTH} characters or fewer.`,
+    ),
   isAdmin: z.boolean().default(false),
 });
 
@@ -373,10 +383,6 @@ export const signInEmailSchema = z.object({
 
 // Neon rejects a nameless user; must never reach User.name or the name gate stops firing.
 export const AUTH_NAME_PLACEHOLDER = '-';
-
-// Maximum character length for a user's full name — shared between the zod schema
-// in the server action and the client-side NameField component.
-export const NAME_MAX_LENGTH = 100;
 
 // Name validation shared between the server action and the client form so
 // they can't drift apart (ENGINEERING §1: abstract at 2+ occurrences).

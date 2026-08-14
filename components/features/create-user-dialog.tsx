@@ -72,7 +72,7 @@ export function CreateUserDialog({ trigger }: CreateUserDialogProps) {
           <FormItem>
             <FormLabel>Name</FormLabel>
             <FormControl>
-              <Input placeholder="Optional" {...field} />
+              <Input placeholder="Jane Doe" {...field} />
             </FormControl>
             <FormMessage />
           </FormItem>
