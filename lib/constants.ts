@@ -366,8 +366,7 @@ export const createUserSchema = z.object({
   isAdmin: z.boolean().default(false),
 });
 
-// Shared between the ensureAuthUser server action and the LoginView email
-// step's resolver (ENGINEERING §1: a schema used in 2+ places gets one home).
+// Shared between the ensureAuthUser server action and the LoginView email step's resolver.
 export const signInEmailSchema = z.object({
   email: z.string().trim().email('Please enter a valid email address'),
 });

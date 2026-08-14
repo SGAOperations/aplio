@@ -42,7 +42,6 @@ enum ShortAnswerFormat {
 model User {
   id          String    @id @default(uuid(7))
   neonAuthId  String    @unique
-  // Also has a hand-written lower(email) index (migration 20260813000000), untracked here.
   email       String    @unique
   name        String?
   isAdmin     Boolean   @default(false)

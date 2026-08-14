@@ -37,9 +37,8 @@ export async function ensureAuthUser(
   // Normalized once and reused so the lookup and the Neon call can't diverge.
   const normalizedEmail = parsed.data.email.toLowerCase();
 
-  // Case-insensitive: emails aren't normalized on write, and soft-deleted
-  // rows keep their email, so this is the only way to catch a deactivated
-  // user who changes capitalization.
+  // Case-insensitive: emails aren't normalized on write, so this is the only
+  // way to catch a deactivated user across capitalization changes.
   const deactivated = await prisma.user.findFirst({
     where: {
       email: { equals: normalizedEmail, mode: 'insensitive' },
