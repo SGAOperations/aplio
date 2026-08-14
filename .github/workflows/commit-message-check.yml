@@ -1,0 +1,32 @@
+# Shells out to .husky/commit-msg (not a reimplemented regex) so local and CI
+# rules can't drift: `sh .husky/commit-msg <message-file>`, exit code = verdict.
+name: Commit Message Check
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  run-commit-message-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Validate commit subjects
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -uo pipefail
+          MERGE_BASE=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+          FAILED=0
+          for SHA in $(git rev-list --no-merges "$MERGE_BASE..$HEAD_SHA"); do
+            git log -1 --format=%B "$SHA" > "$RUNNER_TEMP/msg.txt"
+            if ! sh .husky/commit-msg "$RUNNER_TEMP/msg.txt"; then
+              echo "::error::$SHA — invalid commit subject (see log for the rule violated)"
+              FAILED=1
+            fi
+          done
+          exit $FAILED
