@@ -99,27 +99,13 @@ export function isAcceptingApplications(
 }
 
 /**
- * Single source of truth for "still worth a manager's attention" — used to
- * partition the /positions manager list into active vs archived, AND (#360)
- * to freeze edits on a managed position. A second implementation of this
- * predicate is an authorization bug, not just a display bug.
+ * Single source of truth for active vs archived — a second implementation is
+ * an authorization bug, not just a display bug.
  *
- * Active when any of:
- *   1. the position is not actually closed — draft, open-and-accepting, and
- *      open-and-upcoming are always active. "Closed" is the same effective
- *      state PositionStatusBadge and getRecentlyClosedPositions use: status
- *      literally 'closed', OR status 'open' with closesAt already past
- *      (getPositionAvailability's 'closed_by_date') — the status column does
- *      not auto-flip to 'closed' when closesAt elapses, so checking the raw
- *      `status` field alone would leave date-closed positions active forever.
- *   2. position._count.applications > 0 — an in-flight (non-terminal) application
- *      keeps a position active regardless of status, deliberately unscoped per
- *      the ACs (an old closed position with a lingering draft still needs attention).
- *   3. otherwise, (closesAt ?? updatedAt) is within MANAGED_POSITIONS_WINDOW_DAYS
- *      of `now` — same cutoff arithmetic getManagedPositions used before this
- *      predicate existed, so closed-position behavior is unchanged.
- *
- * `now` is injectable for deterministic testing.
+ * Active unless closed (status 'closed', or 'open' past closesAt) AND has no
+ * unresolved applications AND is outside the recency window. A lingering
+ * 'draft' never counts — it can't be submitted to an already-closed position,
+ * so counting it would pin the position active forever.
  */
 export function isPositionActive(
   position: PositionActivity,
