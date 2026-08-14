@@ -4,7 +4,11 @@ import { useRef, useState } from 'react';
 
 import { toast } from 'sonner';
 
-import { OTHER_OPTION_LABEL, matchesShortAnswerFormat } from '@/lib/constants';
+import {
+  FORMAT_INPUT_TYPES,
+  OTHER_OPTION_LABEL,
+  matchesShortAnswerFormat,
+} from '@/lib/constants';
 import type { AnswerQuestion, QuestionFileTarget } from '@/lib/types';
 import { cn, partitionAnswerValue } from '@/lib/utils';
 
@@ -122,6 +126,7 @@ export function ApplicationQuestion({
 
       {question.type === 'short_answer' && (
         <Input
+          type={question.format ? FORMAT_INPUT_TYPES[question.format] : 'text'}
           value={fitted[0] ?? ''}
           onChange={(e) =>
             field.onChange(e.target.value ? [e.target.value] : [])
