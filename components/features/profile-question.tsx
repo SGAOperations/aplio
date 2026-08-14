@@ -14,9 +14,10 @@ import {
   SHORT_ANSWER_FORMAT_ERROR_MESSAGES,
   matchesShortAnswerFormat,
 } from '@/lib/constants';
-import { isError } from '@/lib/utils';
+import { isError, partitionAnswerValue } from '@/lib/utils';
 
 import { AnswerFileLink } from '@/components/features/answer-file-link';
+import { AnswerMismatchNotice } from '@/components/features/answer-mismatch-notice';
 import { QuestionFileField } from '@/components/features/question-file-field';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -46,11 +47,19 @@ export function ProfileQuestion({
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
   const [formatError, setFormatError] = useState<string | null>(null);
+  const noticeId = `${question.id}-mismatch`;
+  const labelId = `${question.id}-label`;
 
-  // options is a closed set, so any value outside it is the applicant's "Other" text.
-  const initialOtherValue = initialValue.find(
-    (v) => !question.options.includes(v),
+  // Non-reactive to typing; fine here — the editable view below recomputes.
+  const { fitted: viewFitted, orphaned: viewOrphaned } = partitionAnswerValue(
+    question,
+    getValues('value'),
   );
+
+  // Gated on allowOther — a turned-off option can't masquerade as "Other".
+  const initialOtherValue = question.allowOther
+    ? viewFitted.find((v) => !question.options.includes(v))
+    : undefined;
   const [otherSelected, setOtherSelected] = useState(
     initialOtherValue !== undefined,
   );
@@ -81,11 +90,13 @@ export function ProfileQuestion({
   // This autosave fails silently, so blocking here is the only way the user sees it.
   function handleBlur() {
     const value = getValues('value');
+    // Orphaned values are read-only elsewhere — only fitted needs format-validating.
+    const { fitted } = partitionAnswerValue(question, value);
     if (
       question.type === 'short_answer' &&
       question.format &&
-      value[0] &&
-      !matchesShortAnswerFormat(value[0], question.format)
+      fitted[0] &&
+      !matchesShortAnswerFormat(fitted[0], question.format)
     ) {
       setFormatError(SHORT_ANSWER_FORMAT_ERROR_MESSAGES[question.format]);
       return;
@@ -96,10 +107,22 @@ export function ProfileQuestion({
 
   return (
     <div className="bg-card rounded-lg border p-4 shadow-sm">
-      <p className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase">
+      <p
+        id={labelId}
+        className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase"
+      >
         {question.label}
         {question.required && <span className="text-destructive ml-1">*</span>}
       </p>
+
+      {/* Full stored value, read-only — not writable, so a mismatch can't round-trip into a write. */}
+      {!isEditing && viewOrphaned.length > 0 && (
+        <AnswerMismatchNotice
+          id={noticeId}
+          values={viewOrphaned}
+          questionType={question.type}
+        />
+      )}
 
       {!isEditing &&
         (getValues('value').length === 0 ? (
@@ -131,40 +154,67 @@ export function ProfileQuestion({
           control={control}
           name="value"
           render={({ field }) => {
+            const { fitted, orphaned } = partitionAnswerValue(
+              question,
+              field.value,
+            );
+            const notice = orphaned.length > 0 && (
+              <AnswerMismatchNotice
+                id={noticeId}
+                values={orphaned}
+                questionType={question.type}
+              />
+            );
+
             if (question.type === 'short_answer')
               return (
-                <Input
-                  value={field.value[0] ?? ''}
-                  onChange={(e) => {
-                    field.onChange(e.target.value ? [e.target.value] : []);
-                    setFormatError(null);
-                  }}
-                  onBlur={handleBlur}
-                  placeholder="Your answer"
-                />
+                <>
+                  {notice}
+                  <Input
+                    value={fitted[0] ?? ''}
+                    onChange={(e) => {
+                      field.onChange(e.target.value ? [e.target.value] : []);
+                      setFormatError(null);
+                    }}
+                    onBlur={handleBlur}
+                    placeholder="Your answer"
+                    aria-describedby={
+                      orphaned.length > 0 ? noticeId : undefined
+                    }
+                  />
+                </>
               );
 
             if (question.type === 'long_answer')
               return (
-                <Textarea
-                  value={field.value[0] ?? ''}
-                  onChange={(e) =>
-                    field.onChange(e.target.value ? [e.target.value] : [])
-                  }
-                  onBlur={handleBlur}
-                  placeholder="Your answer"
-                  className="min-h-[100px]"
-                />
+                <>
+                  {notice}
+                  <Textarea
+                    value={fitted[0] ?? ''}
+                    onChange={(e) =>
+                      field.onChange(e.target.value ? [e.target.value] : [])
+                    }
+                    onBlur={handleBlur}
+                    placeholder="Your answer"
+                    className="min-h-[100px]"
+                    aria-describedby={
+                      orphaned.length > 0 ? noticeId : undefined
+                    }
+                  />
+                </>
               );
 
             if (question.type === 'single_choice')
               return (
                 <div className="flex flex-col gap-2">
+                  {notice}
                   <RadioGroup
+                    aria-labelledby={labelId}
+                    aria-describedby={
+                      orphaned.length > 0 ? noticeId : undefined
+                    }
                     value={
-                      otherSelected
-                        ? OTHER_OPTION_VALUE
-                        : (field.value[0] ?? '')
+                      otherSelected ? OTHER_OPTION_VALUE : (fitted[0] ?? '')
                     }
                     onValueChange={(v) => {
                       if (v === OTHER_OPTION_VALUE) {
@@ -245,21 +295,30 @@ export function ProfileQuestion({
 
             if (question.type === 'file_upload')
               return (
-                <QuestionFileField
-                  target={{ scope: 'profile', questionId: question.id }}
-                  value={field.value}
-                  onChange={(v) => {
-                    // Already persisted by the file actions: syncs local state only.
-                    field.onChange(v);
-                    savedValueRef.current = JSON.stringify(v);
-                    reset({ value: v });
-                  }}
-                />
+                <>
+                  {notice}
+                  <QuestionFileField
+                    target={{ scope: 'profile', questionId: question.id }}
+                    value={fitted}
+                    onChange={(v) => {
+                      // Already persisted server-side — sync local state only, never save().
+                      field.onChange(v);
+                      savedValueRef.current = JSON.stringify(v);
+                      reset({ value: v });
+                    }}
+                  />
+                </>
               );
 
             // question.type === 'multiple_choice'
             return (
-              <div className="flex flex-col gap-2">
+              <div
+                role="group"
+                aria-labelledby={labelId}
+                aria-describedby={orphaned.length > 0 ? noticeId : undefined}
+                className="flex flex-col gap-2"
+              >
+                {notice}
                 {question.options.map((option: string, i: number) => (
                   <div
                     key={option}
@@ -267,11 +326,11 @@ export function ProfileQuestion({
                   >
                     <Checkbox
                       id={`${question.id}-${i}`}
-                      checked={field.value.includes(option)}
+                      checked={fitted.includes(option)}
                       onCheckedChange={() => {
-                        const next = field.value.includes(option)
-                          ? field.value.filter((v) => v !== option)
-                          : [...field.value, option];
+                        const next = fitted.includes(option)
+                          ? fitted.filter((v) => v !== option)
+                          : [...fitted, option];
                         field.onChange(next);
                         save(next);
                       }}
@@ -292,7 +351,7 @@ export function ProfileQuestion({
                       checked={otherSelected}
                       onCheckedChange={(checked) => {
                         setOtherSelected(!!checked);
-                        const checkedOptions = field.value.filter((v) =>
+                        const checkedOptions = fitted.filter((v) =>
                           question.options.includes(v),
                         );
                         if (checked) {
@@ -334,7 +393,7 @@ export function ProfileQuestion({
                       value={otherText}
                       onChange={(e) => {
                         setOtherText(e.target.value);
-                        const checkedOptions = field.value.filter((v) =>
+                        const checkedOptions = fitted.filter((v) =>
                           question.options.includes(v),
                         );
                         field.onChange(

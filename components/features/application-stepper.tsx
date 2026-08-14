@@ -24,31 +24,30 @@ import {
   matchesShortAnswerFormat,
 } from '@/lib/constants';
 import {
+  type AnswerQuestion,
   type DraftApplication,
   type PositionWithQuestions,
   type QuestionFileTarget,
 } from '@/lib/types';
-import { type ErrorType, cn, isError, toStringArray } from '@/lib/utils';
+import {
+  type ErrorType,
+  cn,
+  isAnswered,
+  isError,
+  partitionAnswerValue,
+  toStringArray,
+} from '@/lib/utils';
 
 import { AnswerFileLink } from '@/components/features/answer-file-link';
+import { AnswerMismatchNotice } from '@/components/features/answer-mismatch-notice';
 import { ApplicationQuestion } from '@/components/features/application-question';
 import { Button } from '@/components/ui/button';
 
 type StepperFormValues = Record<string, string[]>;
 
-type NarrowQuestion = {
-  id: string;
-  label: string;
-  type: GlobalQuestion['type'];
-  required: boolean;
-  options: string[];
-  allowOther: boolean;
-  format: GlobalQuestion['format'];
-};
-
 interface QuestionListProps {
   applicationId: string;
-  questions: NarrowQuestion[];
+  questions: AnswerQuestion[];
   control: Control<StepperFormValues>;
   isGlobal: boolean;
   readOnly?: boolean;
@@ -64,10 +63,13 @@ function ReadOnlyQuestionCard({
   displayValue,
   isMissing,
 }: {
-  question: NarrowQuestion;
+  question: AnswerQuestion;
   displayValue: string[];
   isMissing?: boolean;
 }) {
+  // Read-only — full stored value renders as-is; the notice just flags the mismatch.
+  const { orphaned } = partitionAnswerValue(question, displayValue);
+
   return (
     <div
       className={cn(
@@ -79,6 +81,13 @@ function ReadOnlyQuestionCard({
         {question.label}
         {question.required && <span className="text-destructive ml-1">*</span>}
       </p>
+      {orphaned.length > 0 && (
+        <AnswerMismatchNotice
+          id={`${question.id}-mismatch`}
+          values={orphaned}
+          questionType={question.type}
+        />
+      )}
       {displayValue.length === 0 ? (
         <p className="text-muted-foreground text-sm italic">No answer yet</p>
       ) : question.type === 'file_upload' ? (
@@ -161,16 +170,22 @@ function QuestionList({
                 ? undefined
                 : {
                     validate: (value) => {
-                      if (
-                        question.required &&
-                        !(Array.isArray(value) && value.length > 0)
-                      )
-                        return 'This field is required';
+                      const arr = toStringArray(value);
+                      if (question.required && !isAnswered(question, arr)) {
+                        // Distinguish never-answered from answered-but-no-longer-fits.
+                        const { orphaned } = partitionAnswerValue(
+                          question,
+                          arr,
+                        );
+                        return orphaned.length > 0
+                          ? 'Please answer this question again'
+                          : 'This field is required';
+                      }
                       if (
                         question.type === 'short_answer' &&
                         question.format &&
-                        value[0] &&
-                        !matchesShortAnswerFormat(value[0], question.format)
+                        arr[0] &&
+                        !matchesShortAnswerFormat(arr[0], question.format)
                       )
                         return SHORT_ANSWER_FORMAT_ERROR_MESSAGES[
                           question.format
@@ -329,7 +344,8 @@ export function ApplicationStepper({
     const missing = new Set(
       globalQuestions
         .filter(
-          (q) => q.required && toStringArray(values[`g_${q.id}`]).length === 0,
+          (q) =>
+            q.required && !isAnswered(q, toStringArray(values[`g_${q.id}`])),
         )
         .map((q) => q.id),
     );

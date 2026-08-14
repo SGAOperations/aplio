@@ -3,6 +3,8 @@ import { twMerge } from 'tailwind-merge';
 
 import { MANAGED_POSITIONS_WINDOW_DAYS } from '@/lib/constants';
 import type {
+  AnswerPartition,
+  AnswerQuestion,
   PositionActivity,
   PositionAvailability,
   PositionWindow,
@@ -38,6 +40,61 @@ export function isBypassAllowed(): boolean {
 export function toStringArray(v: unknown): string[] {
   if (Array.isArray(v) && v.every((x) => typeof x === 'string')) return v;
   return [];
+}
+
+/** Splits a stored answer into what still fits the question's shape (`fitted`) vs. what doesn't (`orphaned`); together always `value`. */
+export function partitionAnswerValue(
+  question: AnswerQuestion,
+  value: string[],
+): AnswerPartition {
+  switch (question.type) {
+    case 'short_answer':
+    case 'long_answer':
+    case 'file_upload':
+      return { fitted: value.slice(0, 1), orphaned: value.slice(1) };
+
+    case 'single_choice': {
+      // entry 0 renders either as an option or as the "Other" text.
+      if (question.allowOther)
+        return { fitted: value.slice(0, 1), orphaned: value.slice(1) };
+
+      const fittedIndex = value.findIndex((v) => question.options.includes(v));
+      if (fittedIndex === -1) return { fitted: [], orphaned: value };
+      return {
+        fitted: [value[fittedIndex]],
+        orphaned: [
+          ...value.slice(0, fittedIndex),
+          ...value.slice(fittedIndex + 1),
+        ],
+      };
+    }
+
+    case 'multiple_choice': {
+      const inOptions = value.filter((v) => question.options.includes(v));
+      const notInOptions = value.filter((v) => !question.options.includes(v));
+      if (!question.allowOther)
+        return { fitted: inOptions, orphaned: notInOptions };
+
+      // Checked options plus first non-option entry ("Other" text); rest orphaned.
+      const [otherValue, ...restOrphaned] = notInOptions;
+      return {
+        fitted:
+          otherValue !== undefined ? [...inOptions, otherValue] : inOptions,
+        orphaned: restOrphaned,
+      };
+    }
+
+    default: {
+      // Unreachable — a new type breaks the build via `never`, not silently at runtime.
+      const exhaustiveCheck: never = question.type;
+      return exhaustiveCheck;
+    }
+  }
+}
+
+/** True when the stored answer has any part that still fits the question's current shape. */
+export function isAnswered(question: AnswerQuestion, value: string[]): boolean {
+  return partitionAnswerValue(question, value).fitted.length > 0;
 }
 
 export function formatDate(date: Date): string {

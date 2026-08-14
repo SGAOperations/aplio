@@ -1,4 +1,8 @@
-import type { PositionStatus, QuestionType } from '@/prisma/client';
+import type {
+  PositionStatus,
+  QuestionType,
+  ShortAnswerFormat,
+} from '@/prisma/client';
 import type { $Enums, Prisma } from '@/prisma/client';
 
 import type { REVIEWER_APPLICATION_STATUSES } from '@/lib/constants';
@@ -156,6 +160,20 @@ export type PositionActivity = PositionWindow & {
 // active vs archived. Server-only shape — updatedAt/_count are internal and must
 // never be passed across a client boundary.
 export type ManagedPosition = PositionWithQuestions & PositionActivity;
+
+// Shape partitionAnswerValue/isAnswered need; matches GlobalQuestion & position questions as-is.
+export type AnswerQuestion = {
+  id: string;
+  label: string;
+  type: QuestionType;
+  required: boolean;
+  options: string[];
+  allowOther: boolean;
+  format: ShortAnswerFormat | null;
+};
+
+// Result of partitionAnswerValue — always a permutation of the input value.
+export type AnswerPartition = { fitted: string[]; orphaned: string[] };
 
 // 'unavailable' covers draft and closed — status overrides the date window.
 export type PositionAvailability =

@@ -25,10 +25,11 @@ import {
   matchesShortAnswerFormat,
 } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
-import { type DraftApplication } from '@/lib/types';
+import { type AnswerQuestion, type DraftApplication } from '@/lib/types';
 import {
   type ResponseType,
   isAcceptingApplications,
+  isAnswered,
   isError,
   toStringArray,
 } from '@/lib/utils';
@@ -40,14 +41,15 @@ type GlobalAnswerWithQuestion = GlobalAnswer & {
 // File-private: only submitApplication re-validates position questions, not reopenApplication.
 function hasUnansweredRequiredPosition(
   positionAnswers: PositionApplicationAnswer[],
-  questions: { id: string; required: boolean }[],
+  questions: AnswerQuestion[],
 ): boolean {
   return questions.some(
     (q) =>
       q.required &&
       !positionAnswers.some(
         (a) =>
-          a.positionQuestionId === q.id && toStringArray(a.value).length > 0,
+          a.positionQuestionId === q.id &&
+          isAnswered(q, toStringArray(a.value)),
       ),
   );
 }
@@ -102,7 +104,7 @@ async function syncGlobalAnswersFromProfile(
       (q) =>
         q.required &&
         !backfilledIds.has(q.id) &&
-        toStringArray(existingByQuestionId.get(q.id)).length === 0,
+        !isAnswered(q, toStringArray(existingByQuestionId.get(q.id))),
     )
     .map((q) => q.label);
 }

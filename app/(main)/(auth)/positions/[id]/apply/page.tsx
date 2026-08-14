@@ -13,7 +13,7 @@ import {
   APPLICATION_STATUS_LABELS,
   UNRESOLVED_APPLICATION_STATUSES,
 } from '@/lib/constants';
-import { formatDate, isError, toStringArray } from '@/lib/utils';
+import { formatDate, isAnswered, isError, toStringArray } from '@/lib/utils';
 
 import { ApplicationStepper } from '@/components/features/application-stepper';
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
@@ -52,12 +52,12 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
     d.answer ? [d.answer] : [],
   );
 
-  // Gate must match submitApplication: requires non-empty value, not just a record existing.
+  // Gate must match submitApplication: value must still fit the question's shape.
   const profileComplete =
     profileData.length === 0 ||
     profileData
       .filter((d) => d.question.required)
-      .every((d) => toStringArray(d.answer?.value).length > 0);
+      .every((d) => isAnswered(d.question, toStringArray(d.answer?.value)));
 
   // An existing draft bypasses this gate — it only protects creating one.
   const applicationResult =
