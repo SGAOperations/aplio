@@ -52,16 +52,17 @@ export async function ensureAuthUser(
   // keep their email and neonAuthId (prisma/actions/users.ts), so this is the
   // only way to catch them before an identity is provisioned or an OTP sent.
   //
-  // Raw query rather than findFirst({ mode: 'insensitive' }): Prisma renders
-  // that as an ILIKE-style comparison that can't use a plain btree index, and
-  // this runs on every sign-in attempt — a genuinely hot path. Comparing
-  // lower(email) to the already-lowercased input lets Postgres use the
-  // functional index this PR's migration adds on lower(email).
-  const [deactivated] = await prisma.$queryRaw<{ id: string }[]>`
-    SELECT id FROM "User"
-    WHERE lower(email) = ${normalizedEmail} AND "deletedAt" IS NOT NULL
-    LIMIT 1
-  `;
+  // Prisma renders mode: 'insensitive' on Postgres as a
+  // `LOWER(email) = LOWER($1)` comparison, which this PR's migration gives a
+  // matching functional index on lower(email) — needed since this query runs
+  // on every sign-in attempt, a genuinely hot path.
+  const deactivated = await prisma.user.findFirst({
+    where: {
+      email: { equals: normalizedEmail, mode: 'insensitive' },
+      deletedAt: { not: null },
+    },
+    select: { id: true },
+  });
   if (deactivated)
     return {
       error:
