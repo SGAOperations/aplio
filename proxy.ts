@@ -26,8 +26,17 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 }
 
 export const config = {
-  // Next internals and public assets must load without redirecting to login.
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|icon|logo-dark.svg|logo-light.svg|apple-icon|sitemap.xml|robots.txt).*)',
+    {
+      // Next internals, public assets, and /429 itself must bypass auth + rate limiting.
+      source:
+        '/((?!_next/static|_next/image|favicon.ico|icon|logo-dark.svg|logo-light.svg|apple-icon|sitemap.xml|robots.txt|429).*)',
+      // Only proxy sees these prefetch headers (stripped after); skip here or
+      // every speculative Link prefetch burns real-navigation rate-limit budget.
+      missing: [
+        { type: 'header', key: 'next-router-prefetch' },
+        { type: 'header', key: 'purpose', value: 'prefetch' },
+      ],
+    },
   ],
 };
