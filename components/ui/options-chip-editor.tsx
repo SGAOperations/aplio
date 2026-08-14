@@ -28,8 +28,7 @@ export function OptionsChipEditor({
 
   function addOption(value: string) {
     const trimmed = value.trim();
-    // Refuse past the cap so the admin can't type into a rejected state —
-    // validateOptions (lib/constants.ts) enforces this server-side too.
+    // Mirrors validateOptions' server-side cap.
     if (
       !trimmed ||
       options.includes(trimmed) ||

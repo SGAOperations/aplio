@@ -202,9 +202,7 @@ export function validateOptions(
       message: "'Other' is only available for choice questions",
     });
   }
-  // Without a cap on option count/length, an admin can author a choice
-  // unselectable by every answer-side limit below (#352) — checked here so
-  // both admin dialogs and both question actions get it with no new plumbing.
+  // Caps option count/length so no answer-side limit becomes unselectable.
   if (data.options.length > QUESTION_MAX_OPTIONS) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -221,19 +219,7 @@ export function validateOptions(
   }
 }
 
-// Pure validator for an answer's stored value against its question's shape —
-// membership, "how many values", and per-value length limits (#352). Shared
-// by both answer-writing actions (the real backstop) and both applicant
-// editors (so the inline message matches the server's) — one implementation,
-// following the matchesShortAnswerFormat precedent. Strictly a write-path
-// check: no render path calls this, so a stored value that no longer fits
-// still displays exactly as before (see #354).
-//
-// An empty array is always valid (clearing an answer) — "exactly one value"
-// for single-value types is therefore enforced as "at most one",
-// required-ness being left to the existing submit-time checks. Lengths are
-// measured on the raw stored string (what `maxLength` counts), not a
-// trimmed copy.
+// Write-path only — an already-stored value that no longer fits still displays unchanged.
 export function getAnswerValueError(
   question: { type: QuestionType; options: string[]; allowOther: boolean },
   value: string[],
@@ -260,8 +246,7 @@ export function getAnswerValueError(
         return 'Only one answer is allowed for this question.';
       const entry = value[0];
       if (question.options.includes(entry)) return null;
-      // Not a current option — either the question doesn't allow free text at
-      // all, or this is the "Other" entry.
+      // Not a current option — no free text allowed, or this is the "Other" entry.
       if (!question.allowOther)
         return 'That choice is no longer available. Refresh the page and answer again.';
       if (entry.length > ANSWER_OTHER_MAX_LENGTH)
@@ -270,9 +255,7 @@ export function getAnswerValueError(
     }
 
     case 'multiple_choice': {
-      // Checked first: catches a typed "Other" entry that exactly repeats an
-      // already-selected option, which the membership checks below can't see
-      // (that entry is trivially "in options").
+      // Checked first — catches a duplicate "Other" entry the membership check below can't see.
       if (new Set(value).size !== value.length)
         return 'That answer is already one of the choices — select it from the list instead.';
 
@@ -293,8 +276,7 @@ export function getAnswerValueError(
       return null;
     }
 
-    // file_upload values are blob URLs written exclusively by
-    // prisma/actions/question-files.ts, which owns size/MIME enforcement.
+    // file_upload values are blob URLs owned by prisma/actions/question-files.ts.
     case 'file_upload':
       return null;
 

@@ -128,8 +128,7 @@ const createOrUpdateApplicationAnswerSchema = z.object({
   applicationId: z.string().min(1),
   questionId: z.string().min(1),
   questionLabel: z.string().min(1),
-  // Pre-DB size guard, not the product rule — getAnswerValueError below
-  // enforces the real per-type/membership limits after the question lookup.
+  // Pre-DB size guard only — getAnswerValueError below enforces the real limits.
   value: z.array(z.string().max(ANSWER_LONG_MAX_LENGTH)).max(ANSWER_MAX_VALUES),
   isGlobal: z.boolean(),
 });

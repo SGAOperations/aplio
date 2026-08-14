@@ -73,9 +73,7 @@ export function ApplicationQuestion({
       savedValueRef.current = serialized;
     } catch (err) {
       setSaveError(true);
-      // Only an ActionError's message is user-facing (it's a re-thrown
-      // { error } from the action) — any other throw (e.g. an
-      // authorization guard) must never surface its raw message (§3).
+      // Non-ActionError throws (e.g. an auth guard) must never surface their raw message.
       toast.error(
         err instanceof ActionError ? err.message : 'Failed to save answer',
       );
