@@ -50,15 +50,13 @@ export function ProfileQuestion({
   const noticeId = `${question.id}-mismatch`;
   const labelId = `${question.id}-label`;
 
-  // Non-reactive to typing — fine for the read-only view and initial
-  // "Other" derivation; the editable view recomputes reactively below.
+  // Non-reactive to typing; fine here — the editable view below recomputes.
   const { fitted: viewFitted, orphaned: viewOrphaned } = partitionAnswerValue(
     question,
     getValues('value'),
   );
 
-  // A fitted value outside the closed option set is the typed "Other" text;
-  // gated on allowOther so a turned-off option can't masquerade as "Other".
+  // Gated on allowOther — a turned-off option can't masquerade as "Other".
   const initialOtherValue = question.allowOther
     ? viewFitted.find((v) => !question.options.includes(v))
     : undefined;
@@ -156,7 +154,6 @@ export function ProfileQuestion({
           control={control}
           name="value"
           render={({ field }) => {
-            // Reactive to typing, unlike viewFitted/viewOrphaned above.
             const { fitted, orphaned } = partitionAnswerValue(
               question,
               field.value,

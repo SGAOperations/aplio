@@ -102,7 +102,6 @@ export const SHORT_ANSWER_FORMAT_OPTIONS: {
   label: SHORT_ANSWER_FORMAT_LABELS[value],
 }));
 
-// Mobile keyboard hint only; the format regex remains the validation.
 export const FORMAT_INPUT_TYPES: Record<ShortAnswerFormatValue, string> = {
   email: 'email',
   phone_number: 'tel',

@@ -42,12 +42,7 @@ export function toStringArray(v: unknown): string[] {
   return [];
 }
 
-/**
- * Splits a stored answer into what the question's current shape can render
- * (`fitted`) vs. can't (`orphaned`) — always a permutation of `value`.
- * A removed option under `allowOther` stays fitted, indistinguishable from
- * "Other" text in storage.
- */
+/** Splits a stored answer into what still fits the question's shape (`fitted`) vs. what doesn't (`orphaned`); together always `value`. */
 export function partitionAnswerValue(
   question: AnswerQuestion,
   value: string[],
@@ -80,8 +75,7 @@ export function partitionAnswerValue(
       if (!question.allowOther)
         return { fitted: inOptions, orphaned: notInOptions };
 
-      // Keep the checked options plus the first non-option entry (the
-      // "Other" text); any further non-option entries are orphaned.
+      // Checked options plus first non-option entry ("Other" text); rest orphaned.
       const [otherValue, ...restOrphaned] = notInOptions;
       return {
         fitted:

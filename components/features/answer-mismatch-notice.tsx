@@ -8,8 +8,7 @@ interface AnswerMismatchNoticeProps {
   questionType: QuestionType;
 }
 
-// Renders every orphaned value so nothing is silently dropped; callers wire
-// `id` to the control via `aria-describedby`.
+// Callers wire `id` to the control's `aria-describedby`.
 export function AnswerMismatchNotice({
   id,
   values,

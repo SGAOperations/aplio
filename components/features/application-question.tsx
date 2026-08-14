@@ -51,8 +51,7 @@ export function ApplicationQuestion({
   const noticeId = `${question.id}-mismatch`;
   const labelId = `${question.id}-label`;
 
-  // A fitted value outside the closed option set is the typed "Other" text;
-  // gated on allowOther so a turned-off option can't masquerade as "Other".
+  // Gated on allowOther — a turned-off option can't masquerade as "Other".
   const initialOtherValue = question.allowOther
     ? fitted.find((v) => !options.includes(v))
     : undefined;

@@ -161,8 +161,7 @@ export type PositionActivity = PositionWindow & {
 // never be passed across a client boundary.
 export type ManagedPosition = PositionWithQuestions & PositionActivity;
 
-// Structural shape for partitionAnswerValue/isAnswered — satisfied by
-// GlobalQuestion and position question payloads without conversion.
+// Shape partitionAnswerValue/isAnswered need; matches GlobalQuestion & position questions as-is.
 export type AnswerQuestion = {
   id: string;
   label: string;
