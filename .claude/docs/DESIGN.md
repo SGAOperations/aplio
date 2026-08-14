@@ -34,6 +34,8 @@ Use the Tailwind utility that maps to each variable (e.g. `bg-background`, `text
 
 Status mapping: success = positive/complete, warning = needs attention, info = neutral notice, destructive = error/danger. Don't invent new status colors.
 
+Any change to a brand/status token must keep ≥4.5:1 contrast against its paired `-foreground` in **both** themes, verified in-browser.
+
 ## 3. Typography
 
 - Font family comes from `--font-sans` (set in the root layout) — use the `font-sans` utility; never name a font in a component.

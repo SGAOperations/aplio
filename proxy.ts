@@ -19,7 +19,15 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   if (request.nextUrl.searchParams.has('neon_auth_session_verifier'))
     return neonAuthMiddleware({ loginUrl: '/login' })(request);
 
-  return NextResponse.next();
+  // Server Components have no direct access to the request URL, so forward the
+  // requested path+query on a header — app/(main)/(auth)/layout.tsx reads it to
+  // preserve the destination when redirecting nameless users to /login.
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set(
+    'x-current-path',
+    request.nextUrl.pathname + request.nextUrl.search,
+  );
+  return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
 export const config = {

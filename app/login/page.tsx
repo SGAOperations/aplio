@@ -7,6 +7,7 @@ import { PRIVACY_HREF, TERMS_HREF } from '@/lib/constants';
 import { isBypassAllowed } from '@/lib/utils';
 
 import { LoginView } from '@/components/features/login-view';
+import { NameField } from '@/components/features/name-field';
 
 export const metadata: Metadata = { title: 'Sign In' };
 
@@ -33,7 +34,9 @@ export default async function SignInPage({
   const applyContext = isApplyRedirect(safeTo);
 
   const user = await getOptionalUser();
-  if (user) redirect(safeTo);
+  // Authenticated user with a name set — send them into the app.
+  if (user?.name?.trim()) redirect(safeTo);
+  // Authenticated user with no name — fall through to render the name form below.
 
   // Must match the isBypassAllowed guard in loginAsBypassUser/logoutBypassUser
   // (prisma/services/dev-bypass.ts) so the affordance and the action agree.
@@ -56,7 +59,11 @@ export default async function SignInPage({
 
   return (
     <div className="flex w-full max-w-sm flex-col items-center gap-4">
-      <LoginView redirectTo={safeTo} copy={copy} />
+      {user ? (
+        <NameField defaultName={user.name ?? ''} redirectTo={safeTo} />
+      ) : (
+        <LoginView redirectTo={safeTo} copy={copy} />
+      )}
       {isDev && (
         <p className="text-muted-foreground text-center text-xs">
           Dev:{' '}
