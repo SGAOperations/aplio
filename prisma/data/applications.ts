@@ -45,9 +45,7 @@ function buildBaseWhere(user: { id: string; isAdmin: boolean }) {
       };
 }
 
-// Scoped to the caller (no IDOR) — lets the apply page open an in-progress
-// draft directly instead of re-running the profile-completeness gate, which
-// only guards *creating* a new application (see prisma/actions/applications.ts).
+// Scoped to the caller (no IDOR); returns an existing draft without re-running the profile gate.
 export async function getDraftApplication(
   userId: string,
   positionId: string,

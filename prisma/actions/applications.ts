@@ -37,10 +37,7 @@ type GlobalAnswerWithQuestion = GlobalAnswer & {
   globalQuestion: GlobalQuestion;
 };
 
-// Shared by submitApplication (via syncGlobalAnswersFromProfile) and directly
-// by submitApplication's own position-question check — kept small and
-// file-private since only submitApplication re-validates position questions
-// (reopenApplication deliberately does not, see its own comment).
+// File-private: only submitApplication re-validates position questions, not reopenApplication.
 function hasUnansweredRequiredPosition(
   positionAnswers: PositionApplicationAnswer[],
   questions: { id: string; required: boolean }[],
@@ -55,8 +52,7 @@ function hasUnansweredRequiredPosition(
   );
 }
 
-// Backfills a snapshot row from the profile for any question missing one;
-// never touches a row that already exists, so a cleared answer stays cleared.
+// Only backfills a missing row — an existing (possibly cleared) row is left alone.
 async function syncGlobalAnswersFromProfile(
   tx: Prisma.TransactionClient,
   applicationId: string,
@@ -94,8 +90,7 @@ async function syncGlobalAnswersFromProfile(
         createdById: userId,
         updatedById: userId,
       })),
-      // Guards a race between two tabs backfilling the same question
-      // concurrently — @@unique([applicationId, globalQuestionId]).
+      // Guards two tabs backfilling the same question concurrently.
       skipDuplicates: true,
     });
   }
@@ -112,8 +107,7 @@ async function syncGlobalAnswersFromProfile(
     .map((q) => q.label);
 }
 
-// A toast must stay readable when an admin adds several questions at once —
-// caps the named list at three labels.
+// Keeps the toast readable when several questions are missing at once.
 function formatMissingQuestions(labels: string[]): string {
   if (labels.length <= 3) return labels.join(', ');
   return `${labels.slice(0, 3).join(', ')} and ${labels.length - 3} more`;
@@ -316,9 +310,7 @@ export async function submitApplication(
   const parsed = submitApplicationSchema.safeParse({ applicationId });
   if (!parsed.success) return { error: 'Invalid input' };
 
-  // A transaction because this is now a read-then-write: the backfill inside
-  // syncGlobalAnswersFromProfile and the status update must land atomically,
-  // or two tabs could both backfill and race the status write.
+  // Backfill and status update must land atomically, or two tabs could race the write.
   const result = await prisma.$transaction(async (tx) => {
     const application = await tx.application.findUnique({
       where: { id: parsed.data.applicationId },
@@ -338,13 +330,11 @@ export async function submitApplication(
 
     requireOwnership(application, currentUser.id);
 
-    // Same copy as createDraftApplication's equivalent gate — a draft's position
-    // can be soft-deleted after the draft was created, before submit.
+    // A draft's position can be soft-deleted after creation, before submit.
     if (application.position.deletedAt !== null)
       return { error: 'This position is no longer available.' };
 
-    // Window re-check: a window can close while a draft is open. Checked before
-    // required-answer validation so a closed window gives the clearest message.
+    // Checked before required-answer validation, so a closed window gives the clearest message.
     if (!isAcceptingApplications(application.position))
       return { error: 'This position is no longer accepting applications.' };
 
@@ -557,9 +547,7 @@ export async function reopenApplication(
     if (!isAcceptingApplications(application.position, now))
       return { error: 'This position is no longer accepting applications.' };
 
-    // Position questions are not re-validated here — a withdrawn application
-    // already passed them once, and any new position question is #398's
-    // problem. Only the global snapshot can drift after a withdraw.
+    // Only the global snapshot is re-checked — position questions were already passed once.
     const missingGlobalLabels = await syncGlobalAnswersFromProfile(
       tx,
       application.id,

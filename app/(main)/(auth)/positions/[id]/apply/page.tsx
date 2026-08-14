@@ -53,11 +53,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
       .filter((d) => d.question.required)
       .every((d) => toStringArray(d.answer?.value).length > 0);
 
-  // An existing draft always opens — the profile-completeness gate protects
-  // *creating* an application, not resuming work already in progress. A
-  // required global question added after the draft was created must stay
-  // reachable so the stepper (not this gate) can surface it as an empty
-  // required field.
+  // An existing draft bypasses this gate — it only protects creating one.
   const applicationResult =
     draft ?? (profileComplete ? await createDraftApplication(id) : null);
 

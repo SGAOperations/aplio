@@ -155,7 +155,7 @@ function QuestionList({
             control={control}
             name={fieldName}
             shouldUnregister={false}
-            // Global fields validate only via checkGlobalReadiness; position fields keep their own rule.
+            // Position fields validate here; globals go through checkGlobalReadiness.
             rules={
               isGlobal
                 ? undefined
@@ -183,9 +183,7 @@ function QuestionList({
               <ApplicationQuestion
                 question={question}
                 field={field}
-                // Falls back to missingGlobalIds (set by checkGlobalReadiness)
-                // so a required field never focused/blurred still highlights
-                // on Next/Submit, matching the read-only card's behavior.
+                // Falls back to missingGlobalIds so an unfocused required field still errors on Next/Submit.
                 error={
                   fieldState.error?.message ??
                   (missingGlobalIds?.has(question.id)
@@ -254,13 +252,8 @@ export function ApplicationStepper({
   // Keyed by question id — see QuestionListProps.pendingSavesRef.
   const pendingSavesRef = useRef<Map<string, Promise<unknown>>>(new Map());
 
-  // Snapshot ?? profile — exactly what the server sees before it backfills
-  // (see syncGlobalAnswersFromProfile in prisma/actions/applications.ts).
-  // Branches on row *presence*, not value length: a snapshot row that exists
-  // but is empty is a deliberately cleared answer and must stay empty, not
-  // fall back to the profile value (only a missing row backfills).
-  // Memoized: this component re-renders on every keystroke (via useWatch
-  // below) but these only depend on props that don't change after mount.
+  // Branches on row presence, not value length — an existing but empty
+  // row is a deliberate clear, must stay empty, unlike a missing row.
   const initialGlobalValues = useMemo(
     () =>
       Object.fromEntries(
@@ -280,9 +273,7 @@ export function ApplicationStepper({
     [globalQuestions, globalAnswers, application.globalAnswers],
   );
 
-  // Presence of a snapshot row per question — shared by hasNewRequiredGlobals
-  // below so "no row" (new question) and "row exists but empty" (deliberately
-  // cleared) can't be conflated the way a value-length check would.
+  // Row ids only, so presence (not value emptiness) drives hasNewRequiredGlobals.
   const hasGlobalRow = useMemo(
     () =>
       new Set(
@@ -308,13 +299,7 @@ export function ApplicationStepper({
     [positionQuestions, application.positionAnswers],
   );
 
-  // A required global question with no snapshot row at all (i.e. added since
-  // the draft started) opens straight into Customize mode as an editable
-  // empty field, rather than a read-only "No answer yet" card the applicant
-  // has to discover. Keyed off row presence, not value emptiness, so a
-  // deliberately cleared answer (row exists, empty) doesn't also trigger
-  // this — that's a distinct, already-acknowledged state, not a new question.
-  // Derived once from props, not synced via an effect.
+  // True only for a question with no row at all — a cleared answer already has one.
   const hasNewRequiredGlobals = useMemo(
     () => globalQuestions.some((q) => q.required && !hasGlobalRow.has(q.id)),
     [globalQuestions, hasGlobalRow],
@@ -419,9 +404,7 @@ export function ApplicationStepper({
   }
 
   async function onSubmit() {
-    // Position questions still validate via their own Controller rule; only
-    // registered (step 2) fields are checked, so this is a no-op when the
-    // position has none.
+    // No-op when there are no position questions — only step-2 fields are registered.
     const validPosition = await trigger(
       positionQuestions.map((q) => `p_${q.id}`),
     );
@@ -431,9 +414,7 @@ export function ApplicationStepper({
 
     setIsSubmitting(true);
     try {
-      // Let any blur-triggered autosave still in flight settle before the
-      // server reads the snapshot, so a field typed into and submitted
-      // without ever blurring can't lose the race with its own save.
+      // Lets an unblurred field's own autosave land before the server reads the snapshot.
       await Promise.allSettled([...pendingSavesRef.current.values()]);
 
       const result = await submitApplication(application.id);
