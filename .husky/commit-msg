@@ -4,11 +4,7 @@
 
 MSG_FILE="$1"
 
-# Extract the subject: first non-blank, non-comment line of the message file.
-# The repo pins core.commentChar=';' (see scripts/check-hooks.mjs), so git's
-# instructional lines are ';'-prefixed here; '#' is still skipped for clones
-# where that config never took. Real subjects starting with '#NNN' survive the
-# '#' skip because they begin with '#' followed immediately by a digit.
+# ';' is git's comment char here (pinned by prepare); '#' too, for clones where that didn't take.
 subject=""
 while IFS= read -r line; do
   case "$line" in
@@ -29,9 +25,8 @@ fi
 
 # ── Exemptions (pass through without validation) ────────────────────────────
 
-# git-generated subjects that cannot be reformatted by the author, plus
-# Dependabot's "Bump <dep> from <x> to <y>". Capital 'B' cannot collide with our
-# own format, which requires '#NNN ' followed by a lowercase letter.
+# Author can't reformat git-generated subjects; 'Bump ' is Dependabot's — capital
+# 'B' can't collide with our lowercase-after-'#NNN ' format.
 case "$subject" in
   "Merge "*|"Revert "*|"fixup! "*|"squash! "*|"Bump "*)
     exit 0 ;;
