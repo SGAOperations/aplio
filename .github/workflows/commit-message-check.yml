@@ -1,8 +1,5 @@
-# Validates commit subjects by invoking .husky/commit-msg itself, once per
-# commit, the same way git does. Do NOT "simplify" this into a regex here — the
-# whole point is that the hook is the single definition of the rules and their
-# exemptions, so local commits and CI cannot drift apart. The only coupling is
-# the hook's CLI shape: `sh .husky/commit-msg <message-file>`, exit code = verdict.
+# Shells out to .husky/commit-msg (not a reimplemented regex) so local and CI
+# rules can't drift: `sh .husky/commit-msg <message-file>`, exit code = verdict.
 name: Commit Message Check
 on:
   pull_request:
