@@ -371,6 +371,9 @@ export const signInEmailSchema = z.object({
   email: z.string().trim().email('Please enter a valid email address'),
 });
 
+// Neon rejects a nameless user; must never reach User.name or the name gate stops firing.
+export const AUTH_NAME_PLACEHOLDER = '-';
+
 // Maximum character length for a user's full name — shared between the zod schema
 // in the server action and the client-side NameField component.
 export const NAME_MAX_LENGTH = 100;

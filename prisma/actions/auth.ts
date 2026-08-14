@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 
 import { createNeonAuthUser } from '@/lib/auth/admin';
 import { authServer, getCurrentUser } from '@/lib/auth/server';
-import { signInEmailSchema } from '@/lib/constants';
+import { AUTH_NAME_PLACEHOLDER, signInEmailSchema } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 import type { ErrorType, ResponseType } from '@/lib/utils';
 
@@ -54,7 +54,10 @@ export async function ensureAuthUser(
 
   // { duplicate: true } is the common case and treated as success, so the
   // response never reveals whether the row already existed.
-  await createNeonAuthUser({ email: normalizedEmail });
+  await createNeonAuthUser({
+    email: normalizedEmail,
+    name: AUTH_NAME_PLACEHOLDER,
+  });
 
   // No revalidatePath: nothing rendered depends on the Neon Auth directory.
   return { email: normalizedEmail };

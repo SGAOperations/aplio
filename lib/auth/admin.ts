@@ -24,17 +24,18 @@ function authUsersUrl(): string {
 export type CreateNeonAuthUserResult = { id: string } | { duplicate: true };
 
 // { duplicate: true } on an existing address; throws otherwise — no admin action fixes that.
+// name is required: Neon 400s without it, despite its spec calling it optional.
 export async function createNeonAuthUser({
   email,
   name,
 }: {
   email: string;
-  name?: string;
+  name: string;
 }): Promise<CreateNeonAuthUserResult> {
   const response = await fetch(authUsersUrl(), {
     method: 'POST',
     headers: { ...authHeader(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, ...(name ? { name } : {}) }),
+    body: JSON.stringify({ email, name }),
   });
 
   if (response.status === 409 || response.status === 422)
