@@ -3,8 +3,7 @@ import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 
-// No dynamic APIs (headers()/searchParams) so this stays static and auth-free —
-// that's what keeps it reachable while the caller is rate-limited.
+// Stays static/auth-free (no headers()/searchParams) so it's reachable while rate-limited.
 export const metadata: Metadata = {
   title: 'Too many requests',
   robots: { index: false },

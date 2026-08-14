@@ -9,7 +9,6 @@ const LIMITS = {
   private: { windowMs: 60_000, max: 120 },
 };
 
-// Page the browser is bounced to on a rate-limited document navigation.
 const RATE_LIMITED_PATH = '/429';
 
 // Per worker instance, so the effective limit scales with instance count.
@@ -30,9 +29,8 @@ function getClientIp(request: NextRequest): string {
   return 'unknown';
 }
 
-// GET/HEAD guard matters: 307 preserves method, and a no-JS form POST also
-// sends Accept: text/html, so without it a server-action POST would replay
-// onto the block page.
+// GET/HEAD guard: 307 preserves method, so without it a no-JS form POST
+// would replay onto the block page.
 function isDocumentNavigation(request: NextRequest): boolean {
   return (
     (request.method === 'GET' || request.method === 'HEAD') &&

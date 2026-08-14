@@ -28,13 +28,11 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 export const config = {
   matcher: [
     {
-      // Next internals, public assets, and the block page itself must load
-      // without redirecting to login or being rate-limited.
+      // Next internals, public assets, and /429 itself must bypass auth + rate limiting.
       source:
         '/((?!_next/static|_next/image|favicon.ico|icon|logo-dark.svg|logo-light.svg|apple-icon|sitemap.xml|robots.txt|429).*)',
-      // Prefetches are stripped of these headers only after proxy runs, so this
-      // is the only point that can skip them — otherwise every speculative
-      // Link prefetch spends rate-limit budget meant for real navigations.
+      // Only proxy sees these prefetch headers (stripped after); skip here or
+      // every speculative Link prefetch burns real-navigation rate-limit budget.
       missing: [
         { type: 'header', key: 'next-router-prefetch' },
         { type: 'header', key: 'purpose', value: 'prefetch' },
