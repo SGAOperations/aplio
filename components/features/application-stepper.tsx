@@ -181,7 +181,6 @@ function QuestionList({
                           ? 'Please answer this question again'
                           : 'This field is required';
                       }
-                      // Mirrors the server check in createOrUpdateApplicationAnswer.
                       if (
                         question.type === 'short_answer' &&
                         question.format &&

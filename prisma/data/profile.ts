@@ -51,8 +51,7 @@ export async function getProfileCompleteness(
     select: { globalQuestionId: true, value: true },
   });
 
-  // Match submitApplication's check: counts as answered only if the stored
-  // value still fits the question's current shape.
+  // Match submitApplication: counts as answered only if still fits the question's shape.
   const answeredCount = requiredQuestions.filter((q) =>
     answers.some(
       (a) =>
