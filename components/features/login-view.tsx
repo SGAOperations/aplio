@@ -9,7 +9,11 @@ import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { z } from 'zod/v4';
 
+import { ensureAuthUser } from '@/prisma/actions/auth';
+
 import { authClient } from '@/lib/auth/client';
+import { signInEmailSchema } from '@/lib/constants';
+import { isError } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -32,11 +36,7 @@ interface LoginViewProps {
   copy: { title: string; description: string; sentDescription: string };
 }
 
-const emailSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-});
-
-type EmailFormValues = z.infer<typeof emailSchema>;
+type EmailFormValues = z.infer<typeof signInEmailSchema>;
 
 const otpSchema = z.object({
   otp: z.string().length(6, 'Please enter the 6-digit code'),
@@ -50,7 +50,7 @@ export function LoginView({ redirectTo, copy }: LoginViewProps) {
   const [capturedEmail, setCapturedEmail] = useState('');
 
   const emailForm = useForm<EmailFormValues>({
-    resolver: zodResolver(emailSchema),
+    resolver: zodResolver(signInEmailSchema),
     defaultValues: { email: '' },
   });
 
@@ -60,6 +60,18 @@ export function LoginView({ redirectTo, copy }: LoginViewProps) {
   });
 
   async function handleEmailSubmit(data: EmailFormValues) {
+    try {
+      const provisionResult = await ensureAuthUser({ email: data.email });
+      if (isError(provisionResult)) {
+        toast.error(provisionResult.error);
+        return;
+      }
+    } catch (error) {
+      console.error('ensureAuthUser failed', error);
+      toast.error("Couldn't send the code. Please try again.");
+      return;
+    }
+
     const result = await authClient.emailOtp.sendVerificationOtp({
       email: data.email,
       type: 'sign-in',

@@ -366,6 +366,12 @@ export const createUserSchema = z.object({
   isAdmin: z.boolean().default(false),
 });
 
+// Shared between the ensureAuthUser server action and the LoginView email
+// step's resolver (ENGINEERING §1: a schema used in 2+ places gets one home).
+export const signInEmailSchema = z.object({
+  email: z.string().trim().email('Please enter a valid email address'),
+});
+
 // Maximum character length for a user's full name — shared between the zod schema
 // in the server action and the client-side NameField component.
 export const NAME_MAX_LENGTH = 100;
