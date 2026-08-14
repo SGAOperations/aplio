@@ -28,7 +28,7 @@ import {
   type PositionWithQuestions,
   type QuestionFileTarget,
 } from '@/lib/types';
-import { cn, isError, toStringArray } from '@/lib/utils';
+import { type ErrorType, cn, isError, toStringArray } from '@/lib/utils';
 
 import { AnswerFileLink } from '@/components/features/answer-file-link';
 import { ApplicationQuestion } from '@/components/features/application-question';
@@ -207,12 +207,13 @@ function QuestionList({
                       value,
                       isGlobal,
                     });
-                    if (isError(result)) throw new Error(result.error);
+                    // Surface a refusal verbatim instead of the generic throw-path toast.
+                    return isError(result) ? result.error : undefined;
                   })();
                   // Tracked so a concurrent revert on this field waits rather than races it.
                   pendingSavesRef?.current.set(question.id, save);
                   try {
-                    await save;
+                    return await save;
                   } finally {
                     if (pendingSavesRef?.current.get(question.id) === save)
                       pendingSavesRef.current.delete(question.id);
@@ -392,8 +393,11 @@ export function ApplicationStepper({
         }),
       );
 
-      const hasError = results.some((r) => r !== null && isError(r));
-      if (hasError) toast.error('Failed to revert some answers');
+      // Surface a specific refusal verbatim, same as onSave/blur.
+      const firstError = results.find(
+        (r): r is ErrorType => r !== null && isError(r),
+      );
+      if (firstError) toast.error(firstError.error);
       else toast.success('Reverted to profile answers');
     } catch {
       toast.error('Failed to revert some answers');

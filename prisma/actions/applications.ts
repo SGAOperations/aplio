@@ -6,7 +6,6 @@ import { z } from 'zod/v4';
 
 import { cleanupOrphanedBlob } from '@/prisma/actions/question-files';
 import type {
-  Application,
   GlobalAnswer,
   GlobalApplicationAnswer,
   GlobalQuestion,
@@ -17,6 +16,7 @@ import type {
 import { requireOwnership } from '@/lib/auth/guards';
 import { getCurrentUser } from '@/lib/auth/server';
 import {
+  APPLICANT_EDITABLE_APPLICATION_STATUSES,
   NON_REVIEWABLE_APPLICATION_STATUSES,
   PUBLISHED_POSITION_WHERE,
   REVIEWER_APPLICATION_STATUSES,
@@ -129,6 +129,10 @@ const createOrUpdateApplicationAnswerSchema = z.object({
 
 const submitApplicationSchema = z.object({ applicationId: z.string().min(1) });
 
+// Shared so callers don't distinguish which action rejected the write.
+const APPLICATION_NOT_EDITABLE_MESSAGE =
+  'This application has already been submitted. Withdraw it to make changes.';
+
 export async function createDraftApplication(
   positionId: string,
 ): Promise<ResponseType<DraftApplication>> {
@@ -208,12 +212,19 @@ export async function createOrUpdateApplicationAnswer(params: {
 
   const application = await prisma.application.findUnique({
     where: { id: applicationId },
-    select: { userId: true, positionId: true },
+    select: { userId: true, positionId: true, status: true },
   });
 
   requireOwnership(application, currentUser.id);
 
-  // The client's on-blur check is UX only, and bypassable.
+  if (
+    !APPLICANT_EDITABLE_APPLICATION_STATUSES.includes(
+      application.status as (typeof APPLICANT_EDITABLE_APPLICATION_STATUSES)[number],
+    )
+  )
+    return { error: APPLICATION_NOT_EDITABLE_MESSAGE };
+
+  // Client on-blur check is UX only — bypassable, so re-validate here.
   const question = isGlobal
     ? await prisma.globalQuestion.findUnique({
         where: { id: questionId },
@@ -304,7 +315,7 @@ export async function createOrUpdateApplicationAnswer(params: {
 
 export async function submitApplication(
   applicationId: string,
-): Promise<ResponseType<Application>> {
+): Promise<ResponseType<void>> {
   const currentUser = await getCurrentUser();
 
   const parsed = submitApplicationSchema.safeParse({ applicationId });
@@ -330,11 +341,19 @@ export async function submitApplication(
 
     requireOwnership(application, currentUser.id);
 
+    // Status check first — wins over the window/required-answer checks below.
+    if (
+      !APPLICANT_EDITABLE_APPLICATION_STATUSES.includes(
+        application.status as (typeof APPLICANT_EDITABLE_APPLICATION_STATUSES)[number],
+      )
+    )
+      return { error: APPLICATION_NOT_EDITABLE_MESSAGE };
+
     // A draft's position can be soft-deleted after creation, before submit.
     if (application.position.deletedAt !== null)
       return { error: 'This position is no longer available.' };
 
-    // Checked before required-answer validation, so a closed window gives the clearest message.
+    // Window can close while a draft sits open, so re-check here.
     if (!isAcceptingApplications(application.position))
       return { error: 'This position is no longer accepting applications.' };
 
@@ -358,14 +377,28 @@ export async function submitApplication(
         error: 'Please answer all required questions before submitting.',
       };
 
-    return tx.application.update({
-      where: { id: parsed.data.applicationId },
+    // Status scoped again here, closing the check-then-write race between
+    // the read above and this write (e.g. a concurrent second tab).
+    const updateResult = await tx.application.updateMany({
+      where: {
+        id: parsed.data.applicationId,
+        userId: currentUser.id,
+        deletedAt: null,
+        status: { in: APPLICANT_EDITABLE_APPLICATION_STATUSES },
+      },
       data: {
         status: 'applied',
         submittedAt: new Date(),
         updatedById: currentUser.id,
       },
     });
+
+    // "Refresh" not "withdraw" — this guards a concurrent submit, not a stale status.
+    if (updateResult.count === 0)
+      return {
+        error:
+          'This application has already been submitted. Refresh to see its current status.',
+      };
   });
 
   if (isError(result)) return result;
@@ -374,7 +407,6 @@ export async function submitApplication(
   revalidatePath('/positions', 'layout');
   // The draft leaves /my-applications' draft-state list once submitted.
   revalidatePath('/my-applications');
-  return result;
 }
 
 const updateApplicationStatusSchema = z.object({
