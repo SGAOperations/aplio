@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // Order matters: webhook is matched before the /api/auth prefix to get the higher cap.
+// public covers one page view plus its RSC payload, not login attempts.
 const LIMITS = {
   webhook: { windowMs: 60_000, max: 100 },
   api: { windowMs: 60_000, max: 20 },
-  public: { windowMs: 60_000, max: 10 },
+  public: { windowMs: 60_000, max: 60 },
   private: { windowMs: 60_000, max: 120 },
 };
+
+// Page the browser is bounced to on a rate-limited document navigation.
+const RATE_LIMITED_PATH = '/429';
 
 // Per worker instance, so the effective limit scales with instance count.
 const hits = new Map<string, number[]>();
@@ -24,6 +28,16 @@ function getClientIp(request: NextRequest): string {
   const realIp = request.headers.get('x-real-ip');
   if (realIp) return realIp;
   return 'unknown';
+}
+
+// GET/HEAD guard matters: 307 preserves method, and a no-JS form POST also
+// sends Accept: text/html, so without it a server-action POST would replay
+// onto the block page.
+function isDocumentNavigation(request: NextRequest): boolean {
+  return (
+    (request.method === 'GET' || request.method === 'HEAD') &&
+    (request.headers.get('accept')?.includes('text/html') ?? false)
+  );
 }
 
 function classifyRequest(pathname: string): {
@@ -72,16 +86,25 @@ export function applyRateLimit(request: NextRequest): NextResponse | null {
         1,
         Math.ceil((oldest + limit.windowMs - now) / 1000),
       );
+      const headers = {
+        'Retry-After': String(retryAfter),
+        'X-RateLimit-Limit': String(limit.max),
+        'X-RateLimit-Remaining': '0',
+        // A refusal must never be served stale from a cache to a later caller.
+        'Cache-Control': 'no-store',
+      };
+
+      if (isDocumentNavigation(request)) {
+        const url = request.nextUrl.clone();
+        url.pathname = RATE_LIMITED_PATH;
+        url.search = '';
+        // 307 (not 308/302): preserves the request method and isn't cacheable.
+        return NextResponse.redirect(url, { status: 307, headers });
+      }
+
       return NextResponse.json(
         { error: 'Too many requests' },
-        {
-          status: 429,
-          headers: {
-            'Retry-After': String(retryAfter),
-            'X-RateLimit-Limit': String(limit.max),
-            'X-RateLimit-Remaining': '0',
-          },
-        },
+        { status: 429, headers },
       );
     }
 
