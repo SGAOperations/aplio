@@ -77,9 +77,7 @@ export function ApplicationQuestion({
     try {
       const refusal = await onSave(value);
       if (refusal) {
-        // User-facing refusal (e.g. no longer editable) — do not advance
-        // savedValueRef so a retry after the underlying condition changes
-        // (e.g. withdrawing) is still attempted rather than treated as saved.
+        // Don't advance savedValueRef, so a retry is still attempted.
         setSaveError(true);
         toast.error(refusal);
         return;

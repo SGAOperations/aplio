@@ -207,10 +207,7 @@ function QuestionList({
                       value,
                       isGlobal,
                     });
-                    // A returned { error } is a user-facing refusal (e.g. the
-                    // application is no longer editable) — surface it as the
-                    // exact sentence rather than collapsing it into the
-                    // generic throw-path toast.
+                    // Surface a refusal verbatim instead of the generic throw-path toast.
                     return isError(result) ? result.error : undefined;
                   })();
                   // Tracked so a concurrent revert on this field waits rather than races it.
@@ -396,8 +393,7 @@ export function ApplicationStepper({
         }),
       );
 
-      // Mirror the onSave/blur path: a specific refusal (e.g. the application
-      // became non-editable) surfaces verbatim rather than generic copy.
+      // Surface a specific refusal verbatim, same as onSave/blur.
       const firstError = results.find(
         (r): r is ErrorType => r !== null && isError(r),
       );

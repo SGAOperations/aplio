@@ -75,9 +75,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
   const application =
     applicationResult && !isError(applicationResult) ? applicationResult : null;
 
-  // A returned application may be at any status (createDraftApplication never
-  // re-gates on status) — only 'draft'/'withdrawn' are editable here; anything
-  // else renders the read-only "already applied" card below.
+  // Status isn't gated at creation, so it can be anything here.
   const isEditable =
     application &&
     APPLICANT_EDITABLE_APPLICATION_STATUSES.includes(

@@ -129,9 +129,7 @@ const createOrUpdateApplicationAnswerSchema = z.object({
 
 const submitApplicationSchema = z.object({ applicationId: z.string().min(1) });
 
-// Shared refusal copy for both applicant writes once an application has left
-// the editable statuses — same sentence everywhere so the UI doesn't have to
-// distinguish which action rejected the write (ENGINEERING §1: abstract at 2+).
+// Shared so callers don't distinguish which action rejected the write.
 const APPLICATION_NOT_EDITABLE_MESSAGE =
   'This application has already been submitted. Withdraw it to make changes.';
 
@@ -355,7 +353,7 @@ export async function submitApplication(
     if (application.position.deletedAt !== null)
       return { error: 'This position is no longer available.' };
 
-    // Checked before required-answer validation, so a closed window gives the clearest message.
+    // Window can close while a draft sits open, so re-check here.
     if (!isAcceptingApplications(application.position))
       return { error: 'This position is no longer accepting applications.' };
 
@@ -379,9 +377,8 @@ export async function submitApplication(
         error: 'Please answer all required questions before submitting.',
       };
 
-    // Scoped to the same editable statuses as the read above — closes the
-    // check-then-write window: a concurrent submit between the read and this
-    // write (e.g. a second tab) can no longer double-apply the status flip.
+    // Status scoped again here, closing the check-then-write race between
+    // the read above and this write (e.g. a concurrent second tab).
     const updateResult = await tx.application.updateMany({
       where: {
         id: parsed.data.applicationId,
@@ -396,9 +393,7 @@ export async function submitApplication(
       },
     });
 
-    // Distinct copy from the pre-check above: this is the race guard for a
-    // concurrent submit between the read and this write, so "refresh" is the
-    // actionable step rather than "withdraw".
+    // "Refresh" not "withdraw" — this guards a concurrent submit, not a stale status.
     if (updateResult.count === 0)
       return {
         error:
