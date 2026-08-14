@@ -5,8 +5,10 @@
 MSG_FILE="$1"
 
 # Extract the subject: first non-blank, non-comment line of the message file.
-# git inserts '#'-prefixed comment lines; real subjects starting with '#NNN'
-# are distinguished because they begin with '#' followed immediately by a digit.
+# The repo pins core.commentChar=';' (see scripts/check-hooks.mjs), so git's
+# instructional lines are ';'-prefixed here; '#' is still skipped for clones
+# where that config never took. Real subjects starting with '#NNN' survive the
+# '#' skip because they begin with '#' followed immediately by a digit.
 subject=""
 while IFS= read -r line; do
   case "$line" in
@@ -15,6 +17,7 @@ while IFS= read -r line; do
   case "$line" in
     "#"[0-9]*) subject="$line"; break ;;
     "#"*) continue ;;
+    ";"*) continue ;;
     *) subject="$line"; break ;;
   esac
 done < "$MSG_FILE"
@@ -26,9 +29,11 @@ fi
 
 # ── Exemptions (pass through without validation) ────────────────────────────
 
-# git-generated subjects that cannot be reformatted by the author
+# git-generated subjects that cannot be reformatted by the author, plus
+# Dependabot's "Bump <dep> from <x> to <y>". Capital 'B' cannot collide with our
+# own format, which requires '#NNN ' followed by a lowercase letter.
 case "$subject" in
-  "Merge "*|"Revert "*|"fixup! "*|"squash! "*)
+  "Merge "*|"Revert "*|"fixup! "*|"squash! "*|"Bump "*)
     exit 0 ;;
 esac
 
