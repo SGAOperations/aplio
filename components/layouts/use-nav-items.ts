@@ -23,8 +23,7 @@ interface UseNavItemsResult {
   isActive: (href: string) => boolean;
 }
 
-// Single source of truth for nav composition, shared by Sidebar and MobileNav
-// so both agree on item order/visibility and on what counts as "active" (ENGINEERING §1).
+// Shared by Sidebar and MobileNav, so both agree on order, visibility, and active state.
 export function useNavItems({
   identity,
   isAdmin,
@@ -43,8 +42,7 @@ export function useNavItems({
   // Anonymous visitors land on /positions; authenticated users go to the dashboard.
   const logoHref = identity ? '/' : '/positions';
 
-  // Exact match or a nested sub-route — a plain startsWith would falsely
-  // highlight a future sibling route sharing the same prefix (e.g. /positions-archive).
+  // A plain startsWith would also highlight a sibling like /positions-archive.
   function isActive(href: string): boolean {
     return pathname === href || pathname.startsWith(`${href}/`);
   }

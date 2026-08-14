@@ -25,9 +25,7 @@ const applicationSelect = {
   position: { select: { id: true, title: true } },
 } as const;
 
-// Shared by getApplications, getApplicationsTotal and getApplicationForReview
-// so the list, the denominator and the detail page all agree on what a
-// reviewer may see (drafts excluded, withdrawn included).
+// Keeps list, denominator, and detail page agreeing: drafts out, withdrawn in.
 function buildBaseWhere(user: { id: string; isAdmin: boolean }) {
   return user.isAdmin
     ? {
@@ -38,8 +36,7 @@ function buildBaseWhere(user: { id: string; isAdmin: boolean }) {
     : {
         deletedAt: null,
         status: { not: 'draft' as const },
-        // Merge, don't overwrite — losing managers scoping here is an
-        // authorization regression (see plan risks/notes).
+        // Merge, don't overwrite: losing the managers scoping is an authorization regression.
         position: {
           ...PUBLISHED_POSITION_WHERE,
           managers: { some: { id: user.id } },
@@ -84,8 +81,7 @@ export async function getPositionApplications(
       positionId,
       deletedAt: null,
       status: { notIn: ['draft', 'withdrawn'] },
-      // Draft positions stay visible here (escape hatch); callers already
-      // pass non-deleted ids, so this is defence in depth (see plan).
+      // Drafts stay visible; defence in depth, callers pass non-deleted ids.
       position: VISIBLE_POSITION_WHERE,
     },
     select: positionApplicationSelect,
@@ -93,13 +89,7 @@ export async function getPositionApplications(
   });
 }
 
-// Authorization is folded into the where clause: admins see any application;
-// managers only see applications for positions they manage. Unauthorized callers,
-// soft-deleted records, and draft/deleted-position applications all return null,
-// which the page converts to notFound().
-// The question's type is selected through the relation (one query, no N+1) and
-// both answer arrays are normalized to ApplicationReviewAnswer[] so the review
-// UI can render file_upload answers via AnswerFileLink.
+// Unauthorized and missing both return null; the page maps either to notFound().
 export async function getApplicationForReview(
   id: string,
   user: { id: string; isAdmin: boolean },
@@ -191,8 +181,7 @@ export async function getApplicationStatusCounts(): Promise<
   return Object.fromEntries(rows.map((r) => [r.status, r._count]));
 }
 
-// Returns cross-user data (applicant name/email) — must only be called from
-// an admin-gated context.
+// Cross-user data — admin-gated callers only.
 export async function getRecentApplications(
   take = 10,
 ): Promise<AdminApplicationListItem[]> {
@@ -214,18 +203,14 @@ export async function getRecentApplications(
   });
 }
 
-// Caller-scoped (no IDOR) — must only be called from a reviewer-gated
-// context; returns cross-user data (applicant identity + position). Capped
-// at 100 rows as a query-cost guard; full pagination is a future follow-up.
+// Applicant identity — reviewer-gated callers only. Capped at 100 rows.
 export async function getApplications(
   user: { id: string; isAdmin: boolean },
   filters: ApplicationFilters,
 ): Promise<AdminApplicationListItem[]> {
   const baseWhere = buildBaseWhere(user);
 
-  // Build date-range clause when q looks like a year (e.g. "2026") or a
-  // "Mon YYYY" string (e.g. "Jun 2026"). This lets reviewers search by date
-  // without raw-SQL formatting — Prisma DateTime filters are range-based.
+  // Prisma DateTime filters are range-based, so a date query becomes a range.
   const MONTH_NAMES = [
     'jan',
     'feb',
@@ -271,8 +256,7 @@ export async function getApplications(
     }
   }
 
-  // OR'd with the date range (when present) so "Jun 2026" matches both
-  // date-matched and name/title-matched rows.
+  // OR'd with the date range so a date query also matches names and titles.
   const textWhere = filters.q
     ? {
         OR: [
@@ -326,8 +310,7 @@ export async function getApplications(
       user: { select: { id: true, name: true, email: true } },
     },
     orderBy,
-    // Fetch one row past the 100-row cap so the caller can distinguish
-    // "truncated at 100" from "exactly 100 rows exist" and slice back to 100.
+    // One past the cap, so the caller can tell truncated from exactly-100.
     take: 101,
   });
 }
@@ -372,8 +355,7 @@ export async function getReviewablePositions(user: {
   id: string;
   isAdmin: boolean;
 }): Promise<{ id: string; title: string }[]> {
-  // Excludes draft too — a position filter shouldn't offer a position with
-  // zero visible rows (getMyApplications/getApplications hide draft applications).
+  // Drafts excluded: a filter shouldn't offer a position with zero visible rows.
   const where = user.isAdmin
     ? PUBLISHED_POSITION_WHERE
     : { ...PUBLISHED_POSITION_WHERE, managers: { some: { id: user.id } } };
@@ -385,9 +367,7 @@ export async function getReviewablePositions(user: {
   });
 }
 
-// Returns cross-user aggregate data — must be called with caller-managed
-// position IDs only (admin = all positions; manager = their assigned
-// positions). Never call with arbitrary IDs from the client.
+// Cross-user aggregate — pass only position ids the caller manages.
 export async function getPositionApplicationStats(
   positionIds: string[],
 ): Promise<Map<string, PositionApplicationStats>> {
@@ -399,8 +379,7 @@ export async function getPositionApplicationStats(
       positionId: { in: positionIds },
       deletedAt: null,
       status: { notIn: ['draft', 'withdrawn'] },
-      // Draft positions stay visible here (escape hatch); callers already
-      // pass non-deleted ids, so this is defence in depth (see plan).
+      // Drafts stay visible; defence in depth, callers pass non-deleted ids.
       position: VISIBLE_POSITION_WHERE,
     },
     _count: true,

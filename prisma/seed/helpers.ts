@@ -12,10 +12,7 @@ export function toQuestionCreateInput(q: QuestionDef, adminId: string) {
 }
 
 /**
- * UTC midnight of `now + days`. Every seeded position date goes through this
- * so a DB seeded today and one seeded next month land in the same relative
- * states — and so the date-only, UTC-midnight semantics
- * getPositionAvailability (lib/utils.ts) assumes are honored exactly.
+ * UTC midnight of `now + days`, matching what getPositionAvailability assumes.
  */
 export function utcDayOffset(now: Date, days: number): Date {
   return new Date(

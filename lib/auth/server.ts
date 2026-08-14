@@ -10,12 +10,7 @@ import { prisma } from '@/lib/prisma';
 
 export const authServer = createAuthServer();
 
-// Provision-on-first-auth: create the app User row when a real Neon session
-// has no matching row yet, then return it. Create-only (empty update {}) so an
-// existing row is returned without any write.
-// Keyed on the unique neonAuthId → race-safe via the DB unique constraint + upsert.
-// name omitted when falsy (OTP identities often supply an empty string → store null).
-// Deactivated users (#153) are blocked by the post-upsert guard below.
+// Provision-on-first-auth: empty update {} makes it create-only; neonAuthId keeps it race-safe.
 async function resolveRealUser() {
   const { data: session } = await authServer.getSession();
   if (!session?.user) return null;
@@ -30,8 +25,7 @@ async function resolveRealUser() {
       create: { neonAuthId, email, ...(name ? { name } : {}), isAdmin: false },
     });
   } catch (error) {
-    // Soft-deleted rows still hold their email/neonAuthId (unique, not partial),
-    // so re-signup collides with P2002 — not user-actionable, so throw generic.
+    // Soft-deleted rows keep their email, so re-signup hits P2002.
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === 'P2002'
@@ -45,17 +39,12 @@ async function resolveRealUser() {
   return row;
 }
 
-// Returns true only when a bypass cookie is present on a non-production environment.
-// Extracted so layouts share a single definition; called after getCurrentUser() resolves.
 export async function getIsBypass(): Promise<boolean> {
   if (process.env.VERCEL_ENV === 'production') return false;
   return Boolean((await cookies()).get('dev-bypass-user-id')?.value);
 }
 
-// Like getCurrentUser, but returns null instead of redirecting when no user is
-// resolved. For PUBLIC pages that optionally personalize for a logged-in visitor
-// (e.g. /positions) without forcing authentication. Provisioning still runs for a
-// real session via resolveRealUser, so a logged-in visitor always has an app row.
+// For public pages: personalizes if signed in, never forces auth; still provisions.
 export const getOptionalUser = cache(async function getOptionalUser() {
   if (process.env.VERCEL_ENV !== 'production') {
     const bypassUserId = (await cookies()).get('dev-bypass-user-id')?.value;
@@ -69,8 +58,7 @@ export const getOptionalUser = cache(async function getOptionalUser() {
   return resolveRealUser(); // null when no session; provisions when there is one
 });
 
-// React.cache deduplicates calls within a single server render pass,
-// avoiding a redundant DB round-trip when layout and page both call getCurrentUser().
+// Cached, so layout and page share one round-trip per render pass.
 export const getCurrentUser = cache(async function getCurrentUser() {
   const user = await getOptionalUser();
   if (user) return user;

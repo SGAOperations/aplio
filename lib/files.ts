@@ -1,16 +1,11 @@
-// Pure, environment-agnostic helpers shared between the file-answer server
-// action and the client components that render/upload file answers. No
-// 'server-only' here — question-file-field.tsx and answer-file-link.tsx both
-// import from this module.
+// Deliberately not 'server-only': the file-answer client components import from here too.
 import { FILE_UPLOAD_MIME_TYPES } from '@/lib/constants';
 import type { QuestionFileTarget } from '@/lib/types';
 
 type SniffableMimeType = (typeof FILE_UPLOAD_MIME_TYPES)[number];
 
 /**
- * Identifies a file's real type from its magic bytes, ignoring the
- * client-supplied (and spoofable) `file.type`. Returns null when the bytes
- * match none of the allow-listed signatures.
+ * Reads the real type from magic bytes, ignoring the spoofable `file.type`.
  */
 export function sniffMimeType(bytes: Uint8Array): SniffableMimeType | null {
   if (
@@ -46,9 +41,7 @@ export function sniffMimeType(bytes: Uint8Array): SniffableMimeType | null {
   return null;
 }
 
-// Collapses a filename's stem to a safe, bounded token for a Blob pathname —
-// no traversal, no unexpected extensions (the extension always comes from the
-// sniffed MIME type, never from this stem or client input).
+// Bounds the stem against path traversal; extension always comes from the sniffed MIME type.
 function sanitizeStem(originalName: string): string {
   const withoutExtension = originalName.replace(/\.[^./\\]*$/, '');
   const collapsed = withoutExtension.replace(/[^a-zA-Z0-9._-]/g, '-');
@@ -58,9 +51,7 @@ function sanitizeStem(originalName: string): string {
 }
 
 /**
- * Builds the Blob store pathname for a file answer. Scoped by question so
- * replacing an answer overwrites the same logical slot (addRandomSuffix
- * still guarantees a unique object per upload).
+ * Scoped by question so replacing an answer reuses the same logical slot.
  */
 export function buildAnswerFilePathname(
   target: QuestionFileTarget,

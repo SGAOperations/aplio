@@ -6,8 +6,7 @@ import { parseAsStringEnum, parseAsStringLiteral, useQueryStates } from 'nuqs';
 
 export type SortDirection = 'asc' | 'desc';
 
-// A column the table can sort by. `key` is the URL token; `accessor` extracts
-// the comparable value from a row.
+// `key` is the URL token; `accessor` pulls the comparable value from a row.
 export interface SortableColumn<T> {
   key: string;
   accessor: (row: T) => string | number | Date | null | undefined;
@@ -53,8 +52,7 @@ export function useSortableTable<T>(
   options?: UseSortableTableOptions,
 ): UseSortableTableResult<T> {
   const validKeys = useMemo(() => {
-    // Defensive invariant: all current callers pass a non-empty literal, but
-    // the cast below assumes it — fail loudly instead of silently miscasting.
+    // The cast below assumes non-empty; fail loudly rather than miscast.
     if (columns.length === 0)
       throw new Error('useSortableTable requires at least one column');
     return columns.map((c) => c.key) as [string, ...string[]];
@@ -71,8 +69,7 @@ export function useSortableTable<T>(
   const defaultSortKey = options?.defaultSort?.key;
   const defaultSortDirection = options?.defaultSort?.direction;
 
-  // Primitive deps (not `options?.defaultSort`) prevent recomputing every
-  // render when an inline defaultSort object is passed.
+  // Primitive deps, so an inline defaultSort object doesn't recompute every render.
   const sort: SortState = useMemo(() => {
     if (params.sort !== null)
       return { key: params.sort, direction: params.dir ?? 'asc' };
@@ -81,8 +78,7 @@ export function useSortableTable<T>(
     return { key: null, direction: 'asc' };
   }, [params.sort, params.dir, defaultSortKey, defaultSortDirection]);
 
-  // Cycles a column through asc → desc → cleared (back to defaultSort) on
-  // repeated clicks.
+  // Cycles asc → desc → cleared on repeated clicks.
   const toggle = useCallback(
     (key: string) => {
       if (params.sort !== key) {
@@ -109,8 +105,7 @@ export function useSortableTable<T>(
       const valA = column.accessor(a);
       const valB = column.accessor(b);
 
-      // Null/undefined always sort last regardless of direction — checked
-      // before the desc negation below so it can never be flipped by it.
+      // Nulls sort last either way — checked before the desc negation flips it.
       if (valA == null && valB == null) return 0;
       if (valA == null) return 1;
       if (valB == null) return -1;

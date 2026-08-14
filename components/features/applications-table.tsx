@@ -17,11 +17,7 @@ import type {
 import { formatDate } from '@/lib/utils';
 
 import { ApplicationsBulkBar } from '@/components/features/applications-bulk-bar';
-// SortableHeader is the shared indicator component — this table keeps its own
-// server-side sort mechanism (router.push re-fetches within the 100-row cap),
-// unlike the client-sorted tables that use useSortableTable. The ?sort=field:direction
-// param format here is intentionally different from the client tables' ?sort=&dir=
-// to avoid coupling the server re-fetch contract to a client-state abstraction.
+// Server-side sort; its param format stays decoupled from useSortableTable's.
 import { SortableHeader } from '@/components/features/sortable-header';
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
 import { Button } from '@/components/ui/button';
@@ -96,8 +92,7 @@ export function ApplicationsTable({
   ) {
     const params = new URLSearchParams(searchParams.toString());
     params.set('sort', `${field}:${direction}`);
-    // router.push triggers a server re-fetch — required because this table is
-    // capped at 100 rows and must sort server-side for correct ordering.
+    // Re-fetches server-side: a 100-row cap can't be sorted correctly on the client.
     router.push(`${pathname}?${params.toString()}`);
   }
 

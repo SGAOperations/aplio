@@ -5,8 +5,7 @@ import type { REVIEWER_APPLICATION_STATUSES } from '@/lib/constants';
 
 import type { BadgeVariant } from '@/components/ui/badge';
 
-// Matches prisma/data/positions.ts's positionWithQuestionsSelect exactly —
-// field-by-field in sync with the schema via Prisma's generated payload type.
+// Matches prisma/data/positions.ts#positionWithQuestionsSelect.
 export type PositionWithQuestions = Prisma.PositionGetPayload<{
   select: {
     id: true;
@@ -34,16 +33,12 @@ export type PositionManager = Prisma.UserGetPayload<{
   select: { id: true; name: true; email: true };
 }>;
 
-// Detail view type: full read payload including managers for the access check.
-// Manager ids are consumed server-side only; name/email are not needed for the
-// draft gate check so we keep the manager shape minimal (§3).
+// Manager ids are consumed server-side only, so the manager shape stays minimal.
 export type PositionDetail = PositionWithQuestions & {
   managers: { id: string }[];
 };
 
-// Narrowed question shape — only the fields rendered by the edit page and
-// PositionQuestionsSection; audit columns are excluded to avoid leaking them
-// across the server/client prop boundary. Matches getPositionForEdit's select.
+// Matches getPositionForEdit's select; no audit columns cross to the client.
 export type PositionQuestionForEdit = Prisma.PositionQuestionGetPayload<{
   select: {
     id: true;
@@ -58,9 +53,7 @@ export type PositionQuestionForEdit = Prisma.PositionQuestionGetPayload<{
   };
 }>;
 
-// Only the six position fields consumed on the edit page; audit columns are
-// excluded so they are never serialized across the server/client boundary.
-// Matches getPositionForEdit's select exactly.
+// Matches getPositionForEdit's select; no audit columns cross to the client.
 export type PositionForEdit = Prisma.PositionGetPayload<{
   select: {
     id: true;
@@ -106,7 +99,6 @@ export type GlobalQuestionListItem = Prisma.GlobalQuestionGetPayload<{
   };
 }>;
 
-// Shared type for application list rows — reused by the full table and the dashboard widget.
 export type MyApplicationListItem = Prisma.ApplicationGetPayload<{
   select: {
     id: true;
@@ -118,7 +110,6 @@ export type MyApplicationListItem = Prisma.ApplicationGetPayload<{
   };
 }>;
 
-// Shared type for manager-facing position applications table rows.
 export type PositionApplicationListItem = Prisma.ApplicationGetPayload<{
   select: {
     id: true;
@@ -128,8 +119,7 @@ export type PositionApplicationListItem = Prisma.ApplicationGetPayload<{
   };
 }>;
 
-// Admin-only type — exposes applicant identity (name/email) and position.
-// Must only be used in admin-gated contexts; never serialize to non-admin clients.
+// Exposes applicant identity — admin-gated contexts only, never a non-admin client.
 export type AdminApplicationListItem = Prisma.ApplicationGetPayload<{
   select: {
     id: true;
@@ -140,32 +130,27 @@ export type AdminApplicationListItem = Prisma.ApplicationGetPayload<{
   };
 }>;
 
-// Minimal structural type for the position-window helper. Satisfied by
-// PositionWithQuestions, PositionForEdit, and raw Prisma rows — no conversion needed.
+// Structural, so the window helper needs no conversion at its call sites.
 export type PositionWindow = {
   status: PositionStatus;
   opensAt: Date | null;
   closesAt: Date | null;
 };
 
-// Applicant-facing availability states derived from status + date window.
-// 'unavailable' covers draft/closed positions (status is the master switch).
+// 'unavailable' covers draft and closed — status overrides the date window.
 export type PositionAvailability =
   | 'accepting'
   | 'upcoming'
   | 'closed_by_date'
   | 'unavailable';
 
-// Admin-only type — open position with filtered non-draft application count.
-// Must only be used in admin-gated contexts.
+// Admin-gated contexts only.
 export type OpenPositionSummaryItem = Prisma.PositionGetPayload<{
   select: { id: true; title: true; _count: { select: { applications: true } } };
 }>;
 
-// Reviewer-selectable status — everything except 'draft'.
 export type ReviewerStatus = (typeof REVIEWER_APPLICATION_STATUSES)[number];
 
-// Sort options for the /applications hub.
 export type ApplicationSortField = 'date' | 'name' | 'status';
 export type ApplicationSortDirection = 'asc' | 'desc';
 export type ApplicationSort = {
@@ -173,8 +158,7 @@ export type ApplicationSort = {
   direction: ApplicationSortDirection;
 };
 
-// Filters accepted by the /applications hub — all optional.
-// status is constrained to ReviewerStatus so 'draft' is never listed.
+// status is ReviewerStatus so 'draft' can never be filtered for.
 export type ApplicationFilters = {
   positionId?: string;
   status?: ReviewerStatus;
@@ -183,8 +167,6 @@ export type ApplicationFilters = {
   sort?: ApplicationSort;
 };
 
-// Row type for the applications hub table — reuses AdminApplicationListItem
-// (no audit fields cross the server/client boundary).
 export type ApplicationListRow = AdminApplicationListItem;
 
 export type ProfileCompleteness = {
@@ -193,10 +175,7 @@ export type ProfileCompleteness = {
   requiredCount: number;
 };
 
-// Answer row shape for the review detail page — same for global and position answers.
-// Audit columns are excluded; value is String[] (multi-value answers are supported).
-// questionId/type/isGlobal let the download control address and render a
-// file_upload answer without a dedicated file-metadata model.
+// questionId/type/isGlobal address a file answer without a file-metadata model.
 export type ApplicationReviewAnswer = {
   id: string;
   questionId: string;
@@ -206,10 +185,7 @@ export type ApplicationReviewAnswer = {
   isGlobal: boolean;
 };
 
-// Full application shape for the admin/manager review page. Base fields come
-// from the Prisma-generated payload; the two answer arrays are overridden with
-// the normalized ApplicationReviewAnswer shape (getApplicationForReview maps
-// the raw payload into it — see prisma/data/applications.ts).
+// Answer arrays overridden with the shape getApplicationForReview maps into.
 export type ApplicationForReview = Prisma.ApplicationGetPayload<{
   select: {
     id: true;
@@ -223,10 +199,7 @@ export type ApplicationForReview = Prisma.ApplicationGetPayload<{
   positionAnswers: ApplicationReviewAnswer[];
 };
 
-// Discriminated union addressing a file answer by question, not by answer row
-// id — mirrors createOrUpdateApplicationAnswer's (applicationId, questionId,
-// isGlobal) addressing so no answer row id needs to be plumbed through the
-// stepper. Kept in sync with lib/constants.ts#questionFileTargetSchema.
+// Kept in sync with lib/constants.ts#questionFileTargetSchema.
 export type QuestionFileTarget =
   | { scope: 'profile'; questionId: string }
   | {
@@ -236,17 +209,14 @@ export type QuestionFileTarget =
       isGlobal: boolean;
     };
 
-// Result of downloadQuestionFileAnswer — base64-encoded so it can cross the
-// server-action boundary without a Route Handler (this repo forbids one).
+// base64 to cross the server-action boundary; no Route Handler to stream it.
 export type QuestionFileDownload = {
   filename: string;
   contentType: string;
   data: string;
 };
 
-// Activity feed item — role-agnostic shape produced by the applicant/admin
-// feed wrappers and consumed by the shared ActivityFeedList leaf.
-// statusVariant drives the dot color; sentence is pre-rendered safe copy.
+// sentence is pre-rendered safe copy; statusVariant drives the dot color.
 export type ActivityItem = {
   id: string;
   statusVariant: BadgeVariant;
@@ -254,8 +224,7 @@ export type ActivityItem = {
   timestamp: Date;
 };
 
-// Admin-only type — exposes other users' identities (name/email/role/counts).
-// Must only be used in admin-gated contexts; never serialize to non-admin clients.
+// Exposes other users' identities — admin-gated contexts only, never a non-admin client.
 export type AdminUserListItem = Prisma.UserGetPayload<{
   select: {
     id: true;
@@ -266,9 +235,7 @@ export type AdminUserListItem = Prisma.UserGetPayload<{
     managedPositions: { select: { id: true; title: true } };
     _count: {
       select: {
-        // Mirrors prisma/data/users.ts#getUsersForAdmin's `applications` where
-        // (PUBLISHED_POSITION_WHERE inlined — a value import can't feed a type
-        // position) so the payload type stays in lockstep with the query.
+        // PUBLISHED_POSITION_WHERE inlined: a value import can't feed a type.
         applications: {
           where: {
             deletedAt: null;
@@ -281,22 +248,17 @@ export type AdminUserListItem = Prisma.UserGetPayload<{
   };
 }>;
 
-// Per-position application stats for admin/manager position cards.
-// Aggregate read-only shape — never exposes individual applicant identity.
-// Must only be passed to cards for positions the caller manages.
+// Aggregate only — never exposes individual applicant identity.
 export type PositionApplicationStats = {
   positionId: string;
   counts: Partial<Record<$Enums.ApplicationStatus, number>>;
   total: number;
 };
 
-// Identity shape passed to nav components so sidebar and mobile nav agree
-// on what to display in the user menu.
 export interface NavIdentity {
   name: string | null;
   email: string;
   roleLabel: string;
-  // true only for bypass sessions on non-production environments;
-  // routes the Log out handler to logoutBypassUser() instead of authClient.signOut().
+  // Routes Log out to logoutBypassUser() instead of authClient.signOut().
   isBypass: boolean;
 }

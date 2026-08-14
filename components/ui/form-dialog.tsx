@@ -63,10 +63,7 @@ function FormDialog<
         setOpen(false);
       }
     } catch (error) {
-      // onSubmit already toasts a specific { error }; a throw here means an
-      // unexpected/authorization denial that must never surface its message.
-      // Logged so a genuine bug stays diagnosable rather than being
-      // indistinguishable from a stale-permission denial.
+      // Message never surfaces (it may be a denial), but logged to stay diagnosable.
       console.error(error);
       toast.error('Something went wrong. Please try again.');
     }

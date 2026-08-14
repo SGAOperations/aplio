@@ -55,10 +55,7 @@ interface QuestionListProps {
   profileAnswers?: GlobalAnswer[];
   formValues?: StepperFormValues;
   missingGlobalIds?: Set<string>;
-  // Keyed by question id — lets the "Use profile answers" revert wait for any
-  // in-flight blur autosave on the same field before writing over it, so the
-  // revert (issued later) is always the last write and what's displayed
-  // matches what's persisted.
+  // Keyed by question id: lets a profile-answers revert wait on an in-flight autosave.
   pendingSavesRef?: RefObject<Map<string, Promise<unknown>>>;
 }
 
@@ -85,8 +82,7 @@ function ReadOnlyQuestionCard({
       {displayValue.length === 0 ? (
         <p className="text-muted-foreground text-sm italic">No answer yet</p>
       ) : question.type === 'file_upload' ? (
-        // Read-only mode always displays the profile's own answer (never a
-        // per-application override), so the target is always profile-scoped.
+        // Read-only shows the profile's own answer, so the target is profile-scoped.
         <AnswerFileLink
           target={{ scope: 'profile', questionId: question.id }}
           url={displayValue[0]}
@@ -166,9 +162,7 @@ function QuestionList({
                   !(Array.isArray(value) && value.length > 0)
                 )
                   return 'This field is required';
-                // Format re-check runs on blur (mode: 'onBlur' below) — mirrors
-                // the server-side check in createOrUpdateApplicationAnswer so
-                // the same rule is enforced client- and server-side.
+                // Mirrors the server check in createOrUpdateApplicationAnswer.
                 if (
                   question.type === 'short_answer' &&
                   question.format &&
@@ -203,9 +197,7 @@ function QuestionList({
                     });
                     if (isError(result)) throw new Error(result.error);
                   })();
-                  // Track this in-flight save so a concurrent "Use profile
-                  // answers" revert on the same field can wait for it and
-                  // write last, rather than racing it (see revert loop).
+                  // Tracked so a concurrent revert on this field waits rather than races it.
                   pendingSavesRef?.current.set(question.id, save);
                   try {
                     await save;
@@ -240,9 +232,7 @@ export function ApplicationStepper({
   const [step, setStep] = useState<1 | 2>(1);
   const [isCustomizing, setIsCustomizing] = useState(false);
   const [isReverting, setIsReverting] = useState(false);
-  // Set right before the un-awaited router.replace() fires — handleSubmit's
-  // own isSubmitting flips back to false as soon as that call returns, which
-  // would otherwise re-enable Submit while /my-applications is still loading.
+  // isSubmitting resets before the un-awaited redirect lands, so this keeps Submit disabled.
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [missingGlobalIds, setMissingGlobalIds] = useState<Set<string>>(
     new Set(),
@@ -260,8 +250,7 @@ export function ApplicationStepper({
     clearErrors,
     formState: { errors, isSubmitting },
   } = useForm<StepperFormValues>({
-    // Required and format field-validation both need to surface on blur, not
-    // only on an explicit trigger()/submit.
+    // Required and format errors surface on blur, not only on submit.
     mode: 'onBlur',
     defaultValues: Object.fromEntries([
       ...globalQuestions.map((q) => {
@@ -298,9 +287,7 @@ export function ApplicationStepper({
       return;
     }
 
-    // Read-only mode never registers Controllers for global fields, so
-    // `trigger` can't validate them — check required-ness against the
-    // profile's actual answers instead.
+    // No Controllers registered in read-only mode, so `trigger` can't validate these.
     const missing = new Set(
       globalQuestions
         .filter(
@@ -351,9 +338,7 @@ export function ApplicationStepper({
           if (JSON.stringify(current) === JSON.stringify(profileValue))
             return null;
 
-          // Let any blur-triggered autosave already in flight for this field
-          // settle first, so the revert write is issued last and the value
-          // that ends up persisted matches what we're about to display.
+          // Waits for an in-flight autosave so the revert write lands last.
           const pending = pendingSavesRef.current.get(q.id);
           if (pending) await pending.catch(() => {});
 
@@ -364,9 +349,7 @@ export function ApplicationStepper({
             value: profileValue,
             isGlobal: true,
           });
-          // Only reflect the revert in the form once it's actually persisted —
-          // a failed field keeps whatever was last successfully saved rather
-          // than showing a value the server never accepted.
+          // Applied only once persisted: a failed field keeps its last saved value.
           if (!isError(result)) setValue(`g_${q.id}`, profileValue);
           return result;
         }),

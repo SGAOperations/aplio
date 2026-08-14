@@ -25,9 +25,7 @@ export const QUESTION_TYPE_LABELS: Record<QuestionTypeValue, string> = {
   file_upload: 'File Upload',
 };
 
-// Keyed on the generated QuestionType enum (not QUESTION_TYPE_VALUES) for build-time
-// exhaustiveness. Excludes 'destructive' (error-only) and 'outline' (used by the
-// adjacent Required badge).
+// 'destructive' (error-only) and 'outline' (Required badge) deliberately unused here.
 export const QUESTION_TYPE_BADGE_VARIANT: Record<QuestionType, BadgeVariant> = {
   short_answer: 'secondary',
   long_answer: 'info',
@@ -36,36 +34,28 @@ export const QUESTION_TYPE_BADGE_VARIANT: Record<QuestionType, BadgeVariant> = {
   file_upload: 'default',
 };
 
-// App-wide file-upload constraints (v1: fixed, not per-question configurable).
-// 4MB stays safely under Vercel's hard 4.5MB Function body limit (see
-// next.config.ts's serverActions.bodySizeLimit).
+// Stays under Vercel's hard 4.5MB Function body limit (next.config.ts serverActions.bodySizeLimit).
 export const FILE_UPLOAD_MAX_BYTES = 4 * 1024 * 1024;
 
-// Allow-listed MIME types — must match the magic-byte signatures sniffed in
-// lib/files.ts#sniffMimeType so client copy and server enforcement agree.
+// Must match the magic-byte signatures sniffed in lib/files.ts#sniffMimeType.
 export const FILE_UPLOAD_MIME_TYPES = [
   'application/pdf',
   'image/png',
   'image/jpeg',
 ] as const;
 
-// Maps a sniffed MIME type to its canonical extension for stored pathnames.
 export const FILE_UPLOAD_MIME_EXTENSIONS: Record<
   (typeof FILE_UPLOAD_MIME_TYPES)[number],
   string
 > = { 'application/pdf': 'pdf', 'image/png': 'png', 'image/jpeg': 'jpg' };
 
-// `accept` attribute for the file input — extensions plus MIME types so both
-// browser-native filtering paths are covered.
+// Extensions and MIME types both listed — browsers filter on one or the other.
 export const FILE_UPLOAD_ACCEPT =
   '.pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg';
 
 export const FILE_UPLOAD_HELP_TEXT = 'PDF, PNG or JPG · up to 4MB';
 
-// Discriminated-union target a file answer belongs to — addressed by question,
-// not by answer row id, mirroring createOrUpdateApplicationAnswer's existing
-// (applicationId, questionId, isGlobal) addressing. FormData always arrives as
-// strings, so callers must coerce isGlobal from 'true'/'false' before parsing.
+// Addressed by question, not answer-row id; FormData is all strings, so isGlobal needs coercion.
 export const questionFileTargetSchema = z.discriminatedUnion('scope', [
   z.object({ scope: z.literal('profile'), questionId: z.string().min(1) }),
   z.object({
@@ -76,19 +66,12 @@ export const questionFileTargetSchema = z.discriminatedUnion('scope', [
   }),
 ]);
 
-// Choice-type question types that require at least one option.
 export const CHOICE_TYPES = ['single_choice', 'multiple_choice'] as const;
 export type ChoiceType = (typeof CHOICE_TYPES)[number];
 
-// Label for the virtual "Other" choice appended to choice-type questions when
-// allowOther is enabled — shared by both applicant-facing renderers so there is
-// one string, not two hardcoded copies (ENGINEERING §1: abstract at 2+).
 export const OTHER_OPTION_LABEL = 'Other';
 
-// Sentinel used only for RadioGroup/RadioGroupItem value comparisons on the
-// virtual "Other" choice — kept distinct from OTHER_OPTION_LABEL so an
-// admin-authored option literally named "Other" can never collide with the
-// virtual choice (see PR #334 review).
+// Distinct from OTHER_OPTION_LABEL: an admin option literally named "Other" can't collide.
 export const OTHER_OPTION_VALUE = '__other__';
 
 export const SHORT_ANSWER_FORMAT_VALUES = [
@@ -119,29 +102,17 @@ export const SHORT_ANSWER_FORMAT_OPTIONS: {
   label: SHORT_ANSWER_FORMAT_LABELS[value],
 }));
 
-// Single source of truth for each format preset's validation pattern — shared
-// by client (inline blur validation) and server (re-validation on save) so
-// they can never drift. Intentionally permissive: favor not blocking a
-// legitimate answer over strict/RFC-grade enforcement, and each pattern
-// accepts multiple real-world variants of its format rather than one
-// canonical shape (see human feedback on PR #333).
+// Deliberately permissive — never block a legitimate answer for RFC-grade strictness.
 export const SHORT_ANSWER_FORMAT_PATTERNS: Record<
   ShortAnswerFormatValue,
   RegExp
 > = {
   email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-  // Optional leading + (country code) or 00 international prefix, then digits
-  // with any mix of spaces, dots, hyphens, and parens as separators — covers
-  // "555-123-4567", "(555) 123-4567", "555.123.4567", "+1 555 123 4567", and
-  // "00 44 20 7946 0958" without requiring a single canonical layout.
+  // Optional + or 00 prefix, then digits with any mix of common separators.
   phone_number: /^(\+|00)?[\d\s().-]{7,20}$/,
-  // Scheme (http/https) and "www." are both optional so a bare domain like
-  // "google.com" or a "www."-prefixed host passes alongside a full
-  // "https://google.com/path" URL — only the host needs a dot-separated
-  // label plus a TLD; no nested quantifiers, to keep this ReDoS-safe.
+  // Scheme and "www." optional; no nested quantifiers, to stay ReDoS-safe.
   url: /^(https?:\/\/)?(www\.)?[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(:\d+)?([/?#]\S*)?$/,
-  // 5-digit ZIP, ZIP+4 with or without the hyphen (some autofill/paste
-  // sources omit it) — still US ZIP-shaped, not a general postal code.
+  // US ZIP shape only, not a general postal code.
   zip_code: /^\d{5}(-?\d{4})?$/,
 };
 
@@ -155,12 +126,7 @@ export const SHORT_ANSWER_FORMAT_ERROR_MESSAGES: Record<
   zip_code: 'Enter a valid ZIP code',
 };
 
-// Single source of truth for testing a value against a format preset — trims
-// before matching since every pattern above is anchored against character
-// classes that exclude (or only tolerate mid-string) whitespace, so a
-// legitimate pasted value with incidental leading/trailing whitespace must
-// not be rejected. Shared by every call site (client blur checks, server
-// re-validation) so none can drift and re-introduce the untrimmed check.
+// Trims first: the patterns are anchored, so pasted whitespace would falsely fail.
 export function matchesShortAnswerFormat(
   value: string,
   format: ShortAnswerFormatValue,
@@ -168,8 +134,6 @@ export function matchesShortAnswerFormat(
   return SHORT_ANSWER_FORMAT_PATTERNS[format].test(value.trim());
 }
 
-// Base question schema shared between the client form and server actions.
-// Both sides extend this with `.superRefine` to enforce options/format constraints.
 export const baseQuestionSchema = z.object({
   label: z.string().min(1, 'Label is required'),
   type: z.enum(QUESTION_TYPE_VALUES),
@@ -179,9 +143,7 @@ export const baseQuestionSchema = z.object({
   format: z.enum(SHORT_ANSWER_FORMAT_VALUES).nullable(),
 });
 
-// Shared superRefine used by both the admin dialogs and the server actions
-// (no 'use server' boundary here) so a format set on a non-short-answer
-// question is always rejected as a zod field error, never silently persisted.
+// Rejects a format on a non-short-answer question as a field error, never silently.
 export function validateShortAnswerFormat(
   data: { type: string; format: ShortAnswerFormatValue | null },
   ctx: z.RefinementCtx,
@@ -195,11 +157,7 @@ export function validateShortAnswerFormat(
   }
 }
 
-// Enforces that choice-type questions carry at least one option and non-choice
-// questions carry none — prevents orphaned option data. Also enforces that
-// allowOther is only set on choice-type questions, for the same reason. Shared
-// by the global-question and position-question schemas (client and server) so
-// there is one implementation (ENGINEERING §1: abstract at 2+).
+// Choice types need ≥1 option; non-choice types must carry none/no allowOther (orphaned data else).
 export function validateOptions(
   data: { type: string; options: string[]; allowOther: boolean },
   ctx: z.RefinementCtx,
@@ -230,16 +188,10 @@ export function validateOptions(
   }
 }
 
-// Client-side question form schema — reuses validateOptions/validateShortAnswerFormat
-// as its single source of truth so RHF surfaces the same rules as field errors,
-// rather than re-inlining the choice-type/format constraints. Shared between
-// GlobalQuestionDialog and the position QuestionForm (ENGINEERING §1).
 export const questionFormSchema = baseQuestionSchema
   .superRefine(validateOptions)
   .superRefine(validateShortAnswerFormat);
 
-// Human-readable labels for each application status.
-// Keyed on the generated ApplicationStatus enum for build-time exhaustiveness.
 export const APPLICATION_STATUS_LABELS: Record<
   $Enums.ApplicationStatus,
   string
@@ -254,7 +206,6 @@ export const APPLICATION_STATUS_LABELS: Record<
   withdrawn: 'Withdrawn',
 };
 
-// Badge variant for each application status, using design-system tokens.
 export const APPLICATION_STATUS_BADGE_VARIANT: Record<
   $Enums.ApplicationStatus,
   BadgeVariant
@@ -269,10 +220,7 @@ export const APPLICATION_STATUS_BADGE_VARIANT: Record<
   withdrawn: 'outline',
 };
 
-// Tuple of all ApplicationStatus values EXCEPT 'withdrawn' — shared between zod
-// enum (action) and the Select options (control) so both stay in sync with the
-// DB enum. 'withdrawn' is intentionally excluded: no consumer today needs the
-// full unfiltered status list (mirrors REVIEWER_APPLICATION_STATUSES's doc style).
+// Excludes 'withdrawn': no consumer needs the unfiltered status list.
 export const APPLICATION_STATUS_VALUES = [
   'draft',
   'applied',
@@ -283,8 +231,6 @@ export const APPLICATION_STATUS_VALUES = [
   'rejected',
 ] as const satisfies $Enums.ApplicationStatus[];
 
-// Select options for the status dropdown — one entry per APPLICATION_STATUS_LABELS entry,
-// mirroring STATUS_OPTIONS for positions.
 export const APPLICATION_STATUS_OPTIONS: {
   value: $Enums.ApplicationStatus;
   label: string;
@@ -293,11 +239,7 @@ export const APPLICATION_STATUS_OPTIONS: {
   label: APPLICATION_STATUS_LABELS[value],
 }));
 
-// Reviewer-selectable statuses exclude 'draft' — a reviewer cannot push an
-// application back to draft; that state is applicant-owned. Written as a
-// literal tuple so z.enum() infers the correct union without an unsafe cast.
-// Used in the single-update action, the bulk-update action, and both status
-// controls — extracted here (ENGINEERING §1: abstract at 2+).
+// Reviewer can't set 'draft' (applicant-owned); literal tuple so z.enum() infers without a cast.
 export const REVIEWER_APPLICATION_STATUSES = [
   'applied',
   'reached_out',
@@ -310,25 +252,16 @@ export const REVIEWER_APPLICATION_STATUSES = [
   ...Exclude<$Enums.ApplicationStatus, 'draft'>[],
 ];
 
-// Reviewer-facing Select options — draft excluded.
 export const REVIEWER_APPLICATION_STATUS_OPTIONS =
   APPLICATION_STATUS_OPTIONS.filter((o) => o.value !== 'draft');
 
-// Statuses a reviewer may not act on — 'draft' (unsubmitted, applicant-owned) and
-// 'withdrawn' (applicant-owned lifecycle action). Distinct from
-// REVIEWER_APPLICATION_STATUSES above, which is the set a reviewer may set a
-// record *to*; this is the set a reviewer may not act *on*. Shared by the single-
-// and bulk-update actions so both enforce the same exclusion (ENGINEERING §1).
+// States a reviewer may not act *on*, unlike REVIEWER_APPLICATION_STATUSES (may set *to*).
 export const NON_REVIEWABLE_APPLICATION_STATUSES = [
   'draft',
   'withdrawn',
 ] as const satisfies $Enums.ApplicationStatus[];
 
-// Submitted-but-not-concluded application statuses. Excludes 'draft' (unsubmitted,
-// applicant-owned), 'accepted'/'rejected' (terminal), and 'withdrawn' (resolved).
-// Used by the admin positions query to keep a closed position visible only while
-// it still has work in progress. Positive 'in' list so future enum values are
-// excluded by default until deliberately added — safer for a visibility metric.
+// Positive list: a future enum value stays excluded until added — safer for this metric.
 export const UNRESOLVED_APPLICATION_STATUSES = [
   'applied',
   'reached_out',
@@ -336,10 +269,7 @@ export const UNRESOLVED_APPLICATION_STATUSES = [
   'reviewing',
 ] as const satisfies $Enums.ApplicationStatus[];
 
-// Non-terminal application statuses — all statuses except 'accepted', 'rejected',
-// and 'withdrawn'. Intentionally includes 'draft' (unlike UNRESOLVED_APPLICATION_STATUSES),
-// because a managed position with a draft-only applicant still warrants attention.
-// Used to determine whether a managed position is still relevant for managers.
+// Includes 'draft' (unlike UNRESOLVED): a draft-only applicant still needs attention.
 export const NON_TERMINAL_APPLICATION_STATUSES = [
   'draft',
   'applied',
@@ -348,27 +278,17 @@ export const NON_TERMINAL_APPLICATION_STATUSES = [
   'reviewing',
 ] as const satisfies $Enums.ApplicationStatus[];
 
-// Concluded decisions. An accepted/rejected application can no longer be
-// withdrawn: there is no status history, so a withdraw → re-open round-trip
-// would launder the decision back to 'applied' (#346). Deliberately NOT the
-// complement of NON_TERMINAL_APPLICATION_STATUSES, which also excludes
-// 'withdrawn'; this set is the decided outcomes only.
+// No status history, so a withdraw → re-open round-trip would launder the decision.
 export const TERMINAL_DECISION_STATUSES: readonly $Enums.ApplicationStatus[] = [
   'accepted',
   'rejected',
 ];
 
-// Window (in days) for the "Recently Closed" positions section.
-// Positions closed within this window appear in that section.
 export const RECENTLY_CLOSED_WINDOW_DAYS = 7;
 
-// Window (in days) for the managed/admin positions visibility filter.
-// Closed positions remain visible to managers and admins for longer than the
-// public "Recently Closed" section so they retain oversight during wrap-up.
+// Longer than the public window so managers and admins keep oversight during wrap-up.
 export const MANAGED_POSITIONS_WINDOW_DAYS = 30;
 
-// Tuple of all PositionStatus values — STATUS_OPTIONS derives from this + STATUS_LABELS
-// so the label text has a single source of truth.
 export const STATUS_VALUES = [
   'draft',
   'open',
@@ -384,9 +304,7 @@ export const STATUS_LABELS: Record<PositionStatus, string> = {
 export const STATUS_OPTIONS: { value: PositionStatus; label: string }[] =
   STATUS_VALUES.map((value) => ({ value, label: STATUS_LABELS[value] }));
 
-// Client-side position form schema, mirroring createPositionSchema/
-// updatePositionSchema's shape. Shared between PositionCreateDialog and
-// PositionDetailsForm (ENGINEERING §1).
+// Mirrors createPositionSchema/updatePositionSchema — keep the shapes in sync.
 export const positionFormSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   description: z.string(),
@@ -401,13 +319,7 @@ export const STATUS_VARIANTS: Record<PositionStatus, BadgeVariant> = {
   closed: 'outline',
 };
 
-// The rule, stated once (issue #348): `deletedAt` means "does not exist"
-// everywhere else in this codebase, so a soft-deleted position's applications
-// are dead links and must be hidden on every cross-position surface. `draft`
-// positions are unpublished, so applications against one are hidden there too
-// — except on position-scoped surfaces (a manager reverting an open position
-// to draft still sees its applications on the position card), which use
-// VISIBLE_POSITION_WHERE instead.
+// Position-scoped surfaces (draft still shows its applications); PUBLISHED is for cross-position ones.
 export const VISIBLE_POSITION_WHERE = {
   deletedAt: null,
 } satisfies Prisma.PositionWhereInput;
@@ -423,9 +335,7 @@ export const QUESTION_TYPE_OPTIONS: { value: QuestionType; label: string }[] =
     label: QUESTION_TYPE_LABELS[value],
   }));
 
-// Human-readable labels for each computed availability state.
-// 'accepting'/'closed_by_date' intentionally mirror STATUS_LABELS 'open'/'closed' so
-// the admin badge reflects the effective state rather than the raw DB status enum.
+// Mirrors STATUS_LABELS 'open'/'closed' so the badge reflects effective state, not the raw enum.
 export const AVAILABILITY_LABELS: Record<PositionAvailability, string> = {
   accepting: 'Open',
   upcoming: 'Upcoming',
@@ -441,12 +351,9 @@ export const AVAILABILITY_VARIANTS: Record<PositionAvailability, BadgeVariant> =
     unavailable: 'outline',
   };
 
-// Public URLs for the legal pages — referenced from the login footer, app footer,
-// and each legal page's cross-link footer. One edit when the URLs change.
 export const PRIVACY_HREF = '/privacy';
 export const TERMS_HREF = '/terms';
 
-// Shared between the createUser server action and the CreateUserDialog form.
 export const createUserSchema = z.object({
   email: z.string().trim().email('Enter a valid email address.'),
   name: z.string().trim().optional(),
@@ -470,9 +377,6 @@ export const nameSchema = z.object({
     ),
 });
 
-// Maps badge variant to a design-token dot color used in stat cards and the
-// activity feed. Extracted from pipeline-summary.tsx so both consumers share
-// one source of truth (ENGINEERING §1: abstract at 2+).
 export const STATUS_BADGE_VARIANT_TO_DOT: Record<BadgeVariant, string> = {
   info: 'bg-info',
   warning: 'bg-warning',
@@ -483,10 +387,7 @@ export const STATUS_BADGE_VARIANT_TO_DOT: Record<BadgeVariant, string> = {
   outline: 'bg-border',
 };
 
-// The four application statuses surfaced on position cards for admins/managers.
-// Ordered: Applied → Interview scheduled → Accepted → Rejected.
-// Shared between PositionStatCluster and any future per-position stat consumer
-// so the displayed set is a single source of truth (ENGINEERING §1: abstract at 2+).
+// Order is meaningful — rendered left to right on position cards.
 export const POSITION_CARD_STAT_STATUSES = [
   'applied',
   'interview_scheduled',

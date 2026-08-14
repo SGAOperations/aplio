@@ -31,8 +31,7 @@ interface PositionStatusBadgeProps {
   position: PositionWindow;
 }
 
-// Renders the effective availability badge for a position, using the computed
-// availability so a date-closed 'open' position shows "Closed" rather than "Open".
+// Effective availability, so a date-closed 'open' position reads "Closed".
 export function PositionStatusBadge({ position }: PositionStatusBadgeProps) {
   const availability = getPositionAvailability(position);
   const variant =

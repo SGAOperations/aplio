@@ -26,8 +26,7 @@ type QuestionShape = {
   format: ShortAnswerFormat | null;
 };
 
-// Native input type per format preset — gives mobile keyboards (email/tel/url)
-// without adding any new validation surface (validation is the format regex).
+// For the mobile keyboard only; the format regex remains the validation.
 const FORMAT_INPUT_TYPES: Record<ShortAnswerFormat, string> = {
   email: 'email',
   phone_number: 'tel',
@@ -44,8 +43,7 @@ interface ApplicationQuestionProps {
   };
   error?: string;
   onSave: (value: string[]) => Promise<void>;
-  // Only read for question.type === 'file_upload' — QuestionFileField talks
-  // directly to the file actions (never through onSave's text-answer path).
+  // file_upload only: QuestionFileField calls the file actions directly.
   fileTarget: QuestionFileTarget;
 }
 
@@ -63,8 +61,7 @@ export function ApplicationQuestion({
     ? question.options.filter((o): o is string => typeof o === 'string')
     : [];
 
-  // Any answer value that isn't one of the admin-defined options is the
-  // applicant's typed "Other" text (options is a closed set — see issue #322).
+  // options is a closed set, so any value outside it is the applicant's "Other" text.
   const initialOtherValue = field.value.find((v) => !options.includes(v));
   const [otherSelected, setOtherSelected] = useState(
     initialOtherValue !== undefined,
@@ -89,10 +86,7 @@ export function ApplicationQuestion({
 
   async function handleBlur() {
     field.onBlur();
-    // Mirrors the Controller `validate` rule in application-stepper.tsx —
-    // skip the autosave when the value fails format validation so a
-    // rejected value never round-trips to the server for a second, more
-    // generic "Failed to save answer" toast on top of the inline error.
+    // Skip the autosave on a format failure, or the inline error gets a toast too.
     if (
       question.type === 'short_answer' &&
       question.format &&
@@ -152,8 +146,7 @@ export function ApplicationQuestion({
                 value={option}
                 checked={!otherSelected && field.value[0] === option}
                 onChange={() => {
-                  // Picking a real option hides the "Other" input and clears
-                  // any previously typed text so it is never silently resubmitted.
+                  // Clearing the typed text stops it being silently resubmitted.
                   setOtherSelected(false);
                   setOtherText('');
                   field.onChange([option]);
@@ -250,8 +243,7 @@ export function ApplicationQuestion({
                       field.onChange(next);
                       save(next);
                     } else {
-                      // Uncheck removes the typed text from the saved array
-                      // immediately so it isn't silently resubmitted.
+                      // Drops the typed text immediately, so it isn't resubmitted.
                       setOtherText('');
                       field.onChange(checkedOptions);
                       save(checkedOptions);

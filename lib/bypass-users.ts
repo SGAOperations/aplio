@@ -1,14 +1,8 @@
-// Deliberately a standalone module with NO imports: both `prisma/services/
-// dev-bypass.ts` (a Next.js server action) and `prisma/seed.ts` (run under
-// plain `tsx`, outside Next.js) import these identities, and the seed script
-// must not pull in zod / `components/ui` transitively via a Next.js-only
-// module. If you need to add an import here, move this file's contents into
-// `prisma/seed/` and `prisma/services/dev-bypass.ts` separately instead.
+// Import-free: the seed runs under plain tsx and must stay clear of Next.js.
 
 export type BypassRole = 'admin' | 'applicant' | 'position-manager';
 
-// Well-known emails/ids so the seed's upsert and a real bypass login always
-// converge on the same three rows instead of racing to create duplicates.
+// Well-known ids, so the seed and a real bypass login converge on the same rows.
 export const BYPASS_USERS: Record<
   BypassRole,
   { email: string; neonAuthId: string; isAdmin: boolean }

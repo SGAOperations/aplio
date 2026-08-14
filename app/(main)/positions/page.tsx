@@ -74,15 +74,13 @@ export default async function PositionsPage() {
   // Build a set of managed IDs so canManage can be derived in O(1) per card.
   const managedIds = new Set(managedPositions.map((p) => p.id));
 
-  // Fetch application stats for managed positions — stats are cross-user aggregates
-  // safe to show to managers (see getPositionApplicationStats() for the invariant).
+  // Aggregates only, so they are safe to show a manager.
   const statsByPosition =
     managedIds.size > 0
       ? await getPositionApplicationStats([...managedIds])
       : new Map<string, PositionApplicationStats>();
 
-  // Show "Positions I Manage" only when the user actually manages at least one
-  // relevant position — non-managers get an empty array, so the section is omitted.
+  // Empty for non-managers, which omits the section.
   const showManagedSection = managedPositions.length > 0;
 
   return (
