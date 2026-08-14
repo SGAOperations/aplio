@@ -52,8 +52,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
     d.answer ? [d.answer] : [],
   );
 
-  // Gate must match submitApplication: requires a value that still fits the
-  // question's current shape, not just a record existing (see #354).
+  // Gate must match submitApplication: value must still fit the question's shape.
   const profileComplete =
     profileData.length === 0 ||
     profileData

@@ -67,8 +67,7 @@ function ReadOnlyQuestionCard({
   displayValue: string[];
   isMissing?: boolean;
 }) {
-  // Read-only, so the full stored value keeps rendering as-is — the notice
-  // just flags that it no longer matches the question's current shape.
+  // Read-only — full stored value renders as-is; the notice just flags the mismatch.
   const { orphaned } = partitionAnswerValue(question, displayValue);
 
   return (
@@ -173,8 +172,7 @@ function QuestionList({
                     validate: (value) => {
                       const arr = toStringArray(value);
                       if (question.required && !isAnswered(question, arr)) {
-                        // Distinguish "never answered" from "answered, but
-                        // the stored value no longer fits" (see AnswerMismatchNotice).
+                        // Distinguish never-answered from answered-but-no-longer-fits.
                         const { orphaned } = partitionAnswerValue(
                           question,
                           arr,

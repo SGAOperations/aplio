@@ -43,17 +43,10 @@ export function toStringArray(v: unknown): string[] {
 }
 
 /**
- * Splits a stored answer into the part the question's *current* shape can
- * render and round-trip (`fitted`) and the part it can't (`orphaned`) —
- * `fitted ++ orphaned` is always a permutation of `value` (see #354).
- *
- * Deliberate: with `allowOther: true`, a value whose option was removed keeps
- * rendering as the applicant's "Other" text — nothing distinguishes the two
- * cases in storage (already the behavior #322 established), so it is treated
- * as fitted, not flagged.
- *
- * Never throws: an unreachable `type` breaks the build via the `never`
- * default rather than failing at runtime (ENGINEERING §7).
+ * Splits a stored answer into what the question's current shape can render
+ * (`fitted`) vs. can't (`orphaned`) — always a permutation of `value`.
+ * A removed option under `allowOther` stays fitted, indistinguishable from
+ * "Other" text in storage.
  */
 export function partitionAnswerValue(
   question: AnswerQuestion,
@@ -98,6 +91,7 @@ export function partitionAnswerValue(
     }
 
     default: {
+      // Unreachable — a new type breaks the build via `never`, not silently at runtime.
       const exhaustiveCheck: never = question.type;
       return exhaustiveCheck;
     }

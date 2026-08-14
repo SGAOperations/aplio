@@ -161,10 +161,8 @@ export type PositionActivity = PositionWindow & {
 // never be passed across a client boundary.
 export type ManagedPosition = PositionWithQuestions & PositionActivity;
 
-// Structural question shape consumed by partitionAnswerValue/isAnswered and
-// the applicant-facing editors (ApplicationQuestion, ProfileQuestion, the
-// stepper). Satisfied by GlobalQuestion and PositionWithQuestions's/
-// PositionForEdit's question payloads without conversion.
+// Structural shape for partitionAnswerValue/isAnswered — satisfied by
+// GlobalQuestion and position question payloads without conversion.
 export type AnswerQuestion = {
   id: string;
   label: string;
@@ -175,9 +173,7 @@ export type AnswerQuestion = {
   format: ShortAnswerFormat | null;
 };
 
-// Result of partitionAnswerValue (lib/utils.ts) — fitted is what the current
-// shape can render; orphaned is what it can't. Together always a permutation
-// of the input value: nothing invented, nothing lost.
+// Result of partitionAnswerValue — always a permutation of the input value.
 export type AnswerPartition = { fitted: string[]; orphaned: string[] };
 
 // 'unavailable' covers draft and closed — status overrides the date window.

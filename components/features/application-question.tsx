@@ -42,10 +42,7 @@ export function ApplicationQuestion({
 }: ApplicationQuestionProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
-  // Seeded with the RAW stored value (not `fitted`) and never re-seeded from
-  // it: mount + focus + blur with no edit must serialize back to the raw
-  // value and write nothing. field.value is read only here, for the notice
-  // below, and for this comparison — every write is built from `fitted`.
+  // Raw value, never re-seeded — an untouched blur must write nothing.
   const savedValueRef = useRef(JSON.stringify(field.value));
   const options = Array.isArray(question.options)
     ? question.options.filter((o): o is string => typeof o === 'string')
@@ -54,10 +51,8 @@ export function ApplicationQuestion({
   const noticeId = `${question.id}-mismatch`;
   const labelId = `${question.id}-label`;
 
-  // Any fitted value that isn't one of the admin-defined options is the
-  // applicant's typed "Other" text (options is a closed set — see issue
-  // #322). Gated on allowOther so an orphaned value can never masquerade as
-  // "Other" once the option is turned off for this question.
+  // A fitted value outside the closed option set is the typed "Other" text;
+  // gated on allowOther so a turned-off option can't masquerade as "Other".
   const initialOtherValue = question.allowOther
     ? fitted.find((v) => !options.includes(v))
     : undefined;

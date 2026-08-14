@@ -8,10 +8,8 @@ interface AnswerMismatchNoticeProps {
   questionType: QuestionType;
 }
 
-// Read-only warning shown when a stored answer no longer fits the question's
-// current shape (type change, option removal, multi-to-single narrowing) —
-// see #354. Renders every orphaned value so nothing is silently dropped;
-// callers wire `id` to the control via `aria-describedby`.
+// Renders every orphaned value so nothing is silently dropped; callers wire
+// `id` to the control via `aria-describedby`.
 export function AnswerMismatchNotice({
   id,
   values,

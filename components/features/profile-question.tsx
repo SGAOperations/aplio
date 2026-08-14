@@ -50,19 +50,15 @@ export function ProfileQuestion({
   const noticeId = `${question.id}-mismatch`;
   const labelId = `${question.id}-label`;
 
-  // Non-reactive: current only as of this render, which is fine — it drives
-  // the read-only view (re-rendered whenever `isEditing` toggles) and the
-  // initial "Other" derivation below. The editable view recomputes this
-  // reactively from `field.value` inside the Controller (see render below).
+  // Non-reactive to typing — fine for the read-only view and initial
+  // "Other" derivation; the editable view recomputes reactively below.
   const { fitted: viewFitted, orphaned: viewOrphaned } = partitionAnswerValue(
     question,
     getValues('value'),
   );
 
-  // Any fitted value that isn't one of the admin-defined options is the
-  // applicant's typed "Other" text (options is a closed set — see issue
-  // #322). Gated on allowOther so an orphaned value can never masquerade as
-  // "Other" once the option is turned off for this question.
+  // A fitted value outside the closed option set is the typed "Other" text;
+  // gated on allowOther so a turned-off option can't masquerade as "Other".
   const initialOtherValue = question.allowOther
     ? viewFitted.find((v) => !question.options.includes(v))
     : undefined;
@@ -121,10 +117,7 @@ export function ProfileQuestion({
         {question.required && <span className="text-destructive ml-1">*</span>}
       </p>
 
-      {/* Read-only view keeps showing the FULL stored value (nothing is
-          truncated — it's not writable, so there's no risk of a mismatch
-          rendering back into a write); the notice above it just flags that
-          it no longer matches the question's current shape. */}
+      {/* Full stored value, read-only — not writable, so a mismatch can't round-trip into a write. */}
       {!isEditing && viewOrphaned.length > 0 && (
         <AnswerMismatchNotice
           id={noticeId}
@@ -163,8 +156,7 @@ export function ProfileQuestion({
           control={control}
           name="value"
           render={({ field }) => {
-            // Reactive to typing (unlike viewFitted/viewOrphaned above, which
-            // only reflect the last ProfileQuestion render).
+            // Reactive to typing, unlike viewFitted/viewOrphaned above.
             const { fitted, orphaned } = partitionAnswerValue(
               question,
               field.value,
@@ -312,10 +304,7 @@ export function ProfileQuestion({
                     target={{ scope: 'profile', questionId: question.id }}
                     value={fitted}
                     onChange={(v) => {
-                      // uploadQuestionFileAnswer/removeQuestionFileAnswer already
-                      // persisted this value server-side — just sync local
-                      // state, never route through save() (updateGlobalAnswer
-                      // throws for file_upload questions by design).
+                      // Already persisted server-side — sync local state only, never save().
                       field.onChange(v);
                       savedValueRef.current = JSON.stringify(v);
                       reset({ value: v });
