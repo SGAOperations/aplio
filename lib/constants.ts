@@ -269,15 +269,6 @@ export const UNRESOLVED_APPLICATION_STATUSES = [
   'reviewing',
 ] as const satisfies $Enums.ApplicationStatus[];
 
-// Includes 'draft' (unlike UNRESOLVED): a draft-only applicant still needs attention.
-export const NON_TERMINAL_APPLICATION_STATUSES = [
-  'draft',
-  'applied',
-  'reached_out',
-  'interview_scheduled',
-  'reviewing',
-] as const satisfies $Enums.ApplicationStatus[];
-
 // No status history, so a withdraw → re-open round-trip would launder the decision.
 export const TERMINAL_DECISION_STATUSES: readonly $Enums.ApplicationStatus[] = [
   'accepted',

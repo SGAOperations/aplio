@@ -137,6 +137,26 @@ export type PositionWindow = {
   closesAt: Date | null;
 };
 
+// Minimal structural input for isPositionActive (lib/utils.ts). Extends PositionWindow
+// (not just status/closesAt) because isPositionActive delegates its "is this position
+// actually closed" check to getPositionAvailability, which also needs opensAt — a
+// status:'open' position past its closesAt is closed_by_date even though the status
+// column never flips to 'closed'. _count.applications must be the count of non-deleted
+// applications in UNRESOLVED_APPLICATION_STATUSES (excludes 'draft' — a draft can never
+// be submitted to a closed position, so counting it here only permanently pins an
+// otherwise-resolved closed position as active, #340) — populated only via
+// prisma/data/positions.ts's positionActivitySelect fragment; any other _count select
+// silently produces a wrong active/archived answer.
+export type PositionActivity = PositionWindow & {
+  updatedAt: Date;
+  _count: { applications: number };
+};
+
+// Manager-facing position row: adds the fields isPositionActive needs to partition
+// active vs archived. Server-only shape — updatedAt/_count are internal and must
+// never be passed across a client boundary.
+export type ManagedPosition = PositionWithQuestions & PositionActivity;
+
 // 'unavailable' covers draft and closed — status overrides the date window.
 export type PositionAvailability =
   | 'accepting'

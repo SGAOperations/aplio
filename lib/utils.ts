@@ -1,7 +1,12 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-import type { PositionAvailability, PositionWindow } from '@/lib/types';
+import { MANAGED_POSITIONS_WINDOW_DAYS } from '@/lib/constants';
+import type {
+  PositionActivity,
+  PositionAvailability,
+  PositionWindow,
+} from '@/lib/types';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -91,6 +96,31 @@ export function isAcceptingApplications(
   now?: Date,
 ): boolean {
   return getPositionAvailability(position, now) === 'accepting';
+}
+
+/**
+ * Single source of truth for active vs archived — a second implementation is
+ * an authorization bug, not just a display bug.
+ *
+ * Active unless closed (status 'closed', or 'open' past closesAt) AND has no
+ * unresolved applications AND is outside the recency window. A lingering
+ * 'draft' never counts — it can't be submitted to an already-closed position,
+ * so counting it would pin the position active forever.
+ */
+export function isPositionActive(
+  position: PositionActivity,
+  now: Date = new Date(),
+): boolean {
+  const isClosed =
+    position.status === 'closed' ||
+    getPositionAvailability(position, now) === 'closed_by_date';
+  if (!isClosed) return true;
+  if (position._count.applications > 0) return true;
+
+  const cutoff = new Date(now);
+  cutoff.setDate(cutoff.getDate() - MANAGED_POSITIONS_WINDOW_DAYS);
+  const recency = position.closesAt ?? position.updatedAt;
+  return recency >= cutoff;
 }
 
 interface FormatTableCountOptions {
