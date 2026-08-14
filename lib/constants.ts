@@ -284,7 +284,6 @@ export const NON_TERMINAL_APPLICATION_STATUSES = [
   'reviewing',
 ] as const satisfies $Enums.ApplicationStatus[];
 
-
 // No status history, so a withdraw → re-open round-trip would launder the decision.
 export const TERMINAL_DECISION_STATUSES: readonly $Enums.ApplicationStatus[] = [
   'accepted',
