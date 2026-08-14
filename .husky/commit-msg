@@ -6,7 +6,7 @@ MSG_FILE="$1"
 
 # ';' is git's comment char here (pinned by prepare); '#' too, for clones where that didn't take.
 subject=""
-while IFS= read -r line; do
+while IFS= read -r line || [ -n "$line" ]; do # `git merge -m` leaves the last line unterminated
   case "$line" in
     "") continue ;;
   esac
