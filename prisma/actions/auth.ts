@@ -39,20 +39,29 @@ export async function ensureAuthUser(
   const parsed = signInEmailSchema.safeParse(input);
   if (!parsed.success) return { error: 'Invalid input' };
 
-  const { email } = parsed.data;
+  // Normalized once and reused below (for the lookup below and the Neon call)
+  // so the two can never diverge in case: an active user typing a different
+  // case than their original signup would otherwise reach createNeonAuthUser
+  // with fresh casing and, if Neon's own dedup is case-sensitive, provision a
+  // second identity for the same person instead of a clean no-op.
+  const normalizedEmail = parsed.data.email.toLowerCase();
 
-  // Case-insensitive: nothing in the codebase normalizes email case
+  // Case-insensitive: nothing in the codebase normalizes email case on write
   // (createUserSchema only trims), so an exact match would let a deactivated
   // user back in by changing capitalization. Soft-deleted rows deliberately
   // keep their email and neonAuthId (prisma/actions/users.ts), so this is the
   // only way to catch them before an identity is provisioned or an OTP sent.
-  const deactivated = await prisma.user.findFirst({
-    where: {
-      email: { equals: email, mode: 'insensitive' },
-      deletedAt: { not: null },
-    },
-    select: { id: true },
-  });
+  //
+  // Raw query rather than findFirst({ mode: 'insensitive' }): Prisma renders
+  // that as an ILIKE-style comparison that can't use a plain btree index, and
+  // this runs on every sign-in attempt — a genuinely hot path. Comparing
+  // lower(email) to the already-lowercased input lets Postgres use the
+  // functional index this PR's migration adds on lower(email).
+  const [deactivated] = await prisma.$queryRaw<{ id: string }[]>`
+    SELECT id FROM "User"
+    WHERE lower(email) = ${normalizedEmail} AND "deletedAt" IS NOT NULL
+    LIMIT 1
+  `;
   if (deactivated)
     return {
       error:
@@ -64,7 +73,7 @@ export async function ensureAuthUser(
   // existing user hits it on every sign-in) and is treated as success, so the
   // response is identical whether or not a row already existed — this
   // endpoint must stay non-enumerable, which it is today.
-  await createNeonAuthUser({ email });
+  await createNeonAuthUser({ email: normalizedEmail });
 
   // Deliberately no revalidatePath: nothing rendered by the app depends on
   // the Neon Auth directory, so there is nothing to invalidate.
