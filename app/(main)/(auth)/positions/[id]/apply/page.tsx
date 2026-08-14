@@ -62,7 +62,12 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
     draft ?? (profileComplete ? await createDraftApplication(id) : null);
 
   // Error despite a complete profile is unexpected: error boundary, not the profile gate.
-  if (!draft && profileComplete && applicationResult && isError(applicationResult))
+  if (
+    !draft &&
+    profileComplete &&
+    applicationResult &&
+    isError(applicationResult)
+  )
     throw new Error(applicationResult.error);
 
   const application =
