@@ -4,7 +4,6 @@ import { cache } from 'react';
 
 import {
   MANAGED_POSITIONS_WINDOW_DAYS,
-  NON_TERMINAL_APPLICATION_STATUSES,
   RECENTLY_CLOSED_WINDOW_DAYS,
   UNRESOLVED_APPLICATION_STATUSES,
 } from '@/lib/constants';
@@ -46,9 +45,17 @@ const positionWithQuestionsSelect = {
 // fields isPositionActive also needs (via getPositionAvailability) — this fragment
 // only adds the two fields that select doesn't already cover. The `where`
 // inside `_count` is the one fragile joint Prisma cannot type-check — any hand-written
-// _count.applications select that omits this non-terminal filter will silently mark an
-// archived position active. Reused unchanged by #360's getPositionForEdit widening so
-// the manager list and the edit-freeze check share one source of truth.
+// _count.applications select that omits this unresolved-status filter will silently mark
+// an archived position active. `isPositionActive` only reads `_count.applications` once a
+// position is already closed (open positions return true before `_count` is consulted),
+// and `submitApplication` refuses a closed position, so a `draft` row can never be the
+// thing keeping a closed position "active" — counting it here only produces a permanent,
+// invisible pin (#340). Uses UNRESOLVED_APPLICATION_STATUSES (excludes 'draft') so this
+// matches getAdminPositions and the application count actually shown on the position
+// card (getPositionApplicationStats, prisma/data/applications.ts). Reused unchanged by
+// #360's getPositionForEdit widening so the manager list and the edit-freeze check share
+// one source of truth — note #360's edit freeze now also applies to positions this fix
+// newly allows to archive.
 export const positionActivitySelect = {
   updatedAt: true,
   _count: {
@@ -60,7 +67,7 @@ export const positionActivitySelect = {
           // filter types require ApplicationStatus[], not readonly [...]. An
           // outer `as const` on this object would re-freeze the spread below,
           // so this fragment is deliberately NOT `as const` (unlike its siblings).
-          status: { in: [...NON_TERMINAL_APPLICATION_STATUSES] },
+          status: { in: [...UNRESOLVED_APPLICATION_STATUSES] },
         },
       },
     },
