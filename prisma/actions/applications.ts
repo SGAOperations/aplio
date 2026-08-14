@@ -29,6 +29,7 @@ import { type DraftApplication } from '@/lib/types';
 import {
   type ResponseType,
   isAcceptingApplications,
+  isError,
   toStringArray,
 } from '@/lib/utils';
 
@@ -36,40 +37,80 @@ type GlobalAnswerWithQuestion = GlobalAnswer & {
   globalQuestion: GlobalQuestion;
 };
 
-type ApplicationForRequiredAnswers = {
-  globalAnswers: GlobalApplicationAnswer[];
-  positionAnswers: PositionApplicationAnswer[];
-  position: { questions: { id: string; required: boolean }[] };
-};
-
-// Shared by submit and reopen so the gates can't drift; unexported per 'use server'.
-async function findMissingRequiredAnswers(
-  client: Prisma.TransactionClient,
-  application: ApplicationForRequiredAnswers,
-): Promise<'global' | 'position' | null> {
-  const requiredGlobalQuestions = await client.globalQuestion.findMany({
-    where: { required: true, deletedAt: null },
-  });
-
-  const hasUnansweredGlobal = requiredGlobalQuestions.some(
-    (q) =>
-      !application.globalAnswers.some(
-        (a) => a.globalQuestionId === q.id && toStringArray(a.value).length > 0,
-      ),
-  );
-  if (hasUnansweredGlobal) return 'global';
-
-  const hasUnansweredPosition = application.position.questions.some(
+// File-private: only submitApplication re-validates position questions, not reopenApplication.
+function hasUnansweredRequiredPosition(
+  positionAnswers: PositionApplicationAnswer[],
+  questions: { id: string; required: boolean }[],
+): boolean {
+  return questions.some(
     (q) =>
       q.required &&
-      !application.positionAnswers.some(
+      !positionAnswers.some(
         (a) =>
           a.positionQuestionId === q.id && toStringArray(a.value).length > 0,
       ),
   );
-  if (hasUnansweredPosition) return 'position';
+}
 
-  return null;
+// Only backfills a missing row — an existing (possibly cleared) row is left alone.
+async function syncGlobalAnswersFromProfile(
+  tx: Prisma.TransactionClient,
+  applicationId: string,
+  userId: string,
+): Promise<string[]> {
+  const [questions, existingAnswers] = await Promise.all([
+    tx.globalQuestion.findMany({
+      where: { deletedAt: null },
+      orderBy: { order: 'asc' },
+      include: { answers: { where: { userId, deletedAt: null } } },
+    }),
+    tx.globalApplicationAnswer.findMany({
+      where: { applicationId },
+      select: { globalQuestionId: true, value: true },
+    }),
+  ]);
+
+  const existingByQuestionId = new Map(
+    existingAnswers.map((a) => [a.globalQuestionId, a.value]),
+  );
+
+  const toBackfill = questions.filter(
+    (q) =>
+      !existingByQuestionId.has(q.id) &&
+      toStringArray(q.answers[0]?.value).length > 0,
+  );
+
+  if (toBackfill.length > 0) {
+    await tx.globalApplicationAnswer.createMany({
+      data: toBackfill.map((q) => ({
+        applicationId,
+        globalQuestionId: q.id,
+        questionLabel: q.label,
+        value: q.answers[0]!.value,
+        createdById: userId,
+        updatedById: userId,
+      })),
+      // Guards two tabs backfilling the same question concurrently.
+      skipDuplicates: true,
+    });
+  }
+
+  const backfilledIds = new Set(toBackfill.map((q) => q.id));
+
+  return questions
+    .filter(
+      (q) =>
+        q.required &&
+        !backfilledIds.has(q.id) &&
+        toStringArray(existingByQuestionId.get(q.id)).length === 0,
+    )
+    .map((q) => q.label);
+}
+
+// Keeps the toast readable when several questions are missing at once.
+function formatMissingQuestions(labels: string[]): string {
+  if (labels.length <= 3) return labels.join(', ');
+  return `${labels.slice(0, 3).join(', ')} and ${labels.length - 3} more`;
 }
 
 const createDraftApplicationSchema = z.object({
@@ -269,53 +310,71 @@ export async function submitApplication(
   const parsed = submitApplicationSchema.safeParse({ applicationId });
   if (!parsed.success) return { error: 'Invalid input' };
 
-  const application = await prisma.application.findUnique({
-    where: { id: parsed.data.applicationId },
-    include: {
-      globalAnswers: true,
-      positionAnswers: true,
-      position: {
-        select: {
-          deletedAt: true,
-          status: true,
-          opensAt: true,
-          closesAt: true,
-          questions: { where: { deletedAt: null } },
+  // Backfill and status update must land atomically, or two tabs could race the write.
+  const result = await prisma.$transaction(async (tx) => {
+    const application = await tx.application.findUnique({
+      where: { id: parsed.data.applicationId },
+      include: {
+        positionAnswers: true,
+        position: {
+          select: {
+            deletedAt: true,
+            status: true,
+            opensAt: true,
+            closesAt: true,
+            questions: { where: { deletedAt: null } },
+          },
         },
       },
-    },
+    });
+
+    requireOwnership(application, currentUser.id);
+
+    // A draft's position can be soft-deleted after creation, before submit.
+    if (application.position.deletedAt !== null)
+      return { error: 'This position is no longer available.' };
+
+    // Checked before required-answer validation, so a closed window gives the clearest message.
+    if (!isAcceptingApplications(application.position))
+      return { error: 'This position is no longer accepting applications.' };
+
+    const missingGlobalLabels = await syncGlobalAnswersFromProfile(
+      tx,
+      application.id,
+      currentUser.id,
+    );
+    if (missingGlobalLabels.length > 0)
+      return {
+        error: `Answer these required profile questions before submitting: ${formatMissingQuestions(missingGlobalLabels)}.`,
+      };
+
+    if (
+      hasUnansweredRequiredPosition(
+        application.positionAnswers,
+        application.position.questions,
+      )
+    )
+      return {
+        error: 'Please answer all required questions before submitting.',
+      };
+
+    return tx.application.update({
+      where: { id: parsed.data.applicationId },
+      data: {
+        status: 'applied',
+        submittedAt: new Date(),
+        updatedById: currentUser.id,
+      },
+    });
   });
 
-  requireOwnership(application, currentUser.id);
+  if (isError(result)) return result;
 
-  // A draft's position can be soft-deleted between creation and submit.
-  if (application.position.deletedAt !== null)
-    return { error: 'This position is no longer available.' };
-
-  // Before required-answer validation, so a closed window gives the clearest message.
-  if (!isAcceptingApplications(application.position))
-    return { error: 'This position is no longer accepting applications.' };
-
-  const missing = await findMissingRequiredAnswers(prisma, application);
-  if (missing === 'global')
-    return {
-      error: 'Please answer all required profile questions before submitting.',
-    };
-  if (missing === 'position')
-    return { error: 'Please answer all required questions before submitting.' };
-
-  const updated = await prisma.application.update({
-    where: { id: parsed.data.applicationId },
-    data: {
-      status: 'applied',
-      submittedAt: new Date(),
-      updatedById: currentUser.id,
-    },
-  });
-  revalidatePath('/my-applications');
   revalidatePath('/applications');
   revalidatePath('/positions', 'layout');
-  return updated;
+  // The draft leaves /my-applications' draft-state list once submitted.
+  revalidatePath('/my-applications');
+  return result;
 }
 
 const updateApplicationStatusSchema = z.object({
@@ -464,16 +523,14 @@ export async function reopenApplication(
         deletedAt: null,
         status: 'withdrawn',
       },
-      include: {
-        globalAnswers: true,
-        positionAnswers: true,
+      select: {
+        id: true,
         position: {
           select: {
             deletedAt: true,
             status: true,
             opensAt: true,
             closesAt: true,
-            questions: { where: { deletedAt: null } },
           },
         },
       },
@@ -490,16 +547,15 @@ export async function reopenApplication(
     if (!isAcceptingApplications(application.position, now))
       return { error: 'This position is no longer accepting applications.' };
 
-    const missing = await findMissingRequiredAnswers(tx, application);
-    if (missing === 'global')
+    // Only the global snapshot is re-checked — position questions were already passed once.
+    const missingGlobalLabels = await syncGlobalAnswersFromProfile(
+      tx,
+      application.id,
+      currentUser.id,
+    );
+    if (missingGlobalLabels.length > 0)
       return {
-        error:
-          'Answer all required profile questions before re-opening this application.',
-      };
-    if (missing === 'position')
-      return {
-        error:
-          'Answer all required questions on this application before re-opening it.',
+        error: `Answer these required profile questions in your profile before re-opening: ${formatMissingQuestions(missingGlobalLabels)}.`,
       };
 
     // updateMany keeps the read's where; count === 0 means a concurrent transition won.

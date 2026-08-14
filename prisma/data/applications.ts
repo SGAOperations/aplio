@@ -11,6 +11,7 @@ import {
   type AdminApplicationListItem,
   type ApplicationFilters,
   type ApplicationForReview,
+  type DraftApplication,
   type MyApplicationListItem,
   type PositionApplicationListItem,
   type PositionApplicationStats,
@@ -42,6 +43,17 @@ function buildBaseWhere(user: { id: string; isAdmin: boolean }) {
           managers: { some: { id: user.id } },
         },
       };
+}
+
+// Scoped to the caller (no IDOR); returns an existing draft without re-running the profile gate.
+export async function getDraftApplication(
+  userId: string,
+  positionId: string,
+): Promise<DraftApplication | null> {
+  return prisma.application.findFirst({
+    where: { userId, positionId, status: 'draft', deletedAt: null },
+    include: { globalAnswers: true, positionAnswers: true },
+  });
 }
 
 export async function getMyApplications(

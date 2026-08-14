@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { type RefObject, useRef, useState } from 'react';
+import { type RefObject, useMemo, useRef, useState } from 'react';
 import { type Control, Controller, useForm, useWatch } from 'react-hook-form';
 
 import { CheckIcon } from 'lucide-react';
@@ -155,29 +155,41 @@ function QuestionList({
             control={control}
             name={fieldName}
             shouldUnregister={false}
-            rules={{
-              validate: (value) => {
-                if (
-                  question.required &&
-                  !(Array.isArray(value) && value.length > 0)
-                )
-                  return 'This field is required';
-                // Mirrors the server check in createOrUpdateApplicationAnswer.
-                if (
-                  question.type === 'short_answer' &&
-                  question.format &&
-                  value[0] &&
-                  !matchesShortAnswerFormat(value[0], question.format)
-                )
-                  return SHORT_ANSWER_FORMAT_ERROR_MESSAGES[question.format];
-                return true;
-              },
-            }}
+            // Position fields validate here; globals go through checkGlobalReadiness.
+            rules={
+              isGlobal
+                ? undefined
+                : {
+                    validate: (value) => {
+                      if (
+                        question.required &&
+                        !(Array.isArray(value) && value.length > 0)
+                      )
+                        return 'This field is required';
+                      if (
+                        question.type === 'short_answer' &&
+                        question.format &&
+                        value[0] &&
+                        !matchesShortAnswerFormat(value[0], question.format)
+                      )
+                        return SHORT_ANSWER_FORMAT_ERROR_MESSAGES[
+                          question.format
+                        ];
+                      return true;
+                    },
+                  }
+            }
             render={({ field, fieldState }) => (
               <ApplicationQuestion
                 question={question}
                 field={field}
-                error={fieldState.error?.message}
+                // Falls back to missingGlobalIds so an unfocused required field still errors on Next/Submit.
+                error={
+                  fieldState.error?.message ??
+                  (missingGlobalIds?.has(question.id)
+                    ? 'This field is required'
+                    : undefined)
+                }
                 fileTarget={
                   {
                     scope: 'application',
@@ -230,7 +242,6 @@ export function ApplicationStepper({
 }: ApplicationStepperProps) {
   const router = useRouter();
   const [step, setStep] = useState<1 | 2>(1);
-  const [isCustomizing, setIsCustomizing] = useState(false);
   const [isReverting, setIsReverting] = useState(false);
   // isSubmitting resets before the un-awaited redirect lands, so this keeps Submit disabled.
   const [isRedirecting, setIsRedirecting] = useState(false);
@@ -241,78 +252,104 @@ export function ApplicationStepper({
   // Keyed by question id — see QuestionListProps.pendingSavesRef.
   const pendingSavesRef = useRef<Map<string, Promise<unknown>>>(new Map());
 
+  // Branches on row presence, not value length — an existing but empty
+  // row is a deliberate clear, must stay empty, unlike a missing row.
+  const initialGlobalValues = useMemo(
+    () =>
+      Object.fromEntries(
+        globalQuestions.map((q) => {
+          const appAnswer = application.globalAnswers.find(
+            (a: GlobalApplicationAnswer) => a.globalQuestionId === q.id,
+          );
+          const profileAnswer = globalAnswers.find(
+            (a: GlobalAnswer) => a.globalQuestionId === q.id,
+          );
+          const value = appAnswer
+            ? toStringArray(appAnswer.value)
+            : toStringArray(profileAnswer?.value);
+          return [`g_${q.id}`, value];
+        }),
+      ),
+    [globalQuestions, globalAnswers, application.globalAnswers],
+  );
+
+  // Row ids only, so presence (not value emptiness) drives hasNewRequiredGlobals.
+  const hasGlobalRow = useMemo(
+    () =>
+      new Set(
+        application.globalAnswers.map(
+          (a: GlobalApplicationAnswer) => a.globalQuestionId,
+        ),
+      ),
+    [application.globalAnswers],
+  );
+
+  const initialPositionValues = useMemo(
+    () =>
+      Object.fromEntries(
+        positionQuestions.map((q) => [
+          `p_${q.id}`,
+          toStringArray(
+            application.positionAnswers.find(
+              (a: PositionApplicationAnswer) => a.positionQuestionId === q.id,
+            )?.value,
+          ),
+        ]),
+      ),
+    [positionQuestions, application.positionAnswers],
+  );
+
+  // True only for a question with no row at all — a cleared answer already has one.
+  const hasNewRequiredGlobals = useMemo(
+    () => globalQuestions.some((q) => q.required && !hasGlobalRow.has(q.id)),
+    [globalQuestions, hasGlobalRow],
+  );
+
+  const [isCustomizing, setIsCustomizing] = useState(hasNewRequiredGlobals);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const {
     control,
+    getValues,
     trigger,
     setValue,
-    handleSubmit,
     setError,
     clearErrors,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<StepperFormValues>({
-    // Required and format errors surface on blur, not only on submit.
+    // Surfaces required/format errors on blur, not only on submit.
     mode: 'onBlur',
-    defaultValues: Object.fromEntries([
-      ...globalQuestions.map((q) => {
-        const appAnswer = application.globalAnswers.find(
-          (a: GlobalApplicationAnswer) => a.globalQuestionId === q.id,
-        );
-        const profileAnswer = globalAnswers.find(
-          (a: GlobalAnswer) => a.globalQuestionId === q.id,
-        );
-        const value =
-          toStringArray(appAnswer?.value).length > 0
-            ? toStringArray(appAnswer?.value)
-            : toStringArray(profileAnswer?.value);
-        return [`g_${q.id}`, value];
-      }),
-      ...positionQuestions.map((q) => {
-        const value = toStringArray(
-          application.positionAnswers.find(
-            (a: PositionApplicationAnswer) => a.positionQuestionId === q.id,
-          )?.value,
-        );
-        return [`p_${q.id}`, value];
-      }),
-    ]),
+    defaultValues: { ...initialGlobalValues, ...initialPositionValues },
   });
 
-  async function handleNext() {
-    if (isCustomizing) {
-      const valid = await trigger(globalQuestions.map((q) => `g_${q.id}`));
-      if (!valid) return;
-      setMissingGlobalIds(new Set());
-      clearErrors('root');
-      setStep(2);
-      return;
-    }
-
-    // No Controllers registered in read-only mode, so `trigger` can't validate these.
+  // Shared by Next and Submit so neither can advance past an empty required global.
+  function checkGlobalReadiness(): boolean {
+    const values = getValues();
     const missing = new Set(
       globalQuestions
         .filter(
-          (q) =>
-            q.required &&
-            toStringArray(
-              globalAnswers.find(
-                (a: GlobalAnswer) => a.globalQuestionId === q.id,
-              )?.value,
-            ).length === 0,
+          (q) => q.required && toStringArray(values[`g_${q.id}`]).length === 0,
         )
         .map((q) => q.id),
     );
 
     if (missing.size > 0) {
       setMissingGlobalIds(missing);
+      setIsCustomizing(true);
+      setStep(1);
       setError('root', {
-        message:
-          'Please answer all required profile questions before continuing. Click Customize to add them here, or update your profile.',
+        message: 'Answer the highlighted required questions before continuing.',
       });
-      return;
+      return false;
     }
 
     setMissingGlobalIds(new Set());
     clearErrors('root');
+    return true;
+  }
+
+  function handleNext() {
+    if (!checkGlobalReadiness()) return;
     setStep(2);
   }
 
@@ -366,8 +403,20 @@ export function ApplicationStepper({
     }
   }
 
-  const onSubmit = handleSubmit(async () => {
+  async function onSubmit() {
+    // No-op when there are no position questions — only step-2 fields are registered.
+    const validPosition = await trigger(
+      positionQuestions.map((q) => `p_${q.id}`),
+    );
+    if (!validPosition) return;
+
+    if (!checkGlobalReadiness()) return;
+
+    setIsSubmitting(true);
     try {
+      // Lets an unblurred field's own autosave land before the server reads the snapshot.
+      await Promise.allSettled([...pendingSavesRef.current.values()]);
+
       const result = await submitApplication(application.id);
       if (isError(result)) {
         setError('root', { message: result.error });
@@ -380,8 +429,10 @@ export function ApplicationStepper({
     } catch (error) {
       console.error(error);
       toast.error('Something went wrong. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
-  });
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -439,6 +490,12 @@ export function ApplicationStepper({
 
           {isCustomizing && (
             <div className="border-warning/40 bg-warning/10 text-warning-foreground rounded-lg border p-3 text-sm">
+              {hasNewRequiredGlobals && (
+                <p className="mb-1 font-medium">
+                  New required profile questions were added since you started
+                  this application. Answer them below to continue.
+                </p>
+              )}
               These answers are saved for this application only. To update your
               answers permanently, visit your{' '}
               <Link href="/profile" className="font-medium underline">
@@ -461,7 +518,9 @@ export function ApplicationStepper({
           />
 
           {errors.root && (
-            <p className="text-destructive text-sm">{errors.root.message}</p>
+            <p role="alert" className="text-destructive text-sm">
+              {errors.root.message}
+            </p>
           )}
 
           <div className="flex justify-end">
@@ -501,7 +560,9 @@ export function ApplicationStepper({
           />
 
           {errors.root && (
-            <p className="text-destructive text-sm">{errors.root.message}</p>
+            <p role="alert" className="text-destructive text-sm">
+              {errors.root.message}
+            </p>
           )}
 
           <div className="flex justify-between">
