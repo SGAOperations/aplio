@@ -23,22 +23,16 @@ export async function signOutUser(): Promise<ErrorType | void> {
   revalidatePath('/', 'layout');
 }
 
-// Provisions the Neon Auth identity for an email before the OTP is requested,
-// since Neon silently skips its send.otp webhook for unrecognized addresses.
-//
-// No auth check: pre-auth surface reached only from the /login email step,
-// rate-limited by the middleware's stricter `public` tier.
+// No auth check: pre-auth surface, rate-limited by middleware's public tier.
 export async function ensureAuthUser(
   input: unknown,
 ): Promise<ResponseType<{ email: string }>> {
   const parsed = signInEmailSchema.safeParse(input);
   if (!parsed.success) return { error: 'Invalid input' };
 
-  // Normalized once and reused so the lookup and the Neon call can't diverge.
   const normalizedEmail = parsed.data.email.toLowerCase();
 
-  // Case-insensitive: emails aren't normalized on write, so this is the only
-  // way to catch a deactivated user across capitalization changes.
+  // Case-insensitive: emails aren't normalized on write.
   const deactivated = await prisma.user.findFirst({
     where: {
       email: { equals: normalizedEmail, mode: 'insensitive' },
@@ -52,8 +46,7 @@ export async function ensureAuthUser(
         'Your account has been deactivated. Please contact an administrator.',
     };
 
-  // { duplicate: true } is the common case and treated as success, so the
-  // response never reveals whether the row already existed.
+  // Duplicate treated as success — keeps the response non-enumerable.
   await createNeonAuthUser({
     email: normalizedEmail,
     name: AUTH_NAME_PLACEHOLDER,

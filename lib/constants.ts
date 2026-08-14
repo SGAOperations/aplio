@@ -360,7 +360,6 @@ export const AVAILABILITY_VARIANTS: Record<PositionAvailability, BadgeVariant> =
 export const PRIVACY_HREF = '/privacy';
 export const TERMS_HREF = '/terms';
 
-// Max length for a user's full name, shared by the name schemas and NameField.
 export const NAME_MAX_LENGTH = 100;
 
 export const createUserSchema = z.object({
@@ -376,7 +375,6 @@ export const createUserSchema = z.object({
   isAdmin: z.boolean().default(false),
 });
 
-// Shared between the ensureAuthUser server action and the LoginView email step's resolver.
 export const signInEmailSchema = z.object({
   email: z.string().trim().email('Please enter a valid email address'),
 });
