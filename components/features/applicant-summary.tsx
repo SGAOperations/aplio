@@ -7,8 +7,7 @@ interface ApplicantSummaryProps {
   userId: string;
 }
 
-// Revised per change request: applicant sees exactly 2 stat cards —
-// Submitted and Open positions. In-review/accepted cards were removed.
+// Two cards only: Submitted and Open positions.
 export async function ApplicantSummary({ userId }: ApplicantSummaryProps) {
   const [submitted, openPositions] = await Promise.all([
     getMySubmittedCount(userId),

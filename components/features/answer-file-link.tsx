@@ -25,11 +25,7 @@ function base64ToBlob(base64: string, contentType: string): Blob {
   return new Blob([bytes], { type: contentType });
 }
 
-// Read-only file-answer leaf shared by the reviewer detail page, the
-// stepper's read-only profile card, and profile view mode. Delivery goes
-// through a Server Action (no Route Handler, per this repo's convention) —
-// the base64 payload is turned into a Blob client-side and downloaded via a
-// programmatic anchor click.
+// Server Action, not a Route Handler: base64 becomes a Blob and downloads client-side.
 export function AnswerFileLink({ target, url }: AnswerFileLinkProps) {
   const [isPending, setIsPending] = useState(false);
   const filename = getFileDisplayName(url);
@@ -61,8 +57,7 @@ export function AnswerFileLink({ target, url }: AnswerFileLinkProps) {
   }
 
   return (
-    // Fills its container so the growing filename pushes Download to the
-    // right edge on every surface that renders this leaf.
+    // Fills the container so a long filename still pushes Download right.
     <div className="flex w-full min-w-0 items-center gap-2">
       <Icon
         className="text-muted-foreground size-4 shrink-0"

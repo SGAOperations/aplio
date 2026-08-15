@@ -7,8 +7,7 @@ import { UserDashboard } from '@/components/features/user-dashboard';
 
 export default async function Home() {
   const user = await getOptionalUser();
-  // Routing, not an authorization denial — a signed-out visitor just lands on
-  // the public positions list instead of the dashboard (lib/auth/guards.ts).
+  // Routing, not an authorization denial.
   if (!user) redirect('/positions');
 
   // Name gate — this personalized dashboard sits outside app/(main)/(auth)/,
@@ -19,8 +18,6 @@ export default async function Home() {
 
   if (user.isAdmin) return <AdminDashboard />;
 
-  // Managers intentionally use UserDashboard — they are also regular users who can apply.
-  // A bespoke manager dashboard (managed-position pipeline) belongs to the Applications
-  // hub (#150) and would duplicate that work here.
+  // Managers get UserDashboard too: their pipeline view lives in the Applications hub.
   return <UserDashboard userId={user.id} userName={user.name} />;
 }

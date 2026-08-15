@@ -2,8 +2,7 @@ import 'server-only';
 
 import { Resend } from 'resend';
 
-// Lazily constructed singleton — avoids construction at import time when the
-// env var is absent (e.g. during build-time type-checking or non-email paths).
+// Lazy, so a missing env var doesn't break builds or non-email paths.
 let _resend: Resend | null = null;
 
 function getResend(): Resend {
@@ -26,8 +25,7 @@ export interface SendEmailParams {
   text: string;
 }
 
-// Thin wrapper — throws on Resend errors so the webhook handler can catch and
-// return 500 (Neon retries) rather than silently dropping the email.
+// Throws so the webhook returns 500 and Neon retries, rather than dropping the mail.
 export async function sendEmail({
   to,
   subject,

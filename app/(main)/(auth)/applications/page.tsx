@@ -32,9 +32,7 @@ const VALID_SORT_DIRECTIONS: ApplicationSortDirection[] = ['asc', 'desc'];
 export default async function ApplicationsPage({
   searchParams,
 }: ApplicationsPageProps) {
-  // Authorization guard: admins pass; managers pass only while they have ≥1
-  // position. Regular applicants get the shared 404 — the (auth) layout is
-  // not sufficient (it only gates on profile completeness).
+  // The (auth) layout only gates profile completeness, so this gates the role.
   const user = await requireManagerOrAdminOr404();
 
   const sp = await searchParams;
@@ -81,10 +79,7 @@ export default async function ApplicationsPage({
     getApplicationsTotal(user),
   ]);
 
-  // `getApplications` fetches 101 rows so `> 100` (not `>= 100`) distinguishes
-  // an actually-truncated result from an exact 100-row match — independent of
-  // `total`, which is always the unfiltered count. Slice the 101st row off
-  // before rendering/counting so `shown` never exceeds the advertised cap.
+  // 101 rows fetched: `> 100` distinguishes truncation from an exact 100-row match.
   const shownCapped = fetchedApplications.length > 100;
   const applications = shownCapped
     ? fetchedApplications.slice(0, 100)

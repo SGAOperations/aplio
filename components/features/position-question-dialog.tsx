@@ -65,11 +65,7 @@ export interface QuestionFormProps {
 
 type QuestionFormValues = z.infer<typeof questionFormSchema>;
 
-// Rendered inline in a Card by PositionQuestionsSection — not behind a
-// trigger/Dialog — so this uses the shadcn Form primitives directly rather
-// than FormDialog. Shares questionFormSchema/OptionsChipEditor with
-// GlobalQuestionDialog (ENGINEERING §1), including the "at least one option
-// for choice types" validation this form previously never enforced.
+// Rendered inline in a Card, not behind a trigger: shadcn Form primitives, no FormDialog.
 export function QuestionForm({
   positionId,
   question,
@@ -162,14 +158,12 @@ export function QuestionForm({
               <Select
                 onValueChange={(v) => {
                   field.onChange(v);
-                  // Clear stale options/allowOther when switching to a
-                  // non-choice type so they are not persisted to the DB (R3-M1).
+                  // Clear stale options/allowOther so a non-choice type can't persist them.
                   if (!CHOICE_TYPES.includes(v as ChoiceType)) {
                     form.setValue('options', []);
                     form.setValue('allowOther', false);
                   }
-                  // Clear format at the same moment — it's only meaningful for
-                  // short_answer questions.
+                  // format is meaningful only for short_answer.
                   if (v !== 'short_answer') form.setValue('format', null);
                 }}
                 value={field.value}

@@ -13,6 +13,7 @@ import {
 import { getOptionalUser } from '@/lib/auth/server';
 import type { PositionApplicationStats } from '@/lib/types';
 
+import { ManagedPositionsSection } from '@/components/features/managed-positions-section';
 import { PositionCard } from '@/components/features/position-card';
 import { PositionCreateDialog } from '@/components/features/position-create-dialog';
 import { PageHeader } from '@/components/layouts/page-header';
@@ -74,15 +75,13 @@ export default async function PositionsPage() {
   // Build a set of managed IDs so canManage can be derived in O(1) per card.
   const managedIds = new Set(managedPositions.map((p) => p.id));
 
-  // Fetch application stats for managed positions — stats are cross-user aggregates
-  // safe to show to managers (see getPositionApplicationStats() for the invariant).
+  // Aggregates only, so they are safe to show a manager.
   const statsByPosition =
     managedIds.size > 0
       ? await getPositionApplicationStats([...managedIds])
       : new Map<string, PositionApplicationStats>();
 
-  // Show "Positions I Manage" only when the user actually manages at least one
-  // relevant position — non-managers get an empty array, so the section is omitted.
+  // Empty for non-managers, which omits the section.
   const showManagedSection = managedPositions.length > 0;
 
   return (
@@ -94,25 +93,10 @@ export default async function PositionsPage() {
 
       {/* My Positions — shown first for managers; omitted when empty (non-manager or no relevant positions) */}
       {showManagedSection && (
-        <section
-          aria-labelledby="my-positions-heading"
-          className="flex flex-col gap-4"
-        >
-          <h2 id="my-positions-heading" className="text-lg font-semibold">
-            My Positions
-          </h2>
-          <div className="flex flex-col gap-4">
-            {managedPositions.map((position) => (
-              <PositionCard
-                key={position.id}
-                position={position}
-                canManage={true}
-                isAuthenticated={isAuthenticated}
-                applicationStats={statsByPosition.get(position.id)}
-              />
-            ))}
-          </div>
-        </section>
+        <ManagedPositionsSection
+          positions={managedPositions}
+          statsByPosition={statsByPosition}
+        />
       )}
 
       {/* Open Positions — always rendered, even when empty */}

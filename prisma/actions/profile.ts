@@ -8,7 +8,10 @@ import type { GlobalAnswer } from '@/prisma/client';
 
 import { getCurrentUser } from '@/lib/auth/server';
 import {
+  ANSWER_LONG_MAX_LENGTH,
+  ANSWER_MAX_VALUES,
   SHORT_ANSWER_FORMAT_ERROR_MESSAGES,
+  getAnswerValueError,
   matchesShortAnswerFormat,
   nameSchema,
 } from '@/lib/constants';
@@ -17,7 +20,8 @@ import { type ErrorType, type ResponseType } from '@/lib/utils';
 
 const updateGlobalAnswerSchema = z.object({
   questionId: z.string().min(1),
-  value: z.array(z.string()),
+  // Pre-DB size guard only — getAnswerValueError below enforces the real limits.
+  value: z.array(z.string().max(ANSWER_LONG_MAX_LENGTH)).max(ANSWER_MAX_VALUES),
 });
 
 export async function setUserName(input: unknown): Promise<ErrorType | void> {
@@ -48,18 +52,14 @@ export async function updateGlobalAnswer(
 
   const question = await prisma.globalQuestion.findUnique({
     where: { id: parsed.data.questionId },
-    select: { type: true, format: true },
+    select: { type: true, format: true, options: true, allowOther: true },
   });
   if (!question) throw new Error('Question not found');
-  // file_upload answers are written exclusively by uploadQuestionFileAnswer /
-  // removeQuestionFileAnswer (prisma/actions/question-files.ts).
+  // File answers are written only by the actions in question-files.ts.
   if (question.type === 'file_upload')
     throw new Error('Invalid question type for this action');
 
-  // Re-validate the format preset server-side — /profile's autosave (unlike
-  // the application flow) never sends a mismatched value at all today
-  // (profile-question.tsx blocks it client-side), but this action is the
-  // source of truth and must not depend on that client behavior.
+  // The client blocks this today, but the action can't depend on that.
   if (
     question.type === 'short_answer' &&
     question.format &&
@@ -68,9 +68,11 @@ export async function updateGlobalAnswer(
   )
     return { error: SHORT_ANSWER_FORMAT_ERROR_MESSAGES[question.format] };
 
-  // Persist what was actually validated: matchesShortAnswerFormat trims
-  // internally, so a format-validated answer must be trimmed before saving
-  // too, or a pasted value with incidental whitespace saves verbatim.
+  // Membership, "how many values", and length-limit backstop.
+  const answerError = getAnswerValueError(question, parsed.data.value);
+  if (answerError) return { error: answerError };
+
+  // matchesShortAnswerFormat trims internally, so save the trimmed value.
   const persistedValue =
     question?.type === 'short_answer' && question.format
       ? parsed.data.value.map((v) => v.trim())

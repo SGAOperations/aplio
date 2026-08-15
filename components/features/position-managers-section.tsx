@@ -50,9 +50,7 @@ export function PositionManagersSection({
   // Ref holds the debounce timer so typing does not trigger a search per keystroke.
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Clear a pending debounced search on unmount — without this, navigating away
-  // within the debounce window still fires the stale closure's searchUsers call.
-  // A DOM/timer handle has no non-effect home, so this is the sanctioned exception (§1).
+  // Clears a stale closure's searchUsers call on unmount; a timer has no non-effect home.
   useEffect(() => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -116,9 +114,7 @@ export function PositionManagersSection({
   }
 
   function handleRemove(userId: string) {
-    // The click can't happen through the disabled button, but keeps the
-    // client and server rules in one place rather than relying solely on the
-    // disabled attribute.
+    // Unreachable past the disabled button, but keeps both rules in one place.
     if (userId === currentUserId && !isAdmin) return;
 
     setRemovingId(userId);

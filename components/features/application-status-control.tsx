@@ -1,6 +1,6 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useId, useTransition } from 'react';
 
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -8,7 +8,12 @@ import { toast } from 'sonner';
 import { updateApplicationStatus } from '@/prisma/actions/applications';
 import { type $Enums } from '@/prisma/client';
 
-import { REVIEWER_APPLICATION_STATUS_OPTIONS } from '@/lib/constants';
+import {
+  APPLICATION_STATUS_LABELS,
+  NON_REVIEWABLE_APPLICATION_STATUS_NOTES,
+  REVIEWER_APPLICATION_STATUS_OPTIONS,
+  isNonReviewableApplicationStatus,
+} from '@/lib/constants';
 
 import { Label } from '@/components/ui/label';
 import {
@@ -29,9 +34,15 @@ export function ApplicationStatusControl({
   currentStatus,
 }: ApplicationStatusControlProps) {
   const [isPending, startTransition] = useTransition();
+  const fieldId = useId();
+  const noteId = useId();
 
   // Reviewer-selectable options — 'draft' is already excluded from this constant.
   const options = REVIEWER_APPLICATION_STATUS_OPTIONS;
+
+  // Derived from the shared constant (not a hand-written check) so this can
+  // never drift from the action's own non-reviewable guard.
+  const isReadOnly = isNonReviewableApplicationStatus(currentStatus);
 
   function handleValueChange(value: string) {
     startTransition(async () => {
@@ -53,7 +64,7 @@ export function ApplicationStatusControl({
 
   return (
     <div className="flex flex-col gap-2">
-      <Label htmlFor="application-status">Status</Label>
+      <Label htmlFor={fieldId}>Status</Label>
       <div className="flex items-center gap-3">
         {isPending && (
           <Loader2
@@ -62,12 +73,22 @@ export function ApplicationStatusControl({
           />
         )}
         <Select
-          value={currentStatus}
+          value={isReadOnly ? undefined : currentStatus}
           onValueChange={handleValueChange}
-          disabled={isPending}
+          disabled={isPending || isReadOnly}
         >
-          <SelectTrigger id="application-status" className="w-52">
-            <SelectValue />
+          <SelectTrigger
+            id={fieldId}
+            className="w-52"
+            aria-describedby={isReadOnly ? noteId : undefined}
+          >
+            <SelectValue
+              placeholder={
+                isReadOnly
+                  ? APPLICATION_STATUS_LABELS[currentStatus]
+                  : undefined
+              }
+            />
           </SelectTrigger>
           <SelectContent>
             {options.map((opt) => (
@@ -78,6 +99,11 @@ export function ApplicationStatusControl({
           </SelectContent>
         </Select>
       </div>
+      {isReadOnly && (
+        <p id={noteId} className="text-muted-foreground text-xs">
+          {NON_REVIEWABLE_APPLICATION_STATUS_NOTES[currentStatus]}
+        </p>
+      )}
     </div>
   );
 }

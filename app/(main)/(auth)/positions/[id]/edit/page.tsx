@@ -29,17 +29,11 @@ export default async function EditPositionPage({
 }: EditPositionPageProps) {
   const { id } = await params;
 
-  // Fetch position after confirming user is authenticated (enforced by the
-  // (auth) route group's layout.tsx); a missing position is a genuine 404,
-  // and must be checked before the access guard so a deleted-position link
-  // gives the same 404 either way rather than depending on guard-check
-  // ordering.
+  // Missing checked before the access guard, so both paths 404 identically.
   const position = await getPositionForEdit(id);
   if (!position) notFound();
 
-  // Access check: admin or manager of this specific position, else 404 —
-  // same denial as a genuinely missing position (no existence leak). Reuses
-  // the managers list already fetched above instead of re-querying it.
+  // Reuses the managers list above; denial is a 404, so nothing leaks existence.
   const user = await requireListedManagerOr404(position.managers);
 
   return (

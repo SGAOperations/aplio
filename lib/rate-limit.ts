@@ -1,30 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Per-tier rate limit caps (requests per minute per IP).
-// Webhook is matched before the /api/auth prefix so it gets the higher cap.
+// Order matters: webhook is matched before the /api/auth prefix to get the higher cap.
+// public covers one page view plus its RSC payload, not login attempts.
 const LIMITS = {
   webhook: { windowMs: 60_000, max: 100 },
   api: { windowMs: 60_000, max: 20 },
-  public: { windowMs: 60_000, max: 10 },
+  public: { windowMs: 60_000, max: 60 },
   private: { windowMs: 60_000, max: 120 },
 };
 
-// Module-level hit store: `${tier}:${ip}` → sorted array of request timestamps.
-// Reused across middleware invocations within a single worker instance.
-// Not shared across instances — see PR notes for the per-instance limitation.
+const RATE_LIMITED_PATH = '/429';
+
+// Per worker instance, so the effective limit scales with instance count.
 const hits = new Map<string, number[]>();
 
-// Sweep threshold: when the map grows beyond this size, evict stale buckets so
-// abandoned IPs don't accumulate memory over the lifetime of the worker.
+// Past this size, stale buckets are evicted so abandoned IPs don't leak memory.
 const SWEEP_THRESHOLD = 5_000;
 
-// NOTE — Vercel deployment prerequisite: Vercel's infrastructure overwrites
-// x-forwarded-for before it reaches the middleware, preventing spoofing.
-// On non-Vercel proxies (staging tunnels, custom reverse proxies) a client can
-// set x-forwarded-for to an arbitrary IP and bypass per-IP limiting entirely.
-// If this middleware is ever deployed behind a non-Vercel proxy, add header-
-// trust validation (e.g. only trust the rightmost IP, or use a separate trusted
-// header set by the proxy) before relying on the rate-limit for security.
+// Safe only on Vercel, which overwrites x-forwarded-for; elsewhere it's spoofable.
 function getClientIp(request: NextRequest): string {
   const forwarded = request.headers.get('x-forwarded-for');
   if (forwarded) {
@@ -36,8 +29,15 @@ function getClientIp(request: NextRequest): string {
   return 'unknown';
 }
 
-// Single source of truth for the pathname → tier routing rule — previously
-// duplicated between getLimit and tierKey (ENGINEERING §1: abstract at 2+).
+// GET/HEAD guard: 307 preserves method, so without it a no-JS form POST
+// would replay onto the block page.
+function isDocumentNavigation(request: NextRequest): boolean {
+  return (
+    (request.method === 'GET' || request.method === 'HEAD') &&
+    (request.headers.get('accept')?.includes('text/html') ?? false)
+  );
+}
+
 function classifyRequest(pathname: string): {
   tier: string;
   limit: { windowMs: number; max: number };
@@ -74,7 +74,6 @@ export function applyRateLimit(request: NextRequest): NextResponse | null {
     maybeSweep(now);
 
     const timestamps = hits.get(bucket) ?? [];
-    // Prune entries outside the current window.
     const windowStart = now - limit.windowMs;
     const recent = timestamps.filter((t) => t >= windowStart);
 
@@ -85,16 +84,25 @@ export function applyRateLimit(request: NextRequest): NextResponse | null {
         1,
         Math.ceil((oldest + limit.windowMs - now) / 1000),
       );
+      const headers = {
+        'Retry-After': String(retryAfter),
+        'X-RateLimit-Limit': String(limit.max),
+        'X-RateLimit-Remaining': '0',
+        // A refusal must never be served stale from a cache to a later caller.
+        'Cache-Control': 'no-store',
+      };
+
+      if (isDocumentNavigation(request)) {
+        const url = request.nextUrl.clone();
+        url.pathname = RATE_LIMITED_PATH;
+        url.search = '';
+        // 307 (not 308/302): preserves the request method and isn't cacheable.
+        return NextResponse.redirect(url, { status: 307, headers });
+      }
+
       return NextResponse.json(
         { error: 'Too many requests' },
-        {
-          status: 429,
-          headers: {
-            'Retry-After': String(retryAfter),
-            'X-RateLimit-Limit': String(limit.max),
-            'X-RateLimit-Remaining': '0',
-          },
-        },
+        { status: 429, headers },
       );
     }
 
@@ -102,9 +110,7 @@ export function applyRateLimit(request: NextRequest): NextResponse | null {
     hits.set(bucket, recent);
     return null;
   } catch (error) {
-    // Fail open: an internal error in the gate must not block legitimate traffic.
-    // Still logged so a future regression here leaves a trace instead of
-    // silently degrading to "no rate limiting".
+    // Fail open, but logged: silent degradation to no rate limiting is worse.
     console.error('applyRateLimit failed, allowing request', error);
     return null;
   }

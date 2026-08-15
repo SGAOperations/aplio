@@ -9,14 +9,19 @@ import { updateGlobalAnswer } from '@/prisma/actions/profile';
 import type { GlobalAnswer, GlobalQuestion } from '@/prisma/client';
 
 import {
+  ANSWER_LONG_MAX_LENGTH,
+  ANSWER_OTHER_MAX_LENGTH,
+  ANSWER_SHORT_MAX_LENGTH,
   OTHER_OPTION_LABEL,
   OTHER_OPTION_VALUE,
   SHORT_ANSWER_FORMAT_ERROR_MESSAGES,
+  getAnswerValueError,
   matchesShortAnswerFormat,
 } from '@/lib/constants';
-import { isError } from '@/lib/utils';
+import { ActionError, cn, isError, partitionAnswerValue } from '@/lib/utils';
 
 import { AnswerFileLink } from '@/components/features/answer-file-link';
+import { AnswerMismatchNotice } from '@/components/features/answer-mismatch-notice';
 import { QuestionFileField } from '@/components/features/question-file-field';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -45,13 +50,20 @@ export function ProfileQuestion({
   const savedValueRef = useRef(JSON.stringify(initialValue));
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
-  const [formatError, setFormatError] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const noticeId = `${question.id}-mismatch`;
+  const labelId = `${question.id}-label`;
 
-  // Any answer value that isn't one of the admin-defined options is the
-  // applicant's typed "Other" text (options is a closed set — see issue #322).
-  const initialOtherValue = initialValue.find(
-    (v) => !question.options.includes(v),
+  // Non-reactive to typing; fine here — the editable view below recomputes.
+  const { fitted: viewFitted, orphaned: viewOrphaned } = partitionAnswerValue(
+    question,
+    getValues('value'),
   );
+
+  // Gated on allowOther — a turned-off option can't masquerade as "Other".
+  const initialOtherValue = question.allowOther
+    ? viewFitted.find((v) => !question.options.includes(v))
+    : undefined;
   const [otherSelected, setOtherSelected] = useState(
     initialOtherValue !== undefined,
   );
@@ -67,42 +79,62 @@ export function ProfileQuestion({
     setSaveError(false);
     try {
       const result = await updateGlobalAnswer(question.id, value);
-      if (isError(result)) throw new Error(result.error);
+      if (isError(result)) throw new ActionError(result.error);
       savedValueRef.current = serialized;
       reset({ value });
-    } catch {
+    } catch (err) {
       // savedValueRef is not advanced on failure so retries work
       setSaveError(true);
-      toast.error('Failed to save answer');
+      // Non-ActionError throws (e.g. an auth guard) must never surface their raw message.
+      toast.error(
+        err instanceof ActionError ? err.message : 'Failed to save answer',
+      );
     } finally {
       setIsSaving(false);
     }
   }
 
-  // Format mismatches never reach the network — this autosave's failure path
-  // is silent by design (see the catch above), so blocking the save
-  // client-side is the only way the user ever sees this message.
+  // This autosave fails silently, so blocking here is the only way the user sees it.
   function handleBlur() {
     const value = getValues('value');
+    // Orphaned values are read-only elsewhere — only fitted needs format-validating.
+    const { fitted } = partitionAnswerValue(question, value);
     if (
       question.type === 'short_answer' &&
       question.format &&
-      value[0] &&
-      !matchesShortAnswerFormat(value[0], question.format)
+      fitted[0] &&
+      !matchesShortAnswerFormat(fitted[0], question.format)
     ) {
-      setFormatError(SHORT_ANSWER_FORMAT_ERROR_MESSAGES[question.format]);
+      setValidationError(SHORT_ANSWER_FORMAT_ERROR_MESSAGES[question.format]);
       return;
     }
-    setFormatError(null);
+    const answerError = getAnswerValueError(question, value);
+    if (answerError) {
+      setValidationError(answerError);
+      return;
+    }
+    setValidationError(null);
     save(value);
   }
 
   return (
     <div className="bg-card rounded-lg border p-4 shadow-sm">
-      <p className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase">
+      <p
+        id={labelId}
+        className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase"
+      >
         {question.label}
         {question.required && <span className="text-destructive ml-1">*</span>}
       </p>
+
+      {/* Full stored value, read-only — not writable, so a mismatch can't round-trip into a write. */}
+      {!isEditing && viewOrphaned.length > 0 && (
+        <AnswerMismatchNotice
+          id={noticeId}
+          values={viewOrphaned}
+          questionType={question.type}
+        />
+      )}
 
       {!isEditing &&
         (getValues('value').length === 0 ? (
@@ -134,40 +166,86 @@ export function ProfileQuestion({
           control={control}
           name="value"
           render={({ field }) => {
+            const { fitted, orphaned } = partitionAnswerValue(
+              question,
+              field.value,
+            );
+            const notice = orphaned.length > 0 && (
+              <AnswerMismatchNotice
+                id={noticeId}
+                values={orphaned}
+                questionType={question.type}
+              />
+            );
+
             if (question.type === 'short_answer')
               return (
-                <Input
-                  value={field.value[0] ?? ''}
-                  onChange={(e) => {
-                    field.onChange(e.target.value ? [e.target.value] : []);
-                    setFormatError(null);
-                  }}
-                  onBlur={handleBlur}
-                  placeholder="Your answer"
-                />
+                <>
+                  {notice}
+                  <Input
+                    value={fitted[0] ?? ''}
+                    onChange={(e) => {
+                      field.onChange(e.target.value ? [e.target.value] : []);
+                      setValidationError(null);
+                    }}
+                    onBlur={handleBlur}
+                    placeholder="Your answer"
+                    maxLength={ANSWER_SHORT_MAX_LENGTH}
+                    aria-invalid={!!validationError}
+                    aria-describedby={
+                      orphaned.length > 0 ? noticeId : undefined
+                    }
+                  />
+                </>
               );
 
             if (question.type === 'long_answer')
               return (
-                <Textarea
-                  value={field.value[0] ?? ''}
-                  onChange={(e) =>
-                    field.onChange(e.target.value ? [e.target.value] : [])
-                  }
-                  onBlur={handleBlur}
-                  placeholder="Your answer"
-                  className="min-h-[100px]"
-                />
+                <>
+                  {notice}
+                  <Textarea
+                    id={`${question.id}-long-answer`}
+                    value={fitted[0] ?? ''}
+                    onChange={(e) => {
+                      field.onChange(e.target.value ? [e.target.value] : []);
+                      setValidationError(null);
+                    }}
+                    onBlur={handleBlur}
+                    placeholder="Your answer"
+                    className="min-h-[100px]"
+                    maxLength={ANSWER_LONG_MAX_LENGTH}
+                    aria-invalid={!!validationError}
+                    aria-describedby={
+                      orphaned.length > 0
+                        ? `${noticeId} ${question.id}-long-answer-count`
+                        : `${question.id}-long-answer-count`
+                    }
+                  />
+                  <p
+                    id={`${question.id}-long-answer-count`}
+                    className={cn(
+                      'text-muted-foreground mt-1 text-right text-xs',
+                      (fitted[0]?.length ?? 0) >= ANSWER_LONG_MAX_LENGTH &&
+                        'text-destructive',
+                    )}
+                  >
+                    {(fitted[0]?.length ?? 0).toLocaleString()}/
+                    {ANSWER_LONG_MAX_LENGTH.toLocaleString()}
+                  </p>
+                </>
               );
 
             if (question.type === 'single_choice')
               return (
                 <div className="flex flex-col gap-2">
+                  {notice}
                   <RadioGroup
+                    aria-labelledby={labelId}
+                    aria-describedby={
+                      orphaned.length > 0 ? noticeId : undefined
+                    }
                     value={
-                      otherSelected
-                        ? OTHER_OPTION_VALUE
-                        : (field.value[0] ?? '')
+                      otherSelected ? OTHER_OPTION_VALUE : (fitted[0] ?? '')
                     }
                     onValueChange={(v) => {
                       if (v === OTHER_OPTION_VALUE) {
@@ -177,9 +255,7 @@ export function ProfileQuestion({
                         save(next);
                         return;
                       }
-                      // Picking a real option hides the "Other" input and
-                      // clears any previously typed text so it is never
-                      // silently resubmitted.
+                      // Clearing the typed text stops it being silently resubmitted.
                       setOtherSelected(false);
                       setOtherText('');
                       field.onChange([v]);
@@ -242,6 +318,7 @@ export function ProfileQuestion({
                         }}
                         onBlur={handleBlur}
                         placeholder="Type your answer"
+                        maxLength={ANSWER_OTHER_MAX_LENGTH}
                       />
                     </div>
                   )}
@@ -250,24 +327,30 @@ export function ProfileQuestion({
 
             if (question.type === 'file_upload')
               return (
-                <QuestionFileField
-                  target={{ scope: 'profile', questionId: question.id }}
-                  value={field.value}
-                  onChange={(v) => {
-                    // uploadQuestionFileAnswer/removeQuestionFileAnswer already
-                    // persisted this value server-side — just sync local
-                    // state, never route through save() (updateGlobalAnswer
-                    // throws for file_upload questions by design).
-                    field.onChange(v);
-                    savedValueRef.current = JSON.stringify(v);
-                    reset({ value: v });
-                  }}
-                />
+                <>
+                  {notice}
+                  <QuestionFileField
+                    target={{ scope: 'profile', questionId: question.id }}
+                    value={fitted}
+                    onChange={(v) => {
+                      // Already persisted server-side — sync local state only, never save().
+                      field.onChange(v);
+                      savedValueRef.current = JSON.stringify(v);
+                      reset({ value: v });
+                    }}
+                  />
+                </>
               );
 
             // question.type === 'multiple_choice'
             return (
-              <div className="flex flex-col gap-2">
+              <div
+                role="group"
+                aria-labelledby={labelId}
+                aria-describedby={orphaned.length > 0 ? noticeId : undefined}
+                className="flex flex-col gap-2"
+              >
+                {notice}
                 {question.options.map((option: string, i: number) => (
                   <div
                     key={option}
@@ -275,11 +358,11 @@ export function ProfileQuestion({
                   >
                     <Checkbox
                       id={`${question.id}-${i}`}
-                      checked={field.value.includes(option)}
+                      checked={fitted.includes(option)}
                       onCheckedChange={() => {
-                        const next = field.value.includes(option)
-                          ? field.value.filter((v) => v !== option)
-                          : [...field.value, option];
+                        const next = fitted.includes(option)
+                          ? fitted.filter((v) => v !== option)
+                          : [...fitted, option];
                         field.onChange(next);
                         save(next);
                       }}
@@ -300,7 +383,7 @@ export function ProfileQuestion({
                       checked={otherSelected}
                       onCheckedChange={(checked) => {
                         setOtherSelected(!!checked);
-                        const checkedOptions = field.value.filter((v) =>
+                        const checkedOptions = fitted.filter((v) =>
                           question.options.includes(v),
                         );
                         if (checked) {
@@ -310,8 +393,7 @@ export function ProfileQuestion({
                           field.onChange(next);
                           save(next);
                         } else {
-                          // Uncheck removes the typed text from the saved
-                          // array immediately so it isn't silently resubmitted.
+                          // Drops the typed text immediately, so it isn't resubmitted.
                           setOtherText('');
                           field.onChange(checkedOptions);
                           save(checkedOptions);
@@ -343,7 +425,7 @@ export function ProfileQuestion({
                       value={otherText}
                       onChange={(e) => {
                         setOtherText(e.target.value);
-                        const checkedOptions = field.value.filter((v) =>
+                        const checkedOptions = fitted.filter((v) =>
                           question.options.includes(v),
                         );
                         field.onChange(
@@ -354,6 +436,7 @@ export function ProfileQuestion({
                       }}
                       onBlur={handleBlur}
                       placeholder="Type your answer"
+                      maxLength={ANSWER_OTHER_MAX_LENGTH}
                     />
                   </div>
                 )}
@@ -363,8 +446,8 @@ export function ProfileQuestion({
         />
       )}
 
-      {isEditing && formatError && (
-        <p className="text-destructive mt-2 text-xs">{formatError}</p>
+      {isEditing && validationError && (
+        <p className="text-destructive mt-2 text-xs">{validationError}</p>
       )}
       {isEditing && isSaving && (
         <span className="text-muted-foreground mt-2 block text-xs">

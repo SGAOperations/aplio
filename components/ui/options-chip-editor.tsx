@@ -4,6 +4,11 @@ import { useId } from 'react';
 
 import { CornerDownLeft } from 'lucide-react';
 
+import {
+  QUESTION_MAX_OPTIONS,
+  QUESTION_OPTION_MAX_LENGTH,
+} from '@/lib/constants';
+
 import { Input } from '@/components/ui/input';
 
 interface OptionsChipEditorProps {
@@ -12,23 +17,24 @@ interface OptionsChipEditorProps {
   disabled?: boolean;
 }
 
-// Controlled "type and press Enter" chip editor for choice-question options.
-// Library-agnostic: works under RHF's field.value/field.onChange or plain
-// useState — shared by GlobalQuestionDialog and the position QuestionForm,
-// which previously each hand-rolled this markup (ENGINEERING §1).
+// Library-agnostic "type and Enter" chip editor: works under RHF or plain useState.
 export function OptionsChipEditor({
   options,
   onChange,
   disabled,
 }: OptionsChipEditorProps) {
-  // Own id rather than relying on the surrounding FormControl's
-  // aria-describedby — that wiring targets this component's outer div, not
-  // the Input rendered inside it, since Slot merges onto the immediate child.
+  // Own id: Slot merges FormControl's aria-describedby onto the outer div, not this Input.
   const hintId = useId();
 
   function addOption(value: string) {
     const trimmed = value.trim();
-    if (!trimmed || options.includes(trimmed)) return;
+    // Mirrors validateOptions' server-side cap.
+    if (
+      !trimmed ||
+      options.includes(trimmed) ||
+      options.length >= QUESTION_MAX_OPTIONS
+    )
+      return;
     onChange([...options, trimmed]);
   }
 
@@ -64,6 +70,7 @@ export function OptionsChipEditor({
           placeholder="Type an option and press Enter"
           disabled={disabled}
           aria-describedby={hintId}
+          maxLength={QUESTION_OPTION_MAX_LENGTH}
           className="pr-8"
           onKeyDown={(e) => {
             if (e.key === 'Enter') {

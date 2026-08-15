@@ -4,7 +4,7 @@ import type { GlobalAnswer, GlobalQuestion } from '@/prisma/client';
 
 import { prisma } from '@/lib/prisma';
 import { type ProfileCompleteness } from '@/lib/types';
-import { toStringArray } from '@/lib/utils';
+import { isAnswered, toStringArray } from '@/lib/utils';
 
 export async function getProfileData(
   userId: string,
@@ -26,7 +26,15 @@ export async function getProfileCompleteness(
 ): Promise<ProfileCompleteness> {
   const requiredQuestions = await prisma.globalQuestion.findMany({
     where: { required: true, deletedAt: null },
-    select: { id: true },
+    select: {
+      id: true,
+      label: true,
+      type: true,
+      required: true,
+      options: true,
+      allowOther: true,
+      format: true,
+    },
   });
 
   const requiredCount = requiredQuestions.length;
@@ -43,10 +51,12 @@ export async function getProfileCompleteness(
     select: { globalQuestionId: true, value: true },
   });
 
-  // Match submitApplication's check: a required question only counts as
-  // answered when its value is non-empty, not merely when a row exists.
-  const answeredCount = answers.filter(
-    (a) => toStringArray(a.value).length > 0,
+  // Match submitApplication: counts as answered only if still fits the question's shape.
+  const answeredCount = requiredQuestions.filter((q) =>
+    answers.some(
+      (a) =>
+        a.globalQuestionId === q.id && isAnswered(q, toStringArray(a.value)),
+    ),
   ).length;
 
   const missingCount = requiredCount - answeredCount;

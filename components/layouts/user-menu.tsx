@@ -52,9 +52,7 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
   const displayName = name ?? email;
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  // next-themes is loaded with { ssr: false }; `theme` is undefined on first
-  // render before the provider resolves. Default to 'system' to match
-  // defaultTheme so the radio shows a selection without a flash.
+  // Matches defaultTheme: theme is undefined pre-hydration under { ssr: false }.
   const { theme = 'system', setTheme } = useTheme();
 
   const triggerClassName =
@@ -66,8 +64,7 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
         try {
           await logoutBypassUser();
         } catch (error) {
-          // Let Next's internal redirect signal through — only a genuine
-          // failure before the redirect() call should surface a toast.
+          // Let Next's redirect signal through; only a real failure toasts.
           unstable_rethrow(error);
           toast.error('Could not sign out. Please try again.');
         }
@@ -82,10 +79,7 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
         toast.success('Signed out.');
         router.push('/login');
       } catch (error) {
-        // signOutUser() calls getCurrentUser() first, which redirects (throwing
-        // a NEXT_REDIRECT digest) when the session already expired — rethrow
-        // that so Next can complete the navigation instead of it being
-        // misclassified as a genuine failure below.
+        // Lets an expired-session NEXT_REDIRECT reach Next instead of failing below.
         unstable_rethrow(error);
         console.error('Sign-out failed unexpectedly', error);
         toast.error('Something went wrong. Please try again.');

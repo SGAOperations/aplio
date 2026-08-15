@@ -2,10 +2,7 @@ import { BYPASS_USERS } from '@/lib/bypass-users';
 
 import type { ApplicantDef } from './types';
 
-// Regular applicants, the three dev-bypass identities (upserted rather than
-// created in seed.ts — see ApplicantDef.neonAuthId), and one deactivated
-// applicant. The seed-marker admin (`seed@aplio.dev`) is created directly in
-// seed.ts and is not part of this list.
+// Applicants, the three dev-bypass identities, and one deactivated user.
 export const applicantDefs: ApplicantDef[] = [
   {
     email: BYPASS_USERS.admin.email,
@@ -30,12 +27,7 @@ export const applicantDefs: ApplicantDef[] = [
   { email: 'erin@example.com', name: 'Erin Walsh', deactivated: true },
 ];
 
-// Per-applicant profile answers keyed by email, then by global question
-// label. Only present keys get a seeded GlobalAnswer row — a label the seed
-// omits (rather than answering with an empty array) models "never answered"
-// rather than "answered blank". The position manager deliberately omits two
-// required questions ('Year in school', 'Areas of interest') so the profile
-// completeness gate has a live subject.
+// An omitted label models "never answered", not "answered blank".
 export const profileAnswers: Record<string, Record<string, string[]>> = {
   [BYPASS_USERS.admin.email]: {
     'Full name': ['Bypass Admin'],

@@ -19,9 +19,7 @@ const prisma = new PrismaClient({ adapter });
 const SEED_MARKER_EMAIL = 'seed@aplio.dev';
 
 async function main() {
-  // A bypass login creates a User row on its own, which would permanently
-  // disable a plain `userCount > 0` guard on any DB someone has bypass-logged
-  // into. The seed-marker admin only ever comes from this script.
+  // A bypass login creates its own User row, which would disable a userCount guard.
   const existingSeed = await prisma.user.findUnique({
     where: { email: SEED_MARKER_EMAIL },
   });
@@ -32,9 +30,7 @@ async function main() {
 
   const now = new Date();
 
-  // Transactional so a partial failure rolls back instead of leaving a
-  // half-seeded DB that the seed-marker guard above would mask on rerun.
-  // 60s timeout: the fixture set roughly triples the original write count.
+  // Transactional so a partial failure can't leave a DB the guard above would mask.
   await prisma.$transaction(
     async (tx) => {
       const admin = await tx.user.create({
@@ -46,11 +42,7 @@ async function main() {
         },
       });
 
-      // Bypass identities are upserted (create leaves everything else alone) so
-      // a DB where someone already bypass-logged-in still seeds instead of
-      // colliding on the unique neonAuthId; regular applicants are plain
-      // creates. `name` is synced on update so a prior dev-bypass login (whose
-      // own upsert never sets `name`) still picks up the seeded display name.
+      // Bypass identities upsert, so a prior login can't collide on neonAuthId.
       const applicants: User[] = await Promise.all(
         applicantDefs.map((u) =>
           u.neonAuthId
@@ -133,11 +125,7 @@ async function main() {
         positions.map((p) => [p.title, p]),
       );
 
-      // One createMany across every applicant's profile answers — only labels
-      // present in profileAnswers[email] get a row, so an omitted question
-      // (the position manager's two missing required answers) is genuinely
-      // unanswered rather than answered with an empty value. skipDuplicates
-      // covers a bypass identity that already carries answers from a prior run.
+      // Only listed labels get a row, so an omitted question is truly unanswered.
       const globalAnswerData = applicants.flatMap((user) =>
         Object.entries(profileAnswers[user.email] ?? {}).map(
           ([label, value]) => {
@@ -168,10 +156,7 @@ async function main() {
           if (!position)
             throw new Error(`Unknown position title: ${def.positionTitle}`);
 
-          // 'partial' and 'full' both copy the applicant's current profile
-          // answers onto the application, mirroring createDraftApplication —
-          // an incomplete profile (the position manager) still copies whatever
-          // exists, which is exactly what leaves that draft blocked on submit.
+          // Mirrors createDraftApplication: an incomplete profile copies what exists.
           const globalAnswersData =
             def.answers === 'none'
               ? []
@@ -192,8 +177,7 @@ async function main() {
                   },
                 );
 
-          // file_upload questions are skipped — seeded fixtures carry no real
-          // blob, and every file_upload question in this dataset is optional.
+          // Skipped: fixtures carry no real blob, and all such questions are optional.
           const positionAnswersData =
             def.answers === 'full'
               ? position.questions

@@ -4,39 +4,27 @@ import { useRef, useState } from 'react';
 
 import { toast } from 'sonner';
 
-import type { QuestionType, ShortAnswerFormat } from '@/prisma/client';
+import {
+  ANSWER_LONG_MAX_LENGTH,
+  ANSWER_OTHER_MAX_LENGTH,
+  ANSWER_SHORT_MAX_LENGTH,
+  FORMAT_INPUT_TYPES,
+  OTHER_OPTION_LABEL,
+  getAnswerValueError,
+  matchesShortAnswerFormat,
+} from '@/lib/constants';
+import type { AnswerQuestion, QuestionFileTarget } from '@/lib/types';
+import { ActionError, cn, partitionAnswerValue } from '@/lib/utils';
 
-import { OTHER_OPTION_LABEL, matchesShortAnswerFormat } from '@/lib/constants';
-import type { QuestionFileTarget } from '@/lib/types';
-import { cn } from '@/lib/utils';
-
+import { AnswerMismatchNotice } from '@/components/features/answer-mismatch-notice';
 import { QuestionFileField } from '@/components/features/question-file-field';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 
-type QuestionShape = {
-  id: string;
-  label: string;
-  type: QuestionType;
-  required: boolean;
-  options: string[];
-  allowOther: boolean;
-  format: ShortAnswerFormat | null;
-};
-
-// Native input type per format preset — gives mobile keyboards (email/tel/url)
-// without adding any new validation surface (validation is the format regex).
-const FORMAT_INPUT_TYPES: Record<ShortAnswerFormat, string> = {
-  email: 'email',
-  phone_number: 'tel',
-  url: 'url',
-  zip_code: 'text',
-};
-
 interface ApplicationQuestionProps {
-  question: QuestionShape;
+  question: AnswerQuestion;
   field: {
     value: string[];
     onChange: (value: string[]) => void;
@@ -44,8 +32,7 @@ interface ApplicationQuestionProps {
   };
   error?: string;
   onSave: (value: string[]) => Promise<void>;
-  // Only read for question.type === 'file_upload' — QuestionFileField talks
-  // directly to the file actions (never through onSave's text-answer path).
+  // file_upload only: QuestionFileField calls the file actions directly.
   fileTarget: QuestionFileTarget;
 }
 
@@ -58,14 +45,19 @@ export function ApplicationQuestion({
 }: ApplicationQuestionProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
+  // Raw value, never re-seeded — an untouched blur must write nothing.
   const savedValueRef = useRef(JSON.stringify(field.value));
   const options = Array.isArray(question.options)
     ? question.options.filter((o): o is string => typeof o === 'string')
     : [];
+  const { fitted, orphaned } = partitionAnswerValue(question, field.value);
+  const noticeId = `${question.id}-mismatch`;
+  const labelId = `${question.id}-label`;
 
-  // Any answer value that isn't one of the admin-defined options is the
-  // applicant's typed "Other" text (options is a closed set — see issue #322).
-  const initialOtherValue = field.value.find((v) => !options.includes(v));
+  // Gated on allowOther — a turned-off option can't masquerade as "Other".
+  const initialOtherValue = question.allowOther
+    ? fitted.find((v) => !options.includes(v))
+    : undefined;
   const [otherSelected, setOtherSelected] = useState(
     initialOtherValue !== undefined,
   );
@@ -79,9 +71,12 @@ export function ApplicationQuestion({
     try {
       await onSave(value);
       savedValueRef.current = serialized;
-    } catch {
+    } catch (err) {
       setSaveError(true);
-      toast.error('Failed to save answer');
+      // Non-ActionError throws (e.g. an auth guard) must never surface their raw message.
+      toast.error(
+        err instanceof ActionError ? err.message : 'Failed to save answer',
+      );
     } finally {
       setIsSaving(false);
     }
@@ -89,10 +84,7 @@ export function ApplicationQuestion({
 
   async function handleBlur() {
     field.onBlur();
-    // Mirrors the Controller `validate` rule in application-stepper.tsx —
-    // skip the autosave when the value fails format validation so a
-    // rejected value never round-trips to the server for a second, more
-    // generic "Failed to save answer" toast on top of the inline error.
+    // Skip the autosave on a format failure, or the inline error gets a toast too.
     if (
       question.type === 'short_answer' &&
       question.format &&
@@ -100,6 +92,7 @@ export function ApplicationQuestion({
       !matchesShortAnswerFormat(field.value[0], question.format)
     )
       return;
+    if (getAnswerValueError(question, field.value)) return;
     await save(field.value);
   }
 
@@ -110,37 +103,77 @@ export function ApplicationQuestion({
         error && 'border-destructive',
       )}
     >
-      <p className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase">
+      <p
+        id={labelId}
+        className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase"
+      >
         {question.label}
         {question.required && <span className="text-destructive ml-1">*</span>}
       </p>
 
+      {orphaned.length > 0 && (
+        <AnswerMismatchNotice
+          id={noticeId}
+          values={orphaned}
+          questionType={question.type}
+        />
+      )}
+
       {question.type === 'short_answer' && (
         <Input
           type={question.format ? FORMAT_INPUT_TYPES[question.format] : 'text'}
-          value={field.value[0] ?? ''}
+          value={fitted[0] ?? ''}
           onChange={(e) =>
             field.onChange(e.target.value ? [e.target.value] : [])
           }
           onBlur={handleBlur}
           placeholder="Your answer"
+          maxLength={ANSWER_SHORT_MAX_LENGTH}
+          aria-invalid={!!error}
+          aria-describedby={orphaned.length > 0 ? noticeId : undefined}
         />
       )}
 
       {question.type === 'long_answer' && (
-        <Textarea
-          value={field.value[0] ?? ''}
-          onChange={(e) =>
-            field.onChange(e.target.value ? [e.target.value] : [])
-          }
-          onBlur={handleBlur}
-          placeholder="Your answer"
-          className="min-h-[120px]"
-        />
+        <>
+          <Textarea
+            id={`${question.id}-long-answer`}
+            value={fitted[0] ?? ''}
+            onChange={(e) =>
+              field.onChange(e.target.value ? [e.target.value] : [])
+            }
+            onBlur={handleBlur}
+            placeholder="Your answer"
+            className="min-h-[120px]"
+            maxLength={ANSWER_LONG_MAX_LENGTH}
+            aria-invalid={!!error}
+            aria-describedby={
+              orphaned.length > 0
+                ? `${noticeId} ${question.id}-long-answer-count`
+                : `${question.id}-long-answer-count`
+            }
+          />
+          <p
+            id={`${question.id}-long-answer-count`}
+            className={cn(
+              'text-muted-foreground mt-1 text-right text-xs',
+              (fitted[0]?.length ?? 0) >= ANSWER_LONG_MAX_LENGTH &&
+                'text-destructive',
+            )}
+          >
+            {(fitted[0]?.length ?? 0).toLocaleString()}/
+            {ANSWER_LONG_MAX_LENGTH.toLocaleString()}
+          </p>
+        </>
       )}
 
       {question.type === 'single_choice' && (
-        <div className="flex flex-col gap-2">
+        <div
+          role="group"
+          aria-labelledby={labelId}
+          aria-describedby={orphaned.length > 0 ? noticeId : undefined}
+          className="flex flex-col gap-2"
+        >
           {options.map((option) => (
             <Label
               key={option}
@@ -150,10 +183,9 @@ export function ApplicationQuestion({
                 type="radio"
                 name={question.id}
                 value={option}
-                checked={!otherSelected && field.value[0] === option}
+                checked={!otherSelected && fitted[0] === option}
                 onChange={() => {
-                  // Picking a real option hides the "Other" input and clears
-                  // any previously typed text so it is never silently resubmitted.
+                  // Clearing the typed text stops it being silently resubmitted.
                   setOtherSelected(false);
                   setOtherText('');
                   field.onChange([option]);
@@ -204,6 +236,7 @@ export function ApplicationQuestion({
                     }}
                     onBlur={handleBlur}
                     placeholder="Type your answer"
+                    maxLength={ANSWER_OTHER_MAX_LENGTH}
                   />
                 </div>
               )}
@@ -213,18 +246,23 @@ export function ApplicationQuestion({
       )}
 
       {question.type === 'multiple_choice' && (
-        <div className="flex flex-col gap-2">
+        <div
+          role="group"
+          aria-labelledby={labelId}
+          aria-describedby={orphaned.length > 0 ? noticeId : undefined}
+          className="flex flex-col gap-2"
+        >
           {options.map((option) => (
             <Label
               key={option}
               className="flex cursor-pointer items-center gap-2 font-normal"
             >
               <Checkbox
-                checked={field.value.includes(option)}
+                checked={fitted.includes(option)}
                 onCheckedChange={(checked) => {
                   const next = checked
-                    ? [...field.value, option]
-                    : field.value.filter((v) => v !== option);
+                    ? [...fitted, option]
+                    : fitted.filter((v) => v !== option);
                   field.onChange(next);
                   save(next);
                 }}
@@ -240,7 +278,7 @@ export function ApplicationQuestion({
                   checked={otherSelected}
                   onCheckedChange={(checked) => {
                     setOtherSelected(!!checked);
-                    const checkedOptions = field.value.filter((v) =>
+                    const checkedOptions = fitted.filter((v) =>
                       options.includes(v),
                     );
                     if (checked) {
@@ -250,8 +288,7 @@ export function ApplicationQuestion({
                       field.onChange(next);
                       save(next);
                     } else {
-                      // Uncheck removes the typed text from the saved array
-                      // immediately so it isn't silently resubmitted.
+                      // Drops the typed text immediately, so it isn't resubmitted.
                       setOtherText('');
                       field.onChange(checkedOptions);
                       save(checkedOptions);
@@ -277,7 +314,7 @@ export function ApplicationQuestion({
                     value={otherText}
                     onChange={(e) => {
                       setOtherText(e.target.value);
-                      const checkedOptions = field.value.filter((v) =>
+                      const checkedOptions = fitted.filter((v) =>
                         options.includes(v),
                       );
                       field.onChange(
@@ -288,6 +325,7 @@ export function ApplicationQuestion({
                     }}
                     onBlur={handleBlur}
                     placeholder="Type your answer"
+                    maxLength={ANSWER_OTHER_MAX_LENGTH}
                   />
                 </div>
               )}
@@ -299,7 +337,7 @@ export function ApplicationQuestion({
       {question.type === 'file_upload' && (
         <QuestionFileField
           target={fileTarget}
-          value={field.value}
+          value={fitted}
           onChange={field.onChange}
         />
       )}

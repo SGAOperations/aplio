@@ -1,11 +1,6 @@
 import 'server-only';
 
-// Email templates for Neon Auth webhook events.
-//
-// Tailwind classes are ignored by email clients, so inline styles are used here.
-// Logo is served from the hosted /logo-512.svg asset; VERCEL_URL is set automatically
-// in Vercel deployments and falls back to localhost:3000 for local dev.
-// Red accent #D41B2C matches the Aplio logo; zinc tokens match the app design system.
+// Inline styles throughout: email clients ignore Tailwind classes.
 
 const LOGO_URL = `https://${process.env.VERCEL_URL ?? 'localhost:3000'}/logo-512.svg`;
 

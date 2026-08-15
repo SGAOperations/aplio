@@ -1,13 +1,19 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-import type { PositionAvailability, PositionWindow } from '@/lib/types';
+import { MANAGED_POSITIONS_WINDOW_DAYS } from '@/lib/constants';
+import type {
+  AnswerPartition,
+  AnswerQuestion,
+  PositionActivity,
+  PositionAvailability,
+  PositionWindow,
+} from '@/lib/types';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// Type definitions for server action responses
 export type ErrorType = { error: string };
 
 export type ResponseType<T> = T | ErrorType;
@@ -22,13 +28,12 @@ export function isError<T>(result: ResponseType<T>): result is ErrorType {
 }
 
 /**
- * True only when the dev-bypass login is explicitly allowed.
- * Default-DENY: bypass is disabled unless VERCEL_ENV is explicitly
- * 'development' or 'preview' (set via .env.example for local `next dev`,
- * and by Vercel automatically for preview deployments). An unset VERCEL_ENV
- * must NOT enable bypass, since that also describes any non-Vercel-hosted
- * production deployment (self-hosted, another cloud). Never infer "local"
- * from the absence of a signal.
+ * Re-thrown from a server action's `{ error }` result; its message is user-facing.
+ */
+export class ActionError extends Error {}
+
+/**
+ * Default-DENY: an unset VERCEL_ENV also describes production off Vercel.
  */
 export function isBypassAllowed(): boolean {
   return (
@@ -42,6 +47,61 @@ export function toStringArray(v: unknown): string[] {
   return [];
 }
 
+/** Splits a stored answer into what still fits the question's shape (`fitted`) vs. what doesn't (`orphaned`); together always `value`. */
+export function partitionAnswerValue(
+  question: AnswerQuestion,
+  value: string[],
+): AnswerPartition {
+  switch (question.type) {
+    case 'short_answer':
+    case 'long_answer':
+    case 'file_upload':
+      return { fitted: value.slice(0, 1), orphaned: value.slice(1) };
+
+    case 'single_choice': {
+      // entry 0 renders either as an option or as the "Other" text.
+      if (question.allowOther)
+        return { fitted: value.slice(0, 1), orphaned: value.slice(1) };
+
+      const fittedIndex = value.findIndex((v) => question.options.includes(v));
+      if (fittedIndex === -1) return { fitted: [], orphaned: value };
+      return {
+        fitted: [value[fittedIndex]],
+        orphaned: [
+          ...value.slice(0, fittedIndex),
+          ...value.slice(fittedIndex + 1),
+        ],
+      };
+    }
+
+    case 'multiple_choice': {
+      const inOptions = value.filter((v) => question.options.includes(v));
+      const notInOptions = value.filter((v) => !question.options.includes(v));
+      if (!question.allowOther)
+        return { fitted: inOptions, orphaned: notInOptions };
+
+      // Checked options plus first non-option entry ("Other" text); rest orphaned.
+      const [otherValue, ...restOrphaned] = notInOptions;
+      return {
+        fitted:
+          otherValue !== undefined ? [...inOptions, otherValue] : inOptions,
+        orphaned: restOrphaned,
+      };
+    }
+
+    default: {
+      // Unreachable — a new type breaks the build via `never`, not silently at runtime.
+      const exhaustiveCheck: never = question.type;
+      return exhaustiveCheck;
+    }
+  }
+}
+
+/** True when the stored answer has any part that still fits the question's current shape. */
+export function isAnswered(question: AnswerQuestion, value: string[]): boolean {
+  return partitionAnswerValue(question, value).fitted.length > 0;
+}
+
 export function formatDate(date: Date): string {
   return new Intl.DateTimeFormat('en-US', {
     month: 'short',
@@ -51,10 +111,7 @@ export function formatDate(date: Date): string {
 }
 
 /**
- * Returns a human-readable relative time string for a past date.
- * Rules: <1 min → "Just now"; <60 min → "Nm ago"; <24 h → "Nh ago";
- * <7 d → "Nd ago"; otherwise falls back to formatDate.
- * `now` is injectable for deterministic testing.
+ * Buckets to "Nm/Nh/Nd ago", falling back to formatDate beyond a week.
  */
 export function formatRelativeTime(date: Date, now: Date = new Date()): string {
   const diffMs = now.getTime() - date.getTime();
@@ -71,17 +128,7 @@ export function formatRelativeTime(date: Date, now: Date = new Date()): string {
 }
 
 /**
- * Derives the applicant-facing availability of a position.
- *
- * Date semantics (important — positions use date-only inputs):
- *   - opensAt  → start-of-day: position opens at the beginning of opensAt day.
- *   - closesAt → inclusive of its whole day: the stored midnight value means the
- *     position is available *through* that day, so we compare against end-of-day
- *     (23:59:59.999). A naive `now > closesAt` would close it at midnight on the
- *     chosen day; inclusive end-of-day honors user intent ("open through Jun 30").
- *
- * `now` defaults to `new Date()` but is injectable for testing and so callers
- * within a single action can pass a consistent timestamp.
+ * closesAt is inclusive of its whole day; `now > closesAt` would close it at midnight.
  */
 export function getPositionAvailability(
   position: PositionWindow,
@@ -92,8 +139,7 @@ export function getPositionAvailability(
   if (position.opensAt !== null && now < position.opensAt) return 'upcoming';
 
   if (position.closesAt !== null) {
-    // End-of-day for closesAt: UTC-explicit to stay timezone-proof on any host.
-    // Advance to the next UTC calendar day and subtract 1ms → 23:59:59.999 UTC.
+    // Next UTC day minus 1ms → 23:59:59.999 UTC, explicit to stay host-timezone-proof.
     const endOfCloseDay = new Date(
       Date.UTC(
         position.closesAt.getUTCFullYear(),
@@ -107,7 +153,6 @@ export function getPositionAvailability(
   return 'accepting';
 }
 
-/** Convenience boolean: returns true only when the position is in the 'accepting' state. */
 export function isAcceptingApplications(
   position: PositionWindow,
   now?: Date,
@@ -115,34 +160,45 @@ export function isAcceptingApplications(
   return getPositionAvailability(position, now) === 'accepting';
 }
 
+/**
+ * Single source of truth for active vs archived — a second implementation is
+ * an authorization bug, not just a display bug.
+ *
+ * Active unless closed (status 'closed', or 'open' past closesAt) AND has no
+ * unresolved applications AND is outside the recency window. A lingering
+ * 'draft' never counts — it can't be submitted to an already-closed position,
+ * so counting it would pin the position active forever.
+ */
+export function isPositionActive(
+  position: PositionActivity,
+  now: Date = new Date(),
+): boolean {
+  const isClosed =
+    position.status === 'closed' ||
+    getPositionAvailability(position, now) === 'closed_by_date';
+  if (!isClosed) return true;
+  if (position._count.applications > 0) return true;
+
+  const cutoff = new Date(now);
+  cutoff.setDate(cutoff.getDate() - MANAGED_POSITIONS_WINDOW_DAYS);
+  const recency = position.closesAt ?? position.updatedAt;
+  return recency >= cutoff;
+}
+
 interface FormatTableCountOptions {
   shown: number;
   total: number;
-  /** Singular noun, e.g. "application". Pluralized by appending "s" unless `pluralNoun` is given. */
+  /** Singular noun; pluralized by appending "s" unless `pluralNoun` is given. */
   noun: string;
-  /** Override the plural form if it is not simply `noun + "s"`. */
   pluralNoun?: string;
-  /**
-   * Set to true when the shown count is capped (e.g. `getApplications` caps at 100)
-   * so the display reads "100+" rather than a misleadingly exact number.
-   */
+  /** Displays the shown count as "100+" when the query capped it. */
   shownCapped?: boolean;
-  /**
-   * Whether any filters are currently active. When false (unfiltered), the
-   * function always collapses to "{total} {noun}" regardless of shown vs total —
-   * this matters when capping is in play (shown=100, total=250, no filters).
-   */
+  /** When false, collapses to "{total} {noun}" even if shown and total differ. */
   isFiltered?: boolean;
 }
 
 /**
- * Formats a table row count for display in a toolbar.
- *
- * When unfiltered and not capped returns "{total} {noun}" (no x/x) — nothing
- * is hidden, so a bare count is clearest.
- * Otherwise (filtered, or unfiltered but capped) returns "{shown} / {total} {noun}",
- * since the table is truncated relative to `total` and that should be visible.
- * When shownCapped uses "100+" for the shown side.
+ * Bare count when nothing is hidden, "{shown} / {total}" when the table is truncated.
  */
 export function formatTableCount({
   shown,

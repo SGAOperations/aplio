@@ -4,17 +4,16 @@
 
 MSG_FILE="$1"
 
-# Extract the subject: first non-blank, non-comment line of the message file.
-# git inserts '#'-prefixed comment lines; real subjects starting with '#NNN'
-# are distinguished because they begin with '#' followed immediately by a digit.
+# ';' is git's comment char here (pinned by prepare); '#' too, for clones where that didn't take.
 subject=""
-while IFS= read -r line; do
+while IFS= read -r line || [ -n "$line" ]; do # `git merge -m` leaves the last line unterminated
   case "$line" in
     "") continue ;;
   esac
   case "$line" in
     "#"[0-9]*) subject="$line"; break ;;
     "#"*) continue ;;
+    ";"*) continue ;;
     *) subject="$line"; break ;;
   esac
 done < "$MSG_FILE"
@@ -26,9 +25,10 @@ fi
 
 # ── Exemptions (pass through without validation) ────────────────────────────
 
-# git-generated subjects that cannot be reformatted by the author
+# Author can't reformat git-generated subjects; 'Bump ' is Dependabot's — capital
+# 'B' can't collide with our lowercase-after-'#NNN ' format.
 case "$subject" in
-  "Merge "*|"Revert "*|"fixup! "*|"squash! "*)
+  "Merge "*|"Revert "*|"fixup! "*|"squash! "*|"Bump "*)
     exit 0 ;;
 esac
 

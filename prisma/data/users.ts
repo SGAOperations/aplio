@@ -4,8 +4,7 @@ import { PUBLISHED_POSITION_WHERE } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 import type { AdminUserListItem } from '@/lib/types';
 
-// Returns all active (non-deactivated) users for the admin /users page.
-// Admin-only — exposes user identities; never call from a non-admin context.
+// Exposes user identities — admin-gated callers only.
 export async function getUsersForAdmin(): Promise<AdminUserListItem[]> {
   return prisma.user.findMany({
     where: { deletedAt: null },
