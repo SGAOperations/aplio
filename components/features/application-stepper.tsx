@@ -21,6 +21,7 @@ import type {
 
 import {
   SHORT_ANSWER_FORMAT_ERROR_MESSAGES,
+  getAnswerValueError,
   matchesShortAnswerFormat,
 } from '@/lib/constants';
 import {
@@ -30,6 +31,7 @@ import {
   type QuestionFileTarget,
 } from '@/lib/types';
 import {
+  ActionError,
   type ErrorType,
   cn,
   isAnswered,
@@ -190,7 +192,8 @@ function QuestionList({
                         return SHORT_ANSWER_FORMAT_ERROR_MESSAGES[
                           question.format
                         ];
-                      return true;
+                      // Mirrors the server check in createOrUpdateApplicationAnswer.
+                      return getAnswerValueError(question, arr) ?? true;
                     },
                   }
             }
@@ -222,8 +225,7 @@ function QuestionList({
                       value,
                       isGlobal,
                     });
-                    // Surface a refusal verbatim instead of the generic throw-path toast.
-                    return isError(result) ? result.error : undefined;
+                    if (isError(result)) throw new ActionError(result.error);
                   })();
                   // Tracked so a concurrent revert on this field waits rather than races it.
                   pendingSavesRef?.current.set(question.id, save);

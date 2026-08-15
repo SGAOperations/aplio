@@ -8,7 +8,10 @@ import type { GlobalAnswer } from '@/prisma/client';
 
 import { getCurrentUser } from '@/lib/auth/server';
 import {
+  ANSWER_LONG_MAX_LENGTH,
+  ANSWER_MAX_VALUES,
   SHORT_ANSWER_FORMAT_ERROR_MESSAGES,
+  getAnswerValueError,
   matchesShortAnswerFormat,
   nameSchema,
 } from '@/lib/constants';
@@ -17,7 +20,8 @@ import { type ErrorType, type ResponseType } from '@/lib/utils';
 
 const updateGlobalAnswerSchema = z.object({
   questionId: z.string().min(1),
-  value: z.array(z.string()),
+  // Pre-DB size guard only — getAnswerValueError below enforces the real limits.
+  value: z.array(z.string().max(ANSWER_LONG_MAX_LENGTH)).max(ANSWER_MAX_VALUES),
 });
 
 export async function setUserName(input: unknown): Promise<ErrorType | void> {
@@ -48,7 +52,7 @@ export async function updateGlobalAnswer(
 
   const question = await prisma.globalQuestion.findUnique({
     where: { id: parsed.data.questionId },
-    select: { type: true, format: true },
+    select: { type: true, format: true, options: true, allowOther: true },
   });
   if (!question) throw new Error('Question not found');
   // File answers are written only by the actions in question-files.ts.
@@ -63,6 +67,10 @@ export async function updateGlobalAnswer(
     !matchesShortAnswerFormat(parsed.data.value[0], question.format)
   )
     return { error: SHORT_ANSWER_FORMAT_ERROR_MESSAGES[question.format] };
+
+  // Membership, "how many values", and length-limit backstop.
+  const answerError = getAnswerValueError(question, parsed.data.value);
+  if (answerError) return { error: answerError };
 
   // matchesShortAnswerFormat trims internally, so save the trimmed value.
   const persistedValue =

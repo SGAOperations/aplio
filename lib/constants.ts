@@ -69,6 +69,15 @@ export const questionFileTargetSchema = z.discriminatedUnion('scope', [
 export const CHOICE_TYPES = ['single_choice', 'multiple_choice'] as const;
 export type ChoiceType = (typeof CHOICE_TYPES)[number];
 
+// Shared between client-side inline checks and server actions so messages can't drift.
+export const ANSWER_SHORT_MAX_LENGTH = 500;
+export const ANSWER_LONG_MAX_LENGTH = 5000;
+export const ANSWER_OTHER_MAX_LENGTH = 200;
+export const QUESTION_OPTION_MAX_LENGTH = 200;
+export const QUESTION_MAX_OPTIONS = 50;
+// +1 for the free-text "Other" entry alongside a full set of options.
+export const ANSWER_MAX_VALUES = QUESTION_MAX_OPTIONS + 1;
+
 export const OTHER_OPTION_LABEL = 'Other';
 
 // Distinct from OTHER_OPTION_LABEL: an admin option literally named "Other" can't collide.
@@ -192,6 +201,89 @@ export function validateOptions(
       path: ['allowOther'],
       message: "'Other' is only available for choice questions",
     });
+  }
+  // Caps option count/length so no answer-side limit becomes unselectable.
+  if (data.options.length > QUESTION_MAX_OPTIONS) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['options'],
+      message: `Remove some options — ${QUESTION_MAX_OPTIONS} is the maximum.`,
+    });
+  }
+  if (data.options.some((o) => o.length > QUESTION_OPTION_MAX_LENGTH)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['options'],
+      message: `Each option must be ${QUESTION_OPTION_MAX_LENGTH} characters or fewer.`,
+    });
+  }
+}
+
+// Write-path only — an already-stored value that no longer fits still displays unchanged.
+export function getAnswerValueError(
+  question: { type: QuestionType; options: string[]; allowOther: boolean },
+  value: string[],
+): string | null {
+  if (value.length === 0) return null;
+
+  switch (question.type) {
+    case 'short_answer':
+      if (value.length > 1)
+        return 'Only one answer is allowed for this question.';
+      if (value[0].length > ANSWER_SHORT_MAX_LENGTH)
+        return `Answer must be ${ANSWER_SHORT_MAX_LENGTH} characters or fewer.`;
+      return null;
+
+    case 'long_answer':
+      if (value.length > 1)
+        return 'Only one answer is allowed for this question.';
+      if (value[0].length > ANSWER_LONG_MAX_LENGTH)
+        return `Answer must be ${ANSWER_LONG_MAX_LENGTH} characters or fewer.`;
+      return null;
+
+    case 'single_choice': {
+      if (value.length > 1)
+        return 'Only one answer is allowed for this question.';
+      const entry = value[0];
+      if (question.options.includes(entry)) return null;
+      // Not a current option — no free text allowed, or this is the "Other" entry.
+      if (!question.allowOther)
+        return 'That choice is no longer available. Refresh the page and answer again.';
+      if (entry.length > ANSWER_OTHER_MAX_LENGTH)
+        return `Answer must be ${ANSWER_OTHER_MAX_LENGTH} characters or fewer.`;
+      return null;
+    }
+
+    case 'multiple_choice': {
+      // Checked first — catches a duplicate "Other" entry the membership check below can't see.
+      if (new Set(value).size !== value.length)
+        return 'That answer is already one of the choices — select it from the list instead.';
+
+      const nonOptionEntries = value.filter(
+        (v) => !question.options.includes(v),
+      );
+      if (!question.allowOther)
+        return nonOptionEntries.length > 0
+          ? 'That choice is no longer available. Refresh the page and answer again.'
+          : null;
+      if (nonOptionEntries.length > 1)
+        return 'Only one "Other" answer is allowed.';
+      if (
+        nonOptionEntries.length === 1 &&
+        nonOptionEntries[0].length > ANSWER_OTHER_MAX_LENGTH
+      )
+        return `Answer must be ${ANSWER_OTHER_MAX_LENGTH} characters or fewer.`;
+      return null;
+    }
+
+    // file_upload values are blob URLs owned by prisma/actions/question-files.ts.
+    case 'file_upload':
+      return null;
+
+    default: {
+      const exhaustiveCheck: never = question.type;
+      throw new Error(`Unhandled question type: ${exhaustiveCheck}`);
+    }
   }
 }
 

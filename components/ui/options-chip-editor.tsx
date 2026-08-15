@@ -4,6 +4,11 @@ import { useId } from 'react';
 
 import { CornerDownLeft } from 'lucide-react';
 
+import {
+  QUESTION_MAX_OPTIONS,
+  QUESTION_OPTION_MAX_LENGTH,
+} from '@/lib/constants';
+
 import { Input } from '@/components/ui/input';
 
 interface OptionsChipEditorProps {
@@ -23,7 +28,13 @@ export function OptionsChipEditor({
 
   function addOption(value: string) {
     const trimmed = value.trim();
-    if (!trimmed || options.includes(trimmed)) return;
+    // Mirrors validateOptions' server-side cap.
+    if (
+      !trimmed ||
+      options.includes(trimmed) ||
+      options.length >= QUESTION_MAX_OPTIONS
+    )
+      return;
     onChange([...options, trimmed]);
   }
 
@@ -59,6 +70,7 @@ export function OptionsChipEditor({
           placeholder="Type an option and press Enter"
           disabled={disabled}
           aria-describedby={hintId}
+          maxLength={QUESTION_OPTION_MAX_LENGTH}
           className="pr-8"
           onKeyDown={(e) => {
             if (e.key === 'Enter') {

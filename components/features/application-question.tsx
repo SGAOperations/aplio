@@ -5,12 +5,16 @@ import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import {
+  ANSWER_LONG_MAX_LENGTH,
+  ANSWER_OTHER_MAX_LENGTH,
+  ANSWER_SHORT_MAX_LENGTH,
   FORMAT_INPUT_TYPES,
   OTHER_OPTION_LABEL,
+  getAnswerValueError,
   matchesShortAnswerFormat,
 } from '@/lib/constants';
 import type { AnswerQuestion, QuestionFileTarget } from '@/lib/types';
-import { cn, partitionAnswerValue } from '@/lib/utils';
+import { ActionError, cn, partitionAnswerValue } from '@/lib/utils';
 
 import { AnswerMismatchNotice } from '@/components/features/answer-mismatch-notice';
 import { QuestionFileField } from '@/components/features/question-file-field';
@@ -27,8 +31,7 @@ interface ApplicationQuestionProps {
     onBlur: () => void;
   };
   error?: string;
-  // A returned string is a user-facing refusal; void means saved.
-  onSave: (value: string[]) => Promise<string | void>;
+  onSave: (value: string[]) => Promise<void>;
   // file_upload only: QuestionFileField calls the file actions directly.
   fileTarget: QuestionFileTarget;
 }
@@ -66,17 +69,14 @@ export function ApplicationQuestion({
     setIsSaving(true);
     setSaveError(false);
     try {
-      const refusal = await onSave(value);
-      if (refusal) {
-        // Don't advance savedValueRef, so a retry is still attempted.
-        setSaveError(true);
-        toast.error(refusal);
-        return;
-      }
+      await onSave(value);
       savedValueRef.current = serialized;
-    } catch {
+    } catch (err) {
       setSaveError(true);
-      toast.error('Failed to save answer');
+      // Non-ActionError throws (e.g. an auth guard) must never surface their raw message.
+      toast.error(
+        err instanceof ActionError ? err.message : 'Failed to save answer',
+      );
     } finally {
       setIsSaving(false);
     }
@@ -92,6 +92,7 @@ export function ApplicationQuestion({
       !matchesShortAnswerFormat(field.value[0], question.format)
     )
       return;
+    if (getAnswerValueError(question, field.value)) return;
     await save(field.value);
   }
 
@@ -127,21 +128,43 @@ export function ApplicationQuestion({
           }
           onBlur={handleBlur}
           placeholder="Your answer"
+          maxLength={ANSWER_SHORT_MAX_LENGTH}
+          aria-invalid={!!error}
           aria-describedby={orphaned.length > 0 ? noticeId : undefined}
         />
       )}
 
       {question.type === 'long_answer' && (
-        <Textarea
-          value={fitted[0] ?? ''}
-          onChange={(e) =>
-            field.onChange(e.target.value ? [e.target.value] : [])
-          }
-          onBlur={handleBlur}
-          placeholder="Your answer"
-          className="min-h-[120px]"
-          aria-describedby={orphaned.length > 0 ? noticeId : undefined}
-        />
+        <>
+          <Textarea
+            id={`${question.id}-long-answer`}
+            value={fitted[0] ?? ''}
+            onChange={(e) =>
+              field.onChange(e.target.value ? [e.target.value] : [])
+            }
+            onBlur={handleBlur}
+            placeholder="Your answer"
+            className="min-h-[120px]"
+            maxLength={ANSWER_LONG_MAX_LENGTH}
+            aria-invalid={!!error}
+            aria-describedby={
+              orphaned.length > 0
+                ? `${noticeId} ${question.id}-long-answer-count`
+                : `${question.id}-long-answer-count`
+            }
+          />
+          <p
+            id={`${question.id}-long-answer-count`}
+            className={cn(
+              'text-muted-foreground mt-1 text-right text-xs',
+              (fitted[0]?.length ?? 0) >= ANSWER_LONG_MAX_LENGTH &&
+                'text-destructive',
+            )}
+          >
+            {(fitted[0]?.length ?? 0).toLocaleString()}/
+            {ANSWER_LONG_MAX_LENGTH.toLocaleString()}
+          </p>
+        </>
       )}
 
       {question.type === 'single_choice' && (
@@ -213,6 +236,7 @@ export function ApplicationQuestion({
                     }}
                     onBlur={handleBlur}
                     placeholder="Type your answer"
+                    maxLength={ANSWER_OTHER_MAX_LENGTH}
                   />
                 </div>
               )}
@@ -301,6 +325,7 @@ export function ApplicationQuestion({
                     }}
                     onBlur={handleBlur}
                     placeholder="Type your answer"
+                    maxLength={ANSWER_OTHER_MAX_LENGTH}
                   />
                 </div>
               )}
