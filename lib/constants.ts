@@ -360,6 +360,24 @@ export const NON_REVIEWABLE_APPLICATION_STATUSES = [
   'withdrawn',
 ] as const satisfies $Enums.ApplicationStatus[];
 
+// Narrows a status without an unsafe cast at each call site.
+export function isNonReviewableApplicationStatus(
+  status: $Enums.ApplicationStatus,
+): status is (typeof NON_REVIEWABLE_APPLICATION_STATUSES)[number] {
+  return (
+    NON_REVIEWABLE_APPLICATION_STATUSES as readonly $Enums.ApplicationStatus[]
+  ).includes(status);
+}
+
+export const NON_REVIEWABLE_APPLICATION_STATUS_NOTES: Record<
+  (typeof NON_REVIEWABLE_APPLICATION_STATUSES)[number],
+  string
+> = {
+  withdrawn:
+    'This application was withdrawn by the applicant and can no longer be updated.',
+  draft: 'This application has not been submitted yet.',
+};
+
 // Positive list: a future enum value stays excluded until added — safer for this metric.
 export const UNRESOLVED_APPLICATION_STATUSES = [
   'applied',
