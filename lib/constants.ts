@@ -379,9 +379,6 @@ export const signInEmailSchema = z.object({
   email: z.string().trim().email('Please enter a valid email address'),
 });
 
-// Neon rejects a nameless user; must never reach User.name or the name gate stops firing.
-export const AUTH_NAME_PLACEHOLDER = '-';
-
 // Name validation shared between the server action and the client form so
 // they can't drift apart (ENGINEERING §1: abstract at 2+ occurrences).
 export const nameSchema = z.object({

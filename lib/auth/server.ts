@@ -6,7 +6,6 @@ import { cache } from 'react';
 import type { User } from '@/prisma/client';
 import { Prisma } from '@/prisma/client';
 
-import { AUTH_NAME_PLACEHOLDER } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 
 export const authServer = createAuthServer();
@@ -18,20 +17,12 @@ async function resolveRealUser() {
 
   const { id: neonAuthId, email, name } = session.user;
 
-  // Placeholder means no name collected yet — leave the column empty for the gate.
-  const realName = name === AUTH_NAME_PLACEHOLDER ? undefined : name;
-
   let row;
   try {
     row = await prisma.user.upsert({
       where: { neonAuthId },
       update: {},
-      create: {
-        neonAuthId,
-        email,
-        ...(realName ? { name: realName } : {}),
-        isAdmin: false,
-      },
+      create: { neonAuthId, email, ...(name ? { name } : {}), isAdmin: false },
     });
   } catch (error) {
     // Soft-deleted rows keep their email, so re-signup hits P2002.

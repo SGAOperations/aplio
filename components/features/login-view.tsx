@@ -9,7 +9,7 @@ import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { z } from 'zod/v4';
 
-import { ensureAuthUser } from '@/prisma/actions/auth';
+import { checkSignInAllowed } from '@/prisma/actions/auth';
 
 import { authClient } from '@/lib/auth/client';
 import { signInEmailSchema } from '@/lib/constants';
@@ -60,23 +60,20 @@ export function LoginView({ redirectTo, copy }: LoginViewProps) {
   });
 
   async function handleEmailSubmit(data: EmailFormValues) {
-    let normalizedEmail: string;
     try {
-      const provisionResult = await ensureAuthUser({ email: data.email });
-      if (isError(provisionResult)) {
-        toast.error(provisionResult.error);
+      const allowed = await checkSignInAllowed({ email: data.email });
+      if (isError(allowed)) {
+        toast.error(allowed.error);
         return;
       }
-      normalizedEmail = provisionResult.email;
     } catch (error) {
-      console.error('ensureAuthUser failed', error);
+      console.error('checkSignInAllowed failed', error);
       toast.error("Couldn't send the code. Please try again.");
       return;
     }
 
-    // Must match the casing ensureAuthUser provisioned, or Neon finds no row.
     const result = await authClient.emailOtp.sendVerificationOtp({
-      email: normalizedEmail,
+      email: data.email,
       type: 'sign-in',
     });
 
@@ -85,7 +82,7 @@ export function LoginView({ redirectTo, copy }: LoginViewProps) {
       return;
     }
 
-    setCapturedEmail(normalizedEmail);
+    setCapturedEmail(data.email);
     toast.success('Code sent.');
     setStep('otp');
   }
