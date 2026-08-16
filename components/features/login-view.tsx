@@ -13,6 +13,10 @@ import { checkSignInAllowed } from '@/prisma/actions/auth';
 
 import { authClient } from '@/lib/auth/client';
 import {
+  getOtpSendErrorMessage,
+  getOtpVerifyErrorMessage,
+} from '@/lib/auth/errors';
+import {
   ACCOUNT_DEACTIVATED_ERROR_CODE,
   signInEmailSchema,
 } from '@/lib/constants';
@@ -51,6 +55,7 @@ export function LoginView({ copy }: LoginViewProps) {
   const [step, setStep] = useState<'email' | 'otp'>('email');
   const [capturedEmail, setCapturedEmail] = useState('');
   const [isRouting, startTransition] = useTransition();
+  const [isResending, setIsResending] = useState(false);
 
   const emailForm = useForm<EmailFormValues>({
     resolver: zodResolver(signInEmailSchema),
@@ -60,7 +65,26 @@ export function LoginView({ copy }: LoginViewProps) {
   const otpForm = useForm<OtpFormValues>({
     resolver: zodResolver(otpSchema),
     defaultValues: { otp: '' },
+    mode: 'onSubmit',
+    reValidateMode: 'onSubmit',
   });
+
+  async function sendCode(email: string): Promise<string | null> {
+    try {
+      const result = await authClient.emailOtp.sendVerificationOtp({
+        email,
+        type: 'sign-in',
+      });
+      if (result.error) {
+        console.error('sendVerificationOtp returned an error', result.error);
+        return getOtpSendErrorMessage(result.error);
+      }
+      return null;
+    } catch (error) {
+      console.error('sendVerificationOtp threw', error);
+      return getOtpSendErrorMessage(error);
+    }
+  }
 
   async function handleEmailSubmit(data: EmailFormValues) {
     try {
@@ -75,13 +99,9 @@ export function LoginView({ copy }: LoginViewProps) {
       return;
     }
 
-    const result = await authClient.emailOtp.sendVerificationOtp({
-      email: data.email,
-      type: 'sign-in',
-    });
-
-    if (result.error) {
-      toast.error("Couldn't send the code. Please try again.");
+    const message = await sendCode(data.email);
+    if (message) {
+      toast.error(message);
       return;
     }
 
@@ -90,24 +110,56 @@ export function LoginView({ copy }: LoginViewProps) {
     setStep('otp');
   }
 
-  async function handleOtpSubmit(data: OtpFormValues) {
-    const result = await authClient.signIn.emailOtp({
-      email: capturedEmail,
-      otp: data.otp,
-    });
+  function isDeactivatedError(error: unknown): boolean {
+    return (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === ACCOUNT_DEACTIVATED_ERROR_CODE
+    );
+  }
 
-    if (result.error) {
-      toast.error(
-        result.error.code === ACCOUNT_DEACTIVATED_ERROR_CODE
-          ? 'Your account has been deactivated. Please contact an administrator.'
-          : 'That code is incorrect or expired.',
-      );
-      otpForm.reset({ otp: '' });
+  function failOtp(error: unknown) {
+    console.error('signIn.emailOtp failed', error);
+    otpForm.setError('otp', {
+      type: 'server',
+      message: isDeactivatedError(error)
+        ? 'Your account has been deactivated. Please contact an administrator.'
+        : getOtpVerifyErrorMessage(error),
+    });
+  }
+
+  async function handleOtpSubmit(data: OtpFormValues) {
+    try {
+      const result = await authClient.signIn.emailOtp({
+        email: capturedEmail,
+        otp: data.otp,
+      });
+      if (result.error) {
+        failOtp(result.error);
+        return;
+      }
+    } catch (error) {
+      failOtp(error);
       return;
     }
 
     // /login decides the destination — name form or onward redirect.
     startTransition(() => router.refresh());
+  }
+
+  async function handleResend() {
+    setIsResending(true);
+    const message = await sendCode(capturedEmail);
+    setIsResending(false);
+
+    if (message) {
+      toast.error(message);
+      return;
+    }
+
+    otpForm.reset({ otp: '' });
+    toast.success('New code sent.');
   }
 
   function handleBack() {
@@ -138,7 +190,7 @@ export function LoginView({ copy }: LoginViewProps) {
             <FormField
               control={otpForm.control}
               name="otp"
-              render={({ field }) => (
+              render={({ field, fieldState }) => (
                 <FormItem className="flex flex-col items-center gap-2">
                   <FormLabel className="sr-only">One-time code</FormLabel>
                   <FormControl>
@@ -147,26 +199,32 @@ export function LoginView({ copy }: LoginViewProps) {
                       aria-label="One-time code"
                       value={field.value}
                       disabled={isRouting}
-                      onChange={(value) => {
+                      onChange={async (value) => {
+                        otpForm.clearErrors('otp');
                         field.onChange(value);
-                        // Auto-submit when all 6 digits are entered
-                        if (value.length === 6) {
-                          void otpForm.handleSubmit(handleOtpSubmit)();
+                        if (
+                          value.length === 6 &&
+                          !otpForm.formState.isSubmitting
+                        ) {
+                          await otpForm.handleSubmit(handleOtpSubmit)();
                         }
                       }}
                       containerClassName="justify-center"
                     >
                       <InputOTPGroup>
-                        <InputOTPSlot index={0} />
-                        <InputOTPSlot index={1} />
-                        <InputOTPSlot index={2} />
-                        <InputOTPSlot index={3} />
-                        <InputOTPSlot index={4} />
-                        <InputOTPSlot index={5} />
+                        {[0, 1, 2, 3, 4, 5].map((index) => (
+                          <InputOTPSlot
+                            key={index}
+                            index={index}
+                            aria-invalid={!!fieldState.error}
+                          />
+                        ))}
                       </InputOTPGroup>
                     </InputOTP>
                   </FormControl>
-                  <FormMessage />
+                  <div role="alert" aria-live="polite" className="min-h-5">
+                    <FormMessage />
+                  </div>
                 </FormItem>
               )}
             />
@@ -183,6 +241,17 @@ export function LoginView({ copy }: LoginViewProps) {
             </Button>
           </form>
         </Form>
+
+        <Button
+          variant="link"
+          type="button"
+          onClick={handleResend}
+          disabled={isResending}
+          className="text-muted-foreground h-auto p-0 text-sm underline"
+        >
+          {isResending && <Loader2 className="animate-spin" />}
+          Send a new code
+        </Button>
 
         <Button
           variant="link"
