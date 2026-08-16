@@ -14,6 +14,7 @@ import {
   REVIEWER_APPLICATION_STATUS_OPTIONS,
   isNonReviewableApplicationStatus,
 } from '@/lib/constants';
+import { cn } from '@/lib/utils';
 
 import { Label } from '@/components/ui/label';
 import {
@@ -27,11 +28,16 @@ import {
 interface ApplicationStatusControlProps {
   applicationId: string;
   currentStatus: $Enums.ApplicationStatus;
+  labelText?: string;
+  // Visually hides the label — kept in the a11y tree and still focuses the select on click.
+  hideLabel?: boolean;
 }
 
 export function ApplicationStatusControl({
   applicationId,
   currentStatus,
+  labelText = 'Status',
+  hideLabel,
 }: ApplicationStatusControlProps) {
   const [isPending, startTransition] = useTransition();
   const fieldId = useId();
@@ -64,7 +70,9 @@ export function ApplicationStatusControl({
 
   return (
     <div className="flex flex-col gap-2">
-      <Label htmlFor={fieldId}>Status</Label>
+      <Label htmlFor={fieldId} className={cn(hideLabel && 'sr-only')}>
+        {labelText}
+      </Label>
       <div className="flex items-center gap-3">
         {isPending && (
           <Loader2

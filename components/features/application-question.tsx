@@ -17,6 +17,7 @@ import type { AnswerQuestion, QuestionFileTarget } from '@/lib/types';
 import { ActionError, cn, partitionAnswerValue } from '@/lib/utils';
 
 import { AnswerMismatchNotice } from '@/components/features/answer-mismatch-notice';
+import { QuestionCardLabel } from '@/components/features/question-card-label';
 import { QuestionFileField } from '@/components/features/question-file-field';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -53,6 +54,12 @@ export function ApplicationQuestion({
   const { fitted, orphaned } = partitionAnswerValue(question, field.value);
   const noticeId = `${question.id}-mismatch`;
   const labelId = `${question.id}-label`;
+  const inputId = `${question.id}-input`;
+  const errorId = `${question.id}-error`;
+  const describedBy =
+    [orphaned.length > 0 && noticeId, error && errorId]
+      .filter((v): v is string => Boolean(v))
+      .join(' ') || undefined;
 
   // Gated on allowOther — a turned-off option can't masquerade as "Other".
   const initialOtherValue = question.allowOther
@@ -103,13 +110,16 @@ export function ApplicationQuestion({
         error && 'border-destructive',
       )}
     >
-      <p
+      <QuestionCardLabel
         id={labelId}
-        className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase"
-      >
-        {question.label}
-        {question.required && <span className="text-destructive ml-1">*</span>}
-      </p>
+        label={question.label}
+        required={question.required}
+        htmlFor={
+          question.type === 'short_answer' || question.type === 'long_answer'
+            ? inputId
+            : undefined
+        }
+      />
 
       {orphaned.length > 0 && (
         <AnswerMismatchNotice
@@ -121,37 +131,36 @@ export function ApplicationQuestion({
 
       {question.type === 'short_answer' && (
         <Input
+          id={inputId}
           type={question.format ? FORMAT_INPUT_TYPES[question.format] : 'text'}
           value={fitted[0] ?? ''}
           onChange={(e) =>
             field.onChange(e.target.value ? [e.target.value] : [])
           }
           onBlur={handleBlur}
-          placeholder="Your answer"
           maxLength={ANSWER_SHORT_MAX_LENGTH}
+          aria-required={question.required}
           aria-invalid={!!error}
-          aria-describedby={orphaned.length > 0 ? noticeId : undefined}
+          aria-describedby={describedBy}
         />
       )}
 
       {question.type === 'long_answer' && (
         <>
           <Textarea
-            id={`${question.id}-long-answer`}
+            id={inputId}
             value={fitted[0] ?? ''}
             onChange={(e) =>
               field.onChange(e.target.value ? [e.target.value] : [])
             }
             onBlur={handleBlur}
-            placeholder="Your answer"
             className="min-h-[120px]"
             maxLength={ANSWER_LONG_MAX_LENGTH}
+            aria-required={question.required}
             aria-invalid={!!error}
-            aria-describedby={
-              orphaned.length > 0
-                ? `${noticeId} ${question.id}-long-answer-count`
-                : `${question.id}-long-answer-count`
-            }
+            aria-describedby={[describedBy, `${question.id}-long-answer-count`]
+              .filter(Boolean)
+              .join(' ')}
           />
           <p
             id={`${question.id}-long-answer-count`}
@@ -169,8 +178,9 @@ export function ApplicationQuestion({
 
       {question.type === 'single_choice' && (
         <div
-          role="group"
+          role="radiogroup"
           aria-labelledby={labelId}
+          aria-required={question.required}
           aria-describedby={orphaned.length > 0 ? noticeId : undefined}
           className="flex flex-col gap-2"
         >
@@ -219,6 +229,7 @@ export function ApplicationQuestion({
               {otherSelected && (
                 <div className="ml-6 flex flex-col gap-1">
                   <Label
+                    id={`${question.id}-other-label`}
                     htmlFor={`${question.id}-other`}
                     className="text-muted-foreground text-xs font-normal"
                   >
@@ -235,7 +246,7 @@ export function ApplicationQuestion({
                       field.onChange(e.target.value ? [e.target.value] : []);
                     }}
                     onBlur={handleBlur}
-                    placeholder="Type your answer"
+                    aria-labelledby={`${labelId} ${question.id}-other-label`}
                     maxLength={ANSWER_OTHER_MAX_LENGTH}
                   />
                 </div>
@@ -301,6 +312,7 @@ export function ApplicationQuestion({
               {otherSelected && (
                 <div className="ml-6 flex flex-col gap-1">
                   <Label
+                    id={`${question.id}-other-label`}
                     htmlFor={`${question.id}-other`}
                     className="text-muted-foreground text-xs font-normal"
                   >
@@ -324,7 +336,7 @@ export function ApplicationQuestion({
                       );
                     }}
                     onBlur={handleBlur}
-                    placeholder="Type your answer"
+                    aria-labelledby={`${labelId} ${question.id}-other-label`}
                     maxLength={ANSWER_OTHER_MAX_LENGTH}
                   />
                 </div>
@@ -339,10 +351,15 @@ export function ApplicationQuestion({
           target={fileTarget}
           value={fitted}
           onChange={field.onChange}
+          labelledBy={labelId}
         />
       )}
 
-      {error && <p className="text-destructive mt-2 text-xs">{error}</p>}
+      {error && (
+        <p id={errorId} className="text-destructive mt-2 text-xs">
+          {error}
+        </p>
+      )}
       {isSaving && (
         <span className="text-muted-foreground mt-2 block text-xs">
           Saving...

@@ -101,6 +101,8 @@ export function PositionApplicationsTable({
                     <ApplicationStatusControl
                       applicationId={app.id}
                       currentStatus={app.status}
+                      labelText={`Status for ${displayName}`}
+                      hideLabel
                     />
                   </TableCell>
                 </TableRow>
@@ -130,6 +132,8 @@ export function PositionApplicationsTable({
               <ApplicationStatusControl
                 applicationId={app.id}
                 currentStatus={app.status}
+                labelText={`Status for ${displayName}`}
+                hideLabel
               />
             </div>
           );
