@@ -11,6 +11,7 @@ import {
 } from '@/lib/auth/guards';
 import { getCurrentUser } from '@/lib/auth/server';
 import { prisma } from '@/lib/prisma';
+import type { PositionManager, UserSearchResult } from '@/lib/types';
 import { type ResponseType } from '@/lib/utils';
 
 // description defaults to '' so a draft can be created quickly.
@@ -35,7 +36,7 @@ const deletePositionSchema = z.object({ id: z.string().min(1) });
 
 const addPositionManagerSchema = z.object({
   positionId: z.string().min(1),
-  userId: z.string().min(1),
+  email: z.string().trim().email(),
 });
 
 const removePositionManagerSchema = z.object({
@@ -140,11 +141,11 @@ export async function deletePosition(
 
 export async function addPositionManager(
   input: unknown,
-): Promise<void | { error: string }> {
+): Promise<ResponseType<PositionManager>> {
   const parsed = addPositionManagerSchema.safeParse(input);
   if (!parsed.success) return { error: 'Invalid input' };
 
-  const { positionId, userId } = parsed.data;
+  const { positionId, email } = parsed.data;
 
   // Authenticate before the existence query — see updatePosition.
   await getCurrentUser();
@@ -159,20 +160,22 @@ export async function addPositionManager(
 
   // A stale search result must not connect a deleted user via a raw P2025.
   const target = await prisma.user.findFirst({
-    where: { id: userId, deletedAt: null },
-    select: { id: true },
+    where: { email, deletedAt: null },
+    select: { id: true, name: true, email: true },
   });
   if (!target) return { error: 'That user is no longer available.' };
 
   await prisma.position.update({
     where: { id: positionId },
-    data: { managers: { connect: { id: userId } }, updatedById: user.id },
+    data: { managers: { connect: { id: target.id } }, updatedById: user.id },
   });
 
   // Membership also drives the manager's positions list and the /users columns.
   revalidatePath(`/positions/${positionId}/edit`);
   revalidatePath('/positions');
   revalidatePath('/users');
+
+  return target;
 }
 
 export async function removePositionManager(
@@ -213,17 +216,14 @@ export async function removePositionManager(
 
 const searchUsersSchema = z.object({ query: z.string().max(200) });
 
-// Deliberately exposes name and email to any logged-in user. Capped at 10.
+// Gated to managers/admins, matching its only consumer; id withheld until an add.
 export async function searchUsers(
   input: unknown,
-): Promise<
-  ResponseType<{ id: string; displayName: string; primaryEmail: string }[]>
-> {
-  // getCurrentUser redirects if unauthenticated; no further role check needed.
-  await getCurrentUser();
+): Promise<ResponseType<UserSearchResult[]>> {
+  await requireManagerOrAdmin();
 
   const parsed = searchUsersSchema.safeParse(input);
-  if (!parsed.success) return { error: 'Invalid search query' };
+  if (!parsed.success) return { error: 'Search is limited to 200 characters.' };
 
   const { query } = parsed.data;
 
@@ -237,12 +237,11 @@ export async function searchUsers(
         { email: { contains: query, mode: 'insensitive' } },
       ],
     },
-    select: { id: true, name: true, email: true },
+    select: { name: true, email: true },
     take: 10,
   });
 
   return users.map((u) => ({
-    id: u.id,
     displayName: u.name ?? u.email,
     primaryEmail: u.email,
   }));
