@@ -159,8 +159,6 @@ export async function getAdminPositions(): Promise<PositionWithQuestions[]> {
 }
 
 // Cached so generateMetadata and the page component share one round-trip per request.
-// Returns the published position regardless of window — the apply route decides
-// what to render (form, closed-window card, or already-applied card).
 export const getPositionForApply = cache(async function getPositionForApply(
   id: string,
 ): Promise<PositionWithQuestions | null> {
