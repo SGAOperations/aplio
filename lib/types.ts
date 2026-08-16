@@ -103,6 +103,7 @@ export type GlobalQuestionListItem = Prisma.GlobalQuestionGetPayload<{
   };
 }>;
 
+// position.status/opensAt/closesAt let a row decide resubmit availability without a second query.
 export type MyApplicationListItem = Prisma.ApplicationGetPayload<{
   select: {
     id: true;
@@ -110,7 +111,15 @@ export type MyApplicationListItem = Prisma.ApplicationGetPayload<{
     submittedAt: true;
     updatedAt: true;
     positionId: true;
-    position: { select: { id: true; title: true } };
+    position: {
+      select: {
+        id: true;
+        title: true;
+        status: true;
+        opensAt: true;
+        closesAt: true;
+      };
+    };
   };
 }>;
 
