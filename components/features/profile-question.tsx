@@ -18,7 +18,13 @@ import {
   getAnswerValueError,
   matchesShortAnswerFormat,
 } from '@/lib/constants';
-import { ActionError, cn, isError, partitionAnswerValue } from '@/lib/utils';
+import {
+  ActionError,
+  cn,
+  composeDescribedBy,
+  isError,
+  partitionAnswerValue,
+} from '@/lib/utils';
 
 import { AnswerFileLink } from '@/components/features/answer-file-link';
 import { AnswerMismatchNotice } from '@/components/features/answer-mismatch-notice';
@@ -185,10 +191,10 @@ export function ProfileQuestion({
               />
             );
 
-            const describedBy =
-              [orphaned.length > 0 && noticeId, validationError && errorId]
-                .filter((v): v is string => Boolean(v))
-                .join(' ') || undefined;
+            const describedBy = composeDescribedBy(
+              orphaned.length > 0 && noticeId,
+              validationError && errorId,
+            );
 
             if (question.type === 'short_answer')
               return (
@@ -226,12 +232,10 @@ export function ProfileQuestion({
                     maxLength={ANSWER_LONG_MAX_LENGTH}
                     aria-required={question.required}
                     aria-invalid={!!validationError}
-                    aria-describedby={[
+                    aria-describedby={composeDescribedBy(
                       describedBy,
                       `${question.id}-long-answer-count`,
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
+                    )}
                   />
                   <p
                     id={`${question.id}-long-answer-count`}
@@ -254,9 +258,8 @@ export function ProfileQuestion({
                   <RadioGroup
                     aria-labelledby={labelId}
                     aria-required={question.required}
-                    aria-describedby={
-                      orphaned.length > 0 ? noticeId : undefined
-                    }
+                    aria-invalid={!!validationError}
+                    aria-describedby={describedBy}
                     value={
                       otherSelected ? OTHER_OPTION_VALUE : (fitted[0] ?? '')
                     }
@@ -362,7 +365,7 @@ export function ProfileQuestion({
               <div
                 role="group"
                 aria-labelledby={labelId}
-                aria-describedby={orphaned.length > 0 ? noticeId : undefined}
+                aria-describedby={describedBy}
                 className="flex flex-col gap-2"
               >
                 {notice}

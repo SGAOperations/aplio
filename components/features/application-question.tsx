@@ -14,7 +14,12 @@ import {
   matchesShortAnswerFormat,
 } from '@/lib/constants';
 import type { AnswerQuestion, QuestionFileTarget } from '@/lib/types';
-import { ActionError, cn, partitionAnswerValue } from '@/lib/utils';
+import {
+  ActionError,
+  cn,
+  composeDescribedBy,
+  partitionAnswerValue,
+} from '@/lib/utils';
 
 import { AnswerMismatchNotice } from '@/components/features/answer-mismatch-notice';
 import { QuestionCardLabel } from '@/components/features/question-card-label';
@@ -56,10 +61,10 @@ export function ApplicationQuestion({
   const labelId = `${question.id}-label`;
   const inputId = `${question.id}-input`;
   const errorId = `${question.id}-error`;
-  const describedBy =
-    [orphaned.length > 0 && noticeId, error && errorId]
-      .filter((v): v is string => Boolean(v))
-      .join(' ') || undefined;
+  const describedBy = composeDescribedBy(
+    orphaned.length > 0 && noticeId,
+    error && errorId,
+  );
 
   // Gated on allowOther — a turned-off option can't masquerade as "Other".
   const initialOtherValue = question.allowOther
@@ -158,9 +163,10 @@ export function ApplicationQuestion({
             maxLength={ANSWER_LONG_MAX_LENGTH}
             aria-required={question.required}
             aria-invalid={!!error}
-            aria-describedby={[describedBy, `${question.id}-long-answer-count`]
-              .filter(Boolean)
-              .join(' ')}
+            aria-describedby={composeDescribedBy(
+              describedBy,
+              `${question.id}-long-answer-count`,
+            )}
           />
           <p
             id={`${question.id}-long-answer-count`}
@@ -181,7 +187,8 @@ export function ApplicationQuestion({
           role="radiogroup"
           aria-labelledby={labelId}
           aria-required={question.required}
-          aria-describedby={orphaned.length > 0 ? noticeId : undefined}
+          aria-invalid={!!error}
+          aria-describedby={describedBy}
           className="flex flex-col gap-2"
         >
           {options.map((option) => (
@@ -260,7 +267,7 @@ export function ApplicationQuestion({
         <div
           role="group"
           aria-labelledby={labelId}
-          aria-describedby={orphaned.length > 0 ? noticeId : undefined}
+          aria-describedby={describedBy}
           className="flex flex-col gap-2"
         >
           {options.map((option) => (
