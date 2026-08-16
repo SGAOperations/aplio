@@ -1,14 +1,12 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
 
+import { inter } from '@/lib/fonts';
 import { cn } from '@/lib/utils';
 
 import { Providers } from '@/components/providers';
 import { AuthProvider } from '@/components/providers/auth-provider';
 
 import './globals.css';
-
-const inter = Inter({ variable: '--font-sans', subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: { default: 'Aplio', template: 'Aplio • %s' },
