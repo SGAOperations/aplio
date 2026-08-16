@@ -221,9 +221,7 @@ function QuestionList({
                     const result = await createOrUpdateApplicationAnswer({
                       applicationId,
                       questionId: question.id,
-                      questionLabel: question.label,
                       value,
-                      isGlobal,
                     });
                     if (isError(result)) throw new ActionError(result.error);
                   })();
@@ -401,9 +399,7 @@ export function ApplicationStepper({
           const result = await createOrUpdateApplicationAnswer({
             applicationId: application.id,
             questionId: q.id,
-            questionLabel: q.label,
             value: profileValue,
-            isGlobal: true,
           });
           // Applied only once persisted: a failed field keeps its last saved value.
           if (!isError(result)) setValue(`g_${q.id}`, profileValue);

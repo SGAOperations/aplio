@@ -127,10 +127,8 @@ const applicationIdSchema = z.object({ applicationId: z.string().min(1) });
 const createOrUpdateApplicationAnswerSchema = z.object({
   applicationId: z.string().min(1),
   questionId: z.string().min(1),
-  questionLabel: z.string().min(1),
   // Pre-DB size guard only — getAnswerValueError below enforces the real limits.
   value: z.array(z.string().max(ANSWER_LONG_MAX_LENGTH)).max(ANSWER_MAX_VALUES),
-  isGlobal: z.boolean(),
 });
 
 const submitApplicationSchema = z.object({ applicationId: z.string().min(1) });
@@ -204,17 +202,14 @@ export async function createDraftApplication(
 export async function createOrUpdateApplicationAnswer(params: {
   applicationId: string;
   questionId: string;
-  questionLabel: string;
   value: string[];
-  isGlobal: boolean;
 }): Promise<ResponseType<GlobalApplicationAnswer | PositionApplicationAnswer>> {
   const currentUser = await getCurrentUser();
 
   const parsed = createOrUpdateApplicationAnswerSchema.safeParse(params);
   if (!parsed.success) return { error: 'Invalid input' };
 
-  const { applicationId, questionId, questionLabel, value, isGlobal } =
-    parsed.data;
+  const { applicationId, questionId, value } = parsed.data;
 
   const application = await prisma.application.findUnique({
     where: { id: applicationId },
@@ -230,17 +225,37 @@ export async function createOrUpdateApplicationAnswer(params: {
   )
     return { error: APPLICATION_NOT_EDITABLE_MESSAGE };
 
-  // Client on-blur check is UX only — bypassable, so re-validate here.
-  const question = isGlobal
-    ? await prisma.globalQuestion.findUnique({
-        where: { id: questionId },
-        select: { type: true, format: true, options: true, allowOther: true },
-      })
-    : await prisma.positionQuestion.findUnique({
-        where: { id: questionId },
-        select: { type: true, format: true, options: true, allowOther: true },
-      });
-  if (!question) throw new Error('Question not found');
+  // Label and scope must come from the DB, not the client — the label is the
+  // reviewer-visible snapshot; ids are uuid(7), so at most one can match.
+  const [globalQuestion, positionQuestion] = await Promise.all([
+    prisma.globalQuestion.findFirst({
+      where: { id: questionId, deletedAt: null },
+      select: {
+        label: true,
+        type: true,
+        format: true,
+        options: true,
+        allowOther: true,
+      },
+    }),
+    prisma.positionQuestion.findFirst({
+      where: {
+        id: questionId,
+        deletedAt: null,
+        positionId: application.positionId,
+      },
+      select: {
+        label: true,
+        type: true,
+        format: true,
+        options: true,
+        allowOther: true,
+      },
+    }),
+  ]);
+  const isGlobal = globalQuestion !== null;
+  const question = globalQuestion ?? positionQuestion;
+  if (!question) throw new Error('Question not found or not authorized');
 
   if (
     question.type === 'short_answer' &&
@@ -288,7 +303,7 @@ export async function createOrUpdateApplicationAnswer(params: {
       create: {
         applicationId,
         globalQuestionId: questionId,
-        questionLabel,
+        questionLabel: question.label,
         value: globalPersistedValue,
         createdById: currentUser.id,
         updatedById: currentUser.id,
@@ -313,7 +328,7 @@ export async function createOrUpdateApplicationAnswer(params: {
     create: {
       applicationId,
       positionQuestionId: questionId,
-      questionLabel,
+      questionLabel: question.label,
       value: persistedValue,
       createdById: currentUser.id,
       updatedById: currentUser.id,
