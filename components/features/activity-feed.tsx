@@ -10,7 +10,7 @@ import {
   APPLICATION_STATUS_LABELS,
   STATUS_BADGE_VARIANT_TO_DOT,
 } from '@/lib/constants';
-import { type ActivityItem } from '@/lib/types';
+import { type ActivityItem, type Reviewer } from '@/lib/types';
 import { formatRelativeTime } from '@/lib/utils';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -112,11 +112,17 @@ export async function ApplicantActivityFeed({
   );
 }
 
-// ─── Admin feed wrapper ───────────────────────────────────────────────────────
+// ─── Reviewer feed wrapper ─────────────────────────────────────────────────────
 
-// Ordered by submittedAt (a provable event stream); cross-user data, admin-gated only.
-export async function AdminActivityFeed() {
-  const applications = await getRecentApplications(10);
+interface ReviewerActivityFeedProps {
+  reviewer: Reviewer;
+}
+
+// Ordered by submittedAt (a provable event stream); cross-user data, reviewer-gated only.
+export async function ReviewerActivityFeed({
+  reviewer,
+}: ReviewerActivityFeedProps) {
+  const applications = await getRecentApplications(reviewer, 10);
 
   const items: ActivityItem[] = applications.map((app) => {
     const applicantLabel = app.user.name ?? app.user.email;
@@ -132,7 +138,11 @@ export async function AdminActivityFeed() {
   return (
     <ActivityFeedList
       items={items}
-      emptyDescription="New applications across all positions will show up here."
+      emptyDescription={
+        reviewer.isAdmin
+          ? 'New applications across all positions will show up here.'
+          : 'New applications to the positions you manage will show up here.'
+      }
     />
   );
 }

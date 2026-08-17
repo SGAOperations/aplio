@@ -3,6 +3,7 @@ import 'server-only';
 import { cache } from 'react';
 
 import { prisma } from '@/lib/prisma';
+import { type Reviewer } from '@/lib/types';
 
 // Nav/dashboard routing only; cache() dedupes it across the layout and a page guard.
 export const isManager = cache(async function isManager(
@@ -28,7 +29,7 @@ export async function getManagedPositionIds(
 // Call requirePositionAccess instead, so denial handling stays centralized.
 export async function checkPositionAccess(
   positionId: string,
-  user: { id: string; isAdmin: boolean },
+  user: Reviewer,
 ): Promise<boolean> {
   if (user.isAdmin) return true;
 

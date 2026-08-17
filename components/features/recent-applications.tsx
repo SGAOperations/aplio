@@ -4,20 +4,23 @@ import { ArrowRight, Inbox } from 'lucide-react';
 
 import { getRecentApplications } from '@/prisma/data/applications';
 
-import { type AdminApplicationListItem } from '@/lib/types';
+import { type AdminApplicationListItem, type Reviewer } from '@/lib/types';
 import { formatDate } from '@/lib/utils';
 
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface RecentApplicationsProps {
+  reviewer: Reviewer;
   limit?: number;
 }
 
 export async function RecentApplications({
+  reviewer,
   limit = 3,
 }: RecentApplicationsProps) {
-  const applications = await getRecentApplications(limit);
+  const applications = await getRecentApplications(reviewer, limit);
 
   return (
     // overflow-hidden clips the header hover highlight to the card's rounded corners
@@ -48,7 +51,9 @@ export async function RecentApplications({
             <div>
               <p className="text-sm font-medium">No applications yet</p>
               <p className="text-muted-foreground mt-0.5 text-sm">
-                Submissions across all positions will appear here.
+                {reviewer.isAdmin
+                  ? 'Submissions across all positions will appear here.'
+                  : 'Submissions to the positions you manage will appear here.'}
               </p>
             </div>
           </div>
@@ -91,5 +96,30 @@ function ApplicationList({
         );
       })}
     </ul>
+  );
+}
+
+export function RecentApplicationsSkeleton() {
+  return (
+    <Card className="gap-0 p-0">
+      <CardHeader className="border-b p-4">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-4 w-16" />
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-3 border-b px-4 py-3 last:border-0"
+          >
+            <Skeleton className="h-4 flex-1" />
+            <Skeleton className="h-5 w-20 rounded-md" />
+            <Skeleton className="h-4 w-20" />
+          </div>
+        ))}
+      </CardContent>
+    </Card>
   );
 }

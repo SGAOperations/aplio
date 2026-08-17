@@ -11,6 +11,7 @@ import {
 import { prisma } from '@/lib/prisma';
 import {
   type ManagedPosition,
+  type ManagedPositionSummaryItem,
   type OpenPositionSummaryItem,
   type PositionDetail,
   type PositionForEdit,
@@ -131,6 +132,36 @@ export async function getManagedPositions(
     select: { ...positionWithQuestionsSelect, ...positionActivitySelect },
     // Enum order puts draft first, then open, then closed.
     orderBy: [{ status: 'asc' }, { title: 'asc' }],
+  });
+}
+
+// Manager dashboard's "My Positions" widget: lean rows, aggregate counts only.
+export async function getManagedPositionsSummary(
+  userId: string,
+  take?: number,
+): Promise<ManagedPositionSummaryItem[]> {
+  return prisma.position.findMany({
+    where: { managers: { some: { id: userId } }, deletedAt: null },
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      opensAt: true,
+      closesAt: true,
+      _count: {
+        select: {
+          applications: {
+            where: {
+              deletedAt: null,
+              status: { notIn: ['draft', 'withdrawn'] },
+            },
+          },
+        },
+      },
+    },
+    // Enum order puts draft first, then open, then closed.
+    orderBy: [{ status: 'asc' }, { title: 'asc' }],
+    ...(take !== undefined ? { take } : {}),
   });
 }
 
