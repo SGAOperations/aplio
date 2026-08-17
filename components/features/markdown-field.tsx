@@ -1,9 +1,22 @@
 'use client';
 
-import { type ClipboardEvent, useRef, useState } from 'react';
+import {
+  type ClipboardEvent,
+  type KeyboardEvent,
+  useRef,
+  useState,
+} from 'react';
 import { useFormContext } from 'react-hook-form';
 
-import { Bold, Heading2, Italic, Link2, List, ListOrdered } from 'lucide-react';
+import {
+  Bold,
+  Heading,
+  Italic,
+  Link2,
+  List,
+  ListOrdered,
+  Underline,
+} from 'lucide-react';
 import type { z } from 'zod/v4';
 
 import {
@@ -23,14 +36,21 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Markdown } from '@/components/ui/markdown';
+import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 type PositionFormValues = z.infer<typeof positionFormSchema>;
 
 const COUNTER_THRESHOLD = Math.floor(POSITION_DESCRIPTION_MAX_LENGTH * 0.8);
 
 type ToolbarAction =
-  | { kind: 'inline'; marker: string }
+  | { kind: 'inline'; before: string; after: string }
   | {
       kind: 'line-prefix';
       prefixFor: (index: number) => string;
@@ -40,33 +60,34 @@ type ToolbarAction =
 
 function applyInlineMarker(
   el: HTMLTextAreaElement,
-  marker: string,
+  before: string,
+  after: string,
   placeholder: string,
 ) {
   const { selectionStart, selectionEnd, value } = el;
   const selected = value.slice(selectionStart, selectionEnd);
-  const before = value.slice(
-    Math.max(0, selectionStart - marker.length),
+  const beforeCtx = value.slice(
+    Math.max(0, selectionStart - before.length),
     selectionStart,
   );
-  const after = value.slice(selectionEnd, selectionEnd + marker.length);
+  const afterCtx = value.slice(selectionEnd, selectionEnd + after.length);
 
-  if (selected && before === marker && after === marker) {
+  if (selected && beforeCtx === before && afterCtx === after) {
     // Toggle off: strip the surrounding markers.
-    const start = selectionStart - marker.length;
-    const end = selectionEnd + marker.length;
+    const start = selectionStart - before.length;
+    const end = selectionEnd + after.length;
     el.setRangeText(selected, start, end, 'select');
     return;
   }
 
   const text = selected || placeholder;
   el.setRangeText(
-    `${marker}${text}${marker}`,
+    `${before}${text}${after}`,
     selectionStart,
     selectionEnd,
     'select',
   );
-  const newStart = selectionStart + marker.length;
+  const newStart = selectionStart + before.length;
   el.setSelectionRange(newStart, newStart + text.length);
 }
 
@@ -107,16 +128,65 @@ function applyLink(el: HTMLTextAreaElement) {
   el.setSelectionRange(urlStart, urlStart + url.length);
 }
 
+const ORDERED_LIST_PATTERN = /^(\s*)(\d+)([.)])(\s+)(.*)$/;
+const UNORDERED_LIST_PATTERN = /^(\s*)([-*+])(\s+)(.*)$/;
+
+/** Continues the list on Enter, or exits it when the current marker is empty. */
+function continueList(el: HTMLTextAreaElement): boolean {
+  const { selectionStart, selectionEnd, value } = el;
+  if (selectionStart !== selectionEnd) return false;
+
+  const lineStart = value.lastIndexOf('\n', selectionStart - 1) + 1;
+  const currentLine = value.slice(lineStart, selectionStart);
+
+  const ordered = currentLine.match(ORDERED_LIST_PATTERN);
+  const unordered = currentLine.match(UNORDERED_LIST_PATTERN);
+  const match = ordered ?? unordered;
+  if (!match) return false;
+
+  const indent = match[1];
+  const rest = ordered ? ordered[5] : unordered ? unordered[4] : '';
+
+  if (rest.trim() === '') {
+    // Empty marker line — remove it and exit the list.
+    el.setRangeText(indent, lineStart, selectionStart, 'end');
+    return true;
+  }
+
+  const nextMarker = ordered
+    ? `${indent}${Number(ordered[2]) + 1}${ordered[3]} `
+    : `${indent}${unordered ? unordered[2] : ''} `;
+  el.setRangeText(`\n${nextMarker}`, selectionStart, selectionStart, 'end');
+  return true;
+}
+
 const TOOLBAR_ITEMS: {
   label: string;
   icon: typeof Bold;
   action: ToolbarAction;
+  shortcut?: { key: string; display: string };
 }[] = [
-  { label: 'Bold', icon: Bold, action: { kind: 'inline', marker: '**' } },
-  { label: 'Italic', icon: Italic, action: { kind: 'inline', marker: '_' } },
+  {
+    label: 'Bold',
+    icon: Bold,
+    action: { kind: 'inline', before: '**', after: '**' },
+    shortcut: { key: 'b', display: 'Ctrl+B' },
+  },
+  {
+    label: 'Italic',
+    icon: Italic,
+    action: { kind: 'inline', before: '_', after: '_' },
+    shortcut: { key: 'i', display: 'Ctrl+I' },
+  },
+  {
+    label: 'Underline',
+    icon: Underline,
+    action: { kind: 'inline', before: '<u>', after: '</u>' },
+    shortcut: { key: 'u', display: 'Ctrl+U' },
+  },
   {
     label: 'Heading',
-    icon: Heading2,
+    icon: Heading,
     action: { kind: 'line-prefix', prefixFor: () => '## ', pattern: /^## / },
   },
   {
@@ -133,12 +203,18 @@ const TOOLBAR_ITEMS: {
       pattern: /^\d+[.)]\s/,
     },
   },
-  { label: 'Link', icon: Link2, action: { kind: 'link' } },
+  {
+    label: 'Link',
+    icon: Link2,
+    action: { kind: 'link' },
+    shortcut: { key: 'k', display: 'Ctrl+K' },
+  },
 ];
 
 const PLACEHOLDER_BY_MARKER: Record<string, string> = {
   '**': 'bold',
   _: 'italic',
+  '<u>': 'underline',
 };
 
 function isPastableUrl(text: string): boolean {
@@ -165,8 +241,9 @@ export function MarkdownField() {
           if (action.kind === 'inline')
             applyInlineMarker(
               el,
-              action.marker,
-              PLACEHOLDER_BY_MARKER[action.marker] ?? 'text',
+              action.before,
+              action.after,
+              PLACEHOLDER_BY_MARKER[action.before] ?? 'text',
             );
           else if (action.kind === 'line-prefix')
             applyLinePrefix(el, action.prefixFor, action.pattern);
@@ -193,54 +270,93 @@ export function MarkdownField() {
           field.onChange(el.value);
         }
 
+        function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+          const el = textareaRef.current;
+          if (!el) return;
+
+          const isModPressed = event.metaKey || event.ctrlKey;
+          if (isModPressed) {
+            const item = TOOLBAR_ITEMS.find(
+              (candidate) =>
+                candidate.shortcut?.key === event.key.toLowerCase(),
+            );
+            if (item) {
+              event.preventDefault();
+              runAction(item.action);
+              return;
+            }
+          }
+
+          if (event.key === 'Enter' && continueList(el)) {
+            event.preventDefault();
+            field.onChange(el.value);
+          }
+        }
+
         return (
           <FormItem>
             <div className="flex items-center justify-between">
               <FormLabel>Description</FormLabel>
-              <div className="flex gap-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  aria-pressed={mode === 'write'}
-                  disabled={isSubmitting}
-                  onClick={() => setMode('write')}
+              <div className="flex items-center gap-2">
+                <span
+                  className={
+                    mode === 'write'
+                      ? 'text-foreground text-xs font-medium'
+                      : 'text-muted-foreground text-xs'
+                  }
                 >
                   Write
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  aria-pressed={mode === 'preview'}
+                </span>
+                <Switch
+                  checked={mode === 'preview'}
+                  onCheckedChange={(checked) =>
+                    setMode(checked ? 'preview' : 'write')
+                  }
                   disabled={isSubmitting}
-                  onClick={() => setMode('preview')}
+                  aria-label="Toggle preview"
+                />
+                <span
+                  className={
+                    mode === 'preview'
+                      ? 'text-foreground text-xs font-medium'
+                      : 'text-muted-foreground text-xs'
+                  }
                 >
                   Preview
-                </Button>
+                </span>
               </div>
             </div>
 
             {mode === 'write' && (
-              <div
-                role="toolbar"
-                aria-label="Formatting"
-                className="flex flex-wrap gap-1"
-              >
-                {TOOLBAR_ITEMS.map(({ label, icon: Icon, action }) => (
-                  <Button
-                    key={label}
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label={label}
-                    disabled={isSubmitting}
-                    onClick={() => runAction(action)}
-                  >
-                    <Icon className="size-4" />
-                  </Button>
-                ))}
-              </div>
+              <TooltipProvider delayDuration={300}>
+                <div
+                  role="toolbar"
+                  aria-label="Formatting"
+                  className="flex flex-wrap gap-1"
+                >
+                  {TOOLBAR_ITEMS.map(
+                    ({ label, icon: Icon, action, shortcut }) => (
+                      <Tooltip key={label}>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label={label}
+                            disabled={isSubmitting}
+                            onClick={() => runAction(action)}
+                          >
+                            <Icon className="size-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {shortcut ? `${label} (${shortcut.display})` : label}
+                        </TooltipContent>
+                      </Tooltip>
+                    ),
+                  )}
+                </div>
+              </TooltipProvider>
             )}
 
             {mode === 'write' ? (
@@ -252,6 +368,7 @@ export function MarkdownField() {
                     textareaRef.current = el;
                   }}
                   onPaste={handlePaste}
+                  onKeyDown={handleKeyDown}
                   rows={10}
                   disabled={isSubmitting}
                   placeholder="Describe the role, responsibilities, and what you're looking for. Markdown is supported."
@@ -271,16 +388,14 @@ export function MarkdownField() {
 
             {mode === 'write' && (
               <div className="flex items-center justify-between gap-2">
-                <FormDescription>
-                  Markdown is supported — <strong>bold</strong>, headings,
-                  lists, and links.{' '}
+                <FormDescription className="text-xs">
                   <a
                     href={MARKDOWN_GUIDE_URL}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-primary underline underline-offset-4"
                   >
-                    Formatting guide
+                    Use markdown for text formatting
                   </a>
                 </FormDescription>
                 {field.value.length >= COUNTER_THRESHOLD && (

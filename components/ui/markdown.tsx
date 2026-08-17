@@ -1,16 +1,21 @@
 import ReactMarkdown, { type Components } from 'react-markdown';
 
+import rehypeRaw from 'rehype-raw';
 import remarkBreaks from 'remark-breaks';
 import remarkGfm from 'remark-gfm';
 
 import { cn } from '@/lib/utils';
 
+// rehypeRaw parses raw HTML (needed for <u> — markdown has no native underline
+// syntax); allowedElements below still acts as the allowlist, so any other raw
+// tag (e.g. <script>) is dropped rather than rendered.
 const FULL_ALLOWED_ELEMENTS = [
   'p',
   'br',
   'hr',
   'strong',
   'em',
+  'u',
   'del',
   'a',
   'ul',
@@ -35,6 +40,7 @@ const COMPACT_ALLOWED_ELEMENTS = [
   'br',
   'strong',
   'em',
+  'u',
   'del',
   'a',
   'code',
@@ -60,6 +66,7 @@ const linkComponent: Components['a'] = ({ href, children }) => (
 
 const fullComponents: Components = {
   a: linkComponent,
+  u: ({ children }) => <u className="underline">{children}</u>,
   h2: ({ children }) => (
     <h2 className="text-foreground mt-3 text-base font-medium first:mt-0">
       {children}
@@ -117,6 +124,7 @@ const fullComponents: Components = {
 // heading elements into the document outline.
 const compactComponents: Components = {
   a: linkComponent,
+  u: ({ children }) => <u className="underline">{children}</u>,
   h2: ({ children }) => (
     <p className="text-foreground font-semibold">{children}</p>
   ),
@@ -157,6 +165,7 @@ export function Markdown({ source, variant, className }: MarkdownProps) {
     >
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkBreaks]}
+        rehypePlugins={[rehypeRaw]}
         allowedElements={
           isFull ? FULL_ALLOWED_ELEMENTS : COMPACT_ALLOWED_ELEMENTS
         }

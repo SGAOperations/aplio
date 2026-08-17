@@ -439,8 +439,7 @@ export const STATUS_OPTIONS: { value: PositionStatus; label: string }[] =
   STATUS_VALUES.map((value) => ({ value, label: STATUS_LABELS[value] }));
 
 export const POSITION_DESCRIPTION_MAX_LENGTH = 10000;
-export const MARKDOWN_GUIDE_URL =
-  'https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax';
+export const MARKDOWN_GUIDE_URL = 'https://www.markdownguide.org/basic-syntax/';
 
 // Mirrors createPositionSchema/updatePositionSchema — keep the shapes in sync.
 const orgDayInputSchema = z.union([z.iso.date(), z.literal('')], {
