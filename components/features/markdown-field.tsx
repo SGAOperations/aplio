@@ -31,7 +31,11 @@ const COUNTER_THRESHOLD = Math.floor(POSITION_DESCRIPTION_MAX_LENGTH * 0.8);
 
 type ToolbarAction =
   | { kind: 'inline'; marker: string }
-  | { kind: 'line-prefix'; prefix: string | ((index: number) => string) }
+  | {
+      kind: 'line-prefix';
+      prefixFor: (index: number) => string;
+      pattern: RegExp;
+    }
   | { kind: 'link' };
 
 function applyInlineMarker(
@@ -69,6 +73,7 @@ function applyInlineMarker(
 function applyLinePrefix(
   el: HTMLTextAreaElement,
   prefixFor: (index: number) => string,
+  pattern: RegExp,
 ) {
   const { selectionStart, selectionEnd, value } = el;
   const lineStart = value.lastIndexOf('\n', selectionStart - 1) + 1;
@@ -78,12 +83,10 @@ function applyLinePrefix(
   const block = value.slice(lineStart, lineEnd);
   const lines = block.split('\n');
 
-  const alreadyPrefixed = lines.every((line, i) =>
-    line.startsWith(prefixFor(i)),
-  );
+  const alreadyPrefixed = lines.every((line) => pattern.test(line));
 
   const nextLines = alreadyPrefixed
-    ? lines.map((line, i) => line.slice(prefixFor(i).length))
+    ? lines.map((line) => line.replace(pattern, ''))
     : lines.map((line, i) => `${prefixFor(i)}${line}`);
 
   const next = nextLines.join('\n');
@@ -112,19 +115,20 @@ const TOOLBAR_ITEMS: {
   {
     label: 'Heading',
     icon: Heading2,
-    action: { kind: 'line-prefix', prefix: '## ' },
+    action: { kind: 'line-prefix', prefixFor: () => '## ', pattern: /^## / },
   },
   {
     label: 'Bulleted list',
     icon: List,
-    action: { kind: 'line-prefix', prefix: '- ' },
+    action: { kind: 'line-prefix', prefixFor: () => '- ', pattern: /^- / },
   },
   {
     label: 'Numbered list',
     icon: ListOrdered,
     action: {
       kind: 'line-prefix',
-      prefix: (index: number) => `${index + 1}. `,
+      prefixFor: (index: number) => `${index + 1}. `,
+      pattern: /^\d+[.)]\s/,
     },
   },
   { label: 'Link', icon: Link2, action: { kind: 'link' } },
@@ -163,12 +167,7 @@ export function MarkdownField() {
               PLACEHOLDER_BY_MARKER[action.marker] ?? 'text',
             );
           else if (action.kind === 'line-prefix')
-            applyLinePrefix(
-              el,
-              typeof action.prefix === 'function'
-                ? action.prefix
-                : () => action.prefix as string,
-            );
+            applyLinePrefix(el, action.prefixFor, action.pattern);
           else applyLink(el);
 
           field.onChange(el.value);

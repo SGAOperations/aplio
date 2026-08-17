@@ -160,7 +160,6 @@ export function Markdown({ source, variant, className }: MarkdownProps) {
         allowedElements={
           isFull ? FULL_ALLOWED_ELEMENTS : COMPACT_ALLOWED_ELEMENTS
         }
-        unwrapDisallowed
         components={isFull ? fullComponents : compactComponents}
       >
         {source}
