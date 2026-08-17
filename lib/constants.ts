@@ -478,7 +478,15 @@ export const PRIVACY_HREF = '/privacy';
 export const TERMS_HREF = '/terms';
 
 export const createUserSchema = z.object({
-  email: z.string().trim().email('Enter a valid email address.'),
+  // Lowercased to match Better Auth, which lowercases before its
+  // case-sensitive lookup on sign-in. A mixed-case invite would miss that
+  // lookup and — the unique index being case-sensitive too — succeed as a
+  // second, non-admin row instead of resolving the invited one.
+  email: z
+    .string()
+    .trim()
+    .email('Enter a valid email address.')
+    .transform((value) => value.toLowerCase()),
   name: z.string().trim().optional(),
   isAdmin: z.boolean().default(false),
 });
