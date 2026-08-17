@@ -9,7 +9,11 @@ import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { z } from 'zod/v4';
 
+import { checkSignInAllowed } from '@/prisma/actions/auth';
+
 import { authClient } from '@/lib/auth/client';
+import { ACCOUNT_DEACTIVATED_ERROR_CODE } from '@/lib/constants';
+import { isError } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -60,6 +64,18 @@ export function LoginView({ redirectTo, copy }: LoginViewProps) {
   });
 
   async function handleEmailSubmit(data: EmailFormValues) {
+    try {
+      const allowed = await checkSignInAllowed({ email: data.email });
+      if (isError(allowed)) {
+        toast.error(allowed.error);
+        return;
+      }
+    } catch (error) {
+      console.error('checkSignInAllowed failed', error);
+      toast.error("Couldn't send the code. Please try again.");
+      return;
+    }
+
     const result = await authClient.emailOtp.sendVerificationOtp({
       email: data.email,
       type: 'sign-in',
@@ -82,7 +98,11 @@ export function LoginView({ redirectTo, copy }: LoginViewProps) {
     });
 
     if (result.error) {
-      toast.error('That code is incorrect or expired.');
+      toast.error(
+        result.error.code === ACCOUNT_DEACTIVATED_ERROR_CODE
+          ? 'Your account has been deactivated. Please contact an administrator.'
+          : 'That code is incorrect or expired.',
+      );
       otpForm.reset({ otp: '' });
       return;
     }

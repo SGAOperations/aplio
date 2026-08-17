@@ -508,6 +508,10 @@ export const nameSchema = z.object({
     ),
 });
 
+// Shared with lib/auth/config.ts's session-create hook so the client can
+// branch on this specific refusal instead of a generic OTP failure.
+export const ACCOUNT_DEACTIVATED_ERROR_CODE = 'ACCOUNT_DEACTIVATED';
+
 export const STATUS_BADGE_VARIANT_TO_DOT: Record<BadgeVariant, string> = {
   info: 'bg-info',
   warning: 'bg-warning',

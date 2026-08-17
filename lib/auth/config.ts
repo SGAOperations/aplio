@@ -7,6 +7,7 @@ import { betterAuth } from 'better-auth';
 import { APIError } from 'better-auth/api';
 import { emailOTP } from 'better-auth/plugins';
 
+import { ACCOUNT_DEACTIVATED_ERROR_CODE } from '@/lib/constants';
 import { sendEmail } from '@/lib/email/resend';
 import { otpEmail } from '@/lib/email/templates';
 import { prisma } from '@/lib/prisma';
@@ -27,9 +28,7 @@ function requireSecret(): string {
   return secret;
 }
 
-// Never a `*.vercel.app` wildcard — any Vercel account can deploy to that
-// suffix, which would make every one of them a trusted origin. Vercel sets
-// both hosts itself, so preview deployments stay covered.
+// Never a `*.vercel.app` wildcard — that would trust every Vercel account's deployments.
 function resolveTrustedOrigins(): string[] {
   const origins = [
     'http://localhost:3000',
@@ -48,11 +47,8 @@ export const auth = betterAuth({
   // Our ids are uuid(7) from Prisma defaults; letting Better Auth generate them
   // would mix formats across the User table's existing foreign keys.
   advanced: { database: { generateId: false } },
-  // Enabled explicitly: the default only covers production, leaving the OTP
-  // endpoints unlimited on preview. Complements proxy.ts, which limits the
-  // whole /api/ prefix per IP but can't single out these two routes.
-  // Keys are route-relative — Better Auth strips the /api/auth base path
-  // before matching, so a prefixed key would silently never match.
+  // Enabled explicitly to cover preview, not just production; keys are
+  // route-relative since Better Auth strips the /api/auth base path.
   rateLimit: {
     enabled: true,
     customRules: {
@@ -63,10 +59,7 @@ export const auth = betterAuth({
   databaseHooks: {
     session: {
       create: {
-        // Denies deactivated accounts a session across every sign-in path.
-        // Throws instead of returning false: an aborted create resolves to a
-        // null session that the sign-in routes dereference for `.token`,
-        // surfacing as a 500 rather than a refusal.
+        // Throws — returning false leaves callers dereferencing a null session's .token.
         before: async (session) => {
           const user = await prisma.user.findUnique({
             where: { id: session.userId },
@@ -74,7 +67,7 @@ export const auth = betterAuth({
           });
           if (user?.deletedAt)
             throw APIError.from('FORBIDDEN', {
-              code: 'ACCOUNT_DEACTIVATED',
+              code: ACCOUNT_DEACTIVATED_ERROR_CODE,
               message: 'This account has been deactivated.',
             });
         },

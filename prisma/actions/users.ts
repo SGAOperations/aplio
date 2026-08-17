@@ -87,8 +87,8 @@ export async function createUser(input: unknown): Promise<ActionError | void> {
   });
   if (existing) return { error: 'A user with this email already exists.' };
 
-  // No identity to provision: Better Auth attaches its session to this row on
-  // the invitee's first OTP sign-in.
+  // Verified in better-auth's sign-in/email-otp route: it matches this row
+  // by exact email before ever inserting, so it's found here, never duplicated.
   try {
     await prisma.user.create({
       data: {
