@@ -8,7 +8,7 @@ Aplio is an internal recruiting and application platform. Admins and managers cr
 | -------------- | -------------------------------------------------- |
 | Framework      | Next.js 16 (App Router, React 19, Turbopack)       |
 | Database / ORM | Prisma 7 (`@prisma/adapter-pg`) · Neon Postgres    |
-| Auth           | Stack Auth via `@neondatabase/auth`                |
+| Auth           | Better Auth (self-hosted, email OTP)               |
 | Styling        | Tailwind CSS 4 · shadcn/ui (Radix, new-york style) |
 | Language       | TypeScript (strict)                                |
 | Validation     | zod 4 · react-hook-form                            |
