@@ -15,7 +15,7 @@ export default defineConfig({
           name: 'unit',
           environment: 'node',
           env: { TZ: 'America/New_York' },
-          include: ['lib/**/*.test.ts'],
+          include: ['tests/unit/**/*.test.ts'],
         },
       },
       {

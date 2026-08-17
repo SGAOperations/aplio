@@ -102,7 +102,7 @@ The app runs at <http://localhost:3000>.
 
 ## Running tests
 
-Two Vitest projects: `unit` (pure functions in `lib/`, no database) and `db` (real Postgres, real Prisma, real guards, in `tests/db/`).
+Two Vitest projects: `unit` (pure functions, no database, in `tests/unit/`) and `db` (real Postgres, real Prisma, real guards, in `tests/db/`). All tests live under `tests/`, never co-located with the source files they cover.
 
 ```bash
 npm run db:start
@@ -160,6 +160,7 @@ lib/
   prisma.ts       # Prisma client singleton
 
 tests/
+  unit/           # Vitest unit project — pure functions, no database
   db/             # Vitest db project — real Postgres, real guards
   stubs/          # Alias targets for the db project (auth, next/cache, server-only)
   helpers/        # Fixture creation and cleanup

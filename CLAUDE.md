@@ -52,7 +52,7 @@ npm run test             # unit + db projects; fall back to test:unit if Postgre
 
 Never push with known failures. Run Prisma via the **`npm run prisma:*` scripts** — `npm run prisma:generate`, `npm run prisma:migrate -- --name <name>` — **never `npx prisma`** (npx is allow-listed for shadcn only; pipeline agents auto-deny other `npx`). Same for prettier/tsc/tsx: use `npm run …`, not `npx …`.
 
-Tests live in `lib/**/*.test.ts` (`unit` project, pure functions, no DB) and `tests/db/**/*.test.ts` (`db` project, real Postgres via `tests/stubs/`-aliased guards) — see `vitest.config.ts` and the README's "Running tests" section.
+All tests live under `tests/`, never co-located with the source they cover: `tests/unit/**/*.test.ts` (`unit` project, pure functions, no DB) and `tests/db/**/*.test.ts` (`db` project, real Postgres via `tests/stubs/`-aliased guards) — see `vitest.config.ts` and the README's "Running tests" section.
 
 ## Issue Tracking
 
