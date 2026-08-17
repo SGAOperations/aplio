@@ -30,8 +30,6 @@ export interface PositionDef {
 export interface ApplicantDef {
   email: string;
   name: string;
-  // Dev-bypass identities only; the seed upserts on it to survive a prior login.
-  neonAuthId?: string;
   isAdmin?: boolean;
   // Born deactivated, to exercise that path without a separate step.
   deactivated?: boolean;

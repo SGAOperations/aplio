@@ -6,7 +6,6 @@ import { z } from 'zod/v4';
 
 import { Prisma } from '@/prisma/client';
 
-import { createNeonAuthUser, deleteNeonAuthUser } from '@/lib/auth/admin';
 import { requireAdmin } from '@/lib/auth/guards';
 import { createUserSchema } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
@@ -60,7 +59,7 @@ export async function deactivateUser(
   if (userId === user.id)
     return { error: 'You cannot deactivate your own account.' };
 
-  // Leaves email/neonAuthId intact, so neither is freed for reuse by a new signup.
+  // Leaves the email intact, so it isn't freed for reuse by a new signup.
   const result = await prisma.user.updateMany({
     where: { id: userId, deletedAt: null },
     data: { deletedAt: new Date(), deletedById: user.id },
@@ -88,16 +87,11 @@ export async function createUser(input: unknown): Promise<ActionError | void> {
   });
   if (existing) return { error: 'A user with this email already exists.' };
 
-  // Before the app row, which needs its id.
-  const created = await createNeonAuthUser({ email, name });
-  // Residual case only: present in Neon Auth but not in our table.
-  if ('duplicate' in created)
-    return { error: 'A user with this email already exists.' };
-
+  // No identity to provision: Better Auth attaches its session to this row on
+  // the invitee's first OTP sign-in.
   try {
     await prisma.user.create({
       data: {
-        neonAuthId: created.id,
         email,
         ...(name ? { name } : {}),
         isAdmin,
@@ -105,9 +99,6 @@ export async function createUser(input: unknown): Promise<ActionError | void> {
       },
     });
   } catch (error) {
-    // Rolled back unconditionally, or each retry strands another Neon Auth identity.
-    await deleteNeonAuthUser(created.id);
-
     // Soft-deleted rows keep their email, so a deactivated address collides too.
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&

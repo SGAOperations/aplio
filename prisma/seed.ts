@@ -34,42 +34,26 @@ async function main() {
   await prisma.$transaction(
     async (tx) => {
       const admin = await tx.user.create({
-        data: {
-          neonAuthId: crypto.randomUUID(),
-          email: SEED_MARKER_EMAIL,
-          name: 'Seed Admin',
-          isAdmin: true,
-        },
+        data: { email: SEED_MARKER_EMAIL, name: 'Seed Admin', isAdmin: true },
       });
 
-      // Bypass identities upsert, so a prior login can't collide on neonAuthId.
+      // Upsert on email, so a prior bypass login can't collide.
       const applicants: User[] = await Promise.all(
         applicantDefs.map((u) =>
-          u.neonAuthId
-            ? tx.user.upsert({
-                where: { neonAuthId: u.neonAuthId },
-                update: { name: u.name },
-                create: {
-                  neonAuthId: u.neonAuthId,
-                  email: u.email,
-                  name: u.name,
-                  isAdmin: u.isAdmin ?? false,
-                  createdById: admin.id,
-                  updatedById: admin.id,
-                },
-              })
-            : tx.user.create({
-                data: {
-                  neonAuthId: crypto.randomUUID(),
-                  email: u.email,
-                  name: u.name,
-                  createdById: admin.id,
-                  updatedById: admin.id,
-                  ...(u.deactivated
-                    ? { deletedAt: now, deletedById: admin.id }
-                    : {}),
-                },
-              }),
+          tx.user.upsert({
+            where: { email: u.email },
+            update: { name: u.name },
+            create: {
+              email: u.email,
+              name: u.name,
+              isAdmin: u.isAdmin ?? false,
+              createdById: admin.id,
+              updatedById: admin.id,
+              ...(u.deactivated
+                ? { deletedAt: now, deletedById: admin.id }
+                : {}),
+            },
+          }),
         ),
       );
 

@@ -1,41 +1,20 @@
-import { createAuthServer } from '@neondatabase/auth/next/server';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
 
 import type { User } from '@/prisma/client';
-import { Prisma } from '@/prisma/client';
 
+import { auth } from '@/lib/auth/config';
 import { prisma } from '@/lib/prisma';
 
-export const authServer = createAuthServer();
-
-// Provision-on-first-auth: empty update {} makes it create-only; neonAuthId keeps it race-safe.
+// Better Auth owns the User row, so the session id is the row id — no provisioning
+// step and no second identity to keep in sync.
 async function resolveRealUser() {
-  const { data: session } = await authServer.getSession();
+  const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) return null;
 
-  const { id: neonAuthId, email, name } = session.user;
-
-  let row;
-  try {
-    row = await prisma.user.upsert({
-      where: { neonAuthId },
-      update: {},
-      create: { neonAuthId, email, ...(name ? { name } : {}), isAdmin: false },
-    });
-  } catch (error) {
-    // Soft-deleted rows keep their email, so re-signup hits P2002.
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2002'
-    )
-      throw new Error(
-        'Unable to sign in — this account could not be provisioned.',
-      );
-    throw error;
-  }
-  if (row.deletedAt) return null;
+  const row = await prisma.user.findUnique({ where: { id: session.user.id } });
+  if (!row || row.deletedAt) return null;
   return row;
 }
 
