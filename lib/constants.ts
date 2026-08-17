@@ -517,6 +517,10 @@ export const signInEmailSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
 });
 
+// Shared between LoginView's client-side countdown and isOtpResendAllowed's
+// server-side check so they can't drift.
+export const OTP_RESEND_COOLDOWN_SECONDS = 60;
+
 export const STATUS_BADGE_VARIANT_TO_DOT: Record<BadgeVariant, string> = {
   info: 'bg-info',
   warning: 'bg-warning',
