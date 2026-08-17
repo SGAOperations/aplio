@@ -87,6 +87,7 @@ export function NameField({ defaultName, redirectTo }: NameFieldProps) {
                     placeholder="Jane Smith"
                     disabled={isPending}
                     autoComplete="name"
+                    autoFocus
                   />
                 </FormControl>
                 <FormMessage />

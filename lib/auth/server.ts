@@ -67,16 +67,15 @@ export const getCurrentUser = cache(async function getCurrentUser() {
   redirect('/login');
 });
 
-// Name gate — every personalized, authenticated surface must redirect a
-// nameless user to /login to complete their name before rendering (#240).
-// Deliberately NOT folded into getCurrentUser: the setUserName server action
-// also calls getCurrentUser to resolve the caller, and would redirect itself
-// away before it could ever write the name. Called by each gated route
-// individually instead — app/(main)/(auth)/layout.tsx (covers applications,
-// global-questions, my-applications, positions/[id]/apply|edit, users),
-// app/(main)/page.tsx, and app/(main)/profile/page.tsx. Routes meant to stay
-// reachable without a name — /positions, /positions/[id] — must not call
-// this. Carries the requested path (set by proxy.ts on the `x-current-path`
+// Name gate — every authenticated route under app/(main)/ redirects a
+// nameless user to /login to complete their name before rendering. The only
+// bypass is an anonymous visitor (getOptionalUser() -> null), which is what
+// keeps /positions and /positions/[id] publicly browsable — callers there
+// must guard with `if (user) await requireName(user)` rather than calling
+// this unconditionally. Deliberately NOT folded into getCurrentUser: the
+// setUserName server action also calls getCurrentUser to resolve the caller,
+// and would redirect itself away before it could ever write the name.
+// Carries the requested path (set by proxy.ts on the `x-current-path`
 // header, since Server Components have no direct access to the request URL)
 // so /login can route the user back to their original destination — e.g. an
 // in-progress application — after they set their name, instead of dropping

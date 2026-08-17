@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -28,7 +28,6 @@ import {
 } from '@/components/ui/input-otp';
 
 interface LoginViewProps {
-  redirectTo: string;
   copy: { title: string; description: string; sentDescription: string };
 }
 
@@ -44,10 +43,11 @@ const otpSchema = z.object({
 
 type OtpFormValues = z.infer<typeof otpSchema>;
 
-export function LoginView({ redirectTo, copy }: LoginViewProps) {
+export function LoginView({ copy }: LoginViewProps) {
   const router = useRouter();
   const [step, setStep] = useState<'email' | 'otp'>('email');
   const [capturedEmail, setCapturedEmail] = useState('');
+  const [isRouting, startTransition] = useTransition();
 
   const emailForm = useForm<EmailFormValues>({
     resolver: zodResolver(emailSchema),
@@ -87,8 +87,8 @@ export function LoginView({ redirectTo, copy }: LoginViewProps) {
       return;
     }
 
-    router.refresh();
-    router.push(redirectTo);
+    // /login decides the destination — name form or onward redirect.
+    startTransition(() => router.refresh());
   }
 
   function handleBack() {
@@ -127,6 +127,7 @@ export function LoginView({ redirectTo, copy }: LoginViewProps) {
                       maxLength={6}
                       aria-label="One-time code"
                       value={field.value}
+                      disabled={isRouting}
                       onChange={(value) => {
                         field.onChange(value);
                         // Auto-submit when all 6 digits are entered
@@ -154,9 +155,9 @@ export function LoginView({ redirectTo, copy }: LoginViewProps) {
             <Button
               type="submit"
               className="w-full"
-              disabled={otpForm.formState.isSubmitting}
+              disabled={otpForm.formState.isSubmitting || isRouting}
             >
-              {otpForm.formState.isSubmitting && (
+              {(otpForm.formState.isSubmitting || isRouting) && (
                 <Loader2 className="animate-spin" />
               )}
               Verify code

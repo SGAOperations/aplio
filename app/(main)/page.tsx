@@ -10,10 +10,7 @@ export default async function Home() {
   // Routing, not an authorization denial.
   if (!user) redirect('/positions');
 
-  // Name gate — this personalized dashboard sits outside app/(main)/(auth)/,
-  // so it isn't covered by that layout's check; gate it directly instead of
-  // moving the check up to app/(main)/layout.tsx, which would also gate the
-  // intentionally-public /positions and /positions/[id] routes.
+  // Sits outside app/(main)/(auth)/, so gate it directly.
   await requireName(user);
 
   if (user.isAdmin) return <AdminDashboard />;

@@ -6,7 +6,7 @@ import { Inbox, Pencil } from 'lucide-react';
 
 import { getPublicPosition } from '@/prisma/data/positions';
 
-import { getOptionalUser } from '@/lib/auth/server';
+import { getOptionalUser, requireName } from '@/lib/auth/server';
 import { AVAILABILITY_LABELS, AVAILABILITY_VARIANTS } from '@/lib/constants';
 import { formatDate, getPositionAvailability } from '@/lib/utils';
 
@@ -37,6 +37,8 @@ export default async function PublicPositionDetailPage({
     getPublicPosition(id),
     getOptionalUser(),
   ]);
+
+  if (user) await requireName(user);
 
   if (!position) notFound();
 

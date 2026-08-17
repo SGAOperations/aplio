@@ -10,7 +10,7 @@ import {
   getRecentlyClosedPositions,
 } from '@/prisma/data/positions';
 
-import { getOptionalUser } from '@/lib/auth/server';
+import { getOptionalUser, requireName } from '@/lib/auth/server';
 import type { PositionApplicationStats } from '@/lib/types';
 
 import { ManagedPositionsSection } from '@/components/features/managed-positions-section';
@@ -23,6 +23,7 @@ export const metadata: Metadata = { title: 'Positions' };
 
 export default async function PositionsPage() {
   const user = await getOptionalUser();
+  if (user) await requireName(user);
   const isAdmin = user?.isAdmin ?? false;
 
   // Admin branch: flat list with create action and application stats on every card.
