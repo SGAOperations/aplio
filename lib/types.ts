@@ -60,9 +60,7 @@ export type PositionQuestionForEdit = Prisma.PositionQuestionGetPayload<{
   };
 }>;
 
-// Matches getPositionForEdit's select; no audit columns cross to the client.
-// updatedAt/_count are server-only — they feed isPositionActive/checkPositionEditable
-// and are never spread into a prop passed to a client component.
+// Server-only — updatedAt/_count feed isPositionActive and never cross to a client.
 export type PositionForEdit = Prisma.PositionGetPayload<{
   select: {
     id: true;

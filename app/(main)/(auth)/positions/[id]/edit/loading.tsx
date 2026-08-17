@@ -18,29 +18,28 @@ export default function EditPositionLoading() {
           <Skeleton className="h-8 flex-1" />
         </div>
 
-        {/* Tab content skeleton — matches the Details form */}
+        {/* Tab content skeleton — loose shape fits both the editable form and the archived read-only view */}
         <div className="mt-2 flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <Skeleton className="h-4 w-12" />
-            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-6 w-full" />
           </div>
           <div className="flex flex-col gap-2">
             <Skeleton className="h-4 w-20" />
-            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-16 w-full" />
           </div>
           <div className="flex flex-col gap-2">
             <Skeleton className="h-4 w-12" />
-            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-6 w-full" />
           </div>
           <div className="flex flex-col gap-2">
             <Skeleton className="h-4 w-20" />
-            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-6 w-full" />
           </div>
           <div className="flex flex-col gap-2">
             <Skeleton className="h-4 w-20" />
-            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-6 w-full" />
           </div>
-          <Skeleton className="h-9 w-28" />
         </div>
       </div>
     </div>
