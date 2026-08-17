@@ -26,11 +26,11 @@ export function ManagedPositionsSection({
 
   return (
     <section
-      aria-labelledby="my-positions-heading"
+      aria-labelledby="managed-positions-heading"
       className="flex flex-col gap-4"
     >
-      <h2 id="my-positions-heading" className="text-lg font-semibold">
-        My Positions
+      <h2 id="managed-positions-heading" className="text-lg font-semibold">
+        My Managed Positions
       </h2>
 
       {active.length === 0 ? (

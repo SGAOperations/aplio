@@ -11,7 +11,10 @@ import {
 } from '@/prisma/data/positions';
 
 import { getOptionalUser, requireName } from '@/lib/auth/server';
-import type { PositionApplicationStats } from '@/lib/types';
+import type {
+  PositionApplicationStats,
+  PositionWithQuestions,
+} from '@/lib/types';
 
 import { ManagedPositionsSection } from '@/components/features/managed-positions-section';
 import { PositionCard } from '@/components/features/position-card';
@@ -85,6 +88,13 @@ export default async function PositionsPage() {
   // Empty for non-managers, which omits the section.
   const showManagedSection = managedPositions.length > 0;
 
+  // Managed positions get their own section — exclude them here to avoid duplication.
+  const isNotManaged = (p: PositionWithQuestions) => !managedIds.has(p.id);
+  const filteredOpenPositions = openPositions.filter(isNotManaged);
+  const filteredRecentlyClosed = recentlyClosed.filter(isNotManaged);
+  const allOpenPositionsManaged =
+    openPositions.length > 0 && filteredOpenPositions.length === 0;
+
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
@@ -92,7 +102,7 @@ export default async function PositionsPage() {
         description="Browse open positions and apply."
       />
 
-      {/* My Positions — shown first for managers; omitted when empty (non-manager or no relevant positions) */}
+      {/* My Managed Positions — shown first for managers; omitted when empty (non-manager or no relevant positions) */}
       {showManagedSection && (
         <ManagedPositionsSection
           positions={managedPositions}
@@ -108,25 +118,27 @@ export default async function PositionsPage() {
         <h2 id="open-positions-heading" className="text-lg font-semibold">
           Open Positions
         </h2>
-        {openPositions.length === 0 ? (
+        {filteredOpenPositions.length === 0 ? (
           <EmptyState
             icon={Briefcase}
-            title="No open positions"
-            description="Check back later for open positions."
+            title={
+              allOpenPositionsManaged
+                ? 'No other open positions'
+                : 'No open positions'
+            }
+            description={
+              allOpenPositionsManaged
+                ? 'Every open position right now is one you manage — see My Managed Positions above.'
+                : 'Check back later for open positions.'
+            }
           />
         ) : (
           <div className="flex flex-col gap-4">
-            {openPositions.map((position) => (
+            {filteredOpenPositions.map((position) => (
               <PositionCard
                 key={position.id}
                 position={position}
-                canManage={managedIds.has(position.id)}
                 isAuthenticated={isAuthenticated}
-                applicationStats={
-                  managedIds.has(position.id)
-                    ? statsByPosition.get(position.id)
-                    : undefined
-                }
               />
             ))}
           </div>
@@ -134,7 +146,7 @@ export default async function PositionsPage() {
       </section>
 
       {/* Recently Closed — omitted when empty (showing nothing is less noisy) */}
-      {recentlyClosed.length > 0 && (
+      {filteredRecentlyClosed.length > 0 && (
         <section
           aria-labelledby="recently-closed-heading"
           className="flex flex-col gap-4"
@@ -143,17 +155,11 @@ export default async function PositionsPage() {
             Recently Closed
           </h2>
           <div className="flex flex-col gap-4">
-            {recentlyClosed.map((position) => (
+            {filteredRecentlyClosed.map((position) => (
               <PositionCard
                 key={position.id}
                 position={position}
-                canManage={managedIds.has(position.id)}
                 isAuthenticated={isAuthenticated}
-                applicationStats={
-                  managedIds.has(position.id)
-                    ? statsByPosition.get(position.id)
-                    : undefined
-                }
               />
             ))}
           </div>
