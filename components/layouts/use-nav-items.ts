@@ -10,6 +10,7 @@ import {
   homeNavItem,
   manageAdminNavItems,
   manageReviewerNavItems,
+  positionsNavItem,
 } from '@/components/layouts/nav-items';
 
 interface UseNavItemsOptions {
@@ -33,14 +34,22 @@ export function useNavItems({
 }: UseNavItemsOptions): UseNavItemsResult {
   const pathname = usePathname();
 
+  const hasManageAccess = canReviewApplications || isAdmin;
+
   const manageItems = [
     ...(canReviewApplications ? manageReviewerNavItems : []),
     ...(isAdmin ? manageAdminNavItems : []),
   ];
 
   // Apply items sit directly under Home, ungrouped — only Manage gets a heading.
+  // Managers/admins get Positions under Manage instead, so it isn't duplicated.
   const topLevelItems = identity
-    ? [homeNavItem, ...applyNavItems]
+    ? [
+        homeNavItem,
+        ...(hasManageAccess
+          ? applyNavItems.filter((item) => item !== positionsNavItem)
+          : applyNavItems),
+      ]
     : anonymousNavItems;
 
   const groups: NavGroup[] =

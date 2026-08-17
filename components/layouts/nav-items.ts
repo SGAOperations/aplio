@@ -23,8 +23,9 @@ export const applyNavItems: NavItem[] = [
 ];
 
 // Shown to admins AND managers — anyone who can review applications.
-// Positions already appears under Apply — same role-adaptive /positions page.
+// Positions moves here for managers/admins instead of sitting under Apply.
 export const manageReviewerNavItems: NavItem[] = [
+  positionsNavItem,
   { href: '/applications', label: 'Applications', icon: FileText },
 ];
 
