@@ -167,11 +167,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
           </CardContent>
         </Card>
       ) : !application ? (
-        <StartApplicationCard
-          positionId={id}
-          positionQuestionCount={position.questions.length}
-          closesAt={position.closesAt}
-        />
+        <StartApplicationCard positionId={id} />
       ) : (
         <div className="flex flex-col gap-6">
           {isResubmit && (

@@ -7,21 +7,17 @@ import { toast } from 'sonner';
 
 import { createDraftApplication } from '@/prisma/actions/applications';
 
-import { formatDate, isError } from '@/lib/utils';
+import { isError } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
 interface StartApplicationCardProps {
   positionId: string;
-  positionQuestionCount: number;
-  closesAt: Date | null;
 }
 
 export function StartApplicationCard({
   positionId,
-  positionQuestionCount,
-  closesAt,
 }: StartApplicationCardProps) {
   const [isPending, startTransition] = useTransition();
 
@@ -47,21 +43,9 @@ export function StartApplicationCard({
           <h2 className="text-lg font-semibold tracking-tight">
             Start your application
           </h2>
-          <ul className="text-muted-foreground mt-2 flex flex-col gap-1 text-sm">
-            <li>
-              Your profile answers are included automatically — you can
-              customize them for this application.
-            </li>
-            {positionQuestionCount > 0 && (
-              <li>
-                {positionQuestionCount} question
-                {positionQuestionCount === 1 ? '' : 's'} specific to this
-                position.
-              </li>
-            )}
-            <li>Your answers save as you go, so you can finish later.</li>
-            {closesAt && <li>Applications close {formatDate(closesAt)}.</li>}
-          </ul>
+          <p className="text-muted-foreground mt-2 text-sm">
+            Your answers save as you go, so you can finish later.
+          </p>
         </div>
         <Button className="w-fit" onClick={handleStart} disabled={isPending}>
           {isPending && (
