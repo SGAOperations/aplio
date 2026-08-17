@@ -47,7 +47,7 @@ export type PositionDetail = PositionWithQuestions & {
   managers: { id: string }[];
 };
 
-// Matches getPositionForEdit's select; no audit columns cross to the client.
+// Mapped shape — getPositionForEdit flattens `_count.answers` into answerCount.
 export type PositionQuestionForEdit = Prisma.PositionQuestionGetPayload<{
   select: {
     id: true;
@@ -60,9 +60,10 @@ export type PositionQuestionForEdit = Prisma.PositionQuestionGetPayload<{
     format: true;
     order: true;
   };
-}>;
+}> & { answerCount: number };
 
 // Server-only — updatedAt/_count feed isPositionActive and never cross to a client.
+// `questions` is the mapped PositionQuestionForEdit shape, not a raw select.
 export type PositionForEdit = Prisma.PositionGetPayload<{
   select: {
     id: true;
@@ -72,23 +73,10 @@ export type PositionForEdit = Prisma.PositionGetPayload<{
     opensAt: true;
     closesAt: true;
     updatedAt: true;
-    questions: {
-      select: {
-        id: true;
-        positionId: true;
-        label: true;
-        type: true;
-        required: true;
-        options: true;
-        allowOther: true;
-        format: true;
-        order: true;
-      };
-    };
     managers: { select: { id: true; name: true; email: true } };
     _count: { select: { applications: true } };
   };
-}>;
+}> & { questions: PositionQuestionForEdit[] };
 
 // Matches getApplicationForApply's query in prisma/data/applications.ts.
 export type DraftApplication = Prisma.ApplicationGetPayload<{

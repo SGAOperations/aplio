@@ -281,7 +281,7 @@ export async function getAcceptingPositionsCount(): Promise<number> {
 export const getPositionForEdit = cache(async function getPositionForEdit(
   id: string,
 ): Promise<PositionForEdit | null> {
-  return prisma.position.findFirst({
+  const position = await prisma.position.findFirst({
     where: { id, deletedAt: null },
     select: {
       id: true,
@@ -303,12 +303,32 @@ export const getPositionForEdit = cache(async function getPositionForEdit(
           allowOther: true,
           format: true,
           order: true,
+          // Filtered count of non-deleted answers on non-deleted applications —
+          // powers the delete-question confirmation's "N applications already
+          // answered" warning (advisory only; see the ticket's risks/notes).
+          _count: {
+            select: {
+              answers: {
+                where: { deletedAt: null, application: { deletedAt: null } },
+              },
+            },
+          },
         },
       },
       managers: { select: { id: true, name: true, email: true } },
       ...positionActivitySelect,
     },
   });
+
+  if (!position) return null;
+
+  return {
+    ...position,
+    questions: position.questions.map(({ _count, ...question }) => ({
+      ...question,
+      answerCount: _count.answers,
+    })),
+  };
 });
 
 // Mirrors checkPositionAccess's admin short-circuit; a missing/deleted position

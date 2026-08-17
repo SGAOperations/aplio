@@ -9,6 +9,7 @@ import { deletePositionQuestion } from '@/prisma/actions/position-question-actio
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 import {
   QuestionForm,
@@ -26,10 +27,12 @@ export function PositionQuestionsSection({
   initialQuestions,
 }: PositionQuestionsSectionProps) {
   const [questions, setQuestions] = useState(initialQuestions);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<RenderedQuestion | null>(
+    null,
+  );
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [, startTransition] = useTransition();
+  const [isDeleting, startTransition] = useTransition();
 
   function handleQuestionSaved(updated: RenderedQuestion) {
     setQuestions((prev) => {
@@ -41,100 +44,138 @@ export function PositionQuestionsSection({
     setShowAddForm(false);
   }
 
-  function handleDelete(id: string) {
-    setDeletingId(id);
+  function handleDeleteConfirm() {
+    if (!deleteTarget) return;
+    const target = deleteTarget;
     startTransition(async () => {
       try {
-        const result = await deletePositionQuestion({ id, positionId });
+        const result = await deletePositionQuestion({
+          id: target.id,
+          positionId,
+        });
         if (result && 'error' in result) {
           toast.error(result.error);
-        } else {
-          setQuestions((prev) => prev.filter((q) => q.id !== id));
-          toast.success('Question deleted');
+          return;
         }
+        setQuestions((prev) => prev.filter((q) => q.id !== target.id));
+        toast.success('Question deleted');
+        setDeleteTarget(null);
       } catch (error) {
         console.error(error);
         toast.error('Something went wrong. Please try again.');
-      } finally {
-        setDeletingId(null);
       }
     });
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      {questions.length === 0 && !showAddForm && (
-        <p className="text-muted-foreground text-sm">
-          No questions yet. Add a question to get started.
-        </p>
-      )}
+    <>
+      <div className="flex flex-col gap-4">
+        {questions.length === 0 && !showAddForm && (
+          <p className="text-muted-foreground text-sm">
+            No questions yet. Add a question to get started.
+          </p>
+        )}
 
-      {questions.map((question) => (
-        <div key={question.id}>
-          {editingId === question.id ? (
-            <Card className="gap-4 p-4">
-              <h2 className="text-sm font-medium">Edit Question</h2>
-              <QuestionForm
-                key={question.id}
-                positionId={positionId}
-                question={question}
-                onSuccess={handleQuestionSaved}
-                onClose={() => setEditingId(null)}
-              />
-            </Card>
-          ) : (
-            <Card className="flex flex-row items-center gap-3 p-4">
-              <PositionQuestionSummary question={question} />
-              <div className="flex shrink-0 items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => {
-                    setShowAddForm(false);
-                    setEditingId(question.id);
-                  }}
-                  disabled={deletingId === question.id}
-                >
-                  <Pencil className="size-4" />
-                  <span className="sr-only">Edit question</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleDelete(question.id)}
-                  disabled={deletingId === question.id}
-                >
-                  <Trash2 className="text-destructive size-4" />
-                  <span className="sr-only">Delete question</span>
-                </Button>
-              </div>
-            </Card>
-          )}
-        </div>
-      ))}
+        {questions.map((question) => (
+          <div key={question.id}>
+            {editingId === question.id ? (
+              <Card className="gap-4 p-4">
+                <h2 className="text-sm font-medium">Edit Question</h2>
+                <QuestionForm
+                  key={question.id}
+                  positionId={positionId}
+                  question={question}
+                  onSuccess={handleQuestionSaved}
+                  onClose={() => setEditingId(null)}
+                />
+              </Card>
+            ) : (
+              <Card className="flex flex-row items-center gap-3 p-4">
+                <PositionQuestionSummary question={question} />
+                <div className="flex shrink-0 items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setShowAddForm(false);
+                      setEditingId(question.id);
+                    }}
+                    disabled={isDeleting && deleteTarget?.id === question.id}
+                  >
+                    <Pencil className="size-4" />
+                    <span className="sr-only">Edit question</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setDeleteTarget(question)}
+                    disabled={isDeleting && deleteTarget?.id === question.id}
+                  >
+                    <Trash2 className="text-destructive size-4" />
+                    <span className="sr-only">
+                      Delete question &quot;{question.label}&quot;
+                    </span>
+                  </Button>
+                </div>
+              </Card>
+            )}
+          </div>
+        ))}
 
-      {showAddForm ? (
-        <Card className="gap-4 p-4">
-          <h2 className="text-sm font-medium">Add Question</h2>
-          <QuestionForm
-            positionId={positionId}
-            onSuccess={handleQuestionSaved}
-            onClose={() => setShowAddForm(false)}
-          />
-        </Card>
-      ) : (
-        <Button
-          variant="outline"
-          className="w-fit"
-          onClick={() => {
-            setEditingId(null);
-            setShowAddForm(true);
-          }}
-        >
-          <Plus className="size-4" />
-          Add Question
-        </Button>
-      )}
-    </div>
+        {showAddForm ? (
+          <Card className="gap-4 p-4">
+            <h2 className="text-sm font-medium">Add Question</h2>
+            <QuestionForm
+              positionId={positionId}
+              onSuccess={handleQuestionSaved}
+              onClose={() => setShowAddForm(false)}
+            />
+          </Card>
+        ) : (
+          <Button
+            variant="outline"
+            className="w-fit"
+            onClick={() => {
+              setEditingId(null);
+              setShowAddForm(true);
+            }}
+          >
+            <Plus className="size-4" />
+            Add Question
+          </Button>
+        )}
+      </div>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete this question?"
+        description={
+          <div className="flex flex-col gap-2">
+            <p>
+              &quot;{deleteTarget?.label}&quot; will be removed from this
+              position&apos;s application form. New applicants will no longer
+              see it.
+            </p>
+            {!!deleteTarget && deleteTarget.answerCount > 0 && (
+              <p className="text-destructive">
+                {deleteTarget.answerCount}{' '}
+                {deleteTarget.answerCount === 1
+                  ? 'application already has'
+                  : 'applications already have'}{' '}
+                an answer to this question. Existing answers stay visible on
+                those applications, but the question disappears from any draft
+                still in progress.
+              </p>
+            )}
+          </div>
+        }
+        confirmLabel="Delete question"
+        pendingLabel="Deleting…"
+        destructive
+        isPending={isDeleting}
+        onConfirm={handleDeleteConfirm}
+      />
+    </>
   );
 }
