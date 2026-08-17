@@ -43,6 +43,7 @@ import {
 import { AnswerFileLink } from '@/components/features/answer-file-link';
 import { AnswerMismatchNotice } from '@/components/features/answer-mismatch-notice';
 import { ApplicationQuestion } from '@/components/features/application-question';
+import { QuestionCardLabel } from '@/components/features/question-card-label';
 import { Button } from '@/components/ui/button';
 
 type StepperFormValues = Record<string, string[]>;
@@ -79,10 +80,11 @@ function ReadOnlyQuestionCard({
         isMissing && 'border-destructive',
       )}
     >
-      <p className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase">
-        {question.label}
-        {question.required && <span className="text-destructive ml-1">*</span>}
-      </p>
+      <QuestionCardLabel
+        id={`${question.id}-label`}
+        label={question.label}
+        required={question.required}
+      />
       {orphaned.length > 0 && (
         <AnswerMismatchNotice
           id={`${question.id}-mismatch`}

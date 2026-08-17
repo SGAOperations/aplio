@@ -18,10 +18,17 @@ import {
   getAnswerValueError,
   matchesShortAnswerFormat,
 } from '@/lib/constants';
-import { ActionError, cn, isError, partitionAnswerValue } from '@/lib/utils';
+import {
+  ActionError,
+  cn,
+  composeDescribedBy,
+  isError,
+  partitionAnswerValue,
+} from '@/lib/utils';
 
 import { AnswerFileLink } from '@/components/features/answer-file-link';
 import { AnswerMismatchNotice } from '@/components/features/answer-mismatch-notice';
+import { QuestionCardLabel } from '@/components/features/question-card-label';
 import { QuestionFileField } from '@/components/features/question-file-field';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -53,6 +60,8 @@ export function ProfileQuestion({
   const [validationError, setValidationError] = useState<string | null>(null);
   const noticeId = `${question.id}-mismatch`;
   const labelId = `${question.id}-label`;
+  const inputId = `${question.id}-input`;
+  const errorId = `${question.id}-error`;
 
   // Non-reactive to typing; fine here — the editable view below recomputes.
   const { fitted: viewFitted, orphaned: viewOrphaned } = partitionAnswerValue(
@@ -119,13 +128,17 @@ export function ProfileQuestion({
 
   return (
     <div className="bg-card rounded-lg border p-4 shadow-sm">
-      <p
+      <QuestionCardLabel
         id={labelId}
-        className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase"
-      >
-        {question.label}
-        {question.required && <span className="text-destructive ml-1">*</span>}
-      </p>
+        label={question.label}
+        required={question.required}
+        htmlFor={
+          isEditing &&
+          (question.type === 'short_answer' || question.type === 'long_answer')
+            ? inputId
+            : undefined
+        }
+      />
 
       {/* Full stored value, read-only — not writable, so a mismatch can't round-trip into a write. */}
       {!isEditing && viewOrphaned.length > 0 && (
@@ -178,23 +191,27 @@ export function ProfileQuestion({
               />
             );
 
+            const describedBy = composeDescribedBy(
+              orphaned.length > 0 && noticeId,
+              validationError && errorId,
+            );
+
             if (question.type === 'short_answer')
               return (
                 <>
                   {notice}
                   <Input
+                    id={inputId}
                     value={fitted[0] ?? ''}
                     onChange={(e) => {
                       field.onChange(e.target.value ? [e.target.value] : []);
                       setValidationError(null);
                     }}
                     onBlur={handleBlur}
-                    placeholder="Your answer"
                     maxLength={ANSWER_SHORT_MAX_LENGTH}
+                    aria-required={question.required}
                     aria-invalid={!!validationError}
-                    aria-describedby={
-                      orphaned.length > 0 ? noticeId : undefined
-                    }
+                    aria-describedby={describedBy}
                   />
                 </>
               );
@@ -204,22 +221,21 @@ export function ProfileQuestion({
                 <>
                   {notice}
                   <Textarea
-                    id={`${question.id}-long-answer`}
+                    id={inputId}
                     value={fitted[0] ?? ''}
                     onChange={(e) => {
                       field.onChange(e.target.value ? [e.target.value] : []);
                       setValidationError(null);
                     }}
                     onBlur={handleBlur}
-                    placeholder="Your answer"
                     className="min-h-[100px]"
                     maxLength={ANSWER_LONG_MAX_LENGTH}
+                    aria-required={question.required}
                     aria-invalid={!!validationError}
-                    aria-describedby={
-                      orphaned.length > 0
-                        ? `${noticeId} ${question.id}-long-answer-count`
-                        : `${question.id}-long-answer-count`
-                    }
+                    aria-describedby={composeDescribedBy(
+                      describedBy,
+                      `${question.id}-long-answer-count`,
+                    )}
                   />
                   <p
                     id={`${question.id}-long-answer-count`}
@@ -241,9 +257,9 @@ export function ProfileQuestion({
                   {notice}
                   <RadioGroup
                     aria-labelledby={labelId}
-                    aria-describedby={
-                      orphaned.length > 0 ? noticeId : undefined
-                    }
+                    aria-required={question.required}
+                    aria-invalid={!!validationError}
+                    aria-describedby={describedBy}
                     value={
                       otherSelected ? OTHER_OPTION_VALUE : (fitted[0] ?? '')
                     }
@@ -299,6 +315,7 @@ export function ProfileQuestion({
                   {question.allowOther && otherSelected && (
                     <div className="ml-6 flex flex-col gap-1">
                       <Label
+                        id={`${question.id}-other-label`}
                         htmlFor={`${question.id}-other-text`}
                         className="text-muted-foreground text-xs font-normal"
                       >
@@ -317,7 +334,7 @@ export function ProfileQuestion({
                           );
                         }}
                         onBlur={handleBlur}
-                        placeholder="Type your answer"
+                        aria-labelledby={`${labelId} ${question.id}-other-label`}
                         maxLength={ANSWER_OTHER_MAX_LENGTH}
                       />
                     </div>
@@ -338,6 +355,7 @@ export function ProfileQuestion({
                       savedValueRef.current = JSON.stringify(v);
                       reset({ value: v });
                     }}
+                    labelledBy={labelId}
                   />
                 </>
               );
@@ -347,7 +365,7 @@ export function ProfileQuestion({
               <div
                 role="group"
                 aria-labelledby={labelId}
-                aria-describedby={orphaned.length > 0 ? noticeId : undefined}
+                aria-describedby={describedBy}
                 className="flex flex-col gap-2"
               >
                 {notice}
@@ -412,6 +430,7 @@ export function ProfileQuestion({
                 {question.allowOther && otherSelected && (
                   <div className="ml-6 flex flex-col gap-1">
                     <Label
+                      id={`${question.id}-other-label`}
                       htmlFor={`${question.id}-other-text`}
                       className="text-muted-foreground text-xs font-normal"
                     >
@@ -435,7 +454,7 @@ export function ProfileQuestion({
                         );
                       }}
                       onBlur={handleBlur}
-                      placeholder="Type your answer"
+                      aria-labelledby={`${labelId} ${question.id}-other-label`}
                       maxLength={ANSWER_OTHER_MAX_LENGTH}
                     />
                   </div>
@@ -447,7 +466,9 @@ export function ProfileQuestion({
       )}
 
       {isEditing && validationError && (
-        <p className="text-destructive mt-2 text-xs">{validationError}</p>
+        <p id={errorId} className="text-destructive mt-2 text-xs">
+          {validationError}
+        </p>
       )}
       {isEditing && isSaving && (
         <span className="text-muted-foreground mt-2 block text-xs">

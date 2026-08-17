@@ -69,6 +69,7 @@ export function OptionsChipEditor({
         <Input
           placeholder="Type an option and press Enter"
           disabled={disabled}
+          aria-label="Add an option"
           aria-describedby={hintId}
           maxLength={QUESTION_OPTION_MAX_LENGTH}
           className="pr-8"

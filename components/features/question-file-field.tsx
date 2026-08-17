@@ -39,6 +39,8 @@ interface QuestionFileFieldProps {
   value: string[];
   onChange: (value: string[]) => void;
   disabled?: boolean;
+  // Id of the question's own label, so the file input announces "<question> Choose file".
+  labelledBy?: string;
 }
 
 // UX pre-check only, mirroring question-files.ts: the server re-runs and sniffs bytes.
@@ -59,10 +61,12 @@ export function QuestionFileField({
   value,
   onChange,
   disabled,
+  labelledBy,
 }: QuestionFileFieldProps) {
   const inputId = useId();
   const helpId = `${inputId}-help`;
   const errorId = `${inputId}-error`;
+  const triggerLabelId = `${inputId}-trigger`;
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [removeOpen, setRemoveOpen] = useState(false);
@@ -142,6 +146,7 @@ export function QuestionFileField({
           </div>
           <div className="flex justify-end gap-2">
             <Label
+              id={triggerLabelId}
               htmlFor={inputId}
               aria-disabled={disabled}
               className={cn(
@@ -203,6 +208,7 @@ export function QuestionFileField({
             No file uploaded yet.
           </p>
           <Label
+            id={triggerLabelId}
             htmlFor={inputId}
             aria-disabled={disabled}
             className={cn(
@@ -222,6 +228,7 @@ export function QuestionFileField({
         accept={FILE_UPLOAD_ACCEPT}
         onChange={handleFileChange}
         disabled={disabled || isPending}
+        aria-labelledby={[labelledBy, triggerLabelId].filter(Boolean).join(' ')}
         aria-describedby={error ? `${helpId} ${errorId}` : helpId}
         className="peer sr-only"
       />
