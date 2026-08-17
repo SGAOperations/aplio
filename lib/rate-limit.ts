@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Order matters: webhook is matched before the /api/auth prefix to get the higher cap.
 // public covers one page view plus its RSC payload, not login attempts.
 const LIMITS = {
-  webhook: { windowMs: 60_000, max: 100 },
   api: { windowMs: 60_000, max: 20 },
   public: { windowMs: 60_000, max: 60 },
   private: { windowMs: 60_000, max: 120 },
@@ -42,8 +40,6 @@ function classifyRequest(pathname: string): {
   tier: string;
   limit: { windowMs: number; max: number };
 } {
-  if (pathname === '/api/auth/webhook')
-    return { tier: 'webhook', limit: LIMITS.webhook };
   if (pathname.startsWith('/api/')) return { tier: 'api', limit: LIMITS.api };
   if (pathname === '/login' || pathname === '/')
     return { tier: 'public', limit: LIMITS.public };
