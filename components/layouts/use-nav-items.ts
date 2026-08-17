@@ -2,13 +2,14 @@
 
 import { usePathname } from 'next/navigation';
 
-import type { NavIdentity } from '@/lib/types';
+import type { NavGroup, NavIdentity, NavItem } from '@/lib/types';
 
 import {
-  adminOnlyNavItems,
   anonymousNavItems,
-  baseNavItems,
-  reviewerNavItems,
+  applyNavItems,
+  homeNavItem,
+  manageAdminNavItems,
+  manageReviewerNavItems,
 } from '@/components/layouts/nav-items';
 
 interface UseNavItemsOptions {
@@ -18,7 +19,8 @@ interface UseNavItemsOptions {
 }
 
 interface UseNavItemsResult {
-  navItems: typeof baseNavItems;
+  topLevelItems: NavItem[];
+  groups: NavGroup[];
   logoHref: string;
   isActive: (href: string) => boolean;
 }
@@ -31,13 +33,21 @@ export function useNavItems({
 }: UseNavItemsOptions): UseNavItemsResult {
   const pathname = usePathname();
 
-  const navItems = identity
+  const manageItems = [
+    ...(canReviewApplications ? manageReviewerNavItems : []),
+    ...(isAdmin ? manageAdminNavItems : []),
+  ];
+
+  const topLevelItems = identity ? [homeNavItem] : anonymousNavItems;
+
+  const groups: NavGroup[] = identity
     ? [
-        ...baseNavItems,
-        ...(canReviewApplications ? reviewerNavItems : []),
-        ...(isAdmin ? adminOnlyNavItems : []),
+        { id: 'nav-group-apply', label: 'Apply', items: applyNavItems },
+        ...(manageItems.length > 0
+          ? [{ id: 'nav-group-manage', label: 'Manage', items: manageItems }]
+          : []),
       ]
-    : anonymousNavItems;
+    : [];
 
   // Anonymous visitors land on /positions; authenticated users go to the dashboard.
   const logoHref = identity ? '/' : '/positions';
@@ -47,5 +57,5 @@ export function useNavItems({
     return pathname === href || pathname.startsWith(`${href}/`);
   }
 
-  return { navItems, logoHref, isActive };
+  return { topLevelItems, groups, logoHref, isActive };
 }

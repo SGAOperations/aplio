@@ -3,9 +3,9 @@
 import Link from 'next/link';
 
 import type { NavIdentity } from '@/lib/types';
-import { cn } from '@/lib/utils';
 
 import { Logo } from '@/components/layouts/logo';
+import { NavList } from '@/components/layouts/nav-list';
 import { useNavItems } from '@/components/layouts/use-nav-items';
 import { UserMenu } from '@/components/layouts/user-menu';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,7 @@ export function Sidebar({
   identity,
   canReviewApplications,
 }: SidebarProps) {
-  const { navItems, logoHref, isActive } = useNavItems({
+  const { topLevelItems, groups, logoHref, isActive } = useNavItems({
     identity,
     isAdmin,
     canReviewApplications,
@@ -43,22 +43,11 @@ export function Sidebar({
         </Link>
       </div>
 
-      <nav className="flex flex-col gap-1 p-2">
-        {navItems.map(({ href, label, icon: Icon }) => (
-          <Link
-            key={href}
-            href={href}
-            className={cn(
-              'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-              isActive(href) &&
-                'bg-sidebar-accent text-sidebar-accent-foreground',
-            )}
-          >
-            <Icon className="size-4 shrink-0" />
-            {label}
-          </Link>
-        ))}
-      </nav>
+      <NavList
+        topLevelItems={topLevelItems}
+        groups={groups}
+        isActive={isActive}
+      />
 
       <div className="border-sidebar-border mt-auto border-t p-2">
         {identity ? (

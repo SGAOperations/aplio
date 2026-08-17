@@ -1,3 +1,5 @@
+import type { LucideIcon } from 'lucide-react';
+
 import type {
   PositionStatus,
   QuestionType,
@@ -328,4 +330,17 @@ export interface NavIdentity {
   roleLabel: string;
   // Routes Log out to logoutBypassUser() instead of authClient.signOut().
   isBypass: boolean;
+}
+
+export interface NavItem {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+}
+
+// id feeds aria-labelledby linking the group's <ul> to its visible label.
+export interface NavGroup {
+  id: string;
+  label: string;
+  items: NavItem[];
 }
