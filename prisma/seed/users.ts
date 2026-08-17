@@ -9,10 +9,7 @@ export const applicantDefs: ApplicantDef[] = [
     name: BYPASS_USERS.admin.name,
     isAdmin: true,
   },
-  {
-    email: BYPASS_USERS.applicant.email,
-    name: BYPASS_USERS.applicant.name,
-  },
+  { email: BYPASS_USERS.applicant.email, name: BYPASS_USERS.applicant.name },
   {
     email: BYPASS_USERS['position-manager'].email,
     name: BYPASS_USERS['position-manager'].name,
