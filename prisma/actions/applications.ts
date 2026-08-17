@@ -41,7 +41,7 @@ type GlobalAnswerWithQuestion = GlobalAnswer & {
   globalQuestion: GlobalQuestion;
 };
 
-// File-private: only submitApplication re-validates position questions, not reopenApplication.
+// File-private, called only by submitApplication.
 function hasUnansweredRequiredPosition(
   positionAnswers: PositionApplicationAnswer[],
   questions: AnswerQuestion[],
@@ -539,84 +539,6 @@ export async function withdrawApplication(
 
   if (result.count === 0)
     return { error: 'This application can no longer be withdrawn.' };
-
-  revalidatePath('/my-applications');
-  revalidatePath('/applications');
-  revalidatePath('/positions', 'layout');
-}
-
-export async function reopenApplication(
-  applicationId: string,
-): Promise<ResponseType<void>> {
-  const currentUser = await getCurrentUser();
-
-  const parsed = applicationIdSchema.safeParse({ applicationId });
-  if (!parsed.success) throw new Error('Invalid input');
-
-  // One `now`, so reads inside the transaction can't drift apart.
-  const now = new Date();
-
-  const result = await prisma.$transaction(async (tx) => {
-    // Inside the transaction, unlike submitApplication, to stay atomic.
-    const application = await tx.application.findFirst({
-      where: {
-        id: parsed.data.applicationId,
-        userId: currentUser.id,
-        deletedAt: null,
-        status: 'withdrawn',
-      },
-      select: {
-        id: true,
-        position: {
-          select: {
-            deletedAt: true,
-            status: true,
-            opensAt: true,
-            closesAt: true,
-          },
-        },
-      },
-    });
-
-    // Reachable from a stale tab, so a toast rather than a throw.
-    if (!application)
-      return { error: 'This application can no longer be re-opened.' };
-
-    if (application.position.deletedAt !== null)
-      return { error: 'This position is no longer available.' };
-
-    // Covers draft, closed, before opensAt, and after closesAt.
-    if (!isAcceptingApplications(application.position, now))
-      return { error: 'This position is no longer accepting applications.' };
-
-    // Only the global snapshot is re-checked — position questions were already passed once.
-    const missingGlobalLabels = await syncGlobalAnswersFromProfile(
-      tx,
-      application.id,
-      currentUser.id,
-    );
-    if (missingGlobalLabels.length > 0)
-      return {
-        error: `Answer these required profile questions in your profile before re-opening: ${formatMissingQuestions(missingGlobalLabels)}.`,
-      };
-
-    // updateMany keeps the read's where; count === 0 means a concurrent transition won.
-    const updateResult = await tx.application.updateMany({
-      where: {
-        id: parsed.data.applicationId,
-        userId: currentUser.id,
-        deletedAt: null,
-        status: 'withdrawn',
-      },
-      // submittedAt keeps the original submission time reviewers sort by.
-      data: { status: 'applied', updatedById: currentUser.id },
-    });
-
-    if (updateResult.count === 0)
-      return { error: 'This application can no longer be re-opened.' };
-  });
-
-  if (result && 'error' in result) return result;
 
   revalidatePath('/my-applications');
   revalidatePath('/applications');

@@ -7,7 +7,6 @@ import { toast } from 'sonner';
 
 import {
   deleteDraftApplication,
-  reopenApplication,
   withdrawApplication,
 } from '@/prisma/actions/applications';
 import type { $Enums } from '@/prisma/client';
@@ -97,57 +96,8 @@ export function MyApplicationRowActions({
     );
   }
 
-  if (status === 'withdrawn') {
-    return (
-      <AlertDialog open={open} onOpenChange={setOpen}>
-        <AlertDialogTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            aria-label={`Re-open application for ${positionTitle}`}
-          >
-            Re-open
-          </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Re-open this application?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Your application to &ldquo;{positionTitle}&rdquo; will return to
-              the review queue as Applied.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={isPending}
-              onClick={(e) => {
-                e.preventDefault();
-                startTransition(async () => {
-                  try {
-                    const result = await reopenApplication(applicationId);
-                    if (result && isError(result)) {
-                      toast.error(result.error);
-                      return;
-                    }
-                    toast.success('Application re-opened');
-                    setOpen(false);
-                  } catch {
-                    toast.error('Something went wrong');
-                  }
-                });
-              }}
-            >
-              {isPending ? (
-                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-              ) : null}
-              Re-open
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    );
-  }
+  // withdrawn: the cell already carries the primary action (Edit & resubmit / Position closed).
+  if (status === 'withdrawn') return null;
 
   if (TERMINAL_DECISION_STATUSES.includes(status))
     return (
@@ -173,7 +123,8 @@ export function MyApplicationRowActions({
           <AlertDialogTitle>Withdraw this application?</AlertDialogTitle>
           <AlertDialogDescription>
             Your application to &ldquo;{positionTitle}&rdquo; will be removed
-            from review. You can re-open it later to put it back in the queue.
+            from review. You can edit and resubmit it later to put it back in
+            the queue.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

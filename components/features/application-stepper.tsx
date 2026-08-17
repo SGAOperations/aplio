@@ -269,6 +269,7 @@ export function ApplicationStepper({
     new Set(),
   );
   const hasPositionQuestions = positionQuestions.length > 0;
+  const isResubmit = application.status === 'withdrawn';
   // Keyed by question id — see QuestionListProps.pendingSavesRef.
   const pendingSavesRef = useRef<Map<string, Promise<unknown>>>(new Map());
 
@@ -446,7 +447,9 @@ export function ApplicationStepper({
         setError('root', { message: result.error });
         toast.error(result.error);
       } else {
-        toast.success('Application submitted');
+        toast.success(
+          isResubmit ? 'Application resubmitted' : 'Application submitted',
+        );
         setIsRedirecting(true);
         router.replace('/my-applications');
       }
@@ -557,8 +560,12 @@ export function ApplicationStepper({
               {hasPositionQuestions
                 ? 'Next'
                 : isSubmitting || isRedirecting
-                  ? 'Submitting...'
-                  : 'Submit Application'}
+                  ? isResubmit
+                    ? 'Resubmitting...'
+                    : 'Submitting...'
+                  : isResubmit
+                    ? 'Resubmit Application'
+                    : 'Submit Application'}
             </Button>
           </div>
         </div>
@@ -601,8 +608,12 @@ export function ApplicationStepper({
             </Button>
             <Button onClick={onSubmit} disabled={isSubmitting || isRedirecting}>
               {isSubmitting || isRedirecting
-                ? 'Submitting...'
-                : 'Submit Application'}
+                ? isResubmit
+                  ? 'Resubmitting...'
+                  : 'Submitting...'
+                : isResubmit
+                  ? 'Resubmit Application'
+                  : 'Submit Application'}
             </Button>
           </div>
         </div>
