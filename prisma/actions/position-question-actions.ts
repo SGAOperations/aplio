@@ -4,8 +4,11 @@ import { revalidatePath } from 'next/cache';
 
 import { z } from 'zod/v4';
 
+import { checkPositionEditable } from '@/prisma/data/positions';
+
 import { requirePositionAccess } from '@/lib/auth/guards';
 import {
+  ARCHIVED_POSITION_EDIT_ERROR,
   baseQuestionSchema,
   validateOptions,
   validateShortAnswerFormat,
@@ -38,6 +41,9 @@ export async function createPositionQuestion(
     parsed.data;
 
   const user = await requirePositionAccess(positionId);
+
+  if (!(await checkPositionEditable(positionId, user)))
+    return { error: ARCHIVED_POSITION_EDIT_ERROR };
 
   const created = await prisma.$transaction(async (tx) => {
     const maxOrder = await tx.positionQuestion.aggregate({
@@ -79,6 +85,9 @@ export async function updatePositionQuestion(
 
   const user = await requirePositionAccess(positionId);
 
+  if (!(await checkPositionEditable(positionId, user)))
+    return { error: ARCHIVED_POSITION_EDIT_ERROR };
+
   // Scope the write to positionId to prevent IDOR across positions
   const result = await prisma.positionQuestion.updateMany({
     where: { id, positionId },
@@ -107,6 +116,9 @@ export async function deletePositionQuestion(
   const { id, positionId } = parsed.data;
 
   const user = await requirePositionAccess(positionId);
+
+  if (!(await checkPositionEditable(positionId, user)))
+    return { error: ARCHIVED_POSITION_EDIT_ERROR };
 
   // Scope the write to positionId to prevent IDOR across positions
   const result = await prisma.positionQuestion.updateMany({

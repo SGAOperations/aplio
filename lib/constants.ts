@@ -412,6 +412,10 @@ export const RECENTLY_CLOSED_WINDOW_DAYS = 7;
 // Longer than the public window so managers and admins keep oversight during wrap-up.
 export const MANAGED_POSITIONS_WINDOW_DAYS = 30;
 
+// Returned by updatePosition / the three position-question actions when isPositionActive is false.
+export const ARCHIVED_POSITION_EDIT_ERROR =
+  'This position is archived. Ask an admin if it still needs changes.';
+
 export const STATUS_VALUES = [
   'draft',
   'open',
