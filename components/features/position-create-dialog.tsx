@@ -11,6 +11,7 @@ import { createPosition } from '@/prisma/actions/position-actions';
 
 import { STATUS_OPTIONS, positionFormSchema } from '@/lib/constants';
 
+import { MarkdownField } from '@/components/features/markdown-field';
 import { Button } from '@/components/ui/button';
 import {
   FormControl,
@@ -29,7 +30,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 
 type PositionFormValues = z.infer<typeof positionFormSchema>;
 
@@ -65,23 +65,7 @@ function PositionFormFields() {
         )}
       />
 
-      <FormField
-        name="description"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Description</FormLabel>
-            <FormControl>
-              <Textarea
-                placeholder="Position description"
-                rows={4}
-                disabled={isSubmitting}
-                {...field}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      <MarkdownField />
 
       <FormField
         name="status"

@@ -438,6 +438,10 @@ export const STATUS_LABELS: Record<PositionStatus, string> = {
 export const STATUS_OPTIONS: { value: PositionStatus; label: string }[] =
   STATUS_VALUES.map((value) => ({ value, label: STATUS_LABELS[value] }));
 
+export const POSITION_DESCRIPTION_MAX_LENGTH = 10000;
+export const MARKDOWN_GUIDE_URL =
+  'https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax';
+
 // Mirrors createPositionSchema/updatePositionSchema — keep the shapes in sync.
 const orgDayInputSchema = z.union([z.iso.date(), z.literal('')], {
   error: 'Enter a valid date',
@@ -445,7 +449,12 @@ const orgDayInputSchema = z.union([z.iso.date(), z.literal('')], {
 
 export const positionFormSchema = z.object({
   title: z.string().min(1, 'Title is required'),
-  description: z.string(),
+  description: z
+    .string()
+    .max(
+      POSITION_DESCRIPTION_MAX_LENGTH,
+      `Description must be ${POSITION_DESCRIPTION_MAX_LENGTH.toLocaleString()} characters or fewer.`,
+    ),
   status: z.enum(STATUS_VALUES),
   opensAt: orgDayInputSchema.optional(),
   closesAt: orgDayInputSchema.optional(),

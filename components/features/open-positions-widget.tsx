@@ -4,8 +4,11 @@ import { ArrowRight, Briefcase } from 'lucide-react';
 
 import { getOpenPositions } from '@/prisma/data/positions';
 
+import { markdownToPlainText } from '@/lib/utils';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Markdown } from '@/components/ui/markdown';
 
 interface OpenPositionsWidgetProps {
   limit?: number;
@@ -59,10 +62,14 @@ export async function OpenPositionsWidget({
                     <p className="truncate text-sm font-medium">
                       {position.title}
                     </p>
-                    {position.description && (
-                      <p className="text-muted-foreground mt-0.5 line-clamp-2 text-xs">
-                        {position.description}
-                      </p>
+                    {markdownToPlainText(position.description) && (
+                      <div className="text-muted-foreground mt-0.5 max-h-8 overflow-clip text-xs [overflow-wrap:anywhere]">
+                        <Markdown
+                          variant="compact"
+                          source={position.description}
+                          className="[&_p]:line-clamp-2"
+                        />
+                      </div>
                     )}
                   </div>
                   {/* All positions from getOpenPositions() are accepting — always show Apply */}

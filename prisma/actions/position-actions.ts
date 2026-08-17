@@ -15,6 +15,7 @@ import { getCurrentUser } from '@/lib/auth/server';
 import {
   ARCHIVED_POSITION_EDIT_ERROR,
   POSITION_DELETE_BLOCKED_ERROR,
+  POSITION_DESCRIPTION_MAX_LENGTH,
 } from '@/lib/constants';
 import { orgDayEnd, orgDayStart } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
@@ -24,7 +25,11 @@ import { type ResponseType } from '@/lib/utils';
 // description defaults to '' so a draft can be created quickly.
 const createPositionSchema = z.object({
   title: z.string().min(1),
-  description: z.string().optional().default(''),
+  description: z
+    .string()
+    .max(POSITION_DESCRIPTION_MAX_LENGTH)
+    .optional()
+    .default(''),
   status: z.enum(['draft', 'open', 'closed']),
   opensAt: z.iso.date().optional(),
   closesAt: z.iso.date().optional(),
@@ -33,7 +38,11 @@ const createPositionSchema = z.object({
 const updatePositionSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
-  description: z.string().optional().default(''),
+  description: z
+    .string()
+    .max(POSITION_DESCRIPTION_MAX_LENGTH)
+    .optional()
+    .default(''),
   status: z.enum(['draft', 'open', 'closed']),
   opensAt: z.iso.date().optional(),
   closesAt: z.iso.date().optional(),
