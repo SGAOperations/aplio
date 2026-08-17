@@ -59,7 +59,7 @@ export default async function SignInPage({
       {user ? (
         <NameField defaultName={user.name ?? ''} redirectTo={safeTo} />
       ) : (
-        <LoginView redirectTo={safeTo} copy={copy} />
+        <LoginView copy={copy} />
       )}
       {isDev && (
         <p className="text-muted-foreground text-center text-xs">
