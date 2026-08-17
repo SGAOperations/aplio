@@ -80,7 +80,7 @@ function FormDialog<
     >
       <DialogTrigger asChild>{trigger}</DialogTrigger>
 
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
+      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
@@ -89,9 +89,9 @@ function FormDialog<
         <FormProvider {...form}>
           <form
             onSubmit={form.handleSubmit(handleSubmit)}
-            className="flex flex-col gap-4"
+            className="flex min-h-0 flex-1 flex-col gap-4"
           >
-            {children}
+            <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
             <DialogFooter>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="animate-spin" />}

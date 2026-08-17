@@ -54,7 +54,7 @@ export function OptionsChipEditor({
                 type="button"
                 onClick={() => removeOption(option)}
                 disabled={disabled}
-                className="hover:text-destructive focus-visible:ring-ring/50 rounded-sm outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed"
+                className="hover:text-destructive focus-visible:ring-ring/50 -m-1 rounded-sm p-1 outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed"
                 aria-label={`Remove ${option}`}
               >
                 <X className="size-3" />
