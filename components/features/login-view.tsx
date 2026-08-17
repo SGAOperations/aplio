@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,7 +9,7 @@ import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { z } from 'zod/v4';
 
-import { checkSignInAllowed } from '@/prisma/actions/auth';
+import { checkSignInAllowed, isOtpResendAllowed } from '@/prisma/actions/auth';
 
 import { authClient } from '@/lib/auth/client';
 import {
@@ -19,6 +19,7 @@ import {
 } from '@/lib/auth/errors';
 import {
   ACCOUNT_DEACTIVATED_ERROR_CODE,
+  OTP_RESEND_COOLDOWN_SECONDS,
   signInEmailSchema,
 } from '@/lib/constants';
 import { isError } from '@/lib/utils';
@@ -51,12 +52,38 @@ const otpSchema = z.object({
 
 type OtpFormValues = z.infer<typeof otpSchema>;
 
+function otpResendCooldownDeadline(): number {
+  return Date.now() + OTP_RESEND_COOLDOWN_SECONDS * 1000;
+}
+
 export function LoginView({ copy }: LoginViewProps) {
   const router = useRouter();
   const [step, setStep] = useState<'email' | 'otp'>('email');
   const [capturedEmail, setCapturedEmail] = useState('');
   const [isRouting, startTransition] = useTransition();
   const [isResending, setIsResending] = useState(false);
+  const [resendCooldownUntil, setResendCooldownUntil] = useState<number | null>(
+    null,
+  );
+  const [resendSecondsLeft, setResendSecondsLeft] = useState(0);
+
+  // Countdown tick only — the actual cooldown is enforced server-side in sendCode.
+  useEffect(() => {
+    if (resendCooldownUntil === null) return;
+
+    const tick = () => {
+      const secondsLeft = Math.max(
+        0,
+        Math.ceil((resendCooldownUntil - Date.now()) / 1000),
+      );
+      setResendSecondsLeft(secondsLeft);
+      if (secondsLeft === 0) setResendCooldownUntil(null);
+    };
+
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [resendCooldownUntil]);
 
   const emailForm = useForm<EmailFormValues>({
     resolver: zodResolver(signInEmailSchema),
@@ -71,6 +98,10 @@ export function LoginView({ copy }: LoginViewProps) {
   });
 
   async function sendCode(email: string): Promise<string | null> {
+    // Server-side cooldown check — don't trust the client's own countdown.
+    const allowed = await isOtpResendAllowed({ email });
+    if (!allowed) return getOtpSendErrorMessage({ status: 429 });
+
     try {
       const result = await authClient.emailOtp.sendVerificationOtp({
         email,
@@ -80,6 +111,7 @@ export function LoginView({ copy }: LoginViewProps) {
         console.error('sendVerificationOtp returned an error', result.error);
         return getOtpSendErrorMessage(result.error);
       }
+      setResendCooldownUntil(otpResendCooldownDeadline());
       return null;
     } catch (error) {
       console.error('sendVerificationOtp threw', error);
@@ -202,20 +234,25 @@ export function LoginView({ copy }: LoginViewProps) {
                           await otpForm.handleSubmit(handleOtpSubmit)();
                         }
                       }}
-                      containerClassName="justify-center"
+                      containerClassName="w-full"
                     >
-                      <InputOTPGroup>
+                      <InputOTPGroup className="w-full">
                         {[0, 1, 2, 3, 4, 5].map((index) => (
                           <InputOTPSlot
                             key={index}
                             index={index}
                             aria-invalid={!!fieldState.error}
+                            className="w-auto flex-1"
                           />
                         ))}
                       </InputOTPGroup>
                     </InputOTP>
                   </FormControl>
-                  <div role="alert" aria-live="polite" className="min-h-5">
+                  <div
+                    role="alert"
+                    aria-live="polite"
+                    className={fieldState.error ? 'min-h-5' : ''}
+                  >
                     <FormMessage />
                   </div>
                 </FormItem>
@@ -236,21 +273,23 @@ export function LoginView({ copy }: LoginViewProps) {
         </Form>
 
         <Button
-          variant="link"
+          variant="secondary"
           type="button"
           onClick={handleResend}
-          disabled={isResending}
-          className="text-muted-foreground h-auto p-0 text-sm underline"
+          disabled={isResending || resendSecondsLeft > 0}
+          className="w-full"
         >
           {isResending && <Loader2 className="animate-spin" />}
-          Send a new code
+          {resendSecondsLeft > 0
+            ? `Send a new code (${resendSecondsLeft}s)`
+            : 'Send a new code'}
         </Button>
 
         <Button
-          variant="link"
+          variant="secondary"
           type="button"
           onClick={handleBack}
-          className="text-muted-foreground h-auto p-0 text-sm underline"
+          className="w-full"
         >
           Use a different email
         </Button>
