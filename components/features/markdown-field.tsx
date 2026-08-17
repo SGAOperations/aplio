@@ -87,7 +87,9 @@ function applyLinePrefix(
 
   const nextLines = alreadyPrefixed
     ? lines.map((line) => line.replace(pattern, ''))
-    : lines.map((line, i) => `${prefixFor(i)}${line}`);
+    : lines.map((line, i) =>
+        pattern.test(line) ? line : `${prefixFor(i)}${line}`,
+      );
 
   const next = nextLines.join('\n');
   el.setRangeText(next, lineStart, lineEnd, 'select');
