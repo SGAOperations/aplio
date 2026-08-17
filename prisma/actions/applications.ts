@@ -202,13 +202,19 @@ export async function createDraftApplication(
         },
       });
     } catch (error) {
-      // Concurrent duplicate (two tabs racing the same create) — resolvable
-      // by the caller's refresh, which will render the winning row.
+      // Concurrent duplicate (two tabs racing the same create) — the other
+      // tab's row already committed, so revalidate here too even though
+      // this call reports the error: without it the losing tab never
+      // refreshes and stays stuck on the entry card.
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
-      )
+      ) {
+        revalidatePath(`/positions/${parsed.data.positionId}/apply`);
+        revalidatePath('/my-applications');
+        revalidatePath('/');
         return { error: 'You already have an application for this position.' };
+      }
       throw error;
     }
   });
