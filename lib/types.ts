@@ -37,6 +37,9 @@ export type PositionManager = Prisma.UserGetPayload<{
   select: { id: true; name: true; email: true };
 }>;
 
+// Deliberately omits id — searchUsers withholds it until an add is performed.
+export type UserSearchResult = { displayName: string; primaryEmail: string };
+
 // Manager ids are consumed server-side only, so the manager shape stays minimal.
 export type PositionDetail = PositionWithQuestions & {
   managers: { id: string }[];

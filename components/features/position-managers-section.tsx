@@ -11,7 +11,7 @@ import {
   searchUsers,
 } from '@/prisma/actions/position-actions';
 
-import type { PositionManager } from '@/lib/types';
+import type { PositionManager, UserSearchResult } from '@/lib/types';
 import { isError } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
@@ -19,12 +19,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 const SEARCH_DEBOUNCE_MS = 300;
-
-interface UserResult {
-  id: string;
-  displayName: string;
-  primaryEmail: string;
-}
 
 interface PositionManagersSectionProps {
   positionId: string;
@@ -41,11 +35,11 @@ export function PositionManagersSection({
 }: PositionManagersSectionProps) {
   const [managers, setManagers] = useState<PositionManager[]>(initialManagers);
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<UserResult[]>([]);
+  const [results, setResults] = useState<UserSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [searchFailed, setSearchFailed] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
-  const [addingId, setAddingId] = useState<string | null>(null);
+  const [addingEmail, setAddingEmail] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   // Ref holds the debounce timer so typing does not trigger a search per keystroke.
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -63,43 +57,51 @@ export function PositionManagersSection({
     if (!value.trim()) {
       setResults([]);
       setIsSearching(false);
-      setSearchFailed(false);
+      setSearchError(null);
       return;
     }
     // Show the spinner immediately so the user knows their input was registered.
     setIsSearching(true);
-    setSearchFailed(false);
+    setSearchError(null);
     debounceRef.current = setTimeout(() => {
       startTransition(async () => {
-        const users = await searchUsers({ query: value });
-        if (isError(users)) {
+        try {
+          const users = await searchUsers({ query: value });
+          if (isError(users)) {
+            setResults([]);
+            setSearchError(users.error);
+          } else {
+            // managers captured by closure is the latest value at search time.
+            setResults(
+              users.filter(
+                (u) => !managers.some((m) => m.email === u.primaryEmail),
+              ),
+            );
+          }
+        } catch (error) {
+          console.error(error);
           setResults([]);
-          setSearchFailed(true);
-        } else {
-          // managers captured by closure is the latest value at search time.
-          setResults(users.filter((u) => !managers.some((m) => m.id === u.id)));
+          setSearchError('Search failed. Please try again.');
+        } finally {
+          setIsSearching(false);
         }
-        setIsSearching(false);
       });
     }, SEARCH_DEBOUNCE_MS);
   }
 
-  function handleAdd(user: UserResult) {
-    setAddingId(user.id);
+  function handleAdd(user: UserSearchResult) {
+    setAddingEmail(user.primaryEmail);
     startTransition(async () => {
       try {
         const result = await addPositionManager({
           positionId,
-          userId: user.id,
+          email: user.primaryEmail,
         });
 
-        if (result && 'error' in result) {
+        if (isError(result)) {
           toast.error(result.error);
         } else {
-          setManagers((prev) => [
-            ...prev,
-            { id: user.id, name: user.displayName, email: user.primaryEmail },
-          ]);
+          setManagers((prev) => [...prev, result]);
           setResults([]);
           setQuery('');
           toast.success('Manager added');
@@ -108,7 +110,7 @@ export function PositionManagersSection({
         console.error(error);
         toast.error('Something went wrong. Please try again.');
       } finally {
-        setAddingId(null);
+        setAddingEmail(null);
       }
     });
   }
@@ -211,11 +213,11 @@ export function PositionManagersSection({
         {results.length > 0 && (
           <ul className="flex flex-col gap-1 rounded-md border p-1">
             {results.map((user) => (
-              <li key={user.id}>
+              <li key={user.primaryEmail}>
                 <button
                   type="button"
                   onClick={() => handleAdd(user)}
-                  disabled={addingId === user.id}
+                  disabled={addingEmail === user.primaryEmail}
                   className="hover:bg-accent flex w-full items-center justify-between rounded px-3 py-2 text-left text-sm disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <div>
@@ -224,7 +226,7 @@ export function PositionManagersSection({
                       {user.primaryEmail}
                     </span>
                   </div>
-                  {addingId === user.id ? (
+                  {addingEmail === user.primaryEmail ? (
                     <Loader2 className="size-4 animate-spin" />
                   ) : (
                     <UserPlus className="size-4" />
@@ -234,16 +236,26 @@ export function PositionManagersSection({
             ))}
           </ul>
         )}
-        {!isSearching && searchFailed && (
-          <p className="text-destructive text-sm">
-            Search failed. Try a shorter query.
+        {!isSearching && searchError && (
+          <p
+            role="status"
+            aria-live="polite"
+            className="text-destructive text-sm"
+          >
+            {searchError}
           </p>
         )}
         {!isSearching &&
-          !searchFailed &&
+          !searchError &&
           query.trim() &&
           results.length === 0 && (
-            <p className="text-muted-foreground text-sm">No users found.</p>
+            <p
+              role="status"
+              aria-live="polite"
+              className="text-muted-foreground text-sm"
+            >
+              No users found.
+            </p>
           )}
       </div>
     </div>
