@@ -28,7 +28,7 @@ It is **state-driven**: every run (your first call _and_ each self-scheduled wak
 
 ## 0.5 Resolve the version (every run)
 
-**One release is in flight at a time.** Take the first case that matches — in 1–3 a release already exists, so its version is adopted and nothing is asked:
+**One release is in flight at a time.** Take the first case that matches — in 1–4 a release already exists, so its version is adopted and nothing is asked:
 
 1. **An open bump branch** — `git ls-remote --heads origin "bump/v*"`. The branch is deleted when its PR merges, so its presence means in flight; the version is its `v<X.Y.Z>` suffix. More than one match → **stop** and report (releases don't overlap).
 2. **An open release PR** —
@@ -37,9 +37,10 @@ It is **state-driven**: every run (your first call _and_ each self-scheduled wak
    ```
    Parse `Release v<X.Y.Z>` from the title. If it was renamed and doesn't parse, fall back to `git show origin/dev:package.json` — the bump rides into the release, so `dev` holds it.
 3. **A merged release, not yet published** — `git show origin/main:package.json`. If `gh release view v<version>` does **not** exist, that is the version → Phase B.
-4. **None of the above** → a fresh cycle. Go to "Fresh cycle — propose the version"; that step is the only place a version is ever asked for.
+4. **A bump already merged into `dev`** — `git show origin/dev:package.json`. If its version differs from `origin/main`'s, `dev` carries a bump whose branch is gone and whose release PR was never opened (a run that died between Part 1 and Part 2, then the bump PR got merged). Adopt `dev`'s version → Phase A, which skips Part 1 and opens the release PR. Without this case the fresh cycle would prompt for a version that can diverge from the one `dev` already holds.
+5. **None of the above** → a fresh cycle. Go to "Fresh cycle — propose the version"; that step is the only place a version is ever asked for.
 
-Everything below uses the resolved `<version>` (bare `1.2.3`; tagged form `v1.2.3`). Wake-ups always land in case 1, 2 or 3, so they never re-prompt.
+Everything below uses the resolved `<version>` (bare `1.2.3`; tagged form `v1.2.3`). Wake-ups always land in cases 1–4, so they never re-prompt.
 
 ## State detection (every run — pick the phase)
 
@@ -80,7 +81,7 @@ The version recommendation and the release-PR changelog are built from this **on
 
 ## Fresh cycle — propose the version
 
-Only when §0.5 reached case 4.
+Only when §0.5 reached case 5.
 
 1. **Gather merged work** (above) — this both feeds the recommendation and short-circuits on an empty release.
 2. **Current version:** the latest release tag with its `v` stripped; no releases → `git show origin/main:package.json`.
