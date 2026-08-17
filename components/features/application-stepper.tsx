@@ -45,6 +45,7 @@ import { AnswerMismatchNotice } from '@/components/features/answer-mismatch-noti
 import { ApplicationQuestion } from '@/components/features/application-question';
 import { QuestionCardLabel } from '@/components/features/question-card-label';
 import { Button } from '@/components/ui/button';
+import { WarningCallout } from '@/components/ui/warning-callout';
 
 type StepperFormValues = Record<string, string[]>;
 
@@ -512,7 +513,7 @@ export function ApplicationStepper({
           </div>
 
           {isCustomizing && (
-            <div className="border-warning/40 bg-warning/10 text-warning-foreground rounded-lg border p-3 text-sm">
+            <WarningCallout>
               {hasNewRequiredGlobals && (
                 <p className="mb-1 font-medium">
                   New required profile questions were added since you started
@@ -525,7 +526,7 @@ export function ApplicationStepper({
                 profile page
               </Link>
               .
-            </div>
+            </WarningCallout>
           )}
 
           <QuestionList
