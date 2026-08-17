@@ -1,6 +1,6 @@
 {
   "name": "aplio",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
@@ -25,8 +25,8 @@
     "seed": "npx tsx --env-file=.env prisma/seed.ts"
   },
   "dependencies": {
-    "@hookform/resolvers": "^5.4.0",
-    "@neondatabase/auth": "0.1.0-beta.21",
+    "@better-auth/prisma-adapter": "^1.6.29",
+    "@hookform/resolvers": "^5.8.0",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "@radix-ui/react-alert-dialog": "^1.1.17",
@@ -43,9 +43,10 @@
     "@radix-ui/react-tabs": "^1.1.15",
     "@radix-ui/react-tooltip": "^1.2.10",
     "@tanstack/react-query": "^5.101.4",
-    "@tanstack/react-table": "^9.0.1",
+    "@tanstack/react-table": "^9.1.2",
     "@trivago/prettier-plugin-sort-imports": "^6.0.2",
-    "@vercel/blob": "^2.6.1",
+    "@vercel/blob": "^2.8.0",
+    "better-auth": "^1.6.29",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -66,7 +67,7 @@
     "server-only": "^0.0.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
-    "zod": "^4.3.6"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -76,7 +77,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.9",
+    "eslint-config-next": "16.3.1",
     "husky": "^9.1.7",
     "prisma": "^7.8.0",
     "tailwindcss": "^4",

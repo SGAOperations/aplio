@@ -1,17 +1,14 @@
-'use client';
-
 import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 
-interface ErrorPageProps {
-  error: Error & { digest?: string };
+interface ErrorFallbackProps {
   reset: () => void;
 }
 
-export default function AppError({ reset }: ErrorPageProps) {
+export function ErrorFallback({ reset }: ErrorFallbackProps) {
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-4">
+    <div className="flex flex-col items-center gap-4 text-center">
       <h1 className="text-2xl font-semibold tracking-tight">
         Something went wrong
       </h1>

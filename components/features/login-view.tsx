@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,7 +9,14 @@ import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { z } from 'zod/v4';
 
+import { checkSignInAllowed } from '@/prisma/actions/auth';
+
 import { authClient } from '@/lib/auth/client';
+import {
+  ACCOUNT_DEACTIVATED_ERROR_CODE,
+  signInEmailSchema,
+} from '@/lib/constants';
+import { isError } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -28,15 +35,10 @@ import {
 } from '@/components/ui/input-otp';
 
 interface LoginViewProps {
-  redirectTo: string;
   copy: { title: string; description: string; sentDescription: string };
 }
 
-const emailSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-});
-
-type EmailFormValues = z.infer<typeof emailSchema>;
+type EmailFormValues = z.infer<typeof signInEmailSchema>;
 
 const otpSchema = z.object({
   otp: z.string().length(6, 'Please enter the 6-digit code'),
@@ -44,13 +46,14 @@ const otpSchema = z.object({
 
 type OtpFormValues = z.infer<typeof otpSchema>;
 
-export function LoginView({ redirectTo, copy }: LoginViewProps) {
+export function LoginView({ copy }: LoginViewProps) {
   const router = useRouter();
   const [step, setStep] = useState<'email' | 'otp'>('email');
   const [capturedEmail, setCapturedEmail] = useState('');
+  const [isRouting, startTransition] = useTransition();
 
   const emailForm = useForm<EmailFormValues>({
-    resolver: zodResolver(emailSchema),
+    resolver: zodResolver(signInEmailSchema),
     defaultValues: { email: '' },
   });
 
@@ -60,6 +63,18 @@ export function LoginView({ redirectTo, copy }: LoginViewProps) {
   });
 
   async function handleEmailSubmit(data: EmailFormValues) {
+    try {
+      const allowed = await checkSignInAllowed({ email: data.email });
+      if (isError(allowed)) {
+        toast.error(allowed.error);
+        return;
+      }
+    } catch (error) {
+      console.error('checkSignInAllowed failed', error);
+      toast.error("Couldn't send the code. Please try again.");
+      return;
+    }
+
     const result = await authClient.emailOtp.sendVerificationOtp({
       email: data.email,
       type: 'sign-in',
@@ -82,13 +97,17 @@ export function LoginView({ redirectTo, copy }: LoginViewProps) {
     });
 
     if (result.error) {
-      toast.error('That code is incorrect or expired.');
+      toast.error(
+        result.error.code === ACCOUNT_DEACTIVATED_ERROR_CODE
+          ? 'Your account has been deactivated. Please contact an administrator.'
+          : 'That code is incorrect or expired.',
+      );
       otpForm.reset({ otp: '' });
       return;
     }
 
-    router.refresh();
-    router.push(redirectTo);
+    // /login decides the destination — name form or onward redirect.
+    startTransition(() => router.refresh());
   }
 
   function handleBack() {
@@ -127,6 +146,7 @@ export function LoginView({ redirectTo, copy }: LoginViewProps) {
                       maxLength={6}
                       aria-label="One-time code"
                       value={field.value}
+                      disabled={isRouting}
                       onChange={(value) => {
                         field.onChange(value);
                         // Auto-submit when all 6 digits are entered
@@ -154,9 +174,9 @@ export function LoginView({ redirectTo, copy }: LoginViewProps) {
             <Button
               type="submit"
               className="w-full"
-              disabled={otpForm.formState.isSubmitting}
+              disabled={otpForm.formState.isSubmitting || isRouting}
             >
-              {otpForm.formState.isSubmitting && (
+              {(otpForm.formState.isSubmitting || isRouting) && (
                 <Loader2 className="animate-spin" />
               )}
               Verify code

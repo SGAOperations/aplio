@@ -41,7 +41,7 @@ type GlobalAnswerWithQuestion = GlobalAnswer & {
   globalQuestion: GlobalQuestion;
 };
 
-// File-private: only submitApplication re-validates position questions, not reopenApplication.
+// File-private, called only by submitApplication.
 function hasUnansweredRequiredPosition(
   positionAnswers: PositionApplicationAnswer[],
   questions: AnswerQuestion[],
@@ -127,10 +127,8 @@ const applicationIdSchema = z.object({ applicationId: z.string().min(1) });
 const createOrUpdateApplicationAnswerSchema = z.object({
   applicationId: z.string().min(1),
   questionId: z.string().min(1),
-  questionLabel: z.string().min(1),
   // Pre-DB size guard only — getAnswerValueError below enforces the real limits.
   value: z.array(z.string().max(ANSWER_LONG_MAX_LENGTH)).max(ANSWER_MAX_VALUES),
-  isGlobal: z.boolean(),
 });
 
 const submitApplicationSchema = z.object({ applicationId: z.string().min(1) });
@@ -204,17 +202,14 @@ export async function createDraftApplication(
 export async function createOrUpdateApplicationAnswer(params: {
   applicationId: string;
   questionId: string;
-  questionLabel: string;
   value: string[];
-  isGlobal: boolean;
 }): Promise<ResponseType<GlobalApplicationAnswer | PositionApplicationAnswer>> {
   const currentUser = await getCurrentUser();
 
   const parsed = createOrUpdateApplicationAnswerSchema.safeParse(params);
   if (!parsed.success) return { error: 'Invalid input' };
 
-  const { applicationId, questionId, questionLabel, value, isGlobal } =
-    parsed.data;
+  const { applicationId, questionId, value } = parsed.data;
 
   const application = await prisma.application.findUnique({
     where: { id: applicationId },
@@ -230,17 +225,37 @@ export async function createOrUpdateApplicationAnswer(params: {
   )
     return { error: APPLICATION_NOT_EDITABLE_MESSAGE };
 
-  // Client on-blur check is UX only — bypassable, so re-validate here.
-  const question = isGlobal
-    ? await prisma.globalQuestion.findUnique({
-        where: { id: questionId },
-        select: { type: true, format: true, options: true, allowOther: true },
-      })
-    : await prisma.positionQuestion.findUnique({
-        where: { id: questionId },
-        select: { type: true, format: true, options: true, allowOther: true },
-      });
-  if (!question) throw new Error('Question not found');
+  // Label and scope must come from the DB, not the client — the label is the
+  // reviewer-visible snapshot; ids are uuid(7), so at most one can match.
+  const [globalQuestion, positionQuestion] = await Promise.all([
+    prisma.globalQuestion.findFirst({
+      where: { id: questionId, deletedAt: null },
+      select: {
+        label: true,
+        type: true,
+        format: true,
+        options: true,
+        allowOther: true,
+      },
+    }),
+    prisma.positionQuestion.findFirst({
+      where: {
+        id: questionId,
+        deletedAt: null,
+        positionId: application.positionId,
+      },
+      select: {
+        label: true,
+        type: true,
+        format: true,
+        options: true,
+        allowOther: true,
+      },
+    }),
+  ]);
+  const isGlobal = globalQuestion !== null;
+  const question = globalQuestion ?? positionQuestion;
+  if (!question) throw new Error('Question not found or not authorized');
 
   if (
     question.type === 'short_answer' &&
@@ -288,7 +303,7 @@ export async function createOrUpdateApplicationAnswer(params: {
       create: {
         applicationId,
         globalQuestionId: questionId,
-        questionLabel,
+        questionLabel: question.label,
         value: globalPersistedValue,
         createdById: currentUser.id,
         updatedById: currentUser.id,
@@ -313,7 +328,7 @@ export async function createOrUpdateApplicationAnswer(params: {
     create: {
       applicationId,
       positionQuestionId: questionId,
-      questionLabel,
+      questionLabel: question.label,
       value: persistedValue,
       createdById: currentUser.id,
       updatedById: currentUser.id,
@@ -539,84 +554,6 @@ export async function withdrawApplication(
 
   if (result.count === 0)
     return { error: 'This application can no longer be withdrawn.' };
-
-  revalidatePath('/my-applications');
-  revalidatePath('/applications');
-  revalidatePath('/positions', 'layout');
-}
-
-export async function reopenApplication(
-  applicationId: string,
-): Promise<ResponseType<void>> {
-  const currentUser = await getCurrentUser();
-
-  const parsed = applicationIdSchema.safeParse({ applicationId });
-  if (!parsed.success) throw new Error('Invalid input');
-
-  // One `now`, so reads inside the transaction can't drift apart.
-  const now = new Date();
-
-  const result = await prisma.$transaction(async (tx) => {
-    // Inside the transaction, unlike submitApplication, to stay atomic.
-    const application = await tx.application.findFirst({
-      where: {
-        id: parsed.data.applicationId,
-        userId: currentUser.id,
-        deletedAt: null,
-        status: 'withdrawn',
-      },
-      select: {
-        id: true,
-        position: {
-          select: {
-            deletedAt: true,
-            status: true,
-            opensAt: true,
-            closesAt: true,
-          },
-        },
-      },
-    });
-
-    // Reachable from a stale tab, so a toast rather than a throw.
-    if (!application)
-      return { error: 'This application can no longer be re-opened.' };
-
-    if (application.position.deletedAt !== null)
-      return { error: 'This position is no longer available.' };
-
-    // Covers draft, closed, before opensAt, and after closesAt.
-    if (!isAcceptingApplications(application.position, now))
-      return { error: 'This position is no longer accepting applications.' };
-
-    // Only the global snapshot is re-checked — position questions were already passed once.
-    const missingGlobalLabels = await syncGlobalAnswersFromProfile(
-      tx,
-      application.id,
-      currentUser.id,
-    );
-    if (missingGlobalLabels.length > 0)
-      return {
-        error: `Answer these required profile questions in your profile before re-opening: ${formatMissingQuestions(missingGlobalLabels)}.`,
-      };
-
-    // updateMany keeps the read's where; count === 0 means a concurrent transition won.
-    const updateResult = await tx.application.updateMany({
-      where: {
-        id: parsed.data.applicationId,
-        userId: currentUser.id,
-        deletedAt: null,
-        status: 'withdrawn',
-      },
-      // submittedAt keeps the original submission time reviewers sort by.
-      data: { status: 'applied', updatedById: currentUser.id },
-    });
-
-    if (updateResult.count === 0)
-      return { error: 'This application can no longer be re-opened.' };
-  });
-
-  if (result && 'error' in result) return result;
 
   revalidatePath('/my-applications');
   revalidatePath('/applications');

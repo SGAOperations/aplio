@@ -401,7 +401,7 @@ export const NON_TERMINAL_APPLICATION_STATUSES = [
   'reviewing',
 ] as const satisfies $Enums.ApplicationStatus[];
 
-// No status history, so a withdraw → re-open round-trip would launder the decision.
+// No status history, so a withdraw → resubmit round-trip would launder the decision.
 export const TERMINAL_DECISION_STATUSES: readonly $Enums.ApplicationStatus[] = [
   'accepted',
   'rejected',
@@ -478,7 +478,15 @@ export const PRIVACY_HREF = '/privacy';
 export const TERMS_HREF = '/terms';
 
 export const createUserSchema = z.object({
-  email: z.string().trim().email('Enter a valid email address.'),
+  // Lowercased to match Better Auth, which lowercases before its
+  // case-sensitive lookup on sign-in. A mixed-case invite would miss that
+  // lookup and — the unique index being case-sensitive too — succeed as a
+  // second, non-admin row instead of resolving the invited one.
+  email: z
+    .string()
+    .trim()
+    .email('Enter a valid email address.')
+    .transform((value) => value.toLowerCase()),
   name: z.string().trim().optional(),
   isAdmin: z.boolean().default(false),
 });
@@ -498,6 +506,15 @@ export const nameSchema = z.object({
       NAME_MAX_LENGTH,
       `Name must be ${NAME_MAX_LENGTH} characters or fewer.`,
     ),
+});
+
+// Shared with lib/auth/config.ts's session-create hook so the client can
+// branch on this specific refusal instead of a generic OTP failure.
+export const ACCOUNT_DEACTIVATED_ERROR_CODE = 'ACCOUNT_DEACTIVATED';
+
+// Shared between the checkSignInAllowed server action and LoginView's email step resolver.
+export const signInEmailSchema = z.object({
+  email: z.string().email('Please enter a valid email address'),
 });
 
 export const STATUS_BADGE_VARIANT_TO_DOT: Record<BadgeVariant, string> = {

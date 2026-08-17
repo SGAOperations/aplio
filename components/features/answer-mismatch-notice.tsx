@@ -2,6 +2,8 @@ import { TriangleAlert } from 'lucide-react';
 
 import type { QuestionType } from '@/prisma/client';
 
+import { WarningCallout } from '@/components/ui/warning-callout';
+
 interface AnswerMismatchNoticeProps {
   id: string;
   values: string[];
@@ -17,11 +19,7 @@ export function AnswerMismatchNotice({
   if (values.length === 0) return null;
 
   return (
-    <div
-      id={id}
-      className="border-warning/40 bg-warning/10 text-warning-foreground mb-2 flex gap-2 rounded-lg border p-3 text-sm"
-    >
-      <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+    <WarningCallout id={id} icon={TriangleAlert} className="mb-2">
       <div className="flex flex-col gap-1">
         <p className="font-medium">This question has changed</p>
         <p>
@@ -49,6 +47,6 @@ export function AnswerMismatchNotice({
           </ul>
         )}
       </div>
-    </div>
+    </WarningCallout>
   );
 }

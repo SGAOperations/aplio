@@ -4,6 +4,7 @@ import { cache } from 'react';
 
 import {
   MANAGED_POSITIONS_WINDOW_DAYS,
+  PUBLISHED_POSITION_WHERE,
   RECENTLY_CLOSED_WINDOW_DAYS,
   UNRESOLVED_APPLICATION_STATUSES,
 } from '@/lib/constants';
@@ -157,18 +158,15 @@ export async function getAdminPositions(): Promise<PositionWithQuestions[]> {
   });
 }
 
-export async function getPositionForApply(
+// Cached so generateMetadata and the page component share one round-trip per request.
+export const getPositionForApply = cache(async function getPositionForApply(
   id: string,
 ): Promise<PositionWithQuestions | null> {
-  const position = await prisma.position.findUnique({
-    where: { id, status: 'open', deletedAt: null },
+  return prisma.position.findUnique({
+    where: { id, ...PUBLISHED_POSITION_WHERE },
     select: positionWithQuestionsSelect,
   });
-
-  // null outside the window sends the apply route back to /positions.
-  if (!position || !isAcceptingApplications(position)) return null;
-  return position;
-}
+});
 
 export async function getPositionAccess(
   id: string,

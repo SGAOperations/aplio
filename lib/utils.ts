@@ -47,6 +47,13 @@ export function toStringArray(v: unknown): string[] {
   return [];
 }
 
+/** Joins truthy ids for `aria-describedby`; `undefined` when none apply. */
+export function composeDescribedBy(
+  ...ids: Array<string | false | null | undefined>
+): string | undefined {
+  return ids.filter((v): v is string => Boolean(v)).join(' ') || undefined;
+}
+
 /** Splits a stored answer into what still fits the question's shape (`fitted`) vs. what doesn't (`orphaned`); together always `value`. */
 export function partitionAnswerValue(
   question: AnswerQuestion,

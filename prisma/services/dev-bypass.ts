@@ -3,28 +3,36 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
-import { BYPASS_USERS, type BypassRole } from '@/lib/bypass-users';
+import { z } from 'zod';
+
+import {
+  BYPASS_ROLES,
+  BYPASS_USERS,
+  type BypassRole,
+} from '@/lib/bypass-users';
 import { prisma } from '@/lib/prisma';
 import { isBypassAllowed } from '@/lib/utils';
 
 // Well-known id, so concurrent bypass logins upsert one row instead of racing.
 const BYPASS_POSITION_ID = 'bypass-position';
 
+const roleSchema = z.enum(BYPASS_ROLES);
+
 // Hard no-op unless isBypassAllowed() says otherwise.
 export async function loginAsBypassUser(role: BypassRole) {
   if (!isBypassAllowed()) return;
 
+  const parsedRole = roleSchema.safeParse(role);
+  if (!parsedRole.success) return;
+
   const cookieStore = await cookies();
 
-  const config = BYPASS_USERS[role];
-  if (!config) return;
-
-  const { email, neonAuthId, isAdmin } = config;
+  const { email, isAdmin, name } = BYPASS_USERS[parsedRole.data];
 
   const user = await prisma.user.upsert({
-    where: { neonAuthId },
-    update: { email, isAdmin },
-    create: { email, neonAuthId, isAdmin },
+    where: { email },
+    update: { isAdmin, name },
+    create: { email, isAdmin, name },
   });
 
   if (role === 'position-manager') {

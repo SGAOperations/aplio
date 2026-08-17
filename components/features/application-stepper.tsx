@@ -43,7 +43,9 @@ import {
 import { AnswerFileLink } from '@/components/features/answer-file-link';
 import { AnswerMismatchNotice } from '@/components/features/answer-mismatch-notice';
 import { ApplicationQuestion } from '@/components/features/application-question';
+import { QuestionCardLabel } from '@/components/features/question-card-label';
 import { Button } from '@/components/ui/button';
+import { WarningCallout } from '@/components/ui/warning-callout';
 
 type StepperFormValues = Record<string, string[]>;
 
@@ -79,10 +81,11 @@ function ReadOnlyQuestionCard({
         isMissing && 'border-destructive',
       )}
     >
-      <p className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase">
-        {question.label}
-        {question.required && <span className="text-destructive ml-1">*</span>}
-      </p>
+      <QuestionCardLabel
+        id={`${question.id}-label`}
+        label={question.label}
+        required={question.required}
+      />
       {orphaned.length > 0 && (
         <AnswerMismatchNotice
           id={`${question.id}-mismatch`}
@@ -221,9 +224,7 @@ function QuestionList({
                     const result = await createOrUpdateApplicationAnswer({
                       applicationId,
                       questionId: question.id,
-                      questionLabel: question.label,
                       value,
-                      isGlobal,
                     });
                     if (isError(result)) throw new ActionError(result.error);
                   })();
@@ -267,6 +268,7 @@ export function ApplicationStepper({
     new Set(),
   );
   const hasPositionQuestions = positionQuestions.length > 0;
+  const isResubmit = application.status === 'withdrawn';
   // Keyed by question id — see QuestionListProps.pendingSavesRef.
   const pendingSavesRef = useRef<Map<string, Promise<unknown>>>(new Map());
 
@@ -401,9 +403,7 @@ export function ApplicationStepper({
           const result = await createOrUpdateApplicationAnswer({
             applicationId: application.id,
             questionId: q.id,
-            questionLabel: q.label,
             value: profileValue,
-            isGlobal: true,
           });
           // Applied only once persisted: a failed field keeps its last saved value.
           if (!isError(result)) setValue(`g_${q.id}`, profileValue);
@@ -444,7 +444,9 @@ export function ApplicationStepper({
         setError('root', { message: result.error });
         toast.error(result.error);
       } else {
-        toast.success('Application submitted');
+        toast.success(
+          isResubmit ? 'Application resubmitted' : 'Application submitted',
+        );
         setIsRedirecting(true);
         router.replace('/my-applications');
       }
@@ -511,7 +513,7 @@ export function ApplicationStepper({
           </div>
 
           {isCustomizing && (
-            <div className="border-warning/40 bg-warning/10 text-warning-foreground rounded-lg border p-3 text-sm">
+            <WarningCallout>
               {hasNewRequiredGlobals && (
                 <p className="mb-1 font-medium">
                   New required profile questions were added since you started
@@ -524,7 +526,7 @@ export function ApplicationStepper({
                 profile page
               </Link>
               .
-            </div>
+            </WarningCallout>
           )}
 
           <QuestionList
@@ -555,8 +557,12 @@ export function ApplicationStepper({
               {hasPositionQuestions
                 ? 'Next'
                 : isSubmitting || isRedirecting
-                  ? 'Submitting...'
-                  : 'Submit Application'}
+                  ? isResubmit
+                    ? 'Resubmitting...'
+                    : 'Submitting...'
+                  : isResubmit
+                    ? 'Resubmit Application'
+                    : 'Submit Application'}
             </Button>
           </div>
         </div>
@@ -599,8 +605,12 @@ export function ApplicationStepper({
             </Button>
             <Button onClick={onSubmit} disabled={isSubmitting || isRedirecting}>
               {isSubmitting || isRedirecting
-                ? 'Submitting...'
-                : 'Submit Application'}
+                ? isResubmit
+                  ? 'Resubmitting...'
+                  : 'Submitting...'
+                : isResubmit
+                  ? 'Resubmit Application'
+                  : 'Submit Application'}
             </Button>
           </div>
         </div>

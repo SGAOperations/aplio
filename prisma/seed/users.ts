@@ -6,19 +6,13 @@ import type { ApplicantDef } from './types';
 export const applicantDefs: ApplicantDef[] = [
   {
     email: BYPASS_USERS.admin.email,
-    name: 'Bypass Admin',
-    neonAuthId: BYPASS_USERS.admin.neonAuthId,
+    name: BYPASS_USERS.admin.name,
     isAdmin: true,
   },
-  {
-    email: BYPASS_USERS.applicant.email,
-    name: 'Bypass Applicant',
-    neonAuthId: BYPASS_USERS.applicant.neonAuthId,
-  },
+  { email: BYPASS_USERS.applicant.email, name: BYPASS_USERS.applicant.name },
   {
     email: BYPASS_USERS['position-manager'].email,
-    name: 'Bypass Position Manager',
-    neonAuthId: BYPASS_USERS['position-manager'].neonAuthId,
+    name: BYPASS_USERS['position-manager'].name,
   },
   { email: 'alice@example.com', name: 'Alice Chen' },
   { email: 'bob@example.com', name: 'Bob Martinez' },
@@ -30,7 +24,7 @@ export const applicantDefs: ApplicantDef[] = [
 // An omitted label models "never answered", not "answered blank".
 export const profileAnswers: Record<string, Record<string, string[]>> = {
   [BYPASS_USERS.admin.email]: {
-    'Full name': ['Bypass Admin'],
+    'Full name': [BYPASS_USERS.admin.name],
     'Year in school': ['Graduate'],
     Major: ['Computer Science'],
     'GPA range': ['3.5+'],
@@ -44,7 +38,7 @@ export const profileAnswers: Record<string, Record<string, string[]>> = {
     "Anything else you'd like us to know?": [],
   },
   [BYPASS_USERS.applicant.email]: {
-    'Full name': ['Bypass Applicant'],
+    'Full name': [BYPASS_USERS.applicant.name],
     'Year in school': ['Junior'],
     Major: ['Political Science'],
     'GPA range': ['3.0–3.5'],
@@ -60,7 +54,7 @@ export const profileAnswers: Record<string, Record<string, string[]>> = {
     ],
   },
   [BYPASS_USERS['position-manager'].email]: {
-    'Full name': ['Bypass Position Manager'],
+    'Full name': [BYPASS_USERS['position-manager'].name],
     Major: ['Business Administration'],
     'GPA range': ['3.0–3.5'],
     'Why do you want to get involved in student government?': [

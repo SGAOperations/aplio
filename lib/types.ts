@@ -37,6 +37,9 @@ export type PositionManager = Prisma.UserGetPayload<{
   select: { id: true; name: true; email: true };
 }>;
 
+// Deliberately omits id — searchUsers withholds it until an add is performed.
+export type UserSearchResult = { displayName: string; primaryEmail: string };
+
 // Manager ids are consumed server-side only, so the manager shape stays minimal.
 export type PositionDetail = PositionWithQuestions & {
   managers: { id: string }[];
@@ -103,6 +106,7 @@ export type GlobalQuestionListItem = Prisma.GlobalQuestionGetPayload<{
   };
 }>;
 
+// position.status/opensAt/closesAt let a row decide resubmit availability without a second query.
 export type MyApplicationListItem = Prisma.ApplicationGetPayload<{
   select: {
     id: true;
@@ -110,7 +114,15 @@ export type MyApplicationListItem = Prisma.ApplicationGetPayload<{
     submittedAt: true;
     updatedAt: true;
     positionId: true;
-    position: { select: { id: true; title: true } };
+    position: {
+      select: {
+        id: true;
+        title: true;
+        status: true;
+        opensAt: true;
+        closesAt: true;
+      };
+    };
   };
 }>;
 

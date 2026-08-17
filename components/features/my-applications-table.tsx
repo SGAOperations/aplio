@@ -10,7 +10,7 @@ import {
   type SortableColumn,
   useSortableTable,
 } from '@/lib/use-sortable-table';
-import { formatDate } from '@/lib/utils';
+import { formatDate, isAcceptingApplications } from '@/lib/utils';
 
 import { MyApplicationRowActions } from '@/components/features/my-application-row-actions';
 import { SortableHeader } from '@/components/features/sortable-header';
@@ -29,6 +29,39 @@ import {
 
 interface MyApplicationsTableProps {
   applications: MyApplicationListItem[];
+}
+
+function MyApplicationPrimaryAction({
+  application,
+}: {
+  application: MyApplicationListItem;
+}) {
+  if (application.status === 'draft')
+    return (
+      <Button variant="outline" size="sm" asChild>
+        <Link href={`/positions/${application.positionId}/apply`}>
+          Continue
+        </Link>
+      </Button>
+    );
+
+  if (application.status !== 'withdrawn') return null;
+
+  if (!isAcceptingApplications(application.position))
+    return (
+      <span className="text-muted-foreground text-sm">Position closed</span>
+    );
+
+  return (
+    <Button variant="outline" size="sm" asChild>
+      <Link
+        href={`/positions/${application.positionId}/apply`}
+        aria-label={`Edit and resubmit application for ${application.position.title}`}
+      >
+        Edit &amp; resubmit
+      </Link>
+    </Button>
+  );
 }
 
 const COLUMNS: SortableColumn<MyApplicationListItem>[] = [
@@ -115,13 +148,7 @@ export function MyApplicationsTable({
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    {app.status === 'draft' && (
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/positions/${app.positionId}/apply`}>
-                          Continue
-                        </Link>
-                      </Button>
-                    )}
+                    <MyApplicationPrimaryAction application={app} />
                     <MyApplicationRowActions
                       applicationId={app.id}
                       status={app.status}
@@ -153,13 +180,7 @@ export function MyApplicationsTable({
                 {app.status === 'draft' ? 'Draft' : formatDate(app.submittedAt)}
               </span>
               <div className="flex items-center gap-2">
-                {app.status === 'draft' && (
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={`/positions/${app.positionId}/apply`}>
-                      Continue
-                    </Link>
-                  </Button>
-                )}
+                <MyApplicationPrimaryAction application={app} />
                 <MyApplicationRowActions
                   applicationId={app.id}
                   status={app.status}

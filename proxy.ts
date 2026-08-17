@@ -1,18 +1,14 @@
-import { neonAuthMiddleware } from '@neondatabase/auth/next/server';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { applyRateLimit } from '@/lib/rate-limit';
 
-// Layouts own auth redirects; only the OAuth token exchange must precede rendering.
+// Layouts own auth redirects; nothing auth-related has to precede rendering.
 export async function proxy(request: NextRequest): Promise<NextResponse> {
   // Skipped in dev, where every request would land in one 'unknown' bucket.
   if (process.env.NODE_ENV !== 'development') {
     const limited = applyRateLimit(request);
     if (limited) return limited;
   }
-
-  if (request.nextUrl.searchParams.has('neon_auth_session_verifier'))
-    return neonAuthMiddleware({ loginUrl: '/login' })(request);
 
   // Server Components have no direct access to the request URL, so forward the
   // requested path+query on a header — app/(main)/(auth)/layout.tsx reads it to

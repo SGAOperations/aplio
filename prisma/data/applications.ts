@@ -23,7 +23,15 @@ const applicationSelect = {
   submittedAt: true,
   updatedAt: true,
   positionId: true,
-  position: { select: { id: true, title: true } },
+  position: {
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      opensAt: true,
+      closesAt: true,
+    },
+  },
 } as const;
 
 // Keeps list, denominator, and detail page agreeing: drafts out, withdrawn in.
@@ -45,13 +53,14 @@ function buildBaseWhere(user: { id: string; isAdmin: boolean }) {
       };
 }
 
-// Scoped to the caller (no IDOR); returns an existing draft without re-running the profile gate.
-export async function getDraftApplication(
+// Scoped to the caller (no IDOR); returns the caller's application at any status
+// (draft, withdrawn, or otherwise) so the apply route decides what to render.
+export async function getApplicationForApply(
   userId: string,
   positionId: string,
 ): Promise<DraftApplication | null> {
   return prisma.application.findFirst({
-    where: { userId, positionId, status: 'draft', deletedAt: null },
+    where: { userId, positionId, deletedAt: null },
     include: { globalAnswers: true, positionAnswers: true },
   });
 }
