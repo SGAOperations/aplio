@@ -23,8 +23,10 @@ export const applyNavItems: NavItem[] = [
 ];
 
 // Shown to admins AND managers — anyone who can review applications.
+// Positions is in addition to Apply's own entry — same role-adaptive /positions page.
 export const manageReviewerNavItems: NavItem[] = [
   { href: '/applications', label: 'Applications', icon: FileText },
+  positionsNavItem,
 ];
 
 // Shown to admins only — Users and Global Questions are admin-only.
