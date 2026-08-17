@@ -13,6 +13,7 @@ import { checkSignInAllowed } from '@/prisma/actions/auth';
 
 import { authClient } from '@/lib/auth/client';
 import {
+  getErrorCode,
   getOtpSendErrorMessage,
   getOtpVerifyErrorMessage,
 } from '@/lib/auth/errors';
@@ -110,22 +111,14 @@ export function LoginView({ copy }: LoginViewProps) {
     setStep('otp');
   }
 
-  function isDeactivatedError(error: unknown): boolean {
-    return (
-      typeof error === 'object' &&
-      error !== null &&
-      'code' in error &&
-      error.code === ACCOUNT_DEACTIVATED_ERROR_CODE
-    );
-  }
-
   function failOtp(error: unknown) {
     console.error('signIn.emailOtp failed', error);
     otpForm.setError('otp', {
       type: 'server',
-      message: isDeactivatedError(error)
-        ? 'Your account has been deactivated. Please contact an administrator.'
-        : getOtpVerifyErrorMessage(error),
+      message:
+        getErrorCode(error) === ACCOUNT_DEACTIVATED_ERROR_CODE
+          ? 'Your account has been deactivated. Please contact an administrator.'
+          : getOtpVerifyErrorMessage(error),
     });
   }
 

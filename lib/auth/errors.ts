@@ -1,14 +1,5 @@
-// better-auth/react's client resolves sign-in/OTP calls to { data, error };
-// error is the endpoint's parsed JSON body spread with { status, statusText }
-// (@better-fetch/fetch's handleFetchResponse). better-auth's own
-// APIError.from(status, { code, message }) (better-auth/core's APIError)
-// serializes that body as-is (better-call's toResponse), so codes thrown that
-// way — email-otp's OTP_EXPIRED / INVALID_OTP / TOO_MANY_ATTEMPTS
-// (better-auth/dist/plugins/email-otp/error-codes.mjs) and this app's
-// ACCOUNT_DEACTIVATED (lib/auth/config.ts) — round-trip to error.code intact.
-// better-auth's built-in rate limiter instead returns a plain Response with
-// only a generic message and no code (better-auth/dist/api/rate-limiter),
-// so status/message stay the fallback for that case only.
+// better-auth@1.6.29's APIError.from flattens { code, message } to the top
+// level of the error body; parsed defensively in case a future minor nests it.
 
 const GENERIC_VERIFY_MESSAGE = "We couldn't check that code. Please try again.";
 const GENERIC_SEND_MESSAGE = "Couldn't send the code. Please try again.";
@@ -40,11 +31,20 @@ function extractAuthError(error: unknown): {
   if (typeof error !== 'object' || error === null) return {};
 
   const source = error as Record<string, unknown>;
+  const nested =
+    typeof source.message === 'object' && source.message !== null
+      ? (source.message as Record<string, unknown>)
+      : undefined;
+
   return {
-    code: readString(source.code),
+    code: readString(source.code) ?? readString(nested?.code),
     status: readNumber(source.status),
-    message: readString(source.message),
+    message: readString(source.message) ?? readString(nested?.message),
   };
+}
+
+export function getErrorCode(error: unknown): string | undefined {
+  return extractAuthError(error).code;
 }
 
 export function getOtpVerifyErrorMessage(error: unknown): string {
