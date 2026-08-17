@@ -105,9 +105,7 @@ export async function createTestPositionQuestion(
   });
 }
 
-// Neutralizes syncGlobalAnswersFromProfile's "missing required profile
-// question" check for callers whose submit is expected to succeed — the
-// active question set isn't scoped to this test run (seed data included).
+// Neutralizes the profile-completeness check; question set isn't scoped to this run.
 export async function answerAllRequiredGlobalQuestions(
   user: User,
 ): Promise<void> {

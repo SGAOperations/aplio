@@ -1,7 +1,5 @@
-// DB tests write to whatever DATABASE_URL points at — refuse anything that
-// isn't obviously local before a single query runs. The fixtures import is
-// dynamic: it pulls in lib/prisma.ts, which constructs a client (and throws)
-// at import time, so a static import would fire before this guard can.
+// Fixtures import is dynamic: a static import would construct the Prisma
+// client (lib/prisma.ts) before this local-DB guard can run.
 export default async function setup(): Promise<void> {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl)
