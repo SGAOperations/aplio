@@ -16,7 +16,11 @@ import {
   type PositionForEdit,
   type PositionWithQuestions,
 } from '@/lib/types';
-import { getPositionAvailability, isAcceptingApplications } from '@/lib/utils';
+import {
+  getPositionAvailability,
+  isAcceptingApplications,
+  isPositionActive,
+} from '@/lib/utils';
 
 const positionWithQuestionsSelect = {
   id: true,
@@ -250,7 +254,8 @@ export const getPublicPosition = cache(async function getPublicPosition(
   });
 });
 
-export async function getPositionForEdit(
+// Cached so generateMetadata and the page component share one round-trip per request.
+export const getPositionForEdit = cache(async function getPositionForEdit(
   id: string,
 ): Promise<PositionForEdit | null> {
   return prisma.position.findFirst({
@@ -278,6 +283,28 @@ export async function getPositionForEdit(
         },
       },
       managers: { select: { id: true, name: true, email: true } },
+      ...positionActivitySelect,
     },
   });
+});
+
+// Mirrors checkPositionAccess's admin short-circuit; a missing/deleted position
+// returns false, so a caller needing "no longer exists" checks existence first.
+export async function checkPositionEditable(
+  positionId: string,
+  user: { id: string; isAdmin: boolean },
+): Promise<boolean> {
+  if (user.isAdmin) return true;
+
+  const position = await prisma.position.findFirst({
+    where: { id: positionId, deletedAt: null },
+    select: {
+      status: true,
+      opensAt: true,
+      closesAt: true,
+      ...positionActivitySelect,
+    },
+  });
+
+  return position !== null && isPositionActive(position);
 }

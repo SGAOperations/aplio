@@ -60,7 +60,7 @@ export type PositionQuestionForEdit = Prisma.PositionQuestionGetPayload<{
   };
 }>;
 
-// Matches getPositionForEdit's select; no audit columns cross to the client.
+// Server-only — updatedAt/_count feed isPositionActive and never cross to a client.
 export type PositionForEdit = Prisma.PositionGetPayload<{
   select: {
     id: true;
@@ -69,6 +69,7 @@ export type PositionForEdit = Prisma.PositionGetPayload<{
     status: true;
     opensAt: true;
     closesAt: true;
+    updatedAt: true;
     questions: {
       select: {
         id: true;
@@ -83,6 +84,7 @@ export type PositionForEdit = Prisma.PositionGetPayload<{
       };
     };
     managers: { select: { id: true; name: true; email: true } };
+    _count: { select: { applications: true } };
   };
 }>;
 

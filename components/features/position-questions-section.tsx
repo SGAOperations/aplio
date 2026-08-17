@@ -7,13 +7,6 @@ import { toast } from 'sonner';
 
 import { deletePositionQuestion } from '@/prisma/actions/position-question-actions';
 
-import {
-  QUESTION_TYPE_BADGE_VARIANT,
-  QUESTION_TYPE_LABELS,
-  SHORT_ANSWER_FORMAT_LABELS,
-} from '@/lib/constants';
-
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 
@@ -21,6 +14,7 @@ import {
   QuestionForm,
   type RenderedQuestion,
 } from './position-question-dialog';
+import { PositionQuestionSummary } from './position-question-summary';
 
 interface PositionQuestionsSectionProps {
   positionId: string;
@@ -90,39 +84,7 @@ export function PositionQuestionsSection({
             </Card>
           ) : (
             <Card className="flex flex-row items-center gap-3 p-4">
-              <div className="flex-1">
-                <p className="text-sm font-medium">{question.label}</p>
-                <div className="mt-1 flex flex-wrap items-center gap-2">
-                  <Badge variant={QUESTION_TYPE_BADGE_VARIANT[question.type]}>
-                    {QUESTION_TYPE_LABELS[question.type]}
-                  </Badge>
-                  {question.format && (
-                    <Badge variant="outline">
-                      {SHORT_ANSWER_FORMAT_LABELS[question.format]}
-                    </Badge>
-                  )}
-                  <span className="text-muted-foreground text-xs">
-                    {question.required ? 'Required' : 'Optional'}
-                  </span>
-                </div>
-                {(question.options.length > 0 || question.allowOther) && (
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {question.options.map((opt) => (
-                      <span
-                        key={opt}
-                        className="bg-secondary text-secondary-foreground rounded-full px-2 py-0.5 text-xs"
-                      >
-                        {opt}
-                      </span>
-                    ))}
-                    {question.allowOther && (
-                      <span className="bg-secondary text-secondary-foreground rounded-full px-2 py-0.5 text-xs">
-                        + Other
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
+              <PositionQuestionSummary question={question} />
               <div className="flex shrink-0 items-center gap-1">
                 <Button
                   variant="ghost"

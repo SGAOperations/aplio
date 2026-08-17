@@ -4,12 +4,15 @@ import { revalidatePath } from 'next/cache';
 
 import { z } from 'zod/v4';
 
+import { checkPositionEditable } from '@/prisma/data/positions';
+
 import {
   requireAdmin,
   requireManagerOrAdmin,
   requirePositionAccess,
 } from '@/lib/auth/guards';
 import { getCurrentUser } from '@/lib/auth/server';
+import { ARCHIVED_POSITION_EDIT_ERROR } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 import type { PositionManager, UserSearchResult } from '@/lib/types';
 import { type ResponseType } from '@/lib/utils';
@@ -92,6 +95,9 @@ export async function updatePosition(
   if (!exists) return { error: 'This position no longer exists.' };
 
   const user = await requirePositionAccess(id);
+
+  if (!(await checkPositionEditable(id, user)))
+    return { error: ARCHIVED_POSITION_EDIT_ERROR };
 
   await prisma.position.update({
     where: { id },
