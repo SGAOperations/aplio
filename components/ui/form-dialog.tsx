@@ -91,7 +91,9 @@ function FormDialog<
             onSubmit={form.handleSubmit(handleSubmit)}
             className="flex min-h-0 flex-1 flex-col gap-4"
           >
-            <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
+              {children}
+            </div>
             <DialogFooter>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="animate-spin" />}
