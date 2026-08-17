@@ -43,7 +43,10 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
+      {/* AlertDialog already blocks outside-pointer dismissal; guard Escape too. */}
+      <AlertDialogContent
+        onEscapeKeyDown={(e) => isPending && e.preventDefault()}
+      >
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription asChild>

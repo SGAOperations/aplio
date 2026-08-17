@@ -27,9 +27,13 @@ export function PositionQuestionsSection({
   initialQuestions,
 }: PositionQuestionsSectionProps) {
   const [questions, setQuestions] = useState(initialQuestions);
+  // `deleteTarget` is never nulled on close — only replaced on the next
+  // open — so the dialog's description keeps the last valid value through
+  // Radix's exit animation instead of re-rendering blank mid-fade.
   const [deleteTarget, setDeleteTarget] = useState<RenderedQuestion | null>(
     null,
   );
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [isDeleting, startTransition] = useTransition();
@@ -59,7 +63,7 @@ export function PositionQuestionsSection({
         }
         setQuestions((prev) => prev.filter((q) => q.id !== target.id));
         toast.success('Question deleted');
-        setDeleteTarget(null);
+        setDeleteDialogOpen(false);
       } catch (error) {
         console.error(error);
         toast.error('Something went wrong. Please try again.');
@@ -108,7 +112,10 @@ export function PositionQuestionsSection({
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setDeleteTarget(question)}
+                    onClick={() => {
+                      setDeleteTarget(question);
+                      setDeleteDialogOpen(true);
+                    }}
                     disabled={isDeleting && deleteTarget?.id === question.id}
                   >
                     <Trash2 className="text-destructive size-4" />
@@ -147,8 +154,8 @@ export function PositionQuestionsSection({
       </div>
 
       <ConfirmDialog
-        open={!!deleteTarget}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
         title="Delete this question?"
         description={
           <div className="flex flex-col gap-2">

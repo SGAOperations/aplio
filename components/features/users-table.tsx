@@ -61,9 +61,15 @@ interface DeactivateTarget {
 
 export function UsersTable({ users, currentUserId }: UsersTableProps) {
   const [query, setQuery] = useState('');
+  // `*Target` is never nulled on close — only replaced on the next open —
+  // so the dialog's title/description keep the last valid value through
+  // Radix's exit animation instead of re-rendering "undefined" mid-fade.
+  // `*DialogOpen` alone drives visibility.
   const [adminTarget, setAdminTarget] = useState<AdminTarget | null>(null);
+  const [adminDialogOpen, setAdminDialogOpen] = useState(false);
   const [deactivateTarget, setDeactivateTarget] =
     useState<DeactivateTarget | null>(null);
+  const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
   const [isTogglingAdmin, startToggleTransition] = useTransition();
   const [isDeactivating, startDeactivateTransition] = useTransition();
 
@@ -98,7 +104,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
         toast.success(
           target.makeAdmin ? 'User promoted to admin.' : 'Admin removed.',
         );
-        setAdminTarget(null);
+        setAdminDialogOpen(false);
       } catch {
         toast.error('Something went wrong. Please try again.');
       }
@@ -116,7 +122,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
           return;
         }
         toast.success('User deactivated.');
-        setDeactivateTarget(null);
+        setDeactivateDialogOpen(false);
       } catch {
         toast.error('Something went wrong. Please try again.');
       }
@@ -280,15 +286,16 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
                                 : undefined
                             }
                             aria-disabled={isSelf}
-                            onClick={() =>
+                            onClick={() => {
                               setAdminTarget({
                                 id: user.id,
                                 displayName: user.name ?? user.email,
                                 email: user.email,
                                 name: user.name,
                                 makeAdmin: !user.isAdmin,
-                              })
-                            }
+                              });
+                              setAdminDialogOpen(true);
+                            }}
                           >
                             {user.isAdmin ? 'Remove admin' : 'Make admin'}
                           </Button>
@@ -302,12 +309,13 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
                                 : undefined
                             }
                             aria-disabled={isSelf}
-                            onClick={() =>
+                            onClick={() => {
                               setDeactivateTarget({
                                 id: user.id,
                                 displayName: user.name ?? user.email,
-                              })
-                            }
+                              });
+                              setDeactivateDialogOpen(true);
+                            }}
                           >
                             Deactivate
                           </Button>
@@ -323,8 +331,8 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       </div>
 
       <ConfirmDialog
-        open={!!adminTarget}
-        onOpenChange={(open) => !open && setAdminTarget(null)}
+        open={adminDialogOpen}
+        onOpenChange={setAdminDialogOpen}
         title={
           adminTarget?.makeAdmin
             ? `Make ${adminTarget.displayName} an admin?`
@@ -360,8 +368,8 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       />
 
       <ConfirmDialog
-        open={!!deactivateTarget}
-        onOpenChange={(open) => !open && setDeactivateTarget(null)}
+        open={deactivateDialogOpen}
+        onOpenChange={setDeactivateDialogOpen}
         title={`Deactivate ${deactivateTarget?.displayName}?`}
         description={
           <>
