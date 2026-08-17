@@ -12,7 +12,10 @@ import { z } from 'zod/v4';
 import { checkSignInAllowed } from '@/prisma/actions/auth';
 
 import { authClient } from '@/lib/auth/client';
-import { ACCOUNT_DEACTIVATED_ERROR_CODE } from '@/lib/constants';
+import {
+  ACCOUNT_DEACTIVATED_ERROR_CODE,
+  signInEmailSchema,
+} from '@/lib/constants';
 import { isError } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
@@ -36,11 +39,7 @@ interface LoginViewProps {
   copy: { title: string; description: string; sentDescription: string };
 }
 
-const emailSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-});
-
-type EmailFormValues = z.infer<typeof emailSchema>;
+type EmailFormValues = z.infer<typeof signInEmailSchema>;
 
 const otpSchema = z.object({
   otp: z.string().length(6, 'Please enter the 6-digit code'),
@@ -54,7 +53,7 @@ export function LoginView({ redirectTo, copy }: LoginViewProps) {
   const [capturedEmail, setCapturedEmail] = useState('');
 
   const emailForm = useForm<EmailFormValues>({
-    resolver: zodResolver(emailSchema),
+    resolver: zodResolver(signInEmailSchema),
     defaultValues: { email: '' },
   });
 

@@ -512,6 +512,11 @@ export const nameSchema = z.object({
 // branch on this specific refusal instead of a generic OTP failure.
 export const ACCOUNT_DEACTIVATED_ERROR_CODE = 'ACCOUNT_DEACTIVATED';
 
+// Shared between the checkSignInAllowed server action and LoginView's email step resolver.
+export const signInEmailSchema = z.object({
+  email: z.string().email('Please enter a valid email address'),
+});
+
 export const STATUS_BADGE_VARIANT_TO_DOT: Record<BadgeVariant, string> = {
   info: 'bg-info',
   warning: 'bg-warning',

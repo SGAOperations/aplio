@@ -3,23 +3,18 @@
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 
-import { z } from 'zod/v4';
-
 import { auth } from '@/lib/auth/config';
 import { getCurrentUser } from '@/lib/auth/server';
+import { signInEmailSchema } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 import type { ErrorType } from '@/lib/utils';
 
-const checkSignInAllowedSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-});
-
 // No auth check: pre-auth surface, rate-limited by proxy.ts's public tier.
-// sendVerificationOTP runs detached — a throw there never reaches the client.
+// Pre-send guard: sendVerificationOTP has no deletedAt check of its own.
 export async function checkSignInAllowed(
   input: unknown,
 ): Promise<ErrorType | void> {
-  const parsed = checkSignInAllowedSchema.safeParse(input);
+  const parsed = signInEmailSchema.safeParse(input);
   if (!parsed.success) return { error: 'Invalid input' };
 
   // Case-insensitive: emails aren't normalized on write.
