@@ -459,6 +459,7 @@ export async function submitApplication(
   revalidatePath('/positions', 'layout');
   // The draft leaves /my-applications' draft-state list once submitted.
   revalidatePath('/my-applications');
+  revalidatePath(`/my-applications/${applicationId}`);
 }
 
 const updateApplicationStatusSchema = z.object({
@@ -583,6 +584,7 @@ export async function withdrawApplication(
     return { error: 'This application can no longer be withdrawn.' };
 
   revalidatePath('/my-applications');
+  revalidatePath(`/my-applications/${applicationId}`);
   revalidatePath('/applications');
   revalidatePath('/positions', 'layout');
 }
@@ -635,4 +637,5 @@ export async function deleteDraftApplication(
   await Promise.all(fileUrls.map((url) => cleanupOrphanedBlob(url)));
 
   revalidatePath('/my-applications');
+  revalidatePath(`/my-applications/${id}`);
 }

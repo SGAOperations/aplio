@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { $Enums } from '@/prisma/client';
+import { $Enums, type Prisma } from '@/prisma/client';
 
 import {
   PUBLISHED_POSITION_WHERE,
@@ -11,7 +11,9 @@ import {
   type AdminApplicationListItem,
   type ApplicationFilters,
   type ApplicationForReview,
+  type ApplicationReviewAnswer,
   type DraftApplication,
+  type MyApplicationDetail,
   type MyApplicationListItem,
   type PositionApplicationListItem,
   type PositionApplicationStats,
@@ -34,6 +36,61 @@ const applicationSelect = {
     },
   },
 } as const;
+
+// Reused by getApplicationForReview and getMyApplication so both detail
+// views normalize answers into the same ApplicationReviewAnswer[] shape.
+const applicationAnswersSelect = {
+  globalAnswers: {
+    where: { deletedAt: null },
+    orderBy: { createdAt: 'asc' },
+    select: {
+      id: true,
+      globalQuestionId: true,
+      questionLabel: true,
+      value: true,
+      globalQuestion: { select: { type: true } },
+    },
+  },
+  positionAnswers: {
+    where: { deletedAt: null },
+    orderBy: { createdAt: 'asc' },
+    select: {
+      id: true,
+      positionQuestionId: true,
+      questionLabel: true,
+      value: true,
+      positionQuestion: { select: { type: true } },
+    },
+  },
+} as const;
+
+type ApplicationAnswersPayload = Prisma.ApplicationGetPayload<{
+  select: typeof applicationAnswersSelect;
+}>;
+
+function normalizeApplicationAnswers(application: ApplicationAnswersPayload): {
+  globalAnswers: ApplicationReviewAnswer[];
+  positionAnswers: ApplicationReviewAnswer[];
+} {
+  return {
+    globalAnswers: application.globalAnswers.map((a) => ({
+      id: a.id,
+      questionId: a.globalQuestionId,
+      questionLabel: a.questionLabel,
+      value: a.value,
+      type: a.globalQuestion.type,
+      isGlobal: true,
+    })),
+    positionAnswers: application.positionAnswers.map((a) => ({
+      id: a.id,
+      questionId: a.positionQuestionId,
+      questionLabel: a.questionLabel,
+      value: a.value,
+      type: a.positionQuestion.type,
+      isGlobal: false,
+    })),
+  };
+}
 
 // Keeps list, denominator, and detail page agreeing: drafts out, withdrawn in.
 function buildBaseWhere(user: Reviewer) {
@@ -90,6 +147,21 @@ export async function getRecentMyApplications(
   });
 }
 
+// Same visibility as getMyApplications, so a bookmarked URL can't outlive its list row.
+export async function getMyApplication(
+  id: string,
+  userId: string,
+): Promise<MyApplicationDetail | null> {
+  const application = await prisma.application.findFirst({
+    where: { id, userId, deletedAt: null, position: PUBLISHED_POSITION_WHERE },
+    select: { ...applicationSelect, ...applicationAnswersSelect },
+  });
+
+  if (!application) return null;
+
+  return { ...application, ...normalizeApplicationAnswers(application) };
+}
+
 const positionApplicationSelect = {
   id: true,
   status: true,
@@ -126,54 +198,13 @@ export async function getApplicationForReview(
       submittedAt: true,
       user: { select: { name: true, email: true } },
       position: { select: { id: true, title: true } },
-      globalAnswers: {
-        where: { deletedAt: null },
-        orderBy: { createdAt: 'asc' },
-        select: {
-          id: true,
-          globalQuestionId: true,
-          questionLabel: true,
-          value: true,
-          globalQuestion: { select: { type: true } },
-        },
-      },
-      positionAnswers: {
-        where: { deletedAt: null },
-        orderBy: { createdAt: 'asc' },
-        select: {
-          id: true,
-          positionQuestionId: true,
-          questionLabel: true,
-          value: true,
-          positionQuestion: { select: { type: true } },
-        },
-      },
+      ...applicationAnswersSelect,
     },
   });
 
   if (!application) return null;
 
-  const { globalAnswers, positionAnswers, ...rest } = application;
-
-  return {
-    ...rest,
-    globalAnswers: globalAnswers.map((a) => ({
-      id: a.id,
-      questionId: a.globalQuestionId,
-      questionLabel: a.questionLabel,
-      value: a.value,
-      type: a.globalQuestion.type,
-      isGlobal: true,
-    })),
-    positionAnswers: positionAnswers.map((a) => ({
-      id: a.id,
-      questionId: a.positionQuestionId,
-      questionLabel: a.questionLabel,
-      value: a.value,
-      type: a.positionQuestion.type,
-      isGlobal: false,
-    })),
-  };
+  return { ...application, ...normalizeApplicationAnswers(application) };
 }
 
 export async function getMyApplicationStatusCounts(

@@ -118,6 +118,14 @@ export type MyApplicationListItem = Prisma.ApplicationGetPayload<{
   };
 }>;
 
+// Answer arrays overridden with the shape getMyApplication maps into. Extends
+// MyApplicationListItem so MyApplicationPrimaryAction/MyApplicationRowActions
+// accept it without a dedicated prop type.
+export type MyApplicationDetail = MyApplicationListItem & {
+  globalAnswers: ApplicationReviewAnswer[];
+  positionAnswers: ApplicationReviewAnswer[];
+};
+
 export type PositionApplicationListItem = Prisma.ApplicationGetPayload<{
   select: {
     id: true;
