@@ -173,6 +173,18 @@ export type PositionActivity = PositionWindow & {
 // never be passed across a client boundary.
 export type ManagedPosition = PositionWithQuestions & PositionActivity;
 
+// Lean per-position row for the manager dashboard's "My Positions" widget.
+export type ManagedPositionSummaryItem = Prisma.PositionGetPayload<{
+  select: {
+    id: true;
+    title: true;
+    status: true;
+    opensAt: true;
+    closesAt: true;
+    _count: { select: { applications: true } };
+  };
+}>;
+
 // Shape partitionAnswerValue/isAnswered need; matches GlobalQuestion & position questions as-is.
 export type AnswerQuestion = {
   id: string;
@@ -198,6 +210,9 @@ export type PositionAvailability =
 export type OpenPositionSummaryItem = Prisma.PositionGetPayload<{
   select: { id: true; title: true; _count: { select: { applications: true } } };
 }>;
+
+// Minimal shape reviewer-scoped queries and guards need — spelled inline in 5+ signatures.
+export type Reviewer = { id: string; isAdmin: boolean };
 
 export type ReviewerStatus = (typeof REVIEWER_APPLICATION_STATUSES)[number];
 

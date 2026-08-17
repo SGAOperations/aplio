@@ -6,8 +6,11 @@ import {
   APPLICATION_STATUS_LABELS,
   STATUS_BADGE_VARIANT_TO_DOT,
 } from '@/lib/constants';
+import { type Reviewer } from '@/lib/types';
 
 import { StatCard } from '@/components/features/stat-card';
+import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // Statuses surfaced in the pipeline summary (excludes draft).
 const PIPELINE_STATUSES = [
@@ -19,8 +22,12 @@ const PIPELINE_STATUSES = [
   $Enums.ApplicationStatus.rejected,
 ] as const;
 
-export async function PipelineSummary() {
-  const counts = await getApplicationStatusCounts();
+interface PipelineSummaryProps {
+  reviewer: Reviewer;
+}
+
+export async function PipelineSummary({ reviewer }: PipelineSummaryProps) {
+  const counts = await getApplicationStatusCounts(reviewer);
 
   const total = PIPELINE_STATUSES.reduce((sum, s) => sum + (counts[s] ?? 0), 0);
 
@@ -47,5 +54,20 @@ export async function PipelineSummary() {
         })}
       </div>
     </section>
+  );
+}
+
+export function PipelineSummarySkeleton() {
+  return (
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7">
+      {Array.from({ length: 7 }).map((_, i) => (
+        <Card key={i} className="p-4">
+          <CardContent className="p-0">
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="mt-2 h-8 w-12" />
+          </CardContent>
+        </Card>
+      ))}
+    </div>
   );
 }
