@@ -5,6 +5,7 @@ import {
 } from '@/lib/constants';
 import type { PositionQuestionForEdit } from '@/lib/types';
 
+import { QuestionOptionChips } from '@/components/features/question-option-chips';
 import { Badge } from '@/components/ui/badge';
 
 interface PositionQuestionSummaryProps {
@@ -31,23 +32,11 @@ export function PositionQuestionSummary({
           {question.required ? 'Required' : 'Optional'}
         </span>
       </div>
-      {(question.options.length > 0 || question.allowOther) && (
-        <div className="mt-1 flex flex-wrap gap-1">
-          {question.options.map((opt) => (
-            <span
-              key={opt}
-              className="bg-secondary text-secondary-foreground rounded-full px-2 py-0.5 text-xs"
-            >
-              {opt}
-            </span>
-          ))}
-          {question.allowOther && (
-            <span className="bg-secondary text-secondary-foreground rounded-full px-2 py-0.5 text-xs">
-              + Other
-            </span>
-          )}
-        </div>
-      )}
+      <QuestionOptionChips
+        options={question.options}
+        allowOther={question.allowOther}
+        className="mt-1"
+      />
     </div>
   );
 }

@@ -18,6 +18,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -79,7 +80,7 @@ function FormDialog<
     >
       <DialogTrigger asChild>{trigger}</DialogTrigger>
 
-      <DialogContent>
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
@@ -88,13 +89,15 @@ function FormDialog<
         <FormProvider {...form}>
           <form
             onSubmit={form.handleSubmit(handleSubmit)}
-            className="space-y-8"
+            className="flex flex-col gap-4"
           >
             {children}
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="animate-spin" />}
-              {submitLabel}
-            </Button>
+            <DialogFooter>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="animate-spin" />}
+                {submitLabel}
+              </Button>
+            </DialogFooter>
           </form>
         </FormProvider>
       </DialogContent>
