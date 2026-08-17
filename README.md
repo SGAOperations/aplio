@@ -89,6 +89,9 @@ The app runs at <http://localhost:3000>.
 | `db:start`        | Start the local Postgres Docker container                |
 | `db:stop`         | Stop the local Postgres Docker container                 |
 | `db:reset`        | Reset the database and re-run all migrations             |
+| `test`            | Run the full suite (unit + db projects, used in CI)      |
+| `test:unit`       | Run only the no-database unit project                    |
+| `test:watch`      | Run the suite in watch mode                              |
 | `prettier:fix`    | Format all files with Prettier                           |
 | `prettier:check`  | Check formatting (used in CI)                            |
 | `eslint:check`    | Lint with zero warnings allowed (used in CI)             |
@@ -96,6 +99,18 @@ The app runs at <http://localhost:3000>.
 | `tsc:check`       | Type-check without emitting (used in CI)                 |
 
 > Always run Prisma through `npm run prisma:*` — never `npx prisma` directly.
+
+## Running tests
+
+Two Vitest projects: `unit` (pure functions, no database, in `tests/unit/`) and `db` (real Postgres, real Prisma, real guards, in `tests/db/`). All tests live under `tests/`, never co-located with the source files they cover.
+
+```bash
+npm run db:start
+npm run prisma:generate
+npm run test
+```
+
+`npm run db:start` first — the `db` project connects to whatever `DATABASE_URL` points at and writes/deletes rows there (scoped to a `vitest-` prefix and swept on every run), so never point it at a remote or production database. `npm run test:unit` runs only the no-database subset and is useful when Postgres isn't available locally; CI always runs the full suite.
 
 ## Deployment & databases
 
@@ -144,6 +159,13 @@ lib/
   auth/           # Auth helpers (server.ts, client.ts)
   prisma.ts       # Prisma client singleton
 
+tests/
+  unit/           # Vitest unit project — pure functions, no database
+  db/             # Vitest db project — real Postgres, real guards
+  stubs/          # Alias targets for the db project (auth, next/cache, server-only)
+  helpers/        # Fixture creation and cleanup
+  global-setup.ts # Guards DATABASE_URL, sweeps leftover fixtures
+
 middleware.ts     # Route auth middleware
 ```
 
@@ -165,15 +187,16 @@ Example: `#203 add readme for contributors`
 
 ### Pre-push checks
 
-All three must pass before pushing:
+All four must pass before pushing:
 
 ```bash
 npm run prettier:check
 npm run eslint:check
 npm run tsc:check
+npm run test
 ```
 
-Fix formatting with `npm run prettier:fix`; fix lint issues in code (never with `eslint-disable` comments).
+Fix formatting with `npm run prettier:fix`; fix lint issues in code (never with `eslint-disable` comments). If Postgres isn't available locally, run `npm run test:unit` instead and rely on CI for the full suite.
 
 ### Issue tracking
 
