@@ -1,5 +1,7 @@
 'use client';
 
-import { createAuthClient } from '@neondatabase/auth/next';
+import { emailOTPClient } from 'better-auth/client/plugins';
+import { createAuthClient } from 'better-auth/react';
 
-export const authClient = createAuthClient();
+// No baseURL: same-origin requests to /api/auth resolve against the current host.
+export const authClient = createAuthClient({ plugins: [emailOTPClient()] });

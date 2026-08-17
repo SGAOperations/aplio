@@ -19,12 +19,12 @@ export async function loginAsBypassUser(role: BypassRole) {
   const config = BYPASS_USERS[role];
   if (!config) return;
 
-  const { email, neonAuthId, isAdmin } = config;
+  const { email, isAdmin } = config;
 
   const user = await prisma.user.upsert({
-    where: { neonAuthId },
-    update: { email, isAdmin },
-    create: { email, neonAuthId, isAdmin },
+    where: { email },
+    update: { isAdmin },
+    create: { email, isAdmin },
   });
 
   if (role === 'position-manager') {

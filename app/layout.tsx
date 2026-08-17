@@ -4,7 +4,6 @@ import { inter } from '@/lib/fonts';
 import { cn } from '@/lib/utils';
 
 import { Providers } from '@/components/providers';
-import { AuthProvider } from '@/components/providers/auth-provider';
 
 import './globals.css';
 
@@ -36,9 +35,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={cn('w-full font-sans antialiased', inter.variable)}>
-        <AuthProvider>
-          <Providers>{children}</Providers>
-        </AuthProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

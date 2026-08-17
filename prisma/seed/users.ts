@@ -4,21 +4,11 @@ import type { ApplicantDef } from './types';
 
 // Applicants, the three dev-bypass identities, and one deactivated user.
 export const applicantDefs: ApplicantDef[] = [
-  {
-    email: BYPASS_USERS.admin.email,
-    name: 'Bypass Admin',
-    neonAuthId: BYPASS_USERS.admin.neonAuthId,
-    isAdmin: true,
-  },
-  {
-    email: BYPASS_USERS.applicant.email,
-    name: 'Bypass Applicant',
-    neonAuthId: BYPASS_USERS.applicant.neonAuthId,
-  },
+  { email: BYPASS_USERS.admin.email, name: 'Bypass Admin', isAdmin: true },
+  { email: BYPASS_USERS.applicant.email, name: 'Bypass Applicant' },
   {
     email: BYPASS_USERS['position-manager'].email,
     name: 'Bypass Position Manager',
-    neonAuthId: BYPASS_USERS['position-manager'].neonAuthId,
   },
   { email: 'alice@example.com', name: 'Alice Chen' },
   { email: 'bob@example.com', name: 'Bob Martinez' },
