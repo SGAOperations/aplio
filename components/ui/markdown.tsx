@@ -1,14 +1,17 @@
 import ReactMarkdown, { type Components } from 'react-markdown';
 
 import rehypeRaw from 'rehype-raw';
+import rehypeSanitize, { type Options, defaultSchema } from 'rehype-sanitize';
 import remarkBreaks from 'remark-breaks';
 import remarkGfm from 'remark-gfm';
 
 import { cn } from '@/lib/utils';
 
 // rehypeRaw parses raw HTML (needed for <u> — markdown has no native underline
-// syntax); allowedElements below still acts as the allowlist, so any other raw
-// tag (e.g. <script>) is dropped rather than rendered.
+// syntax) into the tree; it does not sanitize, so rehypeSanitize runs right
+// after it to strip anything not explicitly allowed below (event handlers,
+// style, non-http(s) hrefs, disallowed tags) before allowedElements applies
+// its own per-variant filter.
 const FULL_ALLOWED_ELEMENTS = [
   'p',
   'br',
@@ -150,6 +153,17 @@ const compactComponents: Components = {
   ),
 };
 
+// Extends the default GitHub-style schema rather than replacing it: keeps the
+// tag allowlist to what the components above actually render, strips every
+// attribute except an explicit `a` allowlist (so on*/style never survive),
+// and narrows link protocols to http(s) only.
+const sanitizeSchema: Options = {
+  ...defaultSchema,
+  tagNames: FULL_ALLOWED_ELEMENTS,
+  attributes: { a: ['href', 'title', 'target', 'rel'] },
+  protocols: { href: ['http', 'https'] },
+};
+
 interface MarkdownProps {
   source: string;
   variant: 'full' | 'compact';
@@ -165,7 +179,7 @@ export function Markdown({ source, variant, className }: MarkdownProps) {
     >
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkBreaks]}
-        rehypePlugins={[rehypeRaw]}
+        rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema]]}
         allowedElements={
           isFull ? FULL_ALLOWED_ELEMENTS : COMPACT_ALLOWED_ELEMENTS
         }
