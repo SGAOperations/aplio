@@ -67,19 +67,8 @@ export const getCurrentUser = cache(async function getCurrentUser() {
   redirect('/login');
 });
 
-// Name gate — every authenticated route under app/(main)/ redirects a
-// nameless user to /login to complete their name before rendering. The only
-// bypass is an anonymous visitor (getOptionalUser() -> null), which is what
-// keeps /positions and /positions/[id] publicly browsable — callers there
-// must guard with `if (user) await requireName(user)` rather than calling
-// this unconditionally. Deliberately NOT folded into getCurrentUser: the
-// setUserName server action also calls getCurrentUser to resolve the caller,
-// and would redirect itself away before it could ever write the name.
-// Carries the requested path (set by proxy.ts on the `x-current-path`
-// header, since Server Components have no direct access to the request URL)
-// so /login can route the user back to their original destination — e.g. an
-// in-progress application — after they set their name, instead of dropping
-// them at the generic listing.
+// Public routes must guard with `if (user) await requireName(user)` — anonymous visitors bypass.
+// Not folded into getCurrentUser: setUserName calls getCurrentUser too and would redirect before writing the name.
 export async function requireName(user: Pick<User, 'name'>): Promise<void> {
   if (user.name?.trim()) return;
   const currentPath = (await headers()).get('x-current-path');
