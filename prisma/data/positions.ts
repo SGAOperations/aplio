@@ -147,7 +147,10 @@ export async function getManagedPositionsSummary(
       _count: {
         select: {
           applications: {
-            where: { deletedAt: null, status: { not: 'draft' } },
+            where: {
+              deletedAt: null,
+              status: { notIn: ['draft', 'withdrawn'] },
+            },
           },
         },
       },
