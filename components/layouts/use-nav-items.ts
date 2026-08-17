@@ -38,16 +38,15 @@ export function useNavItems({
     ...(isAdmin ? manageAdminNavItems : []),
   ];
 
-  const topLevelItems = identity ? [homeNavItem] : anonymousNavItems;
+  // Apply items sit directly under Home, ungrouped — only Manage gets a heading.
+  const topLevelItems = identity
+    ? [homeNavItem, ...applyNavItems]
+    : anonymousNavItems;
 
-  const groups: NavGroup[] = identity
-    ? [
-        { id: 'nav-group-apply', label: 'Apply', items: applyNavItems },
-        ...(manageItems.length > 0
-          ? [{ id: 'nav-group-manage', label: 'Manage', items: manageItems }]
-          : []),
-      ]
-    : [];
+  const groups: NavGroup[] =
+    identity && manageItems.length > 0
+      ? [{ id: 'nav-group-manage', label: 'Manage', items: manageItems }]
+      : [];
 
   // Anonymous visitors land on /positions; authenticated users go to the dashboard.
   const logoHref = identity ? '/' : '/positions';
