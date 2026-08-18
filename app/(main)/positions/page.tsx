@@ -88,10 +88,7 @@ export default async function PositionsPage() {
       ? await getPositionApplicationStats([...managedIds])
       : new Map<string, PositionApplicationStats>();
 
-  // Derived from the manager flag, not the list length — isManager and
-  // getManagedPositions deliberately disagree once every managed position is
-  // closed >30 days with nothing pending, which is exactly when the section's
-  // own empty state (not omission) is the right call.
+  // isManager and getManagedPositions disagree once positions are closed >30d with nothing pending — empty state, not omission.
   const showManagedSection = isManagerUser;
 
   // Managed positions get their own section — exclude them here to avoid duplication.
@@ -114,31 +111,14 @@ export default async function PositionsPage() {
       />
 
       {/* My Managed Positions — shown first for managers; omitted for non-managers */}
-      {showManagedSection &&
-        (managedPositions.length === 0 ? (
-          <section
-            aria-labelledby="managed-positions-heading"
-            className="flex flex-col gap-4"
-          >
-            <h2
-              id="managed-positions-heading"
-              className="text-lg font-semibold"
-            >
-              My Managed Positions
-            </h2>
-            <EmptyState
-              icon={Briefcase}
-              title="No active positions"
-              description="Positions you manage appear here. Closed positions drop off 30 days after they close once no applications are pending."
-              action={<PositionCreateDialog />}
-            />
-          </section>
-        ) : (
-          <ManagedPositionsSection
-            positions={managedPositions}
-            statsByPosition={statsByPosition}
-          />
-        ))}
+      {showManagedSection && (
+        <ManagedPositionsSection
+          positions={managedPositions}
+          statsByPosition={statsByPosition}
+          emptyDescription="Positions you manage appear here. Closed positions drop off 30 days after they close once no applications are pending."
+          emptyAction={<PositionCreateDialog />}
+        />
+      )}
 
       {/* Open Positions — always rendered, even when empty */}
       <section
