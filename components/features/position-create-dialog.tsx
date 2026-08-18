@@ -14,6 +14,7 @@ import { STATUS_OPTIONS, positionFormSchema } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import {
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -116,8 +117,11 @@ function PositionFormFields() {
           <FormItem>
             <FormLabel>Opens at (optional)</FormLabel>
             <FormControl>
-              <Input type="datetime-local" disabled={isSubmitting} {...field} />
+              <Input type="date" disabled={isSubmitting} {...field} />
             </FormControl>
+            <FormDescription>
+              Applications open at 12:00 AM Eastern on this day.
+            </FormDescription>
             <FormMessage />
           </FormItem>
         )}
@@ -129,8 +133,11 @@ function PositionFormFields() {
           <FormItem>
             <FormLabel>Closes at (optional)</FormLabel>
             <FormControl>
-              <Input type="datetime-local" disabled={isSubmitting} {...field} />
+              <Input type="date" disabled={isSubmitting} {...field} />
             </FormControl>
+            <FormDescription>
+              Applications close at 11:59 PM Eastern on this day.
+            </FormDescription>
             <FormMessage />
           </FormItem>
         )}

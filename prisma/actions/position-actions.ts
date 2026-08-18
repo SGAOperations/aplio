@@ -16,6 +16,7 @@ import {
   ARCHIVED_POSITION_EDIT_ERROR,
   POSITION_DELETE_BLOCKED_ERROR,
 } from '@/lib/constants';
+import { orgDayEnd, orgDayStart } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
 import type { PositionManager, UserSearchResult } from '@/lib/types';
 import { type ResponseType } from '@/lib/utils';
@@ -25,8 +26,8 @@ const createPositionSchema = z.object({
   title: z.string().min(1),
   description: z.string().optional().default(''),
   status: z.enum(['draft', 'open', 'closed']),
-  opensAt: z.string().optional(),
-  closesAt: z.string().optional(),
+  opensAt: z.iso.date().optional(),
+  closesAt: z.iso.date().optional(),
 });
 
 const updatePositionSchema = z.object({
@@ -34,8 +35,8 @@ const updatePositionSchema = z.object({
   title: z.string().min(1),
   description: z.string().optional().default(''),
   status: z.enum(['draft', 'open', 'closed']),
-  opensAt: z.string().optional(),
-  closesAt: z.string().optional(),
+  opensAt: z.iso.date().optional(),
+  closesAt: z.iso.date().optional(),
 });
 
 const deletePositionSchema = z.object({ id: z.string().min(1) });
@@ -66,8 +67,8 @@ export async function createPosition(
       title,
       description,
       status,
-      opensAt: opensAt ? new Date(opensAt) : null,
-      closesAt: closesAt ? new Date(closesAt) : null,
+      opensAt: opensAt ? orgDayStart(opensAt) : null,
+      closesAt: closesAt ? orgDayEnd(closesAt) : null,
       createdById: user.id,
       updatedById: user.id,
       managers: { connect: { id: user.id } },
@@ -108,8 +109,8 @@ export async function updatePosition(
       title,
       description,
       status,
-      opensAt: opensAt ? new Date(opensAt) : null,
-      closesAt: closesAt ? new Date(closesAt) : null,
+      opensAt: opensAt ? orgDayStart(opensAt) : null,
+      closesAt: closesAt ? orgDayEnd(closesAt) : null,
       updatedById: user.id,
     },
   });
