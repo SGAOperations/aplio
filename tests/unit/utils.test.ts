@@ -12,6 +12,7 @@ import {
   isError,
   isPositionActive,
   partitionAnswerValue,
+  summarizeBulkStatusChange,
 } from '@/lib/utils';
 
 // Fixed, mid-August — clear of the March/November DST transitions.
@@ -359,6 +360,57 @@ describe('isError', () => {
   it('is false for null and undefined', () => {
     expect(isError(null)).toBe(false);
     expect(isError(undefined)).toBe(false);
+  });
+});
+
+describe('summarizeBulkStatusChange', () => {
+  it('has no skipped label when nothing is skipped', () => {
+    expect(
+      summarizeBulkStatusChange([
+        { status: 'applied' },
+        { status: 'reviewing' },
+      ]),
+    ).toEqual({ eligibleCount: 2, skippedCount: 0, skippedLabel: null });
+  });
+
+  it('names a single withdrawn row', () => {
+    expect(
+      summarizeBulkStatusChange([
+        { status: 'applied' },
+        { status: 'withdrawn' },
+      ]),
+    ).toEqual({
+      eligibleCount: 1,
+      skippedCount: 1,
+      skippedLabel: '1 withdrawn application',
+    });
+  });
+
+  it('handles every row being withdrawn', () => {
+    expect(
+      summarizeBulkStatusChange([
+        { status: 'withdrawn' },
+        { status: 'withdrawn' },
+      ]),
+    ).toEqual({
+      eligibleCount: 0,
+      skippedCount: 2,
+      skippedLabel: '2 withdrawn applications',
+    });
+  });
+
+  it('combines draft and withdrawn counts in NON_REVIEWABLE order', () => {
+    expect(
+      summarizeBulkStatusChange([
+        { status: 'withdrawn' },
+        { status: 'draft' },
+        { status: 'applied' },
+      ]),
+    ).toEqual({
+      eligibleCount: 1,
+      skippedCount: 2,
+      skippedLabel: '1 draft application and 1 withdrawn application',
+    });
   });
 });
 

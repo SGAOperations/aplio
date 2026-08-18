@@ -521,13 +521,15 @@ const updateApplicationStatusesSchema = z.object({
 // Authorization in the updateMany where, so the target set can't drift mid-write.
 export async function updateApplicationStatuses(
   input: unknown,
-): Promise<{ updated: number } | { error: string }> {
+): Promise<{ updated: number; skipped: number } | { error: string }> {
   const user = await getCurrentUser();
 
   const parsed = updateApplicationStatusesSchema.safeParse(input);
   if (!parsed.success) return { error: 'Invalid input' };
 
-  const { applicationIds, status } = parsed.data;
+  // `in` collapses duplicates, so dedupe first or skipped would be inflated.
+  const applicationIds = Array.from(new Set(parsed.data.applicationIds));
+  const { status } = parsed.data;
 
   // The scoped where silently excludes forged and out-of-scope ids.
   const where = user.isAdmin
@@ -553,13 +555,17 @@ export async function updateApplicationStatuses(
     data: { status, updatedById: user.id },
   });
 
-  if (result.count === 0) return { error: 'No applications were updated.' };
+  // IDOR-style miss, unreachable from the UI — throw, don't return.
+  if (result.count === 0) throw new Error('No applications were updated');
 
   revalidatePath('/applications');
   // Wildcard segment: a bulk update has no individual positionIds to hand.
   revalidatePath('/applications/[id]', 'layout');
 
-  return { updated: result.count };
+  return {
+    updated: result.count,
+    skipped: applicationIds.length - result.count,
+  };
 }
 
 export async function withdrawApplication(
