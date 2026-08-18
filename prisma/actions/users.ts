@@ -17,6 +17,8 @@ const toggleAdminSchema = z.object({
 
 const deactivateSchema = z.object({ userId: z.string().min(1) });
 
+const reactivateSchema = z.object({ userId: z.string().min(1) });
+
 type ActionError = { error: string };
 
 export async function toggleUserAdmin(
@@ -78,6 +80,32 @@ export async function deactivateUser(
   revalidatePath('/users');
 }
 
+// Caller is active by definition (getCurrentUser resolves only live rows), so
+// they can never appear in the deactivated list — no self-reactivation guard needed.
+export async function reactivateUser(
+  input: unknown,
+): Promise<ActionError | void> {
+  const admin = await requireAdmin();
+
+  const parsed = reactivateSchema.safeParse(input);
+  if (!parsed.success) return { error: 'Invalid input' };
+
+  const { userId } = parsed.data;
+
+  // Scoping to deletedAt: { not: null } makes a double-submit a no-op
+  // instead of a spurious audit write.
+  const result = await prisma.user.updateMany({
+    where: { id: userId, deletedAt: { not: null } },
+    data: { deletedAt: null, deletedById: null, updatedById: admin.id },
+  });
+
+  // Not reachable from the freshly-rendered deactivated list → unexpected → throw.
+  if (result.count === 0) throw new Error('User not found or already active');
+
+  revalidatePath('/users');
+  revalidatePath('/users/deactivated');
+}
+
 export async function createUser(input: unknown): Promise<ActionError | void> {
   const admin = await requireAdmin();
 
@@ -89,9 +117,15 @@ export async function createUser(input: unknown): Promise<ActionError | void> {
   // Racy — the P2002 catch below is what actually guarantees uniqueness.
   const existing = await prisma.user.findFirst({
     where: { email },
-    select: { id: true },
+    select: { id: true, deletedAt: true },
   });
-  if (existing) return { error: 'A user with this email already exists.' };
+  if (existing)
+    return existing.deletedAt
+      ? {
+          error:
+            'That email belongs to a deactivated account. Reactivate it from Users → Deactivated accounts.',
+        }
+      : { error: 'A user with this email already exists.' };
 
   // Verified in better-auth's sign-in/email-otp route: it matches this row
   // by exact email before ever inserting, so it's found here, never duplicated.
