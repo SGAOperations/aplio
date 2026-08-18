@@ -80,14 +80,23 @@ function applyInlineMarker(
     return;
   }
 
-  const text = selected || placeholder;
+  // Leading/trailing whitespace inside the markers breaks CommonMark emphasis
+  // parsing — keep it outside so `text ` becomes `*text* ` not `*text *`.
+  const leadingSpace = selected.match(/^\s*/)?.[0] ?? '';
+  const trailingSpace = selected.match(/\s*$/)?.[0] ?? '';
+  const trimmed = selected.slice(
+    leadingSpace.length,
+    selected.length - trailingSpace.length,
+  );
+
+  const text = trimmed || placeholder;
   el.setRangeText(
-    `${before}${text}${after}`,
+    `${leadingSpace}${before}${text}${after}${trailingSpace}`,
     selectionStart,
     selectionEnd,
     'select',
   );
-  const newStart = selectionStart + before.length;
+  const newStart = selectionStart + leadingSpace.length + before.length;
   el.setSelectionRange(newStart, newStart + text.length);
 }
 
@@ -164,25 +173,25 @@ const TOOLBAR_ITEMS: {
   label: string;
   icon: typeof Bold;
   action: ToolbarAction;
-  shortcut?: { key: string; display: string; shiftKey?: boolean };
+  shortcut?: { code: string; display: string; shiftKey?: boolean };
 }[] = [
   {
     label: 'Bold',
     icon: Bold,
     action: { kind: 'inline', before: '**', after: '**' },
-    shortcut: { key: 'b', display: 'Ctrl+B' },
+    shortcut: { code: 'KeyB', display: 'Ctrl+B' },
   },
   {
     label: 'Italic',
     icon: Italic,
     action: { kind: 'inline', before: '_', after: '_' },
-    shortcut: { key: 'i', display: 'Ctrl+I' },
+    shortcut: { code: 'KeyI', display: 'Ctrl+I' },
   },
   {
     label: 'Underline',
     icon: Underline,
     action: { kind: 'inline', before: '<u>', after: '</u>' },
-    shortcut: { key: 'u', display: 'Ctrl+Shift+U', shiftKey: true },
+    shortcut: { code: 'KeyU', display: 'Ctrl+Shift+U', shiftKey: true },
   },
   {
     label: 'Heading',
@@ -207,7 +216,7 @@ const TOOLBAR_ITEMS: {
     label: 'Link',
     icon: Link2,
     action: { kind: 'link' },
-    shortcut: { key: 'k', display: 'Ctrl+K' },
+    shortcut: { code: 'KeyK', display: 'Ctrl+K' },
   },
 ];
 
@@ -274,11 +283,15 @@ export function MarkdownField() {
           const el = textareaRef.current;
           if (!el) return;
 
+          // Matched on the physical `code`, not `key` — on Linux, IME/compose
+          // sequences (e.g. Ctrl+Shift+U for Unicode input) can rewrite `key`
+          // before our handler runs, but `code` still reports the real key,
+          // so preventDefault reliably blocks the browser's native behavior.
           const isModPressed = event.metaKey || event.ctrlKey;
           if (isModPressed) {
             const item = TOOLBAR_ITEMS.find(
               (candidate) =>
-                candidate.shortcut?.key === event.key.toLowerCase() &&
+                candidate.shortcut?.code === event.code &&
                 Boolean(candidate.shortcut.shiftKey) === event.shiftKey,
             );
             if (item) {
@@ -301,12 +314,12 @@ export function MarkdownField() {
               <div className="flex items-center gap-2">
                 <span
                   className={
-                    mode === 'write'
+                    mode === 'preview'
                       ? 'text-foreground text-xs font-medium'
                       : 'text-muted-foreground text-xs'
                   }
                 >
-                  Write
+                  Preview
                 </span>
                 <Switch
                   checked={mode === 'preview'}
@@ -316,15 +329,6 @@ export function MarkdownField() {
                   disabled={isSubmitting}
                   aria-label="Toggle preview"
                 />
-                <span
-                  className={
-                    mode === 'preview'
-                      ? 'text-foreground text-xs font-medium'
-                      : 'text-muted-foreground text-xs'
-                  }
-                >
-                  Preview
-                </span>
               </div>
             </div>
 
@@ -390,14 +394,16 @@ export function MarkdownField() {
             {mode === 'write' && (
               <div className="flex items-center justify-between gap-2">
                 <FormDescription className="text-xs">
+                  Use{' '}
                   <a
                     href={MARKDOWN_GUIDE_URL}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-primary underline underline-offset-4"
                   >
-                    Use markdown for text formatting
-                  </a>
+                    markdown
+                  </a>{' '}
+                  for text formatting.
                 </FormDescription>
                 {field.value.length >= COUNTER_THRESHOLD && (
                   <span
