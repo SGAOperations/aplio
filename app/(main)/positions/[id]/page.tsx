@@ -63,7 +63,7 @@ export default async function PublicPositionDetailPage({
   const availability = getPositionAvailability(position);
   const isAccepting = availability === 'accepting';
   const isClosed =
-    availability === 'closed_by_date' || availability === 'unavailable';
+    availability === 'closed_by_date' || position.status === 'closed';
   const description = position.description.trim();
 
   return (
