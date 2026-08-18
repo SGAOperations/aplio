@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation';
 import type { User } from '@/prisma/client';
 import { checkPositionAccess, isManager } from '@/prisma/data/managers';
 
-import { getCurrentUser } from '@/lib/auth/server';
+import { getCurrentUser, getOptionalUser } from '@/lib/auth/server';
 
 // Action guards throw; page guards 404, so a denial never leaks existence.
 
@@ -86,4 +86,16 @@ export async function requireListedManagerOr404(
   if (!user.isAdmin && !managers.some((manager) => manager.id === user.id))
     notFound();
   return user;
+}
+
+// Public-page twin of requireListedManagerOr404 — never forces auth, so an
+// anonymous visitor and a signed-in non-manager get the identical 404 from the caller.
+export async function getOptionalManagerAccess(
+  managers: { id: string }[],
+): Promise<{ user: User | null; canManage: boolean }> {
+  const user = await getOptionalUser();
+  const canManage =
+    user !== null &&
+    (user.isAdmin || managers.some((manager) => manager.id === user.id));
+  return { user, canManage };
 }

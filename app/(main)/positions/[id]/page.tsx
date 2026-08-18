@@ -2,16 +2,36 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import { Inbox, Pencil } from 'lucide-react';
+import { EyeOff, Inbox, Pencil } from 'lucide-react';
 
-import { getPublicPosition } from '@/prisma/data/positions';
+import type { User } from '@/prisma/client';
+import { getPositionDetail } from '@/prisma/data/positions';
 
-import { getOptionalUser, requireName } from '@/lib/auth/server';
-import { AVAILABILITY_LABELS, AVAILABILITY_VARIANTS } from '@/lib/constants';
+import { getOptionalManagerAccess } from '@/lib/auth/guards';
+import { requireName } from '@/lib/auth/server';
+import type { PositionDetail } from '@/lib/types';
 import { formatDate, getPositionAvailability } from '@/lib/utils';
 
+import { PositionStatusBadge } from '@/components/features/status-badge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { WarningCallout } from '@/components/ui/warning-callout';
+
+async function resolvePositionView(
+  id: string,
+): Promise<{
+  position: PositionDetail;
+  user: User | null;
+  canManage: boolean;
+} | null> {
+  const position = await getPositionDetail(id);
+  if (!position) return null;
+
+  const { user, canManage } = await getOptionalManagerAccess(position.managers);
+  if (position.status === 'draft' && !canManage) return null;
+
+  return { position, user, canManage };
+}
 
 export async function generateMetadata({
   params,
@@ -19,11 +39,11 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const position = await getPublicPosition(id);
-  if (!position) return {};
+  const view = await resolvePositionView(id);
+  if (!view) return {};
   return {
-    title: position.title,
-    description: position.description.slice(0, 155),
+    title: view.position.title,
+    description: view.position.description.slice(0, 155),
   };
 }
 
@@ -33,19 +53,18 @@ export default async function PublicPositionDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [position, user] = await Promise.all([
-    getPublicPosition(id),
-    getOptionalUser(),
-  ]);
+  const view = await resolvePositionView(id);
+  if (!view) notFound();
 
-  if (user) await requireName(user);
+  if (view.user) await requireName(view.user);
 
-  if (!position) notFound();
-
-  const isAdmin = user?.isAdmin ?? false;
-  const isAuthenticated = user !== null;
+  const { position, canManage } = view;
+  const isAuthenticated = view.user !== null;
   const availability = getPositionAvailability(position);
   const isAccepting = availability === 'accepting';
+  const isClosed =
+    availability === 'closed_by_date' || position.status === 'closed';
+  const description = position.description.trim();
 
   return (
     <div className="flex flex-col gap-8">
@@ -60,26 +79,46 @@ export default async function PublicPositionDetailPage({
           <h1 className="text-2xl font-semibold tracking-tight">
             {position.title}
           </h1>
-          <Badge variant={AVAILABILITY_VARIANTS[availability]}>
-            {AVAILABILITY_LABELS[availability]}
-          </Badge>
+          <PositionStatusBadge position={position} />
         </div>
       </div>
 
+      {position.status === 'draft' && (
+        <WarningCallout icon={EyeOff}>
+          <p className="font-medium">This position is a draft.</p>
+          <p>
+            Only its managers and admins can see this page. Set it to Open in
+            Edit to make it visible to applicants.
+          </p>
+        </WarningCallout>
+      )}
+
       <div className="max-w-2xl">
-        <p className="text-muted-foreground text-sm leading-relaxed">
-          {position.description}
-        </p>
+        {description ? (
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            {description}
+          </p>
+        ) : (
+          <p className="text-muted-foreground text-sm italic">
+            No description yet.
+          </p>
+        )}
       </div>
 
-      {position.questions.length > 0 && (
+      {(position.questions.length > 0 || canManage) && (
         <div className="max-w-2xl">
           <h2 className="mb-3 text-base font-medium">Application questions</h2>
-          <ul className="text-muted-foreground list-inside list-disc space-y-1 text-sm">
-            {position.questions.map((question) => (
-              <li key={question.id}>{question.label}</li>
-            ))}
-          </ul>
+          {position.questions.length > 0 ? (
+            <ul className="text-muted-foreground list-inside list-disc space-y-1 text-sm">
+              {position.questions.map((question) => (
+                <li key={question.id}>{question.label}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              No application questions yet — add them in Edit.
+            </p>
+          )}
         </div>
       )}
 
@@ -109,10 +148,12 @@ export default async function PublicPositionDetailPage({
             Opens {formatDate(position.opensAt)}
           </Badge>
         )}
-        {availability === 'closed_by_date' && (
-          <Badge variant="outline">Closed</Badge>
+        {isClosed && position.closesAt && (
+          <span className="text-muted-foreground text-sm">
+            Closed {formatDate(position.closesAt)}
+          </span>
         )}
-        {isAdmin && (
+        {canManage && (
           <>
             <Button asChild variant="outline">
               <Link href={`/positions/${id}/edit`}>
