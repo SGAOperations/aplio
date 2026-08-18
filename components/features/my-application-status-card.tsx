@@ -15,7 +15,7 @@ const STATUS_COPY: Record<$Enums.ApplicationStatus, string> = {
   reached_out: 'The team has reached out to you about this application.',
   interview_scheduled: 'An interview has been scheduled for this application.',
   reviewing: 'Your application is being reviewed.',
-  accepted: "You've been accepted for this position.",
+  accepted: "You've been accepted for this position!",
   rejected: "This application wasn't selected.",
   withdrawn:
     'You withdrew this application. You can edit and resubmit it to put it back in the queue.',
