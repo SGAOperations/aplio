@@ -235,7 +235,8 @@ export async function getOpenPositionsSummary(
 }
 
 // No status filter — the detail page gates drafts on the id-only manager list.
-export async function getPositionDetail(
+// Cached so generateMetadata and the page component share one round-trip per request.
+export const getPositionDetail = cache(async function getPositionDetail(
   id: string,
 ): Promise<PositionDetail | null> {
   return prisma.position.findFirst({
@@ -264,7 +265,7 @@ export async function getPositionDetail(
       managers: { select: { id: true } },
     },
   });
-}
+});
 
 // A plain count would include upcoming and closed-by-date, so JS applies the window.
 export async function getAcceptingPositionsCount(): Promise<number> {
@@ -274,16 +275,6 @@ export async function getAcceptingPositionsCount(): Promise<number> {
   });
   return positions.filter((p) => isAcceptingApplications(p)).length;
 }
-
-// Cached so generateMetadata and the page component share one round-trip per request.
-export const getPublicPosition = cache(async function getPublicPosition(
-  id: string,
-): Promise<PositionWithQuestions | null> {
-  return prisma.position.findUnique({
-    where: { id, status: 'open', deletedAt: null },
-    select: positionWithQuestionsSelect,
-  });
-});
 
 // Cached so generateMetadata and the page component share one round-trip per request.
 export const getPositionForEdit = cache(async function getPositionForEdit(
