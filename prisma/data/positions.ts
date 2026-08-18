@@ -11,12 +11,18 @@ import {
 import { prisma } from '@/lib/prisma';
 import {
   type ManagedPosition,
+  type ManagedPositionSummaryItem,
   type OpenPositionSummaryItem,
+  type PositionDeletionSummary,
   type PositionDetail,
   type PositionForEdit,
   type PositionWithQuestions,
 } from '@/lib/types';
-import { getPositionAvailability, isAcceptingApplications } from '@/lib/utils';
+import {
+  getPositionAvailability,
+  isAcceptingApplications,
+  isPositionActive,
+} from '@/lib/utils';
 
 const positionWithQuestionsSelect = {
   id: true,
@@ -130,6 +136,36 @@ export async function getManagedPositions(
   });
 }
 
+// Manager dashboard's "My Positions" widget: lean rows, aggregate counts only.
+export async function getManagedPositionsSummary(
+  userId: string,
+  take?: number,
+): Promise<ManagedPositionSummaryItem[]> {
+  return prisma.position.findMany({
+    where: { managers: { some: { id: userId } }, deletedAt: null },
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      opensAt: true,
+      closesAt: true,
+      _count: {
+        select: {
+          applications: {
+            where: {
+              deletedAt: null,
+              status: { notIn: ['draft', 'withdrawn'] },
+            },
+          },
+        },
+      },
+    },
+    // Enum order puts draft first, then open, then closed.
+    orderBy: [{ status: 'asc' }, { title: 'asc' }],
+    ...(take !== undefined ? { take } : {}),
+  });
+}
+
 // Cross-position data — admin-gated callers only. Closed stays while unresolved.
 export async function getAdminPositions(): Promise<PositionWithQuestions[]> {
   const cutoff = new Date();
@@ -200,7 +236,8 @@ export async function getOpenPositionsSummary(
 }
 
 // No status filter — the detail page gates drafts on the id-only manager list.
-export async function getPositionDetail(
+// Cached so generateMetadata and the page component share one round-trip per request.
+export const getPositionDetail = cache(async function getPositionDetail(
   id: string,
 ): Promise<PositionDetail | null> {
   return prisma.position.findFirst({
@@ -229,7 +266,7 @@ export async function getPositionDetail(
       managers: { select: { id: true } },
     },
   });
-}
+});
 
 // A plain count would include upcoming and closed-by-date, so JS applies the window.
 export async function getAcceptingPositionsCount(): Promise<number> {
@@ -241,19 +278,10 @@ export async function getAcceptingPositionsCount(): Promise<number> {
 }
 
 // Cached so generateMetadata and the page component share one round-trip per request.
-export const getPublicPosition = cache(async function getPublicPosition(
-  id: string,
-): Promise<PositionWithQuestions | null> {
-  return prisma.position.findUnique({
-    where: { id, status: 'open', deletedAt: null },
-    select: positionWithQuestionsSelect,
-  });
-});
-
-export async function getPositionForEdit(
+export const getPositionForEdit = cache(async function getPositionForEdit(
   id: string,
 ): Promise<PositionForEdit | null> {
-  return prisma.position.findFirst({
+  const position = await prisma.position.findFirst({
     where: { id, deletedAt: null },
     select: {
       id: true,
@@ -275,9 +303,67 @@ export async function getPositionForEdit(
           allowOther: true,
           format: true,
           order: true,
+          // Filtered count of non-deleted answers on non-deleted applications —
+          // powers the delete-question confirmation's "N applications already
+          // answered" warning (advisory only; see the ticket's risks/notes).
+          _count: {
+            select: {
+              answers: {
+                where: { deletedAt: null, application: { deletedAt: null } },
+              },
+            },
+          },
         },
       },
       managers: { select: { id: true, name: true, email: true } },
+      ...positionActivitySelect,
     },
   });
+
+  if (!position) return null;
+
+  return {
+    ...position,
+    questions: position.questions.map(({ _count, ...question }) => ({
+      ...question,
+      answerCount: _count.answers,
+    })),
+  };
+});
+
+// Mirrors checkPositionAccess's admin short-circuit; a missing/deleted position
+// returns false, so a caller needing "no longer exists" checks existence first.
+export async function checkPositionEditable(
+  positionId: string,
+  user: { id: string; isAdmin: boolean },
+): Promise<boolean> {
+  if (user.isAdmin) return true;
+
+  const position = await prisma.position.findFirst({
+    where: { id: positionId, deletedAt: null },
+    select: {
+      status: true,
+      opensAt: true,
+      closesAt: true,
+      ...positionActivitySelect,
+    },
+  });
+
+  return position !== null && isPositionActive(position);
+}
+
+// Admin-gated edit page only; counts exclude soft-deleted applications.
+export async function getPositionDeletionSummary(
+  positionId: string,
+): Promise<PositionDeletionSummary> {
+  const [submittedCount, draftCount] = await Promise.all([
+    prisma.application.count({
+      where: { positionId, deletedAt: null, status: { not: 'draft' } },
+    }),
+    prisma.application.count({
+      where: { positionId, deletedAt: null, status: 'draft' },
+    }),
+  ]);
+
+  return { submittedCount, draftCount };
 }

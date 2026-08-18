@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 import { Briefcase } from 'lucide-react';
 
 import type { ManagedPosition, PositionApplicationStats } from '@/lib/types';
@@ -10,6 +12,8 @@ import { EmptyState } from '@/components/ui/empty-state';
 interface ManagedPositionsSectionProps {
   positions: ManagedPosition[];
   statsByPosition: Map<string, PositionApplicationStats>;
+  emptyDescription?: string;
+  emptyAction?: ReactNode;
 }
 
 // Server component — partitions the caller's managed positions into active and
@@ -20,24 +24,32 @@ interface ManagedPositionsSectionProps {
 export function ManagedPositionsSection({
   positions,
   statsByPosition,
+  emptyDescription,
+  emptyAction,
 }: ManagedPositionsSectionProps) {
   const active = positions.filter((p) => isPositionActive(p));
   const archived = positions.filter((p) => !isPositionActive(p));
+  const noManagedPositions = positions.length === 0;
 
   return (
     <section
-      aria-labelledby="my-positions-heading"
+      aria-labelledby="managed-positions-heading"
       className="flex flex-col gap-4"
     >
-      <h2 id="my-positions-heading" className="text-lg font-semibold">
-        My Positions
+      <h2 id="managed-positions-heading" className="text-lg font-semibold">
+        My Managed Positions
       </h2>
 
       {active.length === 0 ? (
         <EmptyState
           icon={Briefcase}
           title="No active positions"
-          description="Every position you manage is archived — expand Archived below to see them."
+          description={
+            noManagedPositions
+              ? (emptyDescription ?? 'Positions you manage appear here.')
+              : 'Every position you manage is archived — expand Archived below to see them.'
+          }
+          action={noManagedPositions ? emptyAction : undefined}
         />
       ) : (
         <div className="flex flex-col gap-4">

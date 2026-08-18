@@ -4,7 +4,6 @@ import { redirect } from 'next/navigation';
 
 import { Info } from 'lucide-react';
 
-import { createDraftApplication } from '@/prisma/actions/applications';
 import { getApplicationForApply } from '@/prisma/data/applications';
 import { getPositionForApply } from '@/prisma/data/positions';
 import { getProfileData } from '@/prisma/data/profile';
@@ -19,11 +18,11 @@ import {
   formatDate,
   isAcceptingApplications,
   isAnswered,
-  isError,
   toStringArray,
 } from '@/lib/utils';
 
 import { ApplicationStepper } from '@/components/features/application-stepper';
+import { StartApplicationCard } from '@/components/features/start-application-card';
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
 import { PageHeader } from '@/components/layouts/page-header';
 import { Button } from '@/components/ui/button';
@@ -46,7 +45,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
   const { id } = await params;
   const user = await getCurrentUser();
 
-  const [position, profileData, existing] = await Promise.all([
+  const [position, profileData, application] = await Promise.all([
     getPositionForApply(id),
     getProfileData(user.id),
     getApplicationForApply(user.id, id),
@@ -63,29 +62,13 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
   );
 
   // Gate must match submitApplication: value must still fit the question's shape.
+  // Only gates starting a new application — an existing one has its own
+  // missing-required flow in the stepper (isCustomizing).
   const profileComplete =
     profileData.length === 0 ||
     profileData
       .filter((d) => d.question.required)
       .every((d) => isAnswered(d.question, toStringArray(d.answer?.value)));
-
-  // An existing application (any status) bypasses this gate — it only protects creating one.
-  const applicationResult =
-    existing ??
-    (isAccepting && profileComplete ? await createDraftApplication(id) : null);
-
-  // Error despite a complete profile is unexpected: error boundary, not the profile gate.
-  if (
-    !existing &&
-    isAccepting &&
-    profileComplete &&
-    applicationResult &&
-    isError(applicationResult)
-  )
-    throw new Error(applicationResult.error);
-
-  const application =
-    applicationResult && !isError(applicationResult) ? applicationResult : null;
 
   const isEditable =
     application &&
@@ -137,6 +120,11 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
                 <Link href="/my-applications">View my applications</Link>
               </Button>
               <Button asChild variant="ghost" className="w-fit">
+                <Link href={`/my-applications/${application.id}`}>
+                  View my answers
+                </Link>
+              </Button>
+              <Button asChild variant="ghost" className="w-fit">
                 <Link href={`/positions/${id}`}>Back to position</Link>
               </Button>
             </div>
@@ -167,7 +155,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
             </div>
           </CardContent>
         </Card>
-      ) : !application ? (
+      ) : !application && !profileComplete ? (
         <Card className="gap-0 p-0">
           <CardContent className="flex flex-col gap-4 p-4">
             <div>
@@ -183,6 +171,8 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
             </Button>
           </CardContent>
         </Card>
+      ) : !application ? (
+        <StartApplicationCard positionId={id} />
       ) : (
         <div className="flex flex-col gap-6">
           {isResubmit && (

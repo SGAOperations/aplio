@@ -2,13 +2,14 @@
 
 import { useId } from 'react';
 
-import { CornerDownLeft } from 'lucide-react';
+import { CornerDownLeft, X } from 'lucide-react';
 
 import {
   QUESTION_MAX_OPTIONS,
   QUESTION_OPTION_MAX_LENGTH,
 } from '@/lib/constants';
 
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 
 interface OptionsChipEditorProps {
@@ -47,21 +48,18 @@ export function OptionsChipEditor({
       {options.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {options.map((option) => (
-            <span
-              key={option}
-              className="bg-secondary text-secondary-foreground flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
-            >
+            <Badge key={option} variant="secondary" className="gap-1 pr-1">
               {option}
               <button
                 type="button"
                 onClick={() => removeOption(option)}
                 disabled={disabled}
-                className="hover:text-destructive ml-0.5 disabled:cursor-not-allowed"
+                className="hover:text-destructive focus-visible:ring-ring/50 -m-1 rounded-sm p-1 outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed"
                 aria-label={`Remove ${option}`}
               >
-                ×
+                <X className="size-3" />
               </button>
-            </span>
+            </Badge>
           ))}
         </div>
       )}

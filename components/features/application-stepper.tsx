@@ -448,7 +448,7 @@ export function ApplicationStepper({
           isResubmit ? 'Application resubmitted' : 'Application submitted',
         );
         setIsRedirecting(true);
-        router.replace('/my-applications');
+        router.replace(`/my-applications/${application.id}`);
       }
     } catch (error) {
       console.error(error);

@@ -5,7 +5,10 @@ import { headers } from 'next/headers';
 
 import { auth } from '@/lib/auth/config';
 import { getCurrentUser } from '@/lib/auth/server';
-import { signInEmailSchema } from '@/lib/constants';
+import {
+  OTP_RESEND_COOLDOWN_SECONDS,
+  signInEmailSchema,
+} from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 import type { ErrorType } from '@/lib/utils';
 
@@ -30,6 +33,24 @@ export async function checkSignInAllowed(
       error:
         'Your account has been deactivated. Please contact an administrator.',
     };
+}
+
+// Defense in depth: emailOtp's own rate limit is a 3-per-60s bucket, not a
+// per-send cooldown, so a client with a tampered/skewed timer could still
+// resend immediately. Reads the OTP row's own createdAt as the source of truth.
+export async function isOtpResendAllowed(input: unknown): Promise<boolean> {
+  const parsed = signInEmailSchema.safeParse(input);
+  if (!parsed.success) return false;
+
+  const latest = await prisma.verification.findFirst({
+    where: { identifier: `sign-in-otp-${parsed.data.email.toLowerCase()}` },
+    orderBy: { createdAt: 'desc' },
+    select: { createdAt: true },
+  });
+  if (!latest) return true;
+
+  const elapsedMs = Date.now() - latest.createdAt.getTime();
+  return elapsedMs >= OTP_RESEND_COOLDOWN_SECONDS * 1000;
 }
 
 // Must not redirect(): awaited from an event handler, so it would look like a failure.

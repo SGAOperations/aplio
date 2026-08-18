@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,11 +9,17 @@ import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { z } from 'zod/v4';
 
-import { checkSignInAllowed } from '@/prisma/actions/auth';
+import { checkSignInAllowed, isOtpResendAllowed } from '@/prisma/actions/auth';
 
 import { authClient } from '@/lib/auth/client';
 import {
+  getErrorCode,
+  getOtpSendErrorMessage,
+  getOtpVerifyErrorMessage,
+} from '@/lib/auth/errors';
+import {
   ACCOUNT_DEACTIVATED_ERROR_CODE,
+  OTP_RESEND_COOLDOWN_SECONDS,
   signInEmailSchema,
 } from '@/lib/constants';
 import { isError } from '@/lib/utils';
@@ -46,11 +52,38 @@ const otpSchema = z.object({
 
 type OtpFormValues = z.infer<typeof otpSchema>;
 
+function otpResendCooldownDeadline(): number {
+  return Date.now() + OTP_RESEND_COOLDOWN_SECONDS * 1000;
+}
+
 export function LoginView({ copy }: LoginViewProps) {
   const router = useRouter();
   const [step, setStep] = useState<'email' | 'otp'>('email');
   const [capturedEmail, setCapturedEmail] = useState('');
   const [isRouting, startTransition] = useTransition();
+  const [isResending, setIsResending] = useState(false);
+  const [resendCooldownUntil, setResendCooldownUntil] = useState<number | null>(
+    null,
+  );
+  const [resendSecondsLeft, setResendSecondsLeft] = useState(0);
+
+  // Countdown tick only — the actual cooldown is enforced server-side in sendCode.
+  useEffect(() => {
+    if (resendCooldownUntil === null) return;
+
+    const tick = () => {
+      const secondsLeft = Math.max(
+        0,
+        Math.ceil((resendCooldownUntil - Date.now()) / 1000),
+      );
+      setResendSecondsLeft(secondsLeft);
+      if (secondsLeft === 0) setResendCooldownUntil(null);
+    };
+
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [resendCooldownUntil]);
 
   const emailForm = useForm<EmailFormValues>({
     resolver: zodResolver(signInEmailSchema),
@@ -60,7 +93,31 @@ export function LoginView({ copy }: LoginViewProps) {
   const otpForm = useForm<OtpFormValues>({
     resolver: zodResolver(otpSchema),
     defaultValues: { otp: '' },
+    mode: 'onSubmit',
+    reValidateMode: 'onSubmit',
   });
+
+  async function sendCode(email: string): Promise<string | null> {
+    // Server-side cooldown check — don't trust the client's own countdown.
+    const allowed = await isOtpResendAllowed({ email });
+    if (!allowed) return getOtpSendErrorMessage({ status: 429 });
+
+    try {
+      const result = await authClient.emailOtp.sendVerificationOtp({
+        email,
+        type: 'sign-in',
+      });
+      if (result.error) {
+        console.error('sendVerificationOtp returned an error', result.error);
+        return getOtpSendErrorMessage(result.error);
+      }
+      setResendCooldownUntil(otpResendCooldownDeadline());
+      return null;
+    } catch (error) {
+      console.error('sendVerificationOtp threw', error);
+      return getOtpSendErrorMessage(error);
+    }
+  }
 
   async function handleEmailSubmit(data: EmailFormValues) {
     try {
@@ -75,13 +132,9 @@ export function LoginView({ copy }: LoginViewProps) {
       return;
     }
 
-    const result = await authClient.emailOtp.sendVerificationOtp({
-      email: data.email,
-      type: 'sign-in',
-    });
-
-    if (result.error) {
-      toast.error("Couldn't send the code. Please try again.");
+    const message = await sendCode(data.email);
+    if (message) {
+      toast.error(message);
       return;
     }
 
@@ -90,24 +143,48 @@ export function LoginView({ copy }: LoginViewProps) {
     setStep('otp');
   }
 
-  async function handleOtpSubmit(data: OtpFormValues) {
-    const result = await authClient.signIn.emailOtp({
-      email: capturedEmail,
-      otp: data.otp,
-    });
-
-    if (result.error) {
-      toast.error(
-        result.error.code === ACCOUNT_DEACTIVATED_ERROR_CODE
+  function failOtp(error: unknown) {
+    console.error('signIn.emailOtp failed', error);
+    otpForm.setError('otp', {
+      type: 'server',
+      message:
+        getErrorCode(error) === ACCOUNT_DEACTIVATED_ERROR_CODE
           ? 'Your account has been deactivated. Please contact an administrator.'
-          : 'That code is incorrect or expired.',
-      );
-      otpForm.reset({ otp: '' });
+          : getOtpVerifyErrorMessage(error),
+    });
+  }
+
+  async function handleOtpSubmit(data: OtpFormValues) {
+    try {
+      const result = await authClient.signIn.emailOtp({
+        email: capturedEmail,
+        otp: data.otp,
+      });
+      if (result.error) {
+        failOtp(result.error);
+        return;
+      }
+    } catch (error) {
+      failOtp(error);
       return;
     }
 
     // /login decides the destination — name form or onward redirect.
     startTransition(() => router.refresh());
+  }
+
+  async function handleResend() {
+    setIsResending(true);
+    const message = await sendCode(capturedEmail);
+    setIsResending(false);
+
+    if (message) {
+      toast.error(message);
+      return;
+    }
+
+    otpForm.reset({ otp: '' });
+    toast.success('New code sent.');
   }
 
   function handleBack() {
@@ -138,7 +215,7 @@ export function LoginView({ copy }: LoginViewProps) {
             <FormField
               control={otpForm.control}
               name="otp"
-              render={({ field }) => (
+              render={({ field, fieldState }) => (
                 <FormItem className="flex flex-col items-center gap-2">
                   <FormLabel className="sr-only">One-time code</FormLabel>
                   <FormControl>
@@ -147,26 +224,37 @@ export function LoginView({ copy }: LoginViewProps) {
                       aria-label="One-time code"
                       value={field.value}
                       disabled={isRouting}
-                      onChange={(value) => {
+                      onChange={async (value) => {
+                        otpForm.clearErrors('otp');
                         field.onChange(value);
-                        // Auto-submit when all 6 digits are entered
-                        if (value.length === 6) {
-                          void otpForm.handleSubmit(handleOtpSubmit)();
+                        if (
+                          value.length === 6 &&
+                          !otpForm.formState.isSubmitting
+                        ) {
+                          await otpForm.handleSubmit(handleOtpSubmit)();
                         }
                       }}
-                      containerClassName="justify-center"
+                      containerClassName="w-full"
                     >
-                      <InputOTPGroup>
-                        <InputOTPSlot index={0} />
-                        <InputOTPSlot index={1} />
-                        <InputOTPSlot index={2} />
-                        <InputOTPSlot index={3} />
-                        <InputOTPSlot index={4} />
-                        <InputOTPSlot index={5} />
+                      <InputOTPGroup className="w-full">
+                        {[0, 1, 2, 3, 4, 5].map((index) => (
+                          <InputOTPSlot
+                            key={index}
+                            index={index}
+                            aria-invalid={!!fieldState.error}
+                            className="w-auto flex-1"
+                          />
+                        ))}
                       </InputOTPGroup>
                     </InputOTP>
                   </FormControl>
-                  <FormMessage />
+                  <div
+                    role="alert"
+                    aria-live="polite"
+                    className={fieldState.error ? 'min-h-5' : ''}
+                  >
+                    <FormMessage />
+                  </div>
                 </FormItem>
               )}
             />
@@ -185,10 +273,23 @@ export function LoginView({ copy }: LoginViewProps) {
         </Form>
 
         <Button
-          variant="link"
+          variant="secondary"
+          type="button"
+          onClick={handleResend}
+          disabled={isResending || resendSecondsLeft > 0}
+          className="w-full"
+        >
+          {isResending && <Loader2 className="animate-spin" />}
+          {resendSecondsLeft > 0
+            ? `Send a new code (${resendSecondsLeft}s)`
+            : 'Send a new code'}
+        </Button>
+
+        <Button
+          variant="secondary"
           type="button"
           onClick={handleBack}
-          className="text-muted-foreground h-auto p-0 text-sm underline"
+          className="w-full"
         >
           Use a different email
         </Button>

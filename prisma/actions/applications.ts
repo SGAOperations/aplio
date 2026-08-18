@@ -5,12 +5,12 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod/v4';
 
 import { cleanupOrphanedBlob } from '@/prisma/actions/question-files';
+import { Prisma } from '@/prisma/client';
 import type {
   GlobalAnswer,
   GlobalApplicationAnswer,
   GlobalQuestion,
   PositionApplicationAnswer,
-  Prisma,
 } from '@/prisma/client';
 
 import { requireOwnership } from '@/lib/auth/guards';
@@ -28,7 +28,7 @@ import {
   matchesShortAnswerFormat,
 } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
-import { type AnswerQuestion, type DraftApplication } from '@/lib/types';
+import { type AnswerQuestion } from '@/lib/types';
 import {
   type ResponseType,
   isAcceptingApplications,
@@ -137,30 +137,35 @@ const submitApplicationSchema = z.object({ applicationId: z.string().min(1) });
 const APPLICATION_NOT_EDITABLE_MESSAGE =
   'This application has already been submitted. Withdraw it to make changes.';
 
+// Interaction-time only — never called during render (see apply/page.tsx).
 export async function createDraftApplication(
-  positionId: string,
-): Promise<ResponseType<DraftApplication>> {
+  input: unknown,
+): Promise<void | { error: string }> {
   const currentUser = await getCurrentUser();
 
-  const parsed = createDraftApplicationSchema.safeParse({ positionId });
+  const parsed = createDraftApplicationSchema.safeParse(input);
   if (!parsed.success) return { error: 'Invalid input' };
 
   // One `now` across the transaction and the window checks.
   const now = new Date();
 
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
+    // Predicate must match getApplicationForApply's, or the two disagree on
+    // whether a draft already exists.
     const existing = await tx.application.findUnique({
       where: {
         userId_positionId: {
           userId: currentUser.id,
           positionId: parsed.data.positionId,
         },
+        deletedAt: null,
       },
-      include: { globalAnswers: true, positionAnswers: true },
+      select: { id: true },
     });
 
-    // Existing drafts survive a closed window; submit is what blocks.
-    if (existing) return existing;
+    // Existing drafts survive a closed window; submit is what blocks. Already
+    // having one is success, not an error — the page just re-reads it.
+    if (existing) return;
 
     // Server-trusted window gate before a draft is created.
     const position = await tx.position.findUnique({
@@ -177,26 +182,48 @@ export async function createDraftApplication(
       include: { globalQuestion: true },
     });
 
-    return tx.application.create({
-      data: {
-        userId: currentUser.id,
-        positionId: parsed.data.positionId,
-        status: 'draft',
-        createdById: currentUser.id,
-        updatedById: currentUser.id,
-        globalAnswers: {
-          create: globalAnswers.map((answer: GlobalAnswerWithQuestion) => ({
-            globalQuestionId: answer.globalQuestionId,
-            questionLabel: answer.globalQuestion.label,
-            value: answer.value,
-            createdById: currentUser.id,
-            updatedById: currentUser.id,
-          })),
+    try {
+      await tx.application.create({
+        data: {
+          userId: currentUser.id,
+          positionId: parsed.data.positionId,
+          status: 'draft',
+          createdById: currentUser.id,
+          updatedById: currentUser.id,
+          globalAnswers: {
+            create: globalAnswers.map((answer: GlobalAnswerWithQuestion) => ({
+              globalQuestionId: answer.globalQuestionId,
+              questionLabel: answer.globalQuestion.label,
+              value: answer.value,
+              createdById: currentUser.id,
+              updatedById: currentUser.id,
+            })),
+          },
         },
-      },
-      include: { globalAnswers: true, positionAnswers: true },
-    });
+      });
+    } catch (error) {
+      // Concurrent duplicate (two tabs racing the same create) — the other
+      // tab's row already committed, so revalidate here too even though
+      // this call reports the error: without it the losing tab never
+      // refreshes and stays stuck on the entry card.
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        revalidatePath(`/positions/${parsed.data.positionId}/apply`);
+        revalidatePath('/my-applications');
+        revalidatePath('/');
+        return { error: 'You already have an application for this position.' };
+      }
+      throw error;
+    }
   });
+
+  if (result && 'error' in result) return result;
+
+  revalidatePath(`/positions/${parsed.data.positionId}/apply`);
+  revalidatePath('/my-applications');
+  revalidatePath('/');
 }
 
 export async function createOrUpdateApplicationAnswer(params: {
@@ -432,6 +459,7 @@ export async function submitApplication(
   revalidatePath('/positions', 'layout');
   // The draft leaves /my-applications' draft-state list once submitted.
   revalidatePath('/my-applications');
+  revalidatePath(`/my-applications/${applicationId}`);
 }
 
 const updateApplicationStatusSchema = z.object({
@@ -493,13 +521,15 @@ const updateApplicationStatusesSchema = z.object({
 // Authorization in the updateMany where, so the target set can't drift mid-write.
 export async function updateApplicationStatuses(
   input: unknown,
-): Promise<{ updated: number } | { error: string }> {
+): Promise<{ updated: number; skipped: number } | { error: string }> {
   const user = await getCurrentUser();
 
   const parsed = updateApplicationStatusesSchema.safeParse(input);
   if (!parsed.success) return { error: 'Invalid input' };
 
-  const { applicationIds, status } = parsed.data;
+  // `in` collapses duplicates, so dedupe first or skipped would be inflated.
+  const applicationIds = Array.from(new Set(parsed.data.applicationIds));
+  const { status } = parsed.data;
 
   // The scoped where silently excludes forged and out-of-scope ids.
   const where = user.isAdmin
@@ -525,13 +555,17 @@ export async function updateApplicationStatuses(
     data: { status, updatedById: user.id },
   });
 
-  if (result.count === 0) return { error: 'No applications were updated.' };
+  // IDOR-style miss, unreachable from the UI — throw, don't return.
+  if (result.count === 0) throw new Error('No applications were updated');
 
   revalidatePath('/applications');
   // Wildcard segment: a bulk update has no individual positionIds to hand.
   revalidatePath('/applications/[id]', 'layout');
 
-  return { updated: result.count };
+  return {
+    updated: result.count,
+    skipped: applicationIds.length - result.count,
+  };
 }
 
 export async function withdrawApplication(
@@ -556,6 +590,7 @@ export async function withdrawApplication(
     return { error: 'This application can no longer be withdrawn.' };
 
   revalidatePath('/my-applications');
+  revalidatePath(`/my-applications/${applicationId}`);
   revalidatePath('/applications');
   revalidatePath('/positions', 'layout');
 }
@@ -608,4 +643,5 @@ export async function deleteDraftApplication(
   await Promise.all(fileUrls.map((url) => cleanupOrphanedBlob(url)));
 
   revalidatePath('/my-applications');
+  revalidatePath(`/my-applications/${id}`);
 }

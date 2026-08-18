@@ -1,3 +1,5 @@
+import type { LucideIcon } from 'lucide-react';
+
 import type {
   PositionStatus,
   QuestionType,
@@ -45,7 +47,7 @@ export type PositionDetail = PositionWithQuestions & {
   managers: { id: string }[];
 };
 
-// Matches getPositionForEdit's select; no audit columns cross to the client.
+// Mapped shape — getPositionForEdit flattens `_count.answers` into answerCount.
 export type PositionQuestionForEdit = Prisma.PositionQuestionGetPayload<{
   select: {
     id: true;
@@ -58,9 +60,10 @@ export type PositionQuestionForEdit = Prisma.PositionQuestionGetPayload<{
     format: true;
     order: true;
   };
-}>;
+}> & { answerCount: number };
 
-// Matches getPositionForEdit's select; no audit columns cross to the client.
+// Server-only — updatedAt/_count feed isPositionActive and never cross to a client.
+// `questions` is the mapped PositionQuestionForEdit shape, not a raw select.
 export type PositionForEdit = Prisma.PositionGetPayload<{
   select: {
     id: true;
@@ -69,24 +72,13 @@ export type PositionForEdit = Prisma.PositionGetPayload<{
     status: true;
     opensAt: true;
     closesAt: true;
-    questions: {
-      select: {
-        id: true;
-        positionId: true;
-        label: true;
-        type: true;
-        required: true;
-        options: true;
-        allowOther: true;
-        format: true;
-        order: true;
-      };
-    };
+    updatedAt: true;
     managers: { select: { id: true; name: true; email: true } };
+    _count: { select: { applications: true } };
   };
-}>;
+}> & { questions: PositionQuestionForEdit[] };
 
-// Matches createDraftApplication's query in prisma/actions/applications.ts.
+// Matches getApplicationForApply's query in prisma/data/applications.ts.
 export type DraftApplication = Prisma.ApplicationGetPayload<{
   include: { globalAnswers: true; positionAnswers: true };
 }>;
@@ -125,6 +117,14 @@ export type MyApplicationListItem = Prisma.ApplicationGetPayload<{
     };
   };
 }>;
+
+// Answer arrays overridden with the shape getMyApplication maps into. Extends
+// MyApplicationListItem so MyApplicationPrimaryAction/MyApplicationRowActions
+// accept it without a dedicated prop type.
+export type MyApplicationDetail = MyApplicationListItem & {
+  globalAnswers: ApplicationReviewAnswer[];
+  positionAnswers: ApplicationReviewAnswer[];
+};
 
 export type PositionApplicationListItem = Prisma.ApplicationGetPayload<{
   select: {
@@ -173,6 +173,18 @@ export type PositionActivity = PositionWindow & {
 // never be passed across a client boundary.
 export type ManagedPosition = PositionWithQuestions & PositionActivity;
 
+// Lean per-position row for the manager dashboard's "My Positions" widget.
+export type ManagedPositionSummaryItem = Prisma.PositionGetPayload<{
+  select: {
+    id: true;
+    title: true;
+    status: true;
+    opensAt: true;
+    closesAt: true;
+    _count: { select: { applications: true } };
+  };
+}>;
+
 // Shape partitionAnswerValue/isAnswered need; matches GlobalQuestion & position questions as-is.
 export type AnswerQuestion = {
   id: string;
@@ -198,6 +210,14 @@ export type PositionAvailability =
 export type OpenPositionSummaryItem = Prisma.PositionGetPayload<{
   select: { id: true; title: true; _count: { select: { applications: true } } };
 }>;
+
+export type PositionDeletionSummary = {
+  submittedCount: number;
+  draftCount: number;
+};
+
+// Minimal shape reviewer-scoped queries and guards need — spelled inline in 5+ signatures.
+export type Reviewer = { id: string; isAdmin: boolean };
 
 export type ReviewerStatus = (typeof REVIEWER_APPLICATION_STATUSES)[number];
 
@@ -226,6 +246,7 @@ export type ProfileCompleteness = {
 };
 
 // questionId/type/isGlobal address a file answer without a file-metadata model.
+// Shared by the reviewer application view and the applicant's own MyApplicationDetail.
 export type ApplicationReviewAnswer = {
   id: string;
   questionId: string;
@@ -311,4 +332,17 @@ export interface NavIdentity {
   roleLabel: string;
   // Routes Log out to logoutBypassUser() instead of authClient.signOut().
   isBypass: boolean;
+}
+
+export interface NavItem {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+}
+
+// id feeds aria-labelledby linking the group's <ul> to its visible label.
+export interface NavGroup {
+  id: string;
+  label: string;
+  items: NavItem[];
 }

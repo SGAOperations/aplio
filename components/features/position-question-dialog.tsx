@@ -54,6 +54,7 @@ export interface RenderedQuestion {
   allowOther: boolean;
   format: ShortAnswerFormatValue | null;
   order: number;
+  answerCount: number;
 }
 
 export interface QuestionFormProps {
@@ -107,6 +108,7 @@ export function QuestionForm({
           id: question.id,
           positionId,
           order: question.order,
+          answerCount: question.answerCount,
           ...data,
         });
       } else {
@@ -117,7 +119,13 @@ export function QuestionForm({
         }
         toast.success('Question added');
         onClose();
-        onSuccess({ id: result.id, positionId, order: result.order, ...data });
+        onSuccess({
+          id: result.id,
+          positionId,
+          order: result.order,
+          answerCount: 0,
+          ...data,
+        });
       }
     } catch (error) {
       console.error(error);
@@ -193,7 +201,7 @@ export function QuestionForm({
           control={form.control}
           name="required"
           render={({ field }) => (
-            <FormItem className="flex flex-row items-center gap-2">
+            <FormItem className="flex flex-row items-center gap-3">
               <FormControl>
                 <Switch
                   checked={field.value}
@@ -212,7 +220,7 @@ export function QuestionForm({
             control={form.control}
             name="allowOther"
             render={({ field }) => (
-              <FormItem className="flex flex-row items-center gap-2">
+              <FormItem className="flex flex-row items-center gap-3">
                 <FormControl>
                   <Switch
                     checked={field.value}

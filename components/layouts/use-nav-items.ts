@@ -2,13 +2,15 @@
 
 import { usePathname } from 'next/navigation';
 
-import type { NavIdentity } from '@/lib/types';
+import type { NavGroup, NavIdentity, NavItem } from '@/lib/types';
 
 import {
-  adminOnlyNavItems,
   anonymousNavItems,
-  baseNavItems,
-  reviewerNavItems,
+  applyNavItems,
+  homeNavItem,
+  manageAdminNavItems,
+  manageReviewerNavItems,
+  positionsNavItem,
 } from '@/components/layouts/nav-items';
 
 interface UseNavItemsOptions {
@@ -18,7 +20,8 @@ interface UseNavItemsOptions {
 }
 
 interface UseNavItemsResult {
-  navItems: typeof baseNavItems;
+  topLevelItems: NavItem[];
+  groups: NavGroup[];
   logoHref: string;
   isActive: (href: string) => boolean;
 }
@@ -31,13 +34,28 @@ export function useNavItems({
 }: UseNavItemsOptions): UseNavItemsResult {
   const pathname = usePathname();
 
-  const navItems = identity
+  const hasManageAccess = canReviewApplications || isAdmin;
+
+  const manageItems = [
+    ...(canReviewApplications ? manageReviewerNavItems : []),
+    ...(isAdmin ? manageAdminNavItems : []),
+  ];
+
+  // Apply items sit directly under Home, ungrouped — only Manage gets a heading.
+  // Managers/admins get Positions under Manage instead, so it isn't duplicated.
+  const topLevelItems = identity
     ? [
-        ...baseNavItems,
-        ...(canReviewApplications ? reviewerNavItems : []),
-        ...(isAdmin ? adminOnlyNavItems : []),
+        homeNavItem,
+        ...(hasManageAccess
+          ? applyNavItems.filter((item) => item !== positionsNavItem)
+          : applyNavItems),
       ]
     : anonymousNavItems;
+
+  const groups: NavGroup[] =
+    identity && manageItems.length > 0
+      ? [{ id: 'nav-group-manage', label: 'Manage', items: manageItems }]
+      : [];
 
   // Anonymous visitors land on /positions; authenticated users go to the dashboard.
   const logoHref = identity ? '/' : '/positions';
@@ -47,5 +65,5 @@ export function useNavItems({
     return pathname === href || pathname.startsWith(`${href}/`);
   }
 
-  return { navItems, logoHref, isActive };
+  return { topLevelItems, groups, logoHref, isActive };
 }

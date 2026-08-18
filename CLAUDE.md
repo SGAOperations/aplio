@@ -47,9 +47,12 @@ The Neon project caps at **10 branches** and 2 are permanently held (`dev`, `pro
 npm run prettier:check   # fix: npm run prettier:fix
 npm run eslint:check     # fix the underlying code — NEVER add eslint-disable
 npm run tsc:check        # fix type errors
+npm run test             # unit + db projects; fall back to test:unit if Postgres is unavailable
 ```
 
 Never push with known failures. Run Prisma via the **`npm run prisma:*` scripts** — `npm run prisma:generate`, `npm run prisma:migrate -- --name <name>` — **never `npx prisma`** (npx is allow-listed for shadcn only; pipeline agents auto-deny other `npx`). Same for prettier/tsc/tsx: use `npm run …`, not `npx …`.
+
+All tests live under `tests/`, never co-located with the source they cover: `tests/unit/**/*.test.ts` (`unit` project, pure functions, no DB) and `tests/db/**/*.test.ts` (`db` project, real Postgres via `tests/stubs/`-aliased guards) — see `vitest.config.ts` and the README's "Running tests" section.
 
 ## Issue Tracking
 

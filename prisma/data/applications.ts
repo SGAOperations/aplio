@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { $Enums } from '@/prisma/client';
+import { $Enums, type Prisma } from '@/prisma/client';
 
 import {
   PUBLISHED_POSITION_WHERE,
@@ -11,10 +11,13 @@ import {
   type AdminApplicationListItem,
   type ApplicationFilters,
   type ApplicationForReview,
+  type ApplicationReviewAnswer,
   type DraftApplication,
+  type MyApplicationDetail,
   type MyApplicationListItem,
   type PositionApplicationListItem,
   type PositionApplicationStats,
+  type Reviewer,
 } from '@/lib/types';
 
 const applicationSelect = {
@@ -34,8 +37,63 @@ const applicationSelect = {
   },
 } as const;
 
+// Reused by getApplicationForReview and getMyApplication so both detail
+// views normalize answers into the same ApplicationReviewAnswer[] shape.
+const applicationAnswersSelect = {
+  globalAnswers: {
+    where: { deletedAt: null },
+    orderBy: { createdAt: 'asc' },
+    select: {
+      id: true,
+      globalQuestionId: true,
+      questionLabel: true,
+      value: true,
+      globalQuestion: { select: { type: true } },
+    },
+  },
+  positionAnswers: {
+    where: { deletedAt: null },
+    orderBy: { createdAt: 'asc' },
+    select: {
+      id: true,
+      positionQuestionId: true,
+      questionLabel: true,
+      value: true,
+      positionQuestion: { select: { type: true } },
+    },
+  },
+} as const;
+
+type ApplicationAnswersPayload = Prisma.ApplicationGetPayload<{
+  select: typeof applicationAnswersSelect;
+}>;
+
+function normalizeApplicationAnswers(application: ApplicationAnswersPayload): {
+  globalAnswers: ApplicationReviewAnswer[];
+  positionAnswers: ApplicationReviewAnswer[];
+} {
+  return {
+    globalAnswers: application.globalAnswers.map((a) => ({
+      id: a.id,
+      questionId: a.globalQuestionId,
+      questionLabel: a.questionLabel,
+      value: a.value,
+      type: a.globalQuestion.type,
+      isGlobal: true,
+    })),
+    positionAnswers: application.positionAnswers.map((a) => ({
+      id: a.id,
+      questionId: a.positionQuestionId,
+      questionLabel: a.questionLabel,
+      value: a.value,
+      type: a.positionQuestion.type,
+      isGlobal: false,
+    })),
+  };
+}
+
 // Keeps list, denominator, and detail page agreeing: drafts out, withdrawn in.
-function buildBaseWhere(user: { id: string; isAdmin: boolean }) {
+function buildBaseWhere(user: Reviewer) {
   return user.isAdmin
     ? {
         deletedAt: null,
@@ -55,6 +113,8 @@ function buildBaseWhere(user: { id: string; isAdmin: boolean }) {
 
 // Scoped to the caller (no IDOR); returns the caller's application at any status
 // (draft, withdrawn, or otherwise) so the apply route decides what to render.
+// Predicate must match createDraftApplication's pre-create lookup, or the page
+// loops between the entry state and "already exists".
 export async function getApplicationForApply(
   userId: string,
   positionId: string,
@@ -87,6 +147,21 @@ export async function getRecentMyApplications(
   });
 }
 
+// Same visibility as getMyApplications, so a bookmarked URL can't outlive its list row.
+export async function getMyApplication(
+  id: string,
+  userId: string,
+): Promise<MyApplicationDetail | null> {
+  const application = await prisma.application.findFirst({
+    where: { id, userId, deletedAt: null, position: PUBLISHED_POSITION_WHERE },
+    select: { ...applicationSelect, ...applicationAnswersSelect },
+  });
+
+  if (!application) return null;
+
+  return { ...application, ...normalizeApplicationAnswers(application) };
+}
+
 const positionApplicationSelect = {
   id: true,
   status: true,
@@ -113,7 +188,7 @@ export async function getPositionApplications(
 // Unauthorized and missing both return null; the page maps either to notFound().
 export async function getApplicationForReview(
   id: string,
-  user: { id: string; isAdmin: boolean },
+  user: Reviewer,
 ): Promise<ApplicationForReview | null> {
   const application = await prisma.application.findFirst({
     where: { id, ...buildBaseWhere(user) },
@@ -123,54 +198,13 @@ export async function getApplicationForReview(
       submittedAt: true,
       user: { select: { name: true, email: true } },
       position: { select: { id: true, title: true } },
-      globalAnswers: {
-        where: { deletedAt: null },
-        orderBy: { createdAt: 'asc' },
-        select: {
-          id: true,
-          globalQuestionId: true,
-          questionLabel: true,
-          value: true,
-          globalQuestion: { select: { type: true } },
-        },
-      },
-      positionAnswers: {
-        where: { deletedAt: null },
-        orderBy: { createdAt: 'asc' },
-        select: {
-          id: true,
-          positionQuestionId: true,
-          questionLabel: true,
-          value: true,
-          positionQuestion: { select: { type: true } },
-        },
-      },
+      ...applicationAnswersSelect,
     },
   });
 
   if (!application) return null;
 
-  const { globalAnswers, positionAnswers, ...rest } = application;
-
-  return {
-    ...rest,
-    globalAnswers: globalAnswers.map((a) => ({
-      id: a.id,
-      questionId: a.globalQuestionId,
-      questionLabel: a.questionLabel,
-      value: a.value,
-      type: a.globalQuestion.type,
-      isGlobal: true,
-    })),
-    positionAnswers: positionAnswers.map((a) => ({
-      id: a.id,
-      questionId: a.positionQuestionId,
-      questionLabel: a.questionLabel,
-      value: a.value,
-      type: a.positionQuestion.type,
-      isGlobal: false,
-    })),
-  };
+  return { ...application, ...normalizeApplicationAnswers(application) };
 }
 
 export async function getMyApplicationStatusCounts(
@@ -185,16 +219,16 @@ export async function getMyApplicationStatusCounts(
   return Object.fromEntries(rows.map((r) => [r.status, r._count]));
 }
 
-// Returns cross-user data — must only be called from an admin-gated context.
-export async function getApplicationStatusCounts(): Promise<
-  Partial<Record<$Enums.ApplicationStatus, number>>
-> {
+// Returns cross-user data — reviewer-gated callers only.
+export async function getApplicationStatusCounts(
+  reviewer: Reviewer,
+): Promise<Partial<Record<$Enums.ApplicationStatus, number>>> {
   const rows = await prisma.application.groupBy({
     by: ['status'],
+    // buildBaseWhere only excludes draft — withdrawn must be excluded after the spread.
     where: {
-      deletedAt: null,
+      ...buildBaseWhere(reviewer),
       status: { notIn: ['draft', 'withdrawn'] },
-      position: PUBLISHED_POSITION_WHERE,
     },
     _count: true,
   });
@@ -202,15 +236,16 @@ export async function getApplicationStatusCounts(): Promise<
   return Object.fromEntries(rows.map((r) => [r.status, r._count]));
 }
 
-// Cross-user data — admin-gated callers only.
+// Cross-user data — reviewer-gated callers only.
 export async function getRecentApplications(
+  reviewer: Reviewer,
   take = 10,
 ): Promise<AdminApplicationListItem[]> {
   return prisma.application.findMany({
+    // buildBaseWhere only excludes draft — withdrawn must be excluded after the spread.
     where: {
-      deletedAt: null,
+      ...buildBaseWhere(reviewer),
       status: { notIn: ['draft', 'withdrawn'] },
-      position: PUBLISHED_POSITION_WHERE,
     },
     select: {
       id: true,
@@ -226,7 +261,7 @@ export async function getRecentApplications(
 
 // Applicant identity — reviewer-gated callers only. Capped at 100 rows.
 export async function getApplications(
-  user: { id: string; isAdmin: boolean },
+  user: Reviewer,
   filters: ApplicationFilters,
 ): Promise<AdminApplicationListItem[]> {
   const baseWhere = buildBaseWhere(user);
@@ -365,17 +400,13 @@ export async function getMyRecentActivity(
   });
 }
 
-export async function getApplicationsTotal(user: {
-  id: string;
-  isAdmin: boolean;
-}): Promise<number> {
+export async function getApplicationsTotal(user: Reviewer): Promise<number> {
   return prisma.application.count({ where: buildBaseWhere(user) });
 }
 
-export async function getReviewablePositions(user: {
-  id: string;
-  isAdmin: boolean;
-}): Promise<{ id: string; title: string }[]> {
+export async function getReviewablePositions(
+  user: Reviewer,
+): Promise<{ id: string; title: string }[]> {
   // Drafts excluded: a filter shouldn't offer a position with zero visible rows.
   const where = user.isAdmin
     ? PUBLISHED_POSITION_WHERE

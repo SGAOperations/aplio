@@ -412,6 +412,14 @@ export const RECENTLY_CLOSED_WINDOW_DAYS = 7;
 // Longer than the public window so managers and admins keep oversight during wrap-up.
 export const MANAGED_POSITIONS_WINDOW_DAYS = 30;
 
+// Returned by updatePosition / the three position-question actions when isPositionActive is false.
+export const ARCHIVED_POSITION_EDIT_ERROR =
+  'This position is archived. Ask an admin if it still needs changes.';
+
+// Returned by deletePosition when it has non-draft applications.
+export const POSITION_DELETE_BLOCKED_ERROR =
+  "This position has applications, so it can't be deleted. Close it instead.";
+
 export const STATUS_VALUES = [
   'draft',
   'open',
@@ -516,6 +524,10 @@ export const ACCOUNT_DEACTIVATED_ERROR_CODE = 'ACCOUNT_DEACTIVATED';
 export const signInEmailSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
 });
+
+// Shared between LoginView's client-side countdown and isOtpResendAllowed's
+// server-side check so they can't drift.
+export const OTP_RESEND_COOLDOWN_SECONDS = 60;
 
 export const STATUS_BADGE_VARIANT_TO_DOT: Record<BadgeVariant, string> = {
   info: 'bg-info',

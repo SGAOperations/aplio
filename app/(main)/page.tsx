@@ -1,8 +1,11 @@
 import { redirect } from 'next/navigation';
 
+import { isManager } from '@/prisma/data/managers';
+
 import { getOptionalUser, requireName } from '@/lib/auth/server';
 
 import { AdminDashboard } from '@/components/features/admin-dashboard';
+import { ManagerDashboard } from '@/components/features/manager-dashboard';
 import { UserDashboard } from '@/components/features/user-dashboard';
 
 export default async function Home() {
@@ -13,8 +16,10 @@ export default async function Home() {
   // Sits outside app/(main)/(auth)/, so gate it directly.
   await requireName(user);
 
-  if (user.isAdmin) return <AdminDashboard />;
+  if (user.isAdmin) return <AdminDashboard reviewer={user} />;
 
-  // Managers get UserDashboard too: their pipeline view lives in the Applications hub.
+  // Cached: app/(main)/layout.tsx already calls this for non-admins.
+  if (await isManager(user.id)) return <ManagerDashboard user={user} />;
+
   return <UserDashboard userId={user.id} userName={user.name} />;
 }
