@@ -401,7 +401,7 @@ describe('updateApplicationStatuses', () => {
       applicationIds: [inScopeApp.id, outScopeApp.id],
       status: 'reviewing',
     });
-    expect(result).toEqual({ updated: 1 });
+    expect(result).toEqual({ updated: 1, skipped: 1 });
 
     const updated = await prisma.application.findUniqueOrThrow({
       where: { id: inScopeApp.id },
@@ -422,7 +422,38 @@ describe('updateApplicationStatuses', () => {
       applicationIds: [applicationB1.id],
       status: 'reviewing',
     });
-    expect(result).toEqual({ error: 'No applications were updated.' });
+    expect(result).toEqual({
+      error:
+        "None of the selected applications could be updated. Withdrawn applications can't be changed.",
+    });
+  });
+
+  it('skips a withdrawn row while updating the rest', async () => {
+    const withdrawnApplicant = await createTestUser();
+    const withdrawnApp = await createTestApplication(
+      withdrawnApplicant,
+      positionA,
+      { status: 'withdrawn' },
+    );
+    const reviewableApplicant = await createTestUser();
+    const reviewableApp = await createTestApplication(
+      reviewableApplicant,
+      positionA,
+      { status: 'applied' },
+    );
+
+    actAs(managerA);
+    const result = await updateApplicationStatuses({
+      applicationIds: [withdrawnApp.id, reviewableApp.id],
+      status: 'reviewing',
+    });
+    expect(result).toEqual({ updated: 1, skipped: 1 });
+
+    const stillWithdrawn = await prisma.application.findUniqueOrThrow({
+      where: { id: withdrawnApp.id },
+      select: { status: true },
+    });
+    expect(stillWithdrawn.status).toBe('withdrawn');
   });
 });
 

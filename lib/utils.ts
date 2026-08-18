@@ -1,7 +1,14 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-import { MANAGED_POSITIONS_WINDOW_DAYS } from '@/lib/constants';
+import type { $Enums } from '@/prisma/client';
+
+import {
+  APPLICATION_STATUS_LABELS,
+  MANAGED_POSITIONS_WINDOW_DAYS,
+  NON_REVIEWABLE_APPLICATION_STATUSES,
+  isNonReviewableApplicationStatus,
+} from '@/lib/constants';
 import type {
   AnswerPartition,
   AnswerQuestion,
@@ -221,4 +228,38 @@ export function formatTableCount({
 
   if (!isFiltered && !shownCapped) return `${total} ${nounLabel}`;
   return `${shownLabel} / ${total} ${nounLabel}`;
+}
+
+export type BulkStatusChangeSummary = {
+  eligibleCount: number;
+  skippedCount: number;
+  /** e.g. "1 withdrawn application"; null when nothing is skipped. */
+  skippedLabel: string | null;
+};
+
+/** Partitions rows the bulk bar can't touch server-side (NON_REVIEWABLE_APPLICATION_STATUSES). */
+export function summarizeBulkStatusChange(
+  rows: { status: $Enums.ApplicationStatus }[],
+): BulkStatusChangeSummary {
+  const skipped = rows.filter((r) =>
+    isNonReviewableApplicationStatus(r.status),
+  );
+
+  if (skipped.length === 0)
+    return { eligibleCount: rows.length, skippedCount: 0, skippedLabel: null };
+
+  const skippedLabel = NON_REVIEWABLE_APPLICATION_STATUSES.map((status) => {
+    const count = skipped.filter((r) => r.status === status).length;
+    if (count === 0) return null;
+    const label = APPLICATION_STATUS_LABELS[status].toLowerCase();
+    return `${count} ${label} ${count === 1 ? 'application' : 'applications'}`;
+  })
+    .filter((part): part is string => part !== null)
+    .join(' and ');
+
+  return {
+    eligibleCount: rows.length - skipped.length,
+    skippedCount: skipped.length,
+    skippedLabel,
+  };
 }

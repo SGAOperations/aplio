@@ -58,10 +58,8 @@ export function ApplicationsTable({
   const someSelected = allIds.some((id) => selectedIds.has(id));
   const isIndeterminate = someSelected && !allSelected;
 
-  // Drop ids no longer in the current view (e.g. after a filter change).
-  const visibleSelected = Array.from(selectedIds).filter((id) =>
-    allIds.includes(id),
-  );
+  // Drops ids no longer in the current view (e.g. after a filter change).
+  const selectedRows = applications.filter((a) => selectedIds.has(a.id));
 
   function toggleAll() {
     if (allSelected) {
@@ -81,8 +79,9 @@ export function ApplicationsTable({
     setSelectedIds(next);
   }
 
-  function clearSelection() {
-    setSelectedIds(new Set());
+  // Retains skipped rows post-apply so the user can see what still needs action.
+  function handleApplied(retainedIds: string[]) {
+    setSelectedIds(new Set(retainedIds));
     setBulkStatus('');
   }
 
@@ -147,10 +146,10 @@ export function ApplicationsTable({
 
   return (
     <div className="flex flex-col gap-3">
-      {visibleSelected.length > 0 && (
+      {selectedRows.length > 0 && (
         <ApplicationsBulkBar
-          selectedIds={visibleSelected}
-          onApplied={clearSelection}
+          selected={selectedRows}
+          onApplied={handleApplied}
           status={bulkStatus}
           onStatusChange={setBulkStatus}
         />
