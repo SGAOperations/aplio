@@ -164,7 +164,7 @@ const TOOLBAR_ITEMS: {
   label: string;
   icon: typeof Bold;
   action: ToolbarAction;
-  shortcut?: { key: string; display: string };
+  shortcut?: { key: string; display: string; shiftKey?: boolean };
 }[] = [
   {
     label: 'Bold',
@@ -182,7 +182,7 @@ const TOOLBAR_ITEMS: {
     label: 'Underline',
     icon: Underline,
     action: { kind: 'inline', before: '<u>', after: '</u>' },
-    shortcut: { key: 'u', display: 'Ctrl+U' },
+    shortcut: { key: 'u', display: 'Ctrl+Shift+U', shiftKey: true },
   },
   {
     label: 'Heading',
@@ -278,7 +278,8 @@ export function MarkdownField() {
           if (isModPressed) {
             const item = TOOLBAR_ITEMS.find(
               (candidate) =>
-                candidate.shortcut?.key === event.key.toLowerCase(),
+                candidate.shortcut?.key === event.key.toLowerCase() &&
+                Boolean(candidate.shortcut.shiftKey) === event.shiftKey,
             );
             if (item) {
               event.preventDefault();
