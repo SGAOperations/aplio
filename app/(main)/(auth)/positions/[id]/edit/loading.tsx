@@ -43,6 +43,12 @@ export default function EditPositionLoading() {
           <Skeleton className="h-9 w-32" />
         </div>
       </div>
+
+      {/* Danger zone skeleton — admin-only, shown speculatively to avoid layout shift */}
+      <div className="flex flex-col gap-3 rounded-xl border p-6">
+        <Skeleton className="h-5 w-32" />
+        <Skeleton className="h-9 w-36" />
+      </div>
     </div>
   );
 }
