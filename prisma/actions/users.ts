@@ -15,9 +15,7 @@ const toggleAdminSchema = z.object({
   makeAdmin: z.boolean(),
 });
 
-const deactivateSchema = z.object({ userId: z.string().min(1) });
-
-const reactivateSchema = z.object({ userId: z.string().min(1) });
+const userIdSchema = z.object({ userId: z.string().min(1) });
 
 type ActionError = { error: string };
 
@@ -52,7 +50,7 @@ export async function deactivateUser(
 ): Promise<ActionError | void> {
   const user = await requireAdmin();
 
-  const parsed = deactivateSchema.safeParse(input);
+  const parsed = userIdSchema.safeParse(input);
   if (!parsed.success) return { error: 'Invalid input' };
 
   const { userId } = parsed.data;
@@ -87,7 +85,7 @@ export async function reactivateUser(
 ): Promise<ActionError | void> {
   const admin = await requireAdmin();
 
-  const parsed = reactivateSchema.safeParse(input);
+  const parsed = userIdSchema.safeParse(input);
   if (!parsed.success) return { error: 'Invalid input' };
 
   const { userId } = parsed.data;
