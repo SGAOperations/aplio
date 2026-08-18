@@ -118,6 +118,14 @@ export type MyApplicationListItem = Prisma.ApplicationGetPayload<{
   };
 }>;
 
+// Answer arrays overridden with the shape getMyApplication maps into. Extends
+// MyApplicationListItem so MyApplicationPrimaryAction/MyApplicationRowActions
+// accept it without a dedicated prop type.
+export type MyApplicationDetail = MyApplicationListItem & {
+  globalAnswers: ApplicationReviewAnswer[];
+  positionAnswers: ApplicationReviewAnswer[];
+};
+
 export type PositionApplicationListItem = Prisma.ApplicationGetPayload<{
   select: {
     id: true;
@@ -238,6 +246,7 @@ export type ProfileCompleteness = {
 };
 
 // questionId/type/isGlobal address a file answer without a file-metadata model.
+// Shared by the reviewer application view and the applicant's own MyApplicationDetail.
 export type ApplicationReviewAnswer = {
   id: string;
   questionId: string;
