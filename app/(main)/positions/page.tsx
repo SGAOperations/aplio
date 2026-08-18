@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { Briefcase } from 'lucide-react';
 
 import { getPositionApplicationStats } from '@/prisma/data/applications';
+import { isManager } from '@/prisma/data/managers';
 import {
   getAdminPositions,
   getManagedPositions,
@@ -69,12 +70,14 @@ export default async function PositionsPage() {
 
   const isAuthenticated = user !== null;
 
-  // Fetch open and recently-closed in parallel; fetch managed only when signed in.
-  const [openPositions, recentlyClosed, managedPositions] = await Promise.all([
-    getOpenPositions(),
-    getRecentlyClosedPositions(),
-    user ? getManagedPositions(user.id) : Promise.resolve([]),
-  ]);
+  // Fetch open and recently-closed in parallel; fetch managed/manager status only when signed in.
+  const [openPositions, recentlyClosed, managedPositions, isManagerUser] =
+    await Promise.all([
+      getOpenPositions(),
+      getRecentlyClosedPositions(),
+      user ? getManagedPositions(user.id) : Promise.resolve([]),
+      user ? isManager(user.id) : Promise.resolve(false),
+    ]);
 
   // Build a set of managed IDs so canManage can be derived in O(1) per card.
   const managedIds = new Set(managedPositions.map((p) => p.id));
@@ -85,8 +88,8 @@ export default async function PositionsPage() {
       ? await getPositionApplicationStats([...managedIds])
       : new Map<string, PositionApplicationStats>();
 
-  // Empty for non-managers, which omits the section.
-  const showManagedSection = managedPositions.length > 0;
+  // isManager and getManagedPositions disagree once positions are closed >30d with nothing pending — empty state, not omission.
+  const showManagedSection = isManagerUser;
 
   // Managed positions get their own section — exclude them here to avoid duplication.
   const isNotManaged = (p: PositionWithQuestions) => !managedIds.has(p.id);
@@ -99,14 +102,21 @@ export default async function PositionsPage() {
     <div className="flex flex-col gap-8">
       <PageHeader
         title="Positions"
-        description="Browse open positions and apply."
+        description={
+          isManagerUser
+            ? 'Manage your positions and browse open roles.'
+            : 'Browse open positions and apply.'
+        }
+        actions={isManagerUser ? <PositionCreateDialog /> : undefined}
       />
 
-      {/* My Managed Positions — shown first for managers; omitted when empty (non-manager or no relevant positions) */}
+      {/* My Managed Positions — shown first for managers; omitted for non-managers */}
       {showManagedSection && (
         <ManagedPositionsSection
           positions={managedPositions}
           statsByPosition={statsByPosition}
+          emptyDescription="Positions you manage appear here. Closed positions drop off 30 days after they close once no applications are pending."
+          emptyAction={<PositionCreateDialog />}
         />
       )}
 
