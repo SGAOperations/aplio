@@ -246,6 +246,7 @@ export type ProfileCompleteness = {
 };
 
 // questionId/type/isGlobal address a file answer without a file-metadata model.
+// Shared by the reviewer application view and the applicant's own MyApplicationDetail.
 export type ApplicationReviewAnswer = {
   id: string;
   questionId: string;

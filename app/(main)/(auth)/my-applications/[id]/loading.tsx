@@ -10,9 +10,9 @@ export default function MyApplicationDetailLoading() {
       </div>
 
       {/* Two-column layout matching the page */}
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-3">
         {/* Left: answers */}
-        <div className="flex flex-col gap-6 lg:col-span-2">
+        <div className="flex flex-col gap-4 lg:col-span-2">
           <div className="rounded-xl border p-4 shadow-sm">
             <Skeleton className="mb-3 h-5 w-40" />
             <div className="flex flex-col gap-4">
