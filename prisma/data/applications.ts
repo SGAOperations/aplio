@@ -56,6 +56,8 @@ function buildBaseWhere(user: Reviewer) {
 
 // Scoped to the caller (no IDOR); returns the caller's application at any status
 // (draft, withdrawn, or otherwise) so the apply route decides what to render.
+// Predicate must match createDraftApplication's pre-create lookup, or the page
+// loops between the entry state and "already exists".
 export async function getApplicationForApply(
   userId: string,
   positionId: string,

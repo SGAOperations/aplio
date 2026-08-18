@@ -90,7 +90,7 @@ export type PositionForEdit = Prisma.PositionGetPayload<{
   };
 }>;
 
-// Matches createDraftApplication's query in prisma/actions/applications.ts.
+// Matches getApplicationForApply's query in prisma/data/applications.ts.
 export type DraftApplication = Prisma.ApplicationGetPayload<{
   include: { globalAnswers: true; positionAnswers: true };
 }>;
