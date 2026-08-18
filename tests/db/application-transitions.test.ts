@@ -272,6 +272,40 @@ describe('updateApplicationStatuses bulk mixed selections', () => {
       error: 'None of the selected applications can move to Accepted.',
     });
   });
+
+  it('bulk-moves a back-only target (applied) since it has no forward source', async () => {
+    const reachedOutApplicant = await createTestUser();
+    const reachedOutApp = await createTestApplication(
+      reachedOutApplicant,
+      openPosition,
+      { status: 'reached_out' },
+    );
+    const reviewingApplicant = await createTestUser();
+    const reviewingApp = await createTestApplication(
+      reviewingApplicant,
+      openPosition,
+      { status: 'reviewing' },
+    );
+
+    actAs(admin);
+    const result = await updateApplicationStatuses({
+      applicationIds: [reachedOutApp.id, reviewingApp.id],
+      status: 'applied',
+    });
+    expect(result).toEqual({ updated: 1, skipped: 1 });
+
+    const updatedReachedOut = await prisma.application.findUniqueOrThrow({
+      where: { id: reachedOutApp.id },
+      select: { status: true },
+    });
+    expect(updatedReachedOut.status).toBe('applied');
+
+    const untouchedReviewing = await prisma.application.findUniqueOrThrow({
+      where: { id: reviewingApp.id },
+      select: { status: true },
+    });
+    expect(untouchedReviewing.status).toBe('reviewing');
+  });
 });
 
 describe('precedence', () => {

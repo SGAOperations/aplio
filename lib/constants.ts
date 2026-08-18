@@ -426,10 +426,13 @@ export function getApplicationStatusSources(
 
 // Bulk targets exclude move-back sources: a batch moving several applications
 // toward a target should skip a row already past it, not walk it backward.
+// A target with no forward source at all (e.g. 'applied') is back-only, so
+// there's no "already past it" row to protect — fall back to its back
+// sources rather than making that target permanently unreachable in bulk.
 export function getApplicationStatusForwardSources(
   to: $Enums.ApplicationStatus,
 ): $Enums.ApplicationStatus[] {
-  return (
+  const forwardSources = (
     Object.keys(APPLICATION_STATUS_TRANSITIONS) as $Enums.ApplicationStatus[]
   ).filter((from) => {
     const { forward } = APPLICATION_STATUS_TRANSITIONS[from];
@@ -441,6 +444,16 @@ export function getApplicationStatusForwardSources(
       (isRejectable && to === 'rejected')
     );
   });
+  if (forwardSources.length > 0) return forwardSources;
+
+  return (
+    Object.keys(APPLICATION_STATUS_TRANSITIONS) as $Enums.ApplicationStatus[]
+  ).filter((from) =>
+    (
+      APPLICATION_STATUS_TRANSITIONS[from]
+        .back as readonly $Enums.ApplicationStatus[]
+    ).includes(to),
+  );
 }
 
 // Imperative copy for forward/decision quick-action buttons. 'applied' is a
