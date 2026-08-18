@@ -5,6 +5,7 @@ import { cache } from 'react';
 import type { User } from '@/prisma/client';
 
 import { auth } from '@/lib/auth/config';
+import { withRedirectTo } from '@/lib/auth/redirect';
 import { prisma } from '@/lib/prisma';
 import { isBypassAllowed } from '@/lib/utils';
 
@@ -38,22 +39,22 @@ export const getOptionalUser = cache(async function getOptionalUser() {
   return resolveRealUser(); // null when no session; provisions when there is one
 });
 
+export async function currentPath(): Promise<string | null> {
+  return (await headers()).get('x-current-path');
+}
+
 // Cached, so layout and page share one round-trip per render pass.
 export const getCurrentUser = cache(async function getCurrentUser() {
   const user = await getOptionalUser();
   if (user) return user;
 
-  if (isBypassAllowed()) redirect('/login/bypass');
-  redirect('/login');
+  const base = isBypassAllowed() ? '/login/bypass' : '/login';
+  redirect(withRedirectTo(base, await currentPath()));
 });
 
 // Public routes must guard with `if (user) await requireName(user)` — anonymous visitors bypass.
 // Not folded into getCurrentUser: setUserName calls getCurrentUser too and would redirect before writing the name.
 export async function requireName(user: Pick<User, 'name'>): Promise<void> {
   if (user.name?.trim()) return;
-  const currentPath = (await headers()).get('x-current-path');
-  const query = currentPath
-    ? `?redirectTo=${encodeURIComponent(currentPath)}`
-    : '';
-  redirect(`/login${query}`);
+  redirect(withRedirectTo('/login', await currentPath()));
 }
