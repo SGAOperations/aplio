@@ -19,7 +19,6 @@ import {
   ANSWER_LONG_MAX_LENGTH,
   ANSWER_MAX_VALUES,
   APPLICANT_EDITABLE_APPLICATION_STATUSES,
-  BULK_STATUS_NO_UPDATES_ERROR,
   NON_REVIEWABLE_APPLICATION_STATUSES,
   PUBLISHED_POSITION_WHERE,
   REVIEWER_APPLICATION_STATUSES,
@@ -556,7 +555,8 @@ export async function updateApplicationStatuses(
     data: { status, updatedById: user.id },
   });
 
-  if (result.count === 0) return { error: BULK_STATUS_NO_UPDATES_ERROR };
+  // IDOR-style miss, unreachable from the UI — throw, don't return.
+  if (result.count === 0) throw new Error('No applications were updated');
 
   revalidatePath('/applications');
   // Wildcard segment: a bulk update has no individual positionIds to hand.

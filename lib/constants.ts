@@ -420,10 +420,6 @@ export const ARCHIVED_POSITION_EDIT_ERROR =
 export const POSITION_DELETE_BLOCKED_ERROR =
   "This position has applications, so it can't be deleted. Close it instead.";
 
-// Returned by updateApplicationStatuses when every requested id was skipped.
-export const BULK_STATUS_NO_UPDATES_ERROR =
-  "None of the selected applications could be updated. Withdrawn applications can't be changed.";
-
 export const STATUS_VALUES = [
   'draft',
   'open',
