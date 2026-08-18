@@ -1,13 +1,18 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 
 import { loginAsBypassUser } from '@/prisma/services/dev-bypass';
+
+import { isBypassAllowed } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
 
 export const metadata: Metadata = { title: 'Dev Login' };
 
 export default function BypassLoginPage() {
+  if (!isBypassAllowed()) notFound();
+
   return (
     <div className="flex min-h-screen items-center justify-center">
       <div className="w-full max-w-sm space-y-6">

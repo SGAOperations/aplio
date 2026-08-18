@@ -124,6 +124,10 @@ Preview migrations run inside the Vercel build itself, driven by `vercel.json`'s
 
 Preview branches are a **project-wide, finite pool**: Neon allows 10 branches and 2 are permanently held (`dev`, `production`), leaving **~8 usable for previews**. Every open PR with a preview deployment consumes one, and merging or closing that PR frees it automatically — there is no manual cleanup step. When the pool is exhausted the integration cannot attach a branch, so `DATABASE_URL_UNPOOLED` is never injected and the preview build fails on the Prisma datasource — the branch-budget check above is what identifies that as a quota problem. To reclaim capacity, merge or close an open PR; the next push to a blocked branch redeploys into the freed slot.
 
+### Dev bypass
+
+`isBypassAllowed()` (`lib/utils.ts`) is the single gate for both issuing and accepting the `dev-bypass-user-id` cookie, keyed off `VERCEL_ENV`. It's deliberately true for `preview`: each preview runs against its own per-PR Neon branch (never production data), and bypass login is the only practical way to exercise every role there without minting real OTP sessions. Locally, set `VERCEL_ENV=development` (see `.env.example`) or `/login/bypass` 404s.
+
 ## Project structure
 
 ```

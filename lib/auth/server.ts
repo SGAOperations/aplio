@@ -6,6 +6,7 @@ import type { User } from '@/prisma/client';
 
 import { auth } from '@/lib/auth/config';
 import { prisma } from '@/lib/prisma';
+import { isBypassAllowed } from '@/lib/utils';
 
 // Better Auth owns the User row, so the session id is the row id — no provisioning
 // step and no second identity to keep in sync.
@@ -19,13 +20,13 @@ async function resolveRealUser() {
 }
 
 export async function getIsBypass(): Promise<boolean> {
-  if (process.env.VERCEL_ENV === 'production') return false;
+  if (!isBypassAllowed()) return false;
   return Boolean((await cookies()).get('dev-bypass-user-id')?.value);
 }
 
 // For public pages: personalizes if signed in, never forces auth; still provisions.
 export const getOptionalUser = cache(async function getOptionalUser() {
-  if (process.env.VERCEL_ENV !== 'production') {
+  if (isBypassAllowed()) {
     const bypassUserId = (await cookies()).get('dev-bypass-user-id')?.value;
     if (bypassUserId) {
       const user = await prisma.user.findUnique({
@@ -42,7 +43,7 @@ export const getCurrentUser = cache(async function getCurrentUser() {
   const user = await getOptionalUser();
   if (user) return user;
 
-  if (process.env.VERCEL_ENV !== 'production') redirect('/login/bypass');
+  if (isBypassAllowed()) redirect('/login/bypass');
   redirect('/login');
 });
 
