@@ -34,6 +34,8 @@ export class ActionError extends Error {}
 
 /**
  * Default-DENY: an unset VERCEL_ENV also describes production off Vercel.
+ * Single gate for both issuing and accepting the bypass cookie; preview stays
+ * allowed by design (per-PR Neon branch, not production data).
  */
 export function isBypassAllowed(): boolean {
   return (
