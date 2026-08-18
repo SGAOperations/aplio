@@ -4,6 +4,7 @@ import {
   createTestGlobalQuestion,
   createTestPosition,
   createTestPositionQuestion,
+  createTestSession,
   createTestUser,
 } from '@/tests/helpers/fixtures';
 import { actAs } from '@/tests/stubs/auth-server';
@@ -503,6 +504,59 @@ describe('toggleUserAdmin / deactivateUser / createUser', () => {
     expect(result).toEqual({
       error: 'You cannot deactivate your own account.',
     });
+  });
+
+  it('revokes a live session and leaves other sessions untouched', async () => {
+    const target = await createTestUser();
+    const bystander = await createTestUser();
+    await createTestSession(target);
+    await createTestSession(target);
+    const bystanderSession = await createTestSession(bystander);
+
+    actAs(admin);
+    const result = await deactivateUser({ userId: target.id });
+    expect(result).toBeUndefined();
+
+    const targetRow = await prisma.user.findUniqueOrThrow({
+      where: { id: target.id },
+    });
+    expect(targetRow.deletedAt).not.toBeNull();
+
+    const targetSessions = await prisma.session.findMany({
+      where: { userId: target.id },
+    });
+    expect(targetSessions).toHaveLength(0);
+
+    const bystanderStillExists = await prisma.session.findUnique({
+      where: { id: bystanderSession.id },
+    });
+    expect(bystanderStillExists).not.toBeNull();
+  });
+
+  it('succeeds deactivating a user with no session', async () => {
+    const target = await createTestUser();
+    actAs(admin);
+    const result = await deactivateUser({ userId: target.id });
+    expect(result).toBeUndefined();
+
+    const targetRow = await prisma.user.findUniqueOrThrow({
+      where: { id: target.id },
+    });
+    expect(targetRow.deletedAt).not.toBeNull();
+  });
+
+  it('rejects requireAdmin for a freshly-demoted admin on their next request', async () => {
+    const demoted = await createTestUser({ isAdmin: true });
+
+    actAs(admin);
+    const result = await toggleUserAdmin({
+      userId: demoted.id,
+      makeAdmin: false,
+    });
+    expect(result).toBeUndefined();
+
+    actAs(await prisma.user.findUniqueOrThrow({ where: { id: demoted.id } }));
+    await expect(requireAdmin()).rejects.toThrow();
   });
 });
 

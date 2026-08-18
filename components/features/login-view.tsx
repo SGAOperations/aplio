@@ -19,6 +19,7 @@ import {
 } from '@/lib/auth/errors';
 import {
   ACCOUNT_DEACTIVATED_ERROR_CODE,
+  ACCOUNT_DEACTIVATED_MESSAGE,
   OTP_RESEND_COOLDOWN_SECONDS,
   signInEmailSchema,
 } from '@/lib/constants';
@@ -149,7 +150,7 @@ export function LoginView({ copy }: LoginViewProps) {
       type: 'server',
       message:
         getErrorCode(error) === ACCOUNT_DEACTIVATED_ERROR_CODE
-          ? 'Your account has been deactivated. Please contact an administrator.'
+          ? ACCOUNT_DEACTIVATED_MESSAGE
           : getOtpVerifyErrorMessage(error),
     });
   }

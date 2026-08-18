@@ -2,13 +2,21 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
+import { TriangleAlert } from 'lucide-react';
+
 import { safeRedirectTo, withRedirectTo } from '@/lib/auth/redirect';
 import { getOptionalUser } from '@/lib/auth/server';
-import { PRIVACY_HREF, TERMS_HREF } from '@/lib/constants';
+import {
+  ACCOUNT_DEACTIVATED_MESSAGE,
+  LOGIN_DEACTIVATED_REASON,
+  PRIVACY_HREF,
+  TERMS_HREF,
+} from '@/lib/constants';
 import { isBypassAllowed } from '@/lib/utils';
 
 import { LoginView } from '@/components/features/login-view';
 import { NameField } from '@/components/features/name-field';
+import { WarningCallout } from '@/components/ui/warning-callout';
 
 export const metadata: Metadata = { title: 'Sign In' };
 
@@ -22,9 +30,10 @@ export default async function SignInPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  const { redirectTo } = await searchParams;
+  const { redirectTo, reason } = await searchParams;
   const safeTo = safeRedirectTo(redirectTo);
   const applyContext = isApplyRedirect(safeTo);
+  const isDeactivated = reason === LOGIN_DEACTIVATED_REASON;
 
   const user = await getOptionalUser();
   // Authenticated user with a name set — send them into the app.
@@ -51,6 +60,11 @@ export default async function SignInPage({
 
   return (
     <div className="flex w-full max-w-sm flex-col items-center gap-4">
+      {isDeactivated && (
+        <WarningCallout icon={TriangleAlert} className="w-full">
+          {ACCOUNT_DEACTIVATED_MESSAGE}
+        </WarningCallout>
+      )}
       {user ? (
         <NameField defaultName={user.name ?? ''} redirectTo={safeTo} />
       ) : (

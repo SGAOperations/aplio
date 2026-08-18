@@ -6,6 +6,7 @@ import { headers } from 'next/headers';
 import { auth } from '@/lib/auth/config';
 import { getCurrentUser } from '@/lib/auth/server';
 import {
+  ACCOUNT_DEACTIVATED_MESSAGE,
   OTP_RESEND_COOLDOWN_SECONDS,
   signInEmailSchema,
 } from '@/lib/constants';
@@ -28,11 +29,7 @@ export async function checkSignInAllowed(
     },
     select: { id: true },
   });
-  if (deactivated)
-    return {
-      error:
-        'Your account has been deactivated. Please contact an administrator.',
-    };
+  if (deactivated) return { error: ACCOUNT_DEACTIVATED_MESSAGE };
 }
 
 // Defense in depth: emailOtp's own rate limit is a 3-per-60s bucket, not a
