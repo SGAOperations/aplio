@@ -12,7 +12,10 @@ import {
   requirePositionAccess,
 } from '@/lib/auth/guards';
 import { getCurrentUser } from '@/lib/auth/server';
-import { ARCHIVED_POSITION_EDIT_ERROR } from '@/lib/constants';
+import {
+  ARCHIVED_POSITION_EDIT_ERROR,
+  POSITION_DELETE_BLOCKED_ERROR,
+} from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 import type { PositionManager, UserSearchResult } from '@/lib/types';
 import { type ResponseType } from '@/lib/utils';
@@ -130,15 +133,32 @@ export async function deletePosition(
 
   const { id } = parsed.data;
 
+  // Guard folded into the where so the check and the write are one atomic
+  // statement — a separate count-then-write would race a concurrent submit.
   const deleteResult = await prisma.position.updateMany({
-    where: { id, deletedAt: null },
+    where: {
+      id,
+      deletedAt: null,
+      applications: { none: { deletedAt: null, status: { not: 'draft' } } },
+    },
     data: { deletedAt: new Date(), deletedById: user.id },
   });
 
-  if (deleteResult.count === 0)
-    return { error: 'This position no longer exists.' };
+  if (deleteResult.count === 0) {
+    const exists = await prisma.position.findFirst({
+      where: { id, deletedAt: null },
+      select: { id: true },
+    });
+    return {
+      error: exists
+        ? POSITION_DELETE_BLOCKED_ERROR
+        : 'This position no longer exists.',
+    };
+  }
 
   revalidatePath('/positions');
+  revalidatePath(`/positions/${id}`);
+  revalidatePath(`/positions/${id}/edit`);
   // Soft-deleting hides this position's applications everywhere.
   revalidatePath('/');
   revalidatePath('/my-applications');

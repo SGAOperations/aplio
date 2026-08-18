@@ -416,6 +416,10 @@ export const MANAGED_POSITIONS_WINDOW_DAYS = 30;
 export const ARCHIVED_POSITION_EDIT_ERROR =
   'This position is archived. Ask an admin if it still needs changes.';
 
+// Returned by deletePosition when it has non-draft applications.
+export const POSITION_DELETE_BLOCKED_ERROR =
+  "This position has applications, so it can't be deleted. Close it instead.";
+
 export const STATUS_VALUES = [
   'draft',
   'open',
