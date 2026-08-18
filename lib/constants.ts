@@ -7,6 +7,9 @@ import type { PositionAvailability } from '@/lib/types';
 
 import type { BadgeVariant } from '@/components/ui/badge';
 
+// Authoring zone for position windows — see lib/dates.ts.
+export const ORG_TIMEZONE = 'America/New_York';
+
 export const QUESTION_TYPE_VALUES = [
   'short_answer',
   'long_answer',
@@ -436,12 +439,16 @@ export const STATUS_OPTIONS: { value: PositionStatus; label: string }[] =
   STATUS_VALUES.map((value) => ({ value, label: STATUS_LABELS[value] }));
 
 // Mirrors createPositionSchema/updatePositionSchema — keep the shapes in sync.
+const orgDayInputSchema = z.union([z.iso.date(), z.literal('')], {
+  error: 'Enter a valid date',
+});
+
 export const positionFormSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   description: z.string(),
   status: z.enum(STATUS_VALUES),
-  opensAt: z.string().optional(),
-  closesAt: z.string().optional(),
+  opensAt: orgDayInputSchema.optional(),
+  closesAt: orgDayInputSchema.optional(),
 });
 
 export const STATUS_VARIANTS: Record<PositionStatus, BadgeVariant> = {

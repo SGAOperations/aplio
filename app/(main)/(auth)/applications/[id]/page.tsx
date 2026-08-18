@@ -4,7 +4,6 @@ import { notFound } from 'next/navigation';
 import { getApplicationForReview } from '@/prisma/data/applications';
 
 import { getCurrentUser } from '@/lib/auth/server';
-import { formatDate } from '@/lib/utils';
 
 import { ApplicationAnswersList } from '@/components/features/application-answers-list';
 import { ApplicationStatusControl } from '@/components/features/application-status-control';
@@ -17,6 +16,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { LocalTime } from '@/components/ui/local-time';
 
 interface ApplicationDetailPageProps {
   params: Promise<{ id: string }>;
@@ -43,7 +43,6 @@ export default async function ApplicationDetailPage({
   if (!application) notFound();
 
   const applicantName = application.user.name ?? application.user.email;
-  const metaLine = `${application.position.title} · Applied ${formatDate(application.submittedAt)}`;
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -52,7 +51,10 @@ export default async function ApplicationDetailPage({
           title={applicantName}
           description={application.user.email}
         />
-        <p className="text-muted-foreground mt-1 text-sm">{metaLine}</p>
+        <p className="text-muted-foreground mt-1 text-sm">
+          {application.position.title} · Applied{' '}
+          <LocalTime date={application.submittedAt} precision="date" />
+        </p>
       </div>
 
       {/* Two-column layout at lg: Status panel sticky on right; answers on left */}

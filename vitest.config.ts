@@ -14,7 +14,9 @@ export default defineConfig({
         test: {
           name: 'unit',
           environment: 'node',
-          env: { TZ: 'America/New_York' },
+          // Deliberately not the org timezone — any accidental host-zone
+          // dependence in lib/dates.ts fails loudly instead of passing by luck.
+          env: { TZ: 'Asia/Tokyo' },
           include: ['tests/unit/**/*.test.ts'],
         },
       },

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 
 import { Inbox, Pencil } from 'lucide-react';
 
@@ -12,11 +13,12 @@ import type {
   PositionApplicationStats,
   PositionWithQuestions,
 } from '@/lib/types';
-import { cn, formatDate, getPositionAvailability } from '@/lib/utils';
+import { cn, getPositionAvailability } from '@/lib/utils';
 
 import { PositionStatusBadge } from '@/components/features/status-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { LocalTime } from '@/components/ui/local-time';
 
 interface PositionCardProps {
   position: PositionWithQuestions;
@@ -93,16 +95,28 @@ export function PositionCard({
   const availability = getPositionAvailability(position);
   const isAccepting = availability === 'accepting';
 
-  let dateLabel: string | null = null;
+  let dateLabel: ReactNode = null;
   if (availability === 'accepting' && position.closesAt)
-    dateLabel = `Closes ${formatDate(position.closesAt)}`;
+    dateLabel = (
+      <>
+        Closes <LocalTime date={position.closesAt} precision="datetime" />
+      </>
+    );
   else if (availability === 'upcoming' && position.opensAt)
-    dateLabel = `Opens ${formatDate(position.opensAt)}`;
+    dateLabel = (
+      <>
+        Opens <LocalTime date={position.opensAt} precision="datetime" />
+      </>
+    );
   else if (
     (availability === 'closed_by_date' || availability === 'unavailable') &&
     position.closesAt
   )
-    dateLabel = `Closed ${formatDate(position.closesAt)}`;
+    dateLabel = (
+      <>
+        Closed <LocalTime date={position.closesAt} precision="datetime" />
+      </>
+    );
 
   return (
     <Card className="flex flex-col gap-0 p-0">

@@ -8,12 +8,12 @@ import {
   type SortableColumn,
   useSortableTable,
 } from '@/lib/use-sortable-table';
-import { formatDate } from '@/lib/utils';
 
 import { ApplicationStatusControl } from '@/components/features/application-status-control';
 import { SortableHeader } from '@/components/features/sortable-header';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
+import { LocalTime } from '@/components/ui/local-time';
 import {
   Table,
   TableBody,
@@ -95,7 +95,7 @@ export function PositionApplicationsTable({
                     )}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {formatDate(app.submittedAt)}
+                    <LocalTime date={app.submittedAt} precision="date" />
                   </TableCell>
                   <TableCell>
                     <ApplicationStatusControl
@@ -127,7 +127,7 @@ export function PositionApplicationsTable({
                 )}
               </div>
               <span className="text-muted-foreground text-sm">
-                {formatDate(app.submittedAt)}
+                <LocalTime date={app.submittedAt} precision="date" />
               </span>
               <ApplicationStatusControl
                 applicationId={app.id}

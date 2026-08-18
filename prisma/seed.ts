@@ -2,10 +2,16 @@ import 'dotenv/config';
 
 import { PrismaPg } from '@prisma/adapter-pg';
 
+import { orgDayEnd, orgDayStart } from '@/lib/dates';
+
 import { PrismaClient, type User } from './client';
 import { applicationDefs } from './seed/applications';
 import { globalQuestionDefs } from './seed/global-questions';
-import { toQuestionCreateInput, utcDayOffset } from './seed/helpers';
+import {
+  orgDayOffset,
+  toQuestionCreateInput,
+  utcDayOffset,
+} from './seed/helpers';
 import { positionAnswers, positionDefs } from './seed/positions';
 import { applicantDefs, profileAnswers } from './seed/users';
 
@@ -71,9 +77,13 @@ async function main() {
       const positions = await Promise.all(
         positionDefs.map((p) => {
           const opensAt =
-            p.opensInDays != null ? utcDayOffset(now, p.opensInDays) : null;
+            p.opensInDays != null
+              ? orgDayStart(orgDayOffset(now, p.opensInDays))
+              : null;
           const closesAt =
-            p.closesInDays != null ? utcDayOffset(now, p.closesInDays) : null;
+            p.closesInDays != null
+              ? orgDayEnd(orgDayOffset(now, p.closesInDays))
+              : null;
           const managerIds = (p.managerEmails ?? []).map((email) => {
             const manager = usersByEmail[email];
             if (!manager) throw new Error(`Unknown manager email: ${email}`);
