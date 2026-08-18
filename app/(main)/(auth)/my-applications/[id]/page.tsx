@@ -5,7 +5,6 @@ import { notFound } from 'next/navigation';
 import { getMyApplication } from '@/prisma/data/applications';
 
 import { getCurrentUser } from '@/lib/auth/server';
-import { formatDate } from '@/lib/utils';
 
 import { ApplicationAnswersList } from '@/components/features/application-answers-list';
 import { MyApplicationStatusCard } from '@/components/features/my-application-status-card';
@@ -17,6 +16,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { LocalTime } from '@/components/ui/local-time';
 
 interface MyApplicationDetailPageProps {
   params: Promise<{ id: string }>;
@@ -42,10 +42,7 @@ export default async function MyApplicationDetailPage({
 
   if (!application) notFound();
 
-  const metaLine =
-    application.status === 'draft'
-      ? `Draft · last saved ${formatDate(application.updatedAt)}`
-      : `Applied ${formatDate(application.submittedAt)}`;
+  const isDraft = application.status === 'draft';
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -56,7 +53,12 @@ export default async function MyApplicationDetailPage({
           backLabel="Back to My Applications"
         />
         <p className="text-muted-foreground mt-1 text-sm">
-          {metaLine} ·{' '}
+          {isDraft ? 'Draft · last saved ' : 'Applied '}
+          <LocalTime
+            date={isDraft ? application.updatedAt : application.submittedAt}
+            precision="date"
+          />{' '}
+          ·{' '}
           <Link
             href={`/positions/${application.position.id}`}
             className="underline"
