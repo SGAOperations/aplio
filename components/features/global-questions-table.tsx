@@ -19,6 +19,7 @@ import {
 } from '@/lib/use-sortable-table';
 
 import { GlobalQuestionDialog } from '@/components/features/global-question-dialog';
+import { QuestionOptionChips } from '@/components/features/question-option-chips';
 import { SortableHeader } from '@/components/features/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -160,21 +161,10 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
                 </TableCell>
                 <TableCell>
                   {question.options.length > 0 || question.allowOther ? (
-                    <div className="flex flex-wrap gap-1">
-                      {question.options.map((opt) => (
-                        <span
-                          key={opt}
-                          className="bg-secondary text-secondary-foreground rounded-full px-2 py-0.5 text-xs"
-                        >
-                          {opt}
-                        </span>
-                      ))}
-                      {question.allowOther && (
-                        <span className="bg-secondary text-secondary-foreground rounded-full px-2 py-0.5 text-xs">
-                          + Other
-                        </span>
-                      )}
-                    </div>
+                    <QuestionOptionChips
+                      options={question.options}
+                      allowOther={question.allowOther}
+                    />
                   ) : (
                     <span className="text-muted-foreground">—</span>
                   )}
@@ -239,23 +229,10 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
                   </Badge>
                 )}
               </div>
-              {(question.options.length > 0 || question.allowOther) && (
-                <div className="flex flex-wrap gap-1">
-                  {question.options.map((opt) => (
-                    <span
-                      key={opt}
-                      className="bg-secondary text-secondary-foreground rounded-full px-2 py-0.5 text-xs"
-                    >
-                      {opt}
-                    </span>
-                  ))}
-                  {question.allowOther && (
-                    <span className="bg-secondary text-secondary-foreground rounded-full px-2 py-0.5 text-xs">
-                      + Other
-                    </span>
-                  )}
-                </div>
-              )}
+              <QuestionOptionChips
+                options={question.options}
+                allowOther={question.allowOther}
+              />
               <div className="flex gap-2">
                 <GlobalQuestionDialog
                   trigger={

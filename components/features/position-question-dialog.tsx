@@ -193,7 +193,7 @@ export function QuestionForm({
           control={form.control}
           name="required"
           render={({ field }) => (
-            <FormItem className="flex flex-row items-center gap-2">
+            <FormItem className="flex flex-row items-center gap-3">
               <FormControl>
                 <Switch
                   checked={field.value}
@@ -212,7 +212,7 @@ export function QuestionForm({
             control={form.control}
             name="allowOther"
             render={({ field }) => (
-              <FormItem className="flex flex-row items-center gap-2">
+              <FormItem className="flex flex-row items-center gap-3">
                 <FormControl>
                   <Switch
                     checked={field.value}

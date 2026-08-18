@@ -62,7 +62,7 @@ export function PositionQuestionsSection({
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       {questions.length === 0 && !showAddForm && (
         <p className="text-muted-foreground text-sm">
           No questions yet. Add a question to get started.
@@ -72,8 +72,8 @@ export function PositionQuestionsSection({
       {questions.map((question) => (
         <div key={question.id}>
           {editingId === question.id ? (
-            <Card className="p-4">
-              <p className="mb-4 text-sm font-medium">Edit Question</p>
+            <Card className="gap-4 p-4">
+              <h2 className="text-sm font-medium">Edit Question</h2>
               <QuestionForm
                 key={question.id}
                 positionId={positionId}
@@ -114,8 +114,8 @@ export function PositionQuestionsSection({
       ))}
 
       {showAddForm ? (
-        <Card className="p-4">
-          <p className="mb-4 text-sm font-medium">Add Question</p>
+        <Card className="gap-4 p-4">
+          <h2 className="text-sm font-medium">Add Question</h2>
           <QuestionForm
             positionId={positionId}
             onSuccess={handleQuestionSaved}
