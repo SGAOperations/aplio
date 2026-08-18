@@ -29,6 +29,7 @@ import {
 import {
   createUser,
   deactivateUser,
+  reactivateUser,
   toggleUserAdmin,
 } from '@/prisma/actions/users';
 import type { Application, Position, User } from '@/prisma/client';
@@ -557,6 +558,41 @@ describe('toggleUserAdmin / deactivateUser / createUser', () => {
 
     actAs(await prisma.user.findUniqueOrThrow({ where: { id: demoted.id } }));
     await expect(requireAdmin()).rejects.toThrow();
+  });
+});
+
+describe('reactivateUser', () => {
+  it('rejects a non-admin caller', async () => {
+    const target = await createTestUser({ deletedAt: new Date() });
+    actAs(applicant);
+    await expect(reactivateUser({ userId: target.id })).rejects.toThrow();
+  });
+
+  it('clears the soft delete and records the reactivating admin', async () => {
+    const deactivator = await createTestUser({ isAdmin: true });
+    const target = await createTestUser({
+      deletedAt: new Date(),
+      deletedBy: { connect: { id: deactivator.id } },
+    });
+
+    actAs(admin);
+    const result = await reactivateUser({ userId: target.id });
+    expect(result).toBeUndefined();
+
+    const updated = await prisma.user.findUniqueOrThrow({
+      where: { id: target.id },
+      select: { deletedAt: true, deletedById: true, updatedById: true },
+    });
+    expect(updated.deletedAt).toBeNull();
+    expect(updated.deletedById).toBeNull();
+    expect(updated.updatedById).toBe(admin.id);
+  });
+
+  it('throws when reactivating an already-active user', async () => {
+    actAs(admin);
+    await expect(reactivateUser({ userId: applicant.id })).rejects.toThrow(
+      'User not found or already active',
+    );
   });
 });
 
