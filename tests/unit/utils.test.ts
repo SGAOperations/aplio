@@ -3,8 +3,6 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { MANAGED_POSITIONS_WINDOW_DAYS } from '@/lib/constants';
 import type { AnswerQuestion, PositionActivity } from '@/lib/types';
 import {
-  formatDate,
-  formatRelativeTime,
   formatTableCount,
   getPositionAvailability,
   isAnswered,
@@ -50,6 +48,20 @@ describe('getPositionAvailability', () => {
         { status: 'open', opensAt: null, closesAt: null },
         NOW,
       ),
+    ).toBe('accepting');
+  });
+
+  it('is closed_by_date once now passes closesAt', () => {
+    const closesAt = new Date(NOW.getTime() - 1);
+    expect(
+      getPositionAvailability({ status: 'open', opensAt: null, closesAt }, NOW),
+    ).toBe('closed_by_date');
+  });
+
+  it('is accepting at exactly closesAt (inclusive)', () => {
+    const closesAt = new Date(NOW);
+    expect(
+      getPositionAvailability({ status: 'open', opensAt: null, closesAt }, NOW),
     ).toBe('accepting');
   });
 });
@@ -170,33 +182,6 @@ describe('isPositionActive', () => {
       _count: { applications: 0 },
     };
     expect(isPositionActive(position, NOW)).toBe(false);
-  });
-});
-
-describe('formatRelativeTime', () => {
-  it('returns "Just now" for under a minute', () => {
-    const date = new Date(NOW.getTime() - 30 * 1000);
-    expect(formatRelativeTime(date, NOW)).toBe('Just now');
-  });
-
-  it('formats minutes', () => {
-    const date = new Date(NOW.getTime() - 5 * 60 * 1000);
-    expect(formatRelativeTime(date, NOW)).toBe('5m ago');
-  });
-
-  it('formats hours', () => {
-    const date = new Date(NOW.getTime() - 3 * 60 * 60 * 1000);
-    expect(formatRelativeTime(date, NOW)).toBe('3h ago');
-  });
-
-  it('formats days', () => {
-    const date = new Date(NOW.getTime() - 2 * 24 * 60 * 60 * 1000);
-    expect(formatRelativeTime(date, NOW)).toBe('2d ago');
-  });
-
-  it('falls back to formatDate at exactly 7 days', () => {
-    const date = new Date(NOW.getTime() - 7 * 24 * 60 * 60 * 1000);
-    expect(formatRelativeTime(date, NOW)).toBe(formatDate(date));
   });
 });
 

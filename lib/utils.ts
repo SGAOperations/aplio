@@ -109,34 +109,7 @@ export function isAnswered(question: AnswerQuestion, value: string[]): boolean {
   return partitionAnswerValue(question, value).fitted.length > 0;
 }
 
-export function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(date);
-}
-
-/**
- * Buckets to "Nm/Nh/Nd ago", falling back to formatDate beyond a week.
- */
-export function formatRelativeTime(date: Date, now: Date = new Date()): string {
-  const diffMs = now.getTime() - date.getTime();
-  const diffSec = Math.floor(diffMs / 1000);
-  const diffMin = Math.floor(diffSec / 60);
-  const diffHour = Math.floor(diffMin / 60);
-  const diffDay = Math.floor(diffHour / 24);
-
-  if (diffMin < 1) return 'Just now';
-  if (diffMin < 60) return `${diffMin}m ago`;
-  if (diffHour < 24) return `${diffHour}h ago`;
-  if (diffDay < 7) return `${diffDay}d ago`;
-  return formatDate(date);
-}
-
-/**
- * closesAt is inclusive of its whole day; `now > closesAt` would close it at midnight.
- */
+/** closesAt is already the resolved end-of-day instant — see lib/dates.ts#orgDayEnd. */
 export function getPositionAvailability(
   position: PositionWindow,
   now: Date = new Date(),
@@ -144,18 +117,8 @@ export function getPositionAvailability(
   if (position.status !== 'open') return 'unavailable';
 
   if (position.opensAt !== null && now < position.opensAt) return 'upcoming';
-
-  if (position.closesAt !== null) {
-    // Next UTC day minus 1ms → 23:59:59.999 UTC, explicit to stay host-timezone-proof.
-    const endOfCloseDay = new Date(
-      Date.UTC(
-        position.closesAt.getUTCFullYear(),
-        position.closesAt.getUTCMonth(),
-        position.closesAt.getUTCDate() + 1,
-      ) - 1,
-    );
-    if (now > endOfCloseDay) return 'closed_by_date';
-  }
+  if (position.closesAt !== null && now > position.closesAt)
+    return 'closed_by_date';
 
   return 'accepting';
 }
