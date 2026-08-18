@@ -357,6 +357,97 @@ export const REVIEWER_APPLICATION_STATUSES = [
 export const REVIEWER_APPLICATION_STATUS_OPTIONS =
   APPLICATION_STATUS_OPTIONS.filter((o) => o.value !== 'draft');
 
+// Single source of truth for both the server guard and the rendered quick
+// actions. Array order is display order — the first `forward` entry is the
+// primary button. `draft`/`withdrawn` have no reviewer-initiated moves.
+export const APPLICATION_STATUS_TRANSITIONS = {
+  draft: { forward: [], back: [] },
+  applied: { forward: ['reached_out', 'reviewing'], back: [] },
+  reached_out: {
+    forward: ['interview_scheduled', 'reviewing'],
+    back: ['applied'],
+  },
+  interview_scheduled: {
+    forward: ['reviewing', 'accepted'],
+    back: ['reached_out'],
+  },
+  reviewing: {
+    forward: ['interview_scheduled', 'accepted'],
+    back: ['reached_out'],
+  },
+  accepted: { forward: [], back: ['reviewing', 'interview_scheduled'] },
+  rejected: { forward: [], back: ['reviewing', 'interview_scheduled'] },
+  withdrawn: { forward: [], back: [] },
+} as const satisfies Record<
+  $Enums.ApplicationStatus,
+  {
+    forward: readonly $Enums.ApplicationStatus[];
+    back: readonly $Enums.ApplicationStatus[];
+  }
+>;
+
+// Same members as UNRESOLVED_APPLICATION_STATUSES, but a different meaning —
+// 'rejected' is reachable from every one of these.
+export const REJECTABLE_APPLICATION_STATUSES = [
+  'applied',
+  'reached_out',
+  'interview_scheduled',
+  'reviewing',
+] as const satisfies $Enums.ApplicationStatus[];
+
+export function getAllowedApplicationStatusTransitions(
+  from: $Enums.ApplicationStatus,
+): $Enums.ApplicationStatus[] {
+  const { forward, back } = APPLICATION_STATUS_TRANSITIONS[from];
+  const isRejectable = (
+    REJECTABLE_APPLICATION_STATUSES as readonly $Enums.ApplicationStatus[]
+  ).includes(from);
+  return [
+    ...forward,
+    ...(isRejectable ? (['rejected'] as const) : []),
+    ...back,
+  ];
+}
+
+export function isAllowedApplicationStatusTransition(
+  from: $Enums.ApplicationStatus,
+  to: $Enums.ApplicationStatus,
+): boolean {
+  return getAllowedApplicationStatusTransitions(from).includes(to);
+}
+
+// Inverts the graph rather than hand-listing sources, so the two can't drift.
+export function getApplicationStatusSources(
+  to: $Enums.ApplicationStatus,
+): $Enums.ApplicationStatus[] {
+  return (
+    Object.keys(APPLICATION_STATUS_TRANSITIONS) as $Enums.ApplicationStatus[]
+  ).filter((from) => isAllowedApplicationStatusTransition(from, to));
+}
+
+// Imperative copy for forward/decision quick-action buttons. 'applied' is a
+// back-target only — a reviewer never moves an application forward into it.
+export const APPLICATION_STATUS_ACTION_LABELS: Record<
+  (typeof REVIEWER_APPLICATION_STATUSES)[number],
+  string
+> = {
+  applied: 'Move to applied',
+  reached_out: 'Mark reached out',
+  reviewing: 'Move to reviewing',
+  interview_scheduled: 'Schedule interview',
+  accepted: 'Accept',
+  rejected: 'Reject',
+};
+
+// The one line explaining why the panel has no forward actions from here.
+export const TERMINAL_DECISION_STATUS_NOTES: Record<
+  'accepted' | 'rejected',
+  string
+> = {
+  accepted: 'Accepted. The applicant can no longer withdraw this application.',
+  rejected: 'Rejected. The applicant can no longer withdraw this application.',
+};
+
 // States a reviewer may not act *on*, unlike REVIEWER_APPLICATION_STATUSES (may set *to*).
 export const NON_REVIEWABLE_APPLICATION_STATUSES = [
   'draft',
