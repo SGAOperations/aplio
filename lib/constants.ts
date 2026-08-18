@@ -357,9 +357,8 @@ export const REVIEWER_APPLICATION_STATUSES = [
 export const REVIEWER_APPLICATION_STATUS_OPTIONS =
   APPLICATION_STATUS_OPTIONS.filter((o) => o.value !== 'draft');
 
-// Single source of truth for both the server guard and the rendered quick
-// actions. Array order is display order — the first `forward` entry is the
-// primary button. `draft`/`withdrawn` have no reviewer-initiated moves.
+// Single source of truth for the server guard and the rendered quick actions.
+// Array order is display order; `draft`/`withdrawn` have no reviewer moves.
 export const APPLICATION_STATUS_TRANSITIONS = {
   draft: { forward: [], back: [] },
   applied: { forward: ['reached_out', 'reviewing'], back: [] },
@@ -425,6 +424,25 @@ export function getApplicationStatusSources(
   ).filter((from) => isAllowedApplicationStatusTransition(from, to));
 }
 
+// Bulk targets exclude move-back sources: a batch moving several applications
+// toward a target should skip a row already past it, not walk it backward.
+export function getApplicationStatusForwardSources(
+  to: $Enums.ApplicationStatus,
+): $Enums.ApplicationStatus[] {
+  return (
+    Object.keys(APPLICATION_STATUS_TRANSITIONS) as $Enums.ApplicationStatus[]
+  ).filter((from) => {
+    const { forward } = APPLICATION_STATUS_TRANSITIONS[from];
+    const isRejectable = (
+      REJECTABLE_APPLICATION_STATUSES as readonly $Enums.ApplicationStatus[]
+    ).includes(from);
+    return (
+      (forward as readonly $Enums.ApplicationStatus[]).includes(to) ||
+      (isRejectable && to === 'rejected')
+    );
+  });
+}
+
 // Imperative copy for forward/decision quick-action buttons. 'applied' is a
 // back-target only — a reviewer never moves an application forward into it.
 export const APPLICATION_STATUS_ACTION_LABELS: Record<
@@ -439,7 +457,6 @@ export const APPLICATION_STATUS_ACTION_LABELS: Record<
   rejected: 'Reject',
 };
 
-// The one line explaining why the panel has no forward actions from here.
 export const TERMINAL_DECISION_STATUS_NOTES: Record<
   'accepted' | 'rejected',
   string

@@ -26,6 +26,7 @@ import {
   SHORT_ANSWER_FORMAT_ERROR_MESSAGES,
   TERMINAL_DECISION_STATUSES,
   getAnswerValueError,
+  getApplicationStatusForwardSources,
   getApplicationStatusSources,
   isAllowedApplicationStatusTransition,
   matchesShortAnswerFormat,
@@ -552,19 +553,19 @@ export async function updateApplicationStatuses(
   const applicationIds = Array.from(new Set(parsed.data.applicationIds));
   const { status } = parsed.data;
 
-  // The scoped where silently excludes forged, out-of-scope, and
-  // graph-illegal ids — ineligible rows are skipped, not a batch failure.
+  // Forward-only sources: a bulk move-back would silently walk an already-
+  // decided row backward, so it's skipped like any other ineligible id.
   const where = user.isAdmin
     ? {
         id: { in: applicationIds },
         deletedAt: null,
-        status: { in: getApplicationStatusSources(status) },
+        status: { in: getApplicationStatusForwardSources(status) },
         position: PUBLISHED_POSITION_WHERE,
       }
     : {
         id: { in: applicationIds },
         deletedAt: null,
-        status: { in: getApplicationStatusSources(status) },
+        status: { in: getApplicationStatusForwardSources(status) },
         // Merge, don't overwrite — see prisma/data/applications.ts#buildBaseWhere.
         position: {
           ...PUBLISHED_POSITION_WHERE,

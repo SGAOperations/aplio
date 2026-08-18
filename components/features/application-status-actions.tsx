@@ -72,7 +72,7 @@ export function ApplicationStatusActions({
 
   function performMove(
     target: $Enums.ApplicationStatus,
-    onSuccess?: () => void,
+    onSettled?: () => void,
   ) {
     setPendingTarget(target);
     startTransition(async () => {
@@ -86,11 +86,11 @@ export function ApplicationStatusActions({
           return;
         }
         toast.success(`Moved to ${APPLICATION_STATUS_LABELS[target]}`);
-        onSuccess?.();
       } catch {
         toast.error('Something went wrong. Please try again.');
       } finally {
         setPendingTarget(null);
+        onSettled?.();
       }
     });
   }
