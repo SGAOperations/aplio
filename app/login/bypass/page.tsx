@@ -54,7 +54,7 @@ export default async function BypassLoginPage({
             Or sign in with a real account to test production-style auth.
           </p>
           <Button variant="ghost" className="w-full" asChild>
-            <Link href={withRedirectTo('/login', safeTo)}>
+            <Link href={withRedirectTo('/login', redirectTo)}>
               Sign in with real auth
             </Link>
           </Button>

@@ -20,7 +20,7 @@ export function ProfileReturnBar({
     : `${missingCount} required ${missingCount === 1 ? 'question' : 'questions'} left`;
 
   return (
-    <Card className="sticky bottom-0 flex-row items-center justify-between gap-4 p-4">
+    <Card className="sticky bottom-0 flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <p id="profile-return-status" role="status" aria-live="polite">
         {statusText}
       </p>

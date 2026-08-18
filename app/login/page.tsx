@@ -60,7 +60,7 @@ export default async function SignInPage({
         <p className="text-muted-foreground text-center text-xs">
           Dev:{' '}
           <Link
-            href={withRedirectTo('/login/bypass', safeTo)}
+            href={withRedirectTo('/login/bypass', redirectTo)}
             className="underline"
           >
             switch user via bypass login
