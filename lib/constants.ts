@@ -535,14 +535,9 @@ export const nameSchema = z.object({
 // branch on this specific refusal instead of a generic OTP failure.
 export const ACCOUNT_DEACTIVATED_ERROR_CODE = 'ACCOUNT_DEACTIVATED';
 
-// Shared across checkSignInAllowed, LoginView's OTP failure, and /login's
-// reason=deactivated notice so the copy can't drift between surfaces.
+// Shared between checkSignInAllowed and LoginView's OTP failure so the copy can't drift between surfaces.
 export const ACCOUNT_DEACTIVATED_MESSAGE =
   'Your account has been deactivated. Please contact an administrator.';
-
-// Value of /login's ?reason= query param when getCurrentUser redirects a
-// deactivated caller there.
-export const LOGIN_DEACTIVATED_REASON = 'deactivated';
 
 // Shared between the checkSignInAllowed server action and LoginView's email step resolver.
 export const signInEmailSchema = z.object({

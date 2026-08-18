@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 
 import { auth } from '@/lib/auth/config';
-import { getCurrentUser } from '@/lib/auth/server';
+import { getCurrentUser, getDeactivatedSessionUser } from '@/lib/auth/server';
 import {
   ACCOUNT_DEACTIVATED_MESSAGE,
   OTP_RESEND_COOLDOWN_SECONDS,
@@ -59,6 +59,22 @@ export async function signOutUser(): Promise<ErrorType | void> {
   } catch (error) {
     // The upstream cause is invisible to the browser, so log it here.
     console.error('signOutUser: signOut failed', error);
+    return { error: 'Could not sign out. Please try again.' };
+  }
+
+  revalidatePath('/', 'layout');
+}
+
+// signOutUser can't serve this: its getCurrentUser() call would redirect a
+// deactivated caller to /login/deactivated instead of signing them out.
+export async function signOutDeactivatedSession(): Promise<ErrorType | void> {
+  if (!(await getDeactivatedSessionUser()))
+    throw new Error('Forbidden: no deactivated session');
+
+  try {
+    await auth.api.signOut({ headers: await headers() });
+  } catch (error) {
+    console.error('signOutDeactivatedSession: signOut failed', error);
     return { error: 'Could not sign out. Please try again.' };
   }
 
