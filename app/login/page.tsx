@@ -60,7 +60,7 @@ export default async function SignInPage({
 
   return (
     <div className="flex w-full max-w-sm flex-col items-center gap-4">
-      {isDeactivated && (
+      {isDeactivated && !user && (
         <WarningCallout icon={TriangleAlert} className="w-full">
           {ACCOUNT_DEACTIVATED_MESSAGE}
         </WarningCallout>

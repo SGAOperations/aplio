@@ -15,9 +15,7 @@ type UserResolution =
   | { status: 'deactivated' }
   | { status: 'anonymous' };
 
-// Better Auth owns the User row, so the session id is the row id — no provisioning
-// step and no second identity to keep in sync. Cached, so layout and page
-// share one round-trip per render pass.
+// Better Auth owns the User row, so the session id is the row id.
 const resolveUser = cache(
   async function resolveUser(): Promise<UserResolution> {
     if (isBypassAllowed()) {
@@ -51,9 +49,7 @@ export async function getIsBypass(): Promise<boolean> {
   return Boolean((await cookies()).get('dev-bypass-user-id')?.value);
 }
 
-// For public pages: personalizes if signed in, never forces auth; still
-// provisions. Treats a deactivated caller as anonymous — getCurrentUser is
-// the one that routes them to the deactivation notice.
+// Treats a deactivated caller as anonymous.
 export const getOptionalUser = cache(
   async function getOptionalUser(): Promise<User | null> {
     const resolution = await resolveUser();
