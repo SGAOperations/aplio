@@ -10,8 +10,8 @@ import {
   type SortableColumn,
   useSortableTable,
 } from '@/lib/use-sortable-table';
-import { isAcceptingApplications } from '@/lib/utils';
 
+import { MyApplicationPrimaryAction } from '@/components/features/my-application-primary-action';
 import { MyApplicationRowActions } from '@/components/features/my-application-row-actions';
 import { SortableHeader } from '@/components/features/sortable-header';
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
@@ -30,39 +30,6 @@ import {
 
 interface MyApplicationsTableProps {
   applications: MyApplicationListItem[];
-}
-
-function MyApplicationPrimaryAction({
-  application,
-}: {
-  application: MyApplicationListItem;
-}) {
-  if (application.status === 'draft')
-    return (
-      <Button variant="outline" size="sm" asChild>
-        <Link href={`/positions/${application.positionId}/apply`}>
-          Continue
-        </Link>
-      </Button>
-    );
-
-  if (application.status !== 'withdrawn') return null;
-
-  if (!isAcceptingApplications(application.position))
-    return (
-      <span className="text-muted-foreground text-sm">Position closed</span>
-    );
-
-  return (
-    <Button variant="outline" size="sm" asChild>
-      <Link
-        href={`/positions/${application.positionId}/apply`}
-        aria-label={`Edit and resubmit application for ${application.position.title}`}
-      >
-        Edit &amp; resubmit
-      </Link>
-    </Button>
-  );
 }
 
 const COLUMNS: SortableColumn<MyApplicationListItem>[] = [
@@ -135,7 +102,7 @@ export function MyApplicationsTable({
               <TableRow key={app.id}>
                 <TableCell>
                   <Link
-                    href={`/positions/${app.positionId}`}
+                    href={`/my-applications/${app.id}`}
                     className="font-medium hover:underline"
                   >
                     {app.position.title}
@@ -173,7 +140,7 @@ export function MyApplicationsTable({
           <div key={app.id} className="flex flex-col gap-2 p-4">
             <div className="flex items-center justify-between gap-2">
               <Link
-                href={`/positions/${app.positionId}`}
+                href={`/my-applications/${app.id}`}
                 className="font-medium hover:underline"
               >
                 {app.position.title}

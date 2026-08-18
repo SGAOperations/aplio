@@ -121,6 +121,11 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
                 <Link href="/my-applications">View my applications</Link>
               </Button>
               <Button asChild variant="ghost" className="w-fit">
+                <Link href={`/my-applications/${application.id}`}>
+                  View my answers
+                </Link>
+              </Button>
+              <Button asChild variant="ghost" className="w-fit">
                 <Link href={`/positions/${id}`}>Back to position</Link>
               </Button>
             </div>
