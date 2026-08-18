@@ -19,14 +19,7 @@ import { SortableHeader } from '@/components/features/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -50,14 +43,35 @@ const COLUMNS: SortableColumn<AdminUserListItem>[] = [
   { key: 'applications', accessor: (u) => u._count.applications },
 ];
 
+// Row snapshot for a pending confirmation — captured at click time rather
+// than looked up by id later, so the dialog stays readable naming the right
+// user even if a revalidation drops the row mid-flight.
+interface AdminTarget {
+  id: string;
+  displayName: string;
+  email: string;
+  name: string | null;
+  makeAdmin: boolean;
+}
+
+interface DeactivateTarget {
+  id: string;
+  displayName: string;
+}
+
 export function UsersTable({ users, currentUserId }: UsersTableProps) {
   const [query, setQuery] = useState('');
-  const [confirmDeactivateId, setConfirmDeactivateId] = useState<string | null>(
-    null,
-  );
-  const [togglingAdminId, setTogglingAdminId] = useState<string | null>(null);
-  const [, startToggleTransition] = useTransition();
-  const [isPendingDeactivate, startDeactivateTransition] = useTransition();
+  // `*Target` is never nulled on close — only replaced on the next open —
+  // so the dialog's title/description keep the last valid value through
+  // Radix's exit animation instead of re-rendering "undefined" mid-fade.
+  // `*DialogOpen` alone drives visibility.
+  const [adminTarget, setAdminTarget] = useState<AdminTarget | null>(null);
+  const [adminDialogOpen, setAdminDialogOpen] = useState(false);
+  const [deactivateTarget, setDeactivateTarget] =
+    useState<DeactivateTarget | null>(null);
+  const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
+  const [isTogglingAdmin, startToggleTransition] = useTransition();
+  const [isDeactivating, startDeactivateTransition] = useTransition();
 
   const q = query.trim().toLowerCase();
   const filtered = q
@@ -74,36 +88,41 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
     { defaultSort: { key: 'joined', direction: 'desc' } },
   );
 
-  function handleToggleAdmin(userId: string, makeAdmin: boolean) {
-    setTogglingAdminId(userId);
+  function handleToggleAdminConfirm() {
+    if (!adminTarget) return;
+    const target = adminTarget;
     startToggleTransition(async () => {
       try {
-        const result = await toggleUserAdmin({ userId, makeAdmin });
+        const result = await toggleUserAdmin({
+          userId: target.id,
+          makeAdmin: target.makeAdmin,
+        });
         if (result?.error) {
           toast.error(result.error);
           return;
         }
-        toast.success(makeAdmin ? 'User promoted to admin.' : 'Admin removed.');
+        toast.success(
+          target.makeAdmin ? 'User promoted to admin.' : 'Admin removed.',
+        );
+        setAdminDialogOpen(false);
       } catch {
         toast.error('Something went wrong. Please try again.');
-      } finally {
-        setTogglingAdminId(null);
       }
     });
   }
 
   function handleDeactivateConfirm() {
-    if (!confirmDeactivateId) return;
-    const targetId = confirmDeactivateId;
+    if (!deactivateTarget) return;
+    const target = deactivateTarget;
     startDeactivateTransition(async () => {
       try {
-        const result = await deactivateUser({ userId: targetId });
+        const result = await deactivateUser({ userId: target.id });
         if (result?.error) {
           toast.error(result.error);
           return;
         }
         toast.success('User deactivated.');
-        setConfirmDeactivateId(null);
+        setDeactivateDialogOpen(false);
       } catch {
         toast.error('Something went wrong. Please try again.');
       }
@@ -192,7 +211,6 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
                   const isSelf = user.id === currentUserId;
                   const isManager = user.managedPositions.length > 0;
                   const appCount = user._count.applications;
-                  const isTogglingAdmin = togglingAdminId === user.id;
 
                   return (
                     <TableRow key={user.id}>
@@ -261,22 +279,25 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
                           <Button
                             variant="outline"
                             size="sm"
-                            disabled={isSelf || isTogglingAdmin}
+                            disabled={isSelf}
                             title={
                               isSelf
                                 ? 'You cannot change your own admin role'
                                 : undefined
                             }
                             aria-disabled={isSelf}
-                            onClick={() =>
-                              handleToggleAdmin(user.id, !user.isAdmin)
-                            }
+                            onClick={() => {
+                              setAdminTarget({
+                                id: user.id,
+                                displayName: user.name ?? user.email,
+                                email: user.email,
+                                name: user.name,
+                                makeAdmin: !user.isAdmin,
+                              });
+                              setAdminDialogOpen(true);
+                            }}
                           >
-                            {isTogglingAdmin
-                              ? 'Saving…'
-                              : user.isAdmin
-                                ? 'Remove admin'
-                                : 'Make admin'}
+                            {user.isAdmin ? 'Remove admin' : 'Make admin'}
                           </Button>
                           <Button
                             variant="destructive"
@@ -288,7 +309,13 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
                                 : undefined
                             }
                             aria-disabled={isSelf}
-                            onClick={() => setConfirmDeactivateId(user.id)}
+                            onClick={() => {
+                              setDeactivateTarget({
+                                id: user.id,
+                                displayName: user.name ?? user.email,
+                              });
+                              setDeactivateDialogOpen(true);
+                            }}
                           >
                             Deactivate
                           </Button>
@@ -303,36 +330,59 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
         </Card>
       </div>
 
-      <Dialog
-        open={!!confirmDeactivateId}
-        onOpenChange={(open) => !open && setConfirmDeactivateId(null)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Deactivate user?</DialogTitle>
-            <DialogDescription>
-              This will block the user from accessing the app on their next
-              request. This action cannot be undone from this page.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setConfirmDeactivateId(null)}
-              disabled={isPendingDeactivate}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeactivateConfirm}
-              disabled={isPendingDeactivate}
-            >
-              {isPendingDeactivate ? 'Deactivating…' : 'Deactivate'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={adminDialogOpen}
+        onOpenChange={setAdminDialogOpen}
+        title={
+          adminTarget?.makeAdmin
+            ? `Make ${adminTarget.displayName} an admin?`
+            : `Remove admin from ${adminTarget?.displayName}?`
+        }
+        description={
+          adminTarget?.makeAdmin ? (
+            <>
+              Admins can manage every position, view every application, and
+              promote or deactivate other users.{' '}
+              {adminTarget.name
+                ? `${adminTarget.displayName} (${adminTarget.email})`
+                : adminTarget.displayName}{' '}
+              gets full access immediately.
+            </>
+          ) : (
+            adminTarget && (
+              <>
+                {adminTarget.name
+                  ? `${adminTarget.displayName} (${adminTarget.email})`
+                  : adminTarget.displayName}{' '}
+                will lose access to admin-only pages and keep only the positions
+                they manage.
+              </>
+            )
+          )
+        }
+        confirmLabel={adminTarget?.makeAdmin ? 'Make admin' : 'Remove admin'}
+        pendingLabel={adminTarget?.makeAdmin ? 'Making admin…' : 'Removing…'}
+        destructive={!adminTarget?.makeAdmin}
+        isPending={isTogglingAdmin}
+        onConfirm={handleToggleAdminConfirm}
+      />
+
+      <ConfirmDialog
+        open={deactivateDialogOpen}
+        onOpenChange={setDeactivateDialogOpen}
+        title={`Deactivate ${deactivateTarget?.displayName}?`}
+        description={
+          <>
+            {deactivateTarget?.displayName} will be blocked from accessing Aplio
+            on their next request. This can&apos;t be undone from this page.
+          </>
+        }
+        confirmLabel="Deactivate"
+        pendingLabel="Deactivating…"
+        destructive
+        isPending={isDeactivating}
+        onConfirm={handleDeactivateConfirm}
+      />
     </>
   );
 }
