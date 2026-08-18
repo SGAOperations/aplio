@@ -13,6 +13,7 @@ import {
   type ManagedPosition,
   type ManagedPositionSummaryItem,
   type OpenPositionSummaryItem,
+  type PositionDeletionSummary,
   type PositionDetail,
   type PositionForEdit,
   type PositionWithQuestions,
@@ -329,4 +330,20 @@ export async function checkPositionEditable(
   });
 
   return position !== null && isPositionActive(position);
+}
+
+// Admin-gated edit page only; counts exclude soft-deleted applications.
+export async function getPositionDeletionSummary(
+  positionId: string,
+): Promise<PositionDeletionSummary> {
+  const [submittedCount, draftCount] = await Promise.all([
+    prisma.application.count({
+      where: { positionId, deletedAt: null, status: { not: 'draft' } },
+    }),
+    prisma.application.count({
+      where: { positionId, deletedAt: null, status: 'draft' },
+    }),
+  ]);
+
+  return { submittedCount, draftCount };
 }

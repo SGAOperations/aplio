@@ -215,6 +215,11 @@ export type OpenPositionSummaryItem = Prisma.PositionGetPayload<{
   select: { id: true; title: true; _count: { select: { applications: true } } };
 }>;
 
+export type PositionDeletionSummary = {
+  submittedCount: number;
+  draftCount: number;
+};
+
 // Minimal shape reviewer-scoped queries and guards need — spelled inline in 5+ signatures.
 export type Reviewer = { id: string; isAdmin: boolean };
 

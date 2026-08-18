@@ -3,11 +3,15 @@ import { notFound } from 'next/navigation';
 
 import { Archive } from 'lucide-react';
 
-import { getPositionForEdit } from '@/prisma/data/positions';
+import {
+  getPositionDeletionSummary,
+  getPositionForEdit,
+} from '@/prisma/data/positions';
 
 import { requireListedManagerOr404 } from '@/lib/auth/guards';
 import { isPositionActive } from '@/lib/utils';
 
+import { PositionDangerZone } from '@/components/features/position-danger-zone';
 import { PositionDetailsForm } from '@/components/features/position-details-form';
 import { PositionDetailsReadonly } from '@/components/features/position-details-readonly';
 import { PositionEditTabs } from '@/components/features/position-edit-tabs';
@@ -43,6 +47,10 @@ export default async function EditPositionPage({
   const user = await requireListedManagerOr404(position.managers);
 
   const canEdit = user.isAdmin || isPositionActive(position);
+
+  const deletionSummary = user.isAdmin
+    ? await getPositionDeletionSummary(position.id)
+    : null;
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
@@ -110,6 +118,14 @@ export default async function EditPositionPage({
           />
         }
       />
+
+      {deletionSummary && (
+        <PositionDangerZone
+          positionId={position.id}
+          positionTitle={position.title}
+          summary={deletionSummary}
+        />
+      )}
     </div>
   );
 }
