@@ -9,10 +9,10 @@ import {
 
 import { APPLICATION_STATUS_LABELS } from '@/lib/constants';
 import { type MyApplicationListItem } from '@/lib/types';
-import { formatDate } from '@/lib/utils';
 
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { LocalTime } from '@/components/ui/local-time';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface MyApplicationsWidgetProps {
@@ -126,7 +126,11 @@ function ApplicationList({
           </Link>
           <ApplicationStatusBadge status={app.status} />
           <span className="text-muted-foreground shrink-0 text-xs">
-            {app.status === 'draft' ? '—' : formatDate(app.submittedAt)}
+            {app.status === 'draft' ? (
+              '—'
+            ) : (
+              <LocalTime date={app.submittedAt} precision="date" />
+            )}
           </span>
         </li>
       ))}

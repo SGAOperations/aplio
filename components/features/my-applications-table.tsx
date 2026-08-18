@@ -10,7 +10,7 @@ import {
   type SortableColumn,
   useSortableTable,
 } from '@/lib/use-sortable-table';
-import { formatDate, isAcceptingApplications } from '@/lib/utils';
+import { isAcceptingApplications } from '@/lib/utils';
 
 import { MyApplicationRowActions } from '@/components/features/my-application-row-actions';
 import { SortableHeader } from '@/components/features/sortable-header';
@@ -18,6 +18,7 @@ import { ApplicationStatusBadge } from '@/components/features/status-badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
+import { LocalTime } from '@/components/ui/local-time';
 import {
   Table,
   TableBody,
@@ -144,7 +145,11 @@ export function MyApplicationsTable({
                   <ApplicationStatusBadge status={app.status} />
                 </TableCell>
                 <TableCell className="text-muted-foreground">
-                  {app.status === 'draft' ? '—' : formatDate(app.submittedAt)}
+                  {app.status === 'draft' ? (
+                    '—'
+                  ) : (
+                    <LocalTime date={app.submittedAt} precision="date" />
+                  )}
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
@@ -177,7 +182,11 @@ export function MyApplicationsTable({
             </div>
             <div className="flex items-center justify-between gap-2">
               <span className="text-muted-foreground text-sm">
-                {app.status === 'draft' ? 'Draft' : formatDate(app.submittedAt)}
+                {app.status === 'draft' ? (
+                  'Draft'
+                ) : (
+                  <LocalTime date={app.submittedAt} precision="date" />
+                )}
               </span>
               <div className="flex items-center gap-2">
                 <MyApplicationPrimaryAction application={app} />

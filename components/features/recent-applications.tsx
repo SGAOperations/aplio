@@ -5,10 +5,10 @@ import { ArrowRight, Inbox } from 'lucide-react';
 import { getRecentApplications } from '@/prisma/data/applications';
 
 import { type AdminApplicationListItem, type Reviewer } from '@/lib/types';
-import { formatDate } from '@/lib/utils';
 
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { LocalTime } from '@/components/ui/local-time';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface RecentApplicationsProps {
@@ -90,7 +90,7 @@ function ApplicationList({
             </span>
             <ApplicationStatusBadge status={app.status} />
             <span className="text-muted-foreground shrink-0 text-xs">
-              {formatDate(app.submittedAt)}
+              <LocalTime date={app.submittedAt} precision="date" />
             </span>
           </li>
         );

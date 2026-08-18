@@ -14,7 +14,6 @@ import type {
   ApplicationSortDirection,
   ApplicationSortField,
 } from '@/lib/types';
-import { formatDate } from '@/lib/utils';
 
 import { ApplicationsBulkBar } from '@/components/features/applications-bulk-bar';
 // Server-side sort; its param format stays decoupled from useSortableTable's.
@@ -23,6 +22,7 @@ import { ApplicationStatusBadge } from '@/components/features/status-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { LocalTime } from '@/components/ui/local-time';
 import {
   Table,
   TableBody,
@@ -251,7 +251,7 @@ export function ApplicationsTable({
                       <ApplicationStatusBadge status={app.status} />
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {formatDate(app.submittedAt)}
+                      <LocalTime date={app.submittedAt} precision="date" />
                     </TableCell>
                   </TableRow>
                 );
@@ -292,7 +292,7 @@ export function ApplicationsTable({
                     {app.position.title}
                   </span>
                   <span className="text-muted-foreground text-xs">
-                    {formatDate(app.submittedAt)}
+                    <LocalTime date={app.submittedAt} precision="date" />
                   </span>
                 </div>
               </div>

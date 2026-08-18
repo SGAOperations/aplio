@@ -15,7 +15,6 @@ import {
   UNRESOLVED_APPLICATION_STATUSES,
 } from '@/lib/constants';
 import {
-  formatDate,
   isAcceptingApplications,
   isAnswered,
   toStringArray,
@@ -27,6 +26,7 @@ import { ApplicationStatusBadge } from '@/components/features/status-badge';
 import { PageHeader } from '@/components/layouts/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { LocalTime } from '@/components/ui/local-time';
 
 interface ApplyPageProps {
   params: Promise<{ id: string }>;
@@ -104,7 +104,8 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
               <div className="mt-2 flex items-center gap-2">
                 <ApplicationStatusBadge status={application.status} />
                 <span className="text-muted-foreground text-sm">
-                  Submitted {formatDate(application.submittedAt)}
+                  Submitted{' '}
+                  <LocalTime date={application.submittedAt} precision="date" />
                 </span>
               </div>
               <p className="text-muted-foreground mt-3 text-sm">

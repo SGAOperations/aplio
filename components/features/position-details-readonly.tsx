@@ -1,8 +1,7 @@
 import type { PositionStatus } from '@/prisma/client';
 
-import { formatDate } from '@/lib/utils';
-
 import { PositionStatusBadge } from '@/components/features/status-badge';
+import { LocalTime } from '@/components/ui/local-time';
 
 interface PositionDetailsReadonlyProps {
   position: {
@@ -44,7 +43,7 @@ export function PositionDetailsReadonly({
         <dt className="text-muted-foreground text-xs">Opens</dt>
         <dd className="text-sm">
           {position.opensAt ? (
-            formatDate(position.opensAt)
+            <LocalTime date={position.opensAt} precision="datetime" />
           ) : (
             <span className="text-muted-foreground">Not set</span>
           )}
@@ -55,7 +54,7 @@ export function PositionDetailsReadonly({
         <dt className="text-muted-foreground text-xs">Closes</dt>
         <dd className="text-sm">
           {position.closesAt ? (
-            formatDate(position.closesAt)
+            <LocalTime date={position.closesAt} precision="datetime" />
           ) : (
             <span className="text-muted-foreground">Not set</span>
           )}
