@@ -19,12 +19,15 @@ import {
   ANSWER_LONG_MAX_LENGTH,
   ANSWER_MAX_VALUES,
   APPLICANT_EDITABLE_APPLICATION_STATUSES,
+  APPLICATION_STATUS_LABELS,
   NON_REVIEWABLE_APPLICATION_STATUSES,
   PUBLISHED_POSITION_WHERE,
   REVIEWER_APPLICATION_STATUSES,
   SHORT_ANSWER_FORMAT_ERROR_MESSAGES,
   TERMINAL_DECISION_STATUSES,
   getAnswerValueError,
+  getApplicationStatusSources,
+  isAllowedApplicationStatusTransition,
   matchesShortAnswerFormat,
 } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
@@ -500,16 +503,32 @@ export async function updateApplicationStatus(
 
   const application = await prisma.application.findFirst({
     where,
-    select: { id: true },
+    select: { id: true, status: true },
   });
 
   // IDOR-style miss, unreachable from the UI — throw, don't return.
   if (!application) throw new Error('Application not found or not authorized');
 
-  await prisma.application.update({
-    where: { id: applicationId },
+  if (!isAllowedApplicationStatusTransition(application.status, status))
+    return {
+      error: `This application is now ${APPLICATION_STATUS_LABELS[application.status]}, so that move is no longer available. Refresh to see the current options.`,
+    };
+
+  // Narrower than the `where` above: sources never include draft/withdrawn,
+  // which that `notIn` already excludes.
+  const updateResult = await prisma.application.updateMany({
+    where: {
+      id: applicationId,
+      status: { in: getApplicationStatusSources(status) },
+    },
     data: { status, updatedById: user.id },
   });
+
+  if (updateResult.count === 0)
+    return {
+      error:
+        'This application just changed. Refresh to see its current status.',
+    };
 
   revalidatePath(`/applications/${applicationId}`);
   revalidatePath('/applications');
@@ -533,18 +552,19 @@ export async function updateApplicationStatuses(
   const applicationIds = Array.from(new Set(parsed.data.applicationIds));
   const { status } = parsed.data;
 
-  // The scoped where silently excludes forged and out-of-scope ids.
+  // The scoped where silently excludes forged, out-of-scope, and
+  // graph-illegal ids — ineligible rows are skipped, not a batch failure.
   const where = user.isAdmin
     ? {
         id: { in: applicationIds },
         deletedAt: null,
-        status: { notIn: NON_REVIEWABLE_APPLICATION_STATUSES },
+        status: { in: getApplicationStatusSources(status) },
         position: PUBLISHED_POSITION_WHERE,
       }
     : {
         id: { in: applicationIds },
         deletedAt: null,
-        status: { notIn: NON_REVIEWABLE_APPLICATION_STATUSES },
+        status: { in: getApplicationStatusSources(status) },
         // Merge, don't overwrite — see prisma/data/applications.ts#buildBaseWhere.
         position: {
           ...PUBLISHED_POSITION_WHERE,
@@ -557,8 +577,10 @@ export async function updateApplicationStatuses(
     data: { status, updatedById: user.id },
   });
 
-  // IDOR-style miss, unreachable from the UI — throw, don't return.
-  if (result.count === 0) throw new Error('No applications were updated');
+  if (result.count === 0)
+    return {
+      error: `None of the selected applications can move to ${APPLICATION_STATUS_LABELS[status]}.`,
+    };
 
   revalidatePath('/applications');
   // Wildcard segment: a bulk update has no individual positionIds to hand.
