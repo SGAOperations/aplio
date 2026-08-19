@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 
 import { getUsersForAdmin } from '@/prisma/data/users';
 
@@ -22,14 +21,7 @@ export default async function UsersPage() {
       <PageHeader
         title="Users"
         description="Manage platform accounts and admin access."
-        actions={
-          <>
-            <Button variant="outline" asChild>
-              <Link href="/users/deactivated">Deactivated accounts</Link>
-            </Button>
-            <CreateUserDialog trigger={<Button>Create user</Button>} />
-          </>
-        }
+        actions={<CreateUserDialog trigger={<Button>Create user</Button>} />}
       />
 
       <UsersTable users={users} currentUserId={user.id} />

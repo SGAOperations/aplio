@@ -78,32 +78,6 @@ export async function deactivateUser(
   revalidatePath('/users');
 }
 
-// Caller is active by definition (getCurrentUser resolves only live rows), so
-// they can never appear in the deactivated list — no self-reactivation guard needed.
-export async function reactivateUser(
-  input: unknown,
-): Promise<ActionError | void> {
-  const admin = await requireAdmin();
-
-  const parsed = userIdSchema.safeParse(input);
-  if (!parsed.success) return { error: 'Invalid input' };
-
-  const { userId } = parsed.data;
-
-  // Scoping to deletedAt: { not: null } makes a double-submit a no-op
-  // instead of a spurious audit write.
-  const result = await prisma.user.updateMany({
-    where: { id: userId, deletedAt: { not: null } },
-    data: { deletedAt: null, deletedById: null, updatedById: admin.id },
-  });
-
-  // Not reachable from the freshly-rendered deactivated list → unexpected → throw.
-  if (result.count === 0) throw new Error('User not found or already active');
-
-  revalidatePath('/users');
-  revalidatePath('/users/deactivated');
-}
-
 export async function createUser(input: unknown): Promise<ActionError | void> {
   const admin = await requireAdmin();
 
@@ -121,7 +95,7 @@ export async function createUser(input: unknown): Promise<ActionError | void> {
     return existing.deletedAt
       ? {
           error:
-            'That email belongs to a deactivated account. Reactivate it from Users → Deactivated accounts.',
+            'That email belongs to a deactivated account. Contact an administrator to reactivate it.',
         }
       : { error: 'A user with this email already exists.' };
 

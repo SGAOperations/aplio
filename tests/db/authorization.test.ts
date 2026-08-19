@@ -29,7 +29,6 @@ import {
 import {
   createUser,
   deactivateUser,
-  reactivateUser,
   toggleUserAdmin,
 } from '@/prisma/actions/users';
 import type { Application, Position, User } from '@/prisma/client';
@@ -44,6 +43,7 @@ import {
 } from '@/prisma/data/applications';
 import { checkPositionAccess, isManager } from '@/prisma/data/managers';
 import { getManagedPositions } from '@/prisma/data/positions';
+import { getUsersForAdmin } from '@/prisma/data/users';
 
 import {
   requireAdmin,
@@ -561,37 +561,21 @@ describe('toggleUserAdmin / deactivateUser / createUser', () => {
   });
 });
 
-describe('reactivateUser', () => {
-  it('rejects a non-admin caller', async () => {
-    const target = await createTestUser({ deletedAt: new Date() });
-    actAs(applicant);
-    await expect(reactivateUser({ userId: target.id })).rejects.toThrow();
-  });
-
-  it('clears the soft delete and records the reactivating admin', async () => {
-    const deactivator = await createTestUser({ isAdmin: true });
+describe('deactivated users excluded from admin queries', () => {
+  it('never appears in getUsersForAdmin or searchUsers', async () => {
     const target = await createTestUser({
+      name: 'Deactivated Target',
       deletedAt: new Date(),
-      deletedBy: { connect: { id: deactivator.id } },
     });
 
-    actAs(admin);
-    const result = await reactivateUser({ userId: target.id });
-    expect(result).toBeUndefined();
+    const adminList = (await getUsersForAdmin()).map((u) => u.id);
+    expect(adminList).not.toContain(target.id);
 
-    const updated = await prisma.user.findUniqueOrThrow({
-      where: { id: target.id },
-      select: { deletedAt: true, deletedById: true, updatedById: true },
-    });
-    expect(updated.deletedAt).toBeNull();
-    expect(updated.deletedById).toBeNull();
-    expect(updated.updatedById).toBe(admin.id);
-  });
-
-  it('throws when reactivating an already-active user', async () => {
     actAs(admin);
-    await expect(reactivateUser({ userId: applicant.id })).rejects.toThrow(
-      'User not found or already active',
+    const searchResult = await searchUsers({ query: target.email });
+    if (isError(searchResult)) throw new Error('expected a result array');
+    expect(searchResult.some((row) => row.primaryEmail === target.email)).toBe(
+      false,
     );
   });
 });

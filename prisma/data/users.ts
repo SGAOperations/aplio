@@ -2,10 +2,7 @@ import 'server-only';
 
 import { PUBLISHED_POSITION_WHERE } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
-import type {
-  AdminDeactivatedUserListItem,
-  AdminUserListItem,
-} from '@/lib/types';
+import type { AdminUserListItem } from '@/lib/types';
 
 // Exposes user identities — admin-gated callers only.
 export async function getUsersForAdmin(): Promise<AdminUserListItem[]> {
@@ -35,23 +32,5 @@ export async function getUsersForAdmin(): Promise<AdminUserListItem[]> {
       },
     },
     orderBy: { createdAt: 'desc' },
-  });
-}
-
-// Exposes other users' identities — admin-gated callers only.
-export async function getDeactivatedUsersForAdmin(): Promise<
-  AdminDeactivatedUserListItem[]
-> {
-  return prisma.user.findMany({
-    where: { deletedAt: { not: null } },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      isAdmin: true,
-      deletedAt: true,
-      deletedBy: { select: { name: true, email: true } },
-    },
-    orderBy: { deletedAt: 'desc' },
   });
 }

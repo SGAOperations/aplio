@@ -310,18 +310,6 @@ export type AdminUserListItem = Prisma.UserGetPayload<{
   };
 }>;
 
-// Exposes other users' identities — admin-gated contexts only, never a non-admin client.
-export type AdminDeactivatedUserListItem = Prisma.UserGetPayload<{
-  select: {
-    id: true;
-    name: true;
-    email: true;
-    isAdmin: true;
-    deletedAt: true;
-    deletedBy: { select: { name: true; email: true } };
-  };
-}>;
-
 // Aggregate only — never exposes individual applicant identity.
 export type PositionApplicationStats = {
   positionId: string;
