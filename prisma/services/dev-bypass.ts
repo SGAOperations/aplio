@@ -59,7 +59,7 @@ export async function loginAsBypassUser(role: BypassRole, redirectTo?: string) {
     path: '/',
   });
 
-  redirect(safeRedirectTo(redirectTo, '/'));
+  redirect(safeRedirectTo(redirectTo));
 }
 
 // Hard no-op unless isBypassAllowed() says otherwise.

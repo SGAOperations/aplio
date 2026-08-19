@@ -94,6 +94,19 @@ describe('sanitizeRedirectTo', () => {
   it('rejects /login/bypass', () => {
     expect(sanitizeRedirectTo('/login/bypass')).toBeNull();
   });
+
+  it('rejects a traversal segment rather than normalizing it', () => {
+    expect(sanitizeRedirectTo('/foo/../evil.com')).toBeNull();
+  });
+
+  it('rejects a traversal segment that would climb past the origin', () => {
+    expect(sanitizeRedirectTo('/../evil.com')).toBeNull();
+  });
+
+  it('rejects a traversal segment in the query or hash', () => {
+    expect(sanitizeRedirectTo('/foo?x=../evil')).not.toBeNull();
+    expect(sanitizeRedirectTo('/foo#../evil')).not.toBeNull();
+  });
 });
 
 describe('safeRedirectTo', () => {

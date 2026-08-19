@@ -1,28 +1,19 @@
 // No next/* imports — the unit test project has no Next stubs (vitest.config.ts).
-export const DEFAULT_REDIRECT = '/positions';
+export const DEFAULT_REDIRECT = '/';
 
-const REDIRECT_BASE = 'https://redirect.invalid';
+// One leading slash, then nothing that could open an authority or split a header.
+const SAFE_PATH = /^\/(?![/\\])[^\\\s\x00-\x1f]*$/;
 
-// Order matters: reject on the raw string before any parsing normalizes it.
 export function sanitizeRedirectTo(value: unknown): string | null {
-  if (typeof value !== 'string' || value.length === 0) return null;
-  if (/[\s\x00-\x1f]/.test(value)) return null;
-  if (!value.startsWith('/')) return null;
-  if (value[1] === '/' || value[1] === '\\') return null;
+  if (typeof value !== 'string') return null;
+  if (!SAFE_PATH.test(value)) return null;
 
-  let url: URL;
-  try {
-    url = new URL(value, REDIRECT_BASE);
-  } catch {
-    return null;
-  }
-  if (url.origin !== REDIRECT_BASE) return null;
-  if (url.pathname.startsWith('//') || url.pathname.startsWith('/\\'))
-    return null;
-  if (url.pathname === '/login' || url.pathname.startsWith('/login/'))
-    return null;
+  const pathname = value.split(/[?#]/)[0];
+  // Rejected rather than normalized — no in-app destination needs traversal.
+  if (pathname.split('/').includes('..')) return null;
+  if (pathname === '/login' || pathname.startsWith('/login/')) return null;
 
-  return `${url.pathname}${url.search}${url.hash}`;
+  return value;
 }
 
 export function safeRedirectTo(

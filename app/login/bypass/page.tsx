@@ -19,7 +19,7 @@ export default async function BypassLoginPage({
   if (!isBypassAllowed()) notFound();
 
   const { redirectTo } = await searchParams;
-  const safeTo = safeRedirectTo(redirectTo, '/');
+  const safeTo = safeRedirectTo(redirectTo);
 
   return (
     <div className="flex min-h-screen items-center justify-center">
