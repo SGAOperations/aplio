@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 
 import type { ProfileCompleteness } from '@/lib/types';
@@ -29,7 +31,12 @@ export function ProfileReturnBar({
           <Link href={destination}>Continue</Link>
         </Button>
       ) : (
-        <Button disabled aria-describedby="profile-return-status">
+        <Button
+          aria-disabled="true"
+          aria-describedby="profile-return-status"
+          className="aria-disabled:pointer-events-none aria-disabled:opacity-50"
+          onClick={(e) => e.preventDefault()}
+        >
           Continue
         </Button>
       )}

@@ -103,9 +103,16 @@ describe('sanitizeRedirectTo', () => {
     expect(sanitizeRedirectTo('/../evil.com')).toBeNull();
   });
 
-  it('rejects a traversal segment in the query or hash', () => {
+  it('allows a traversal-looking segment in the query or hash', () => {
     expect(sanitizeRedirectTo('/foo?x=../evil')).not.toBeNull();
     expect(sanitizeRedirectTo('/foo#../evil')).not.toBeNull();
+  });
+
+  it('strips Next-internal params from the query', () => {
+    expect(sanitizeRedirectTo('/my-applications?_rsc=1a2b3c')).toBe(
+      '/my-applications',
+    );
+    expect(sanitizeRedirectTo('/foo?tab=x&_rsc=abc')).toBe('/foo?tab=x');
   });
 });
 
@@ -119,8 +126,8 @@ describe('safeRedirectTo', () => {
   });
 
   it('supports a custom fallback', () => {
-    expect(safeRedirectTo('//evil.com', '/')).toBe('/');
-    expect(safeRedirectTo(undefined, '/')).toBe('/');
+    expect(safeRedirectTo('//evil.com', '/positions')).toBe('/positions');
+    expect(safeRedirectTo(undefined, '/positions')).toBe('/positions');
   });
 });
 
