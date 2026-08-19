@@ -89,7 +89,7 @@ Closes #503
 > **SESSION REQUIRED:** touches `CLAUDE.md` / `.claude/**` — a dispatched agent can't edit those
 ```
 
-Same literal string as the issue plan, same rendering — `.claude/docs/PIPELINE.md` → "Session-required tickets". **No label is involved on either surface.** Otherwise `gh pr create` is exactly as the agent file specifies:
+Same literal string as the issue plan, same rendering — `.claude/docs/PIPELINE.md` → "Session-required tickets". **The routing marker is never a label.** The one label `gh pr create` does pass is `claude`, exactly as the agent file specifies — it **activates the approval gate** (`approval-check.yml` runs only on PRs carrying it), so a PR opened without it merges with no gate at all:
 
 ```bash
 gh pr create --repo SGAOperations/aplio \
@@ -97,6 +97,7 @@ gh pr create --repo SGAOperations/aplio \
   --title "#<n> <Ticket Title In Title Case>" \
   --body-file .temp/pr-<n>.md \
   --assignee "<issue-assignee-login>" \
+  --label "claude" \
   --head <n>-ticket-name-in-kebab-case
 ```
 
