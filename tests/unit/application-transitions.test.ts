@@ -7,6 +7,7 @@ import {
   APPLICATION_STATUS_VALUES,
   REJECTABLE_APPLICATION_STATUSES,
   getAllowedApplicationStatusTransitions,
+  getApplicationStatusForwardSources,
   getApplicationStatusSources,
   isAllowedApplicationStatusTransition,
 } from '@/lib/constants';
@@ -68,5 +69,54 @@ describe('getApplicationStatusSources', () => {
       );
       expect(new Set(sources)).toEqual(new Set(expected));
     }
+  });
+});
+
+describe('getApplicationStatusForwardSources', () => {
+  const forwardOrRejectSources = (
+    to: $Enums.ApplicationStatus,
+  ): $Enums.ApplicationStatus[] =>
+    ALL_STATUSES.filter((from) => {
+      const { forward } = APPLICATION_STATUS_TRANSITIONS[from];
+      const isRejectable = (
+        REJECTABLE_APPLICATION_STATUSES as readonly $Enums.ApplicationStatus[]
+      ).includes(from);
+      return (
+        (forward as readonly $Enums.ApplicationStatus[]).includes(to) ||
+        (isRejectable && to === 'rejected')
+      );
+    });
+
+  const backSources = (
+    to: $Enums.ApplicationStatus,
+  ): $Enums.ApplicationStatus[] =>
+    ALL_STATUSES.filter((from) =>
+      (
+        APPLICATION_STATUS_TRANSITIONS[from]
+          .back as readonly $Enums.ApplicationStatus[]
+      ).includes(to),
+    );
+
+  it('prefers forward/reject sources whenever any exist', () => {
+    for (const to of ALL_STATUSES) {
+      const forward = forwardOrRejectSources(to);
+      if (forward.length === 0) continue;
+      expect(new Set(getApplicationStatusForwardSources(to))).toEqual(
+        new Set(forward),
+      );
+    }
+  });
+
+  it('falls back to back-sources when a target has no forward source', () => {
+    const backOnlyTargets = ALL_STATUSES.filter(
+      (to) => forwardOrRejectSources(to).length === 0,
+    );
+    // Guards against this loop vacuously passing if the graph ever changes.
+    expect(backOnlyTargets).not.toHaveLength(0);
+
+    for (const to of backOnlyTargets)
+      expect(new Set(getApplicationStatusForwardSources(to))).toEqual(
+        new Set(backSources(to)),
+      );
   });
 });
