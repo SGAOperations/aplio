@@ -1,14 +1,5 @@
-# Gates PRs into `dev` on the `approved` pipeline label — but **only** for
-# pipeline PRs, i.e. those carrying `claude` (the job-level `if:` below). Every
-# other PR (human, Dependabot) gets a `skipped` check run, which GitHub counts
-# as a satisfied required check, so it merges on its own merits.
-# `labeled`/`unlabeled` re-trigger so both the gate condition and the verdict
-# update as labels change — adding `claude` activates the gate on that run.
-# NEVER narrow the trigger (`paths`, `branches`, dropping an event) to skip the
-# check: a workflow that never runs creates no check run, so the required check
-# sits pending forever and blocks the merge permanently. Skip at the JOB level.
-# Renaming the job `run-approval-check` does the same — that ID is the check
-# registered as required.
+# Gates `dev` PRs on `approved`, only when labeled `claude` — others skip.
+# NEVER narrow the trigger or rename the job: no check run = pending forever.
 # `branches: [dev]` is safe only because the required-check registration is
 # `dev`-scoped too — NEVER add this to the `main/dev` ruleset (id 15248252);
 # dev → main release PRs carry no pipeline labels.
