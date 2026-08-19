@@ -10,6 +10,3 @@ updates:
       radix-ui:
         patterns:
           - '@radix-ui/*'
-    ignore:
-      - dependency-name: '@types/node'
-        update-types: ['version-update:semver-major']
