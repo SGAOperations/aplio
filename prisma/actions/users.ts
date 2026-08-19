@@ -95,7 +95,7 @@ export async function createUser(input: unknown): Promise<ActionError | void> {
     return existing.deletedAt
       ? {
           error:
-            'That email belongs to a deactivated account. Contact an administrator to reactivate it.',
+            'That email belongs to a deactivated account. Reactivating requires a direct database change — contact engineering.',
         }
       : { error: 'A user with this email already exists.' };
 

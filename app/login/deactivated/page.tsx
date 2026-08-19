@@ -26,7 +26,7 @@ export default async function AccountDeactivatedPage() {
       <UserRoundX className="text-muted-foreground size-10" aria-hidden />
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold">Account deactivated</h1>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-sm">
           Your account has been deactivated, so you can&apos;t access Aplio
           right now.
         </p>

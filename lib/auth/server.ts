@@ -58,8 +58,7 @@ export const getOptionalUser = cache(
 );
 
 // A live session whose row has since been soft-deleted — distinct from "no
-// session" so getCurrentUser can route it to the explanatory screen instead
-// of a silent sign-in loop.
+// session" so getCurrentUser avoids a silent sign-in loop.
 export const getDeactivatedSessionUser = cache(
   async function getDeactivatedSessionUser(): Promise<User | null> {
     const resolution = await resolveUser();

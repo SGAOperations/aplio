@@ -377,8 +377,8 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
         description={
           <>
             {deactivateTarget?.displayName} will be signed out immediately and
-            blocked from signing back in. This can&apos;t be undone from this
-            page.
+            blocked from signing back in. Reactivating requires a direct
+            database change — contact engineering.
           </>
         }
         confirmLabel="Deactivate"
