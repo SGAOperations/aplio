@@ -10,6 +10,3 @@ updates:
       radix-ui:
         patterns:
           - '@radix-ui/*'
-      tanstack:
-        patterns:
-          - '@tanstack/*'
