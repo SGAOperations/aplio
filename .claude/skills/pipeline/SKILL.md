@@ -49,9 +49,12 @@ gh pr list --repo SGAOperations/aplio --assignee "@me" --label "needs human" --j
 # Unowned sweep → report only, never act (see Ownership above)
 gh issue list --repo SGAOperations/aplio --search "no:assignee" --limit 100 --json number,title,labels --jq '[.[] | select(.labels | map(.name) | any(. == "ready" or . == "plan changes requested" or . == "plan approved" or . == "plan review" or . == "blocked"))]'
 gh pr list --repo SGAOperations/aplio --search "no:assignee" --limit 100 --json number,title,labels --jq '[.[] | select(.labels | map(.name) | any(. == "ready for review" or . == "needs revision" or . == "approved" or . == "needs human"))]'
+
+# Ungated-PR sweep → report only, never act (see Ungated report below)
+gh pr list --repo SGAOperations/aplio --assignee "@me" --json number,title,labels --jq '[.[] | select((.labels | map(.name)) as $l | ($l | any(. == "ready for review" or . == "reviewing" or . == "needs revision" or . == "revising" or . == "approved" or . == "refresh branch" or . == "refreshing" or . == "needs human")) and ($l | index("claude") | not)) | {number, title}]'
 ```
 
-Then, in order: **(1)** reconcile merged PRs (below), **(2)** handle human gates, **(3)** **unless draining,** dispatch for every actionable trigger item (all Agent calls in one message), **(4)** report the unowned sweep if its set changed, **(5)** schedule the next wakeup (**skip while draining**).
+Then, in order: **(1)** reconcile merged PRs (below), **(2)** handle human gates, **(3)** **unless draining,** dispatch for every actionable trigger item (all Agent calls in one message), **(4)** report the unowned and ungated-PR sweeps if their sets changed, **(5)** schedule the next wakeup (**skip while draining**).
 
 **Merged-PR reconciliation (each tick):** the `approved` query above is open-only, so a merged PR silently drops out of it — never trust in-session memory for "awaiting merge." Diff the set of PRs you have **announced as approved** against the live `approved` result; for each announced PR no longer present, confirm and announce it **once**:
 
@@ -76,6 +79,10 @@ gh pr view <n> --repo SGAOperations/aplio --json headRefOid,statusCheckRollup --
 > ⚠️ Unowned pipeline items (no assignee — no cockpit will act on them): #412 (ready), #388 (plan review). Say "work on #412" to claim one.
 
 An **empty** sweep result is only meaningful if the `--jq` filter works — verify it once against a known unassigned, trigger-labeled issue rather than trusting silence.
+
+**Ungated-PR sweep (each tick):** `approval-check.yml` gates a PR on `approved` **only if it carries `claude`** (`.claude/docs/PIPELINE.md` → "Permission rationale"), so a pipeline PR that lost that label merges with no gate at all — and CI cannot tell it from a human PR. The sweep query above lists exactly those. Report them **only when the set changes**, in one line, and **never add the label automatically**:
+
+> ⚠️ Pipeline PRs without the `claude` label (approval gate inactive): #501. Say "gate #501" or add the label on GitHub.
 
 **Denial report (each tick):** stage agents auto-deny disallowed commands (`dontAsk`) instead of prompting; a `PreToolUse` hook logs each one to **`.agents/denials.log`** (gitignored, base repo). Read it each tick and track how many lines are new since the previous tick. If denials **cluster** — say **≥3 new**, or the same command repeated — report it **once**, e.g. _"⚠️ 4 commands auto-denied this tick (e.g. `npx prisma migrate …` ×2, `printf … >` ×1) — the pipeline likely needs a permission/instruction change."_ Do **not** prompt or act on it automatically; this is visibility so the human knows when to harden the pipeline. A few isolated denials are normal and need no report.
 
@@ -166,10 +173,11 @@ Interpret intent, not literal syntax:
   Dispatch the plan agent the same tick.
 
 - **"scope out X" / "break down X"** — Stage 0 deserves a stronger model than haiku; suggest the human run `/scope` in their main session.
-- **"status"** — re-run the tick queries **live** and build the table from them (never from session memory): each in-flight item + stage, each item waiting on the human, and each PR currently labeled `approved` (the live `gh pr list --assignee "@me" --label approved` result — a merged PR has already dropped out, so it must not appear). It **inherits the assignee filter**, so it reports only this operator's items; append the unowned sweep result as a separate **"unowned"** line so a stalled ticket is diagnosable from one command.
+- **"status"** — re-run the tick queries **live** and build the table from them (never from session memory): each in-flight item + stage, each item waiting on the human, and each PR currently labeled `approved` (the live `gh pr list --assignee "@me" --label approved` result — a merged PR has already dropped out, so it must not appear). It **inherits the assignee filter**, so it reports only this operator's items; append the unowned sweep result as a separate **"unowned"** line, and the ungated-PR sweep result as an **"ungated"** line, so a stalled ticket or a PR with no approval gate is diagnosable from one command.
 - **"pause #N"** — remove the item's current trigger label; confirm what was removed. Same ownership rule as opt-in: if the item belongs to **another operator**, say so and stop rather than touch its labels.
 - **"resume #N" / "retry #N"** — re-apply the trigger label for where it stalled (issue stuck in `planning` → `ready`; PR stuck in `revising` → `needs revision`; PR stuck in `refreshing` → `refresh branch`; etc.). Same ownership rule as opt-in: if the item is **unassigned**, add `--add-assignee "@me"` in the same command (re-applying a trigger to an unassigned item is a no-op for every cockpit); if it belongs to **another operator**, say so and stop rather than re-trigger.
 - **"refresh #N"** — apply `refresh branch` to that PR and dispatch it this tick, bypassing the per-merge cap. Use it to force a fresh preview deployment on a PR left quota-red. Same ownership rule as opt-in.
+- **"gate #N"** — apply the missing `claude` marker to a PR the ungated sweep reported: `gh pr edit <n> --repo SGAOperations/aplio --add-label "claude"`. The `labeled` event re-evaluates `approval-check.yml`'s condition, so the approval gate is live on that run. Same ownership rule as opt-in.
 
 ## Stop controls
 
