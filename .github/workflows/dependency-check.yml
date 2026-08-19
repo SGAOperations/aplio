@@ -1,0 +1,68 @@
+# Deliberately not a "lock must change whenever package.json changes" rule —
+# a release version bump would false-fail it, and `npm install
+# --package-lock-only` re-resolves ranges so its diff isn't a valid signal.
+# `run-lockfile-check` instead verifies the lock is internally consistent and
+# fully pinned; `run-audit-check` is a separate, non-blocking-by-default signal.
+
+name: Dependency Check
+
+on:
+  pull_request:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: dependency-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  run-lockfile-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: package.json
+          cache: npm
+      - name: Install with a frozen lockfile
+        run: npm ci --ignore-scripts
+      - name: Verify lockfile version and pinning
+        run: |
+          set -euo pipefail
+          LOCK_VERSION=$(jq '.lockfileVersion' package-lock.json)
+          if [ "$LOCK_VERSION" -lt 3 ]; then
+            echo "::error::package-lock.json lockfileVersion is $LOCK_VERSION, expected >= 3."
+            exit 1
+          fi
+          UNPINNED=$(jq -r '
+            .packages
+            | to_entries[]
+            | select(.key != "" and (.value.link | not))
+            | select((.value.resolved | not) or (.value.integrity | not))
+            | .key
+          ' package-lock.json)
+          if [ -n "$UNPINNED" ]; then
+            echo "::error::Lockfile entries missing resolved/integrity: $UNPINNED"
+            exit 1
+          fi
+          echo "package-lock.json is lockfileVersion $LOCK_VERSION and fully pinned."
+
+  run-audit-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: package.json
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
