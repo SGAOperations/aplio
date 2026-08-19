@@ -43,6 +43,7 @@ import {
 } from '@/prisma/data/applications';
 import { checkPositionAccess, isManager } from '@/prisma/data/managers';
 import { getManagedPositions } from '@/prisma/data/positions';
+import { getUsersForAdmin } from '@/prisma/data/users';
 
 import {
   requireAdmin,
@@ -557,6 +558,25 @@ describe('toggleUserAdmin / deactivateUser / createUser', () => {
 
     actAs(await prisma.user.findUniqueOrThrow({ where: { id: demoted.id } }));
     await expect(requireAdmin()).rejects.toThrow();
+  });
+});
+
+describe('deactivated users excluded from admin queries', () => {
+  it('never appears in getUsersForAdmin or searchUsers', async () => {
+    const target = await createTestUser({
+      name: 'Deactivated Target',
+      deletedAt: new Date(),
+    });
+
+    const adminList = (await getUsersForAdmin()).map((u) => u.id);
+    expect(adminList).not.toContain(target.id);
+
+    actAs(admin);
+    const searchResult = await searchUsers({ query: target.email });
+    if (isError(searchResult)) throw new Error('expected a result array');
+    expect(searchResult.some((row) => row.primaryEmail === target.email)).toBe(
+      false,
+    );
   });
 });
 
