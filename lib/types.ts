@@ -126,15 +126,6 @@ export type MyApplicationDetail = MyApplicationListItem & {
   positionAnswers: ApplicationReviewAnswer[];
 };
 
-export type PositionApplicationListItem = Prisma.ApplicationGetPayload<{
-  select: {
-    id: true;
-    status: true;
-    submittedAt: true;
-    user: { select: { id: true; name: true; email: true } };
-  };
-}>;
-
 // Exposes applicant identity — admin-gated contexts only, never a non-admin client.
 export type AdminApplicationListItem = Prisma.ApplicationGetPayload<{
   select: {

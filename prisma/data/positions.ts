@@ -204,15 +204,6 @@ export const getPositionForApply = cache(async function getPositionForApply(
   });
 });
 
-export async function getPositionAccess(
-  id: string,
-): Promise<{ id: string; title: string; managers: { id: string }[] } | null> {
-  return prisma.position.findFirst({
-    where: { id, deletedAt: null },
-    select: { id: true, title: true, managers: { select: { id: true } } },
-  });
-}
-
 // Cross-position data — admin-gated callers only.
 export async function getOpenPositionsSummary(
   take?: number,

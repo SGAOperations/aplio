@@ -3,8 +3,6 @@ import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { Toaster } from '@/components/ui/sonner';
 
-import { QueryProvider } from './query-provider';
-
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <NuqsAdapter>
@@ -14,7 +12,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         enableSystem
         disableTransitionOnChange
       >
-        <QueryProvider>{children}</QueryProvider>
+        {children}
         <Toaster />
       </ThemeProvider>
     </NuqsAdapter>
