@@ -425,7 +425,8 @@ describe('updateApplicationStatuses', () => {
       status: 'reviewing',
     });
     expect(result).toEqual({
-      error: 'None of the selected applications can move to Reviewing.',
+      error:
+        "None of the selected applications can move to Reviewing — that's only reachable from Applied or Reached out.",
     });
   });
 

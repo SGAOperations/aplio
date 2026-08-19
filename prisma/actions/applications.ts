@@ -580,7 +580,7 @@ export async function updateApplicationStatuses(
   });
 
   if (result.count === 0) {
-    const sourceLabels = getApplicationStatusSources(status).map(
+    const sourceLabels = getApplicationStatusForwardSources(status).map(
       (source) => APPLICATION_STATUS_LABELS[source],
     );
     return {

@@ -11,7 +11,7 @@ import type { $Enums } from '@/prisma/client';
 import {
   APPLICATION_STATUS_LABELS,
   REVIEWER_APPLICATION_STATUS_OPTIONS,
-  getApplicationStatusSources,
+  getApplicationStatusForwardSources,
   isNonReviewableApplicationStatus,
 } from '@/lib/constants';
 import type { ApplicationListRow } from '@/lib/types';
@@ -74,7 +74,7 @@ export function ApplicationsBulkBar({
         if (skipped === 0) {
           toast.success(`Updated ${updated} ${applicationNoun(updated)}`);
         } else {
-          const sourceLabels = getApplicationStatusSources(status).map(
+          const sourceLabels = getApplicationStatusForwardSources(status).map(
             (source) => APPLICATION_STATUS_LABELS[source],
           );
           toast.success(
