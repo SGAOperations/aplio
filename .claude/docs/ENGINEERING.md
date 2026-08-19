@@ -140,6 +140,21 @@ if (applications.length === 0)
 - **Forms:** pending state on submit (disabled button + spinner via `useFormStatus` or react-hook-form `isSubmitting`), inline field errors from zod, preserved input on failure, success feedback (toast or redirect). Progressive enhancement where practical.
 - **Mutations feel instant.** After a successful action: `revalidatePath`/`revalidateTag` always; optimistic UI where the interaction is high-frequency (toggles, votes).
 
+### Logging
+
+A thrown error reaches Vercel's runtime logs with a stack and request context; a `console.error` string is a detached line with neither. Logging is not error reporting.
+
+- **`console.log` never ships in application code** — `app/`, `components/`, `lib/`, `prisma/actions/`, `prisma/data/`. Debug logging is a local tool; it comes out before the PR.
+- **`console.error` is not error handling.** Catch-log-continue hides the failure from the user _and_ leaves nothing actionable in the logs. The default for an unexpected failure is to **throw** — the error model above already routes it: generic toast during an interaction, global boundary during render/data-fetch.
+- **Preserve the cause when rethrowing:** `throw new Error('Failed to …', { cause: err })` — never log the original and throw a bare new one.
+- **Never `catch` purely to silence.** An empty or log-only catch carries a one-line comment stating the invariant that makes swallowing correct (§7's comment bar applies); without it, it's a bug.
+- **The permitted logging sites, and no others:**
+  - **Standalone scripts** off the request/render path (`prisma/seed.ts`) — progress output is fine.
+  - **Fail-open paths** where degrading beats throwing (`lib/rate-limit.ts` — a limiter that's down must not take the app down). The comment states why it cannot throw.
+  - **A client `catch` that also toasts** — the §3-mandated wrapper around a server action, where the log keeps a real bug distinguishable from a stale-permission denial. Logging with **no** toast is not exempt.
+  - **A server-side cause the browser can't see** (`prisma/actions/auth.ts`) — log the upstream error, return `{ error }` with safe copy.
+  - **Best-effort side effects get no automatic exemption.** Where the caller can retry (a webhook whose 500 is retried), **throw** — `lib/email/resend.ts`. Log-and-continue only where the side effect is genuinely non-retryable _and_ non-critical, with the invariant comment.
+
 ## 5. Accessibility
 
 - **Semantic HTML first.** Buttons are `<button>`, navigation is `<nav>`, headings are hierarchical (`h1` → `h2`, no skips). ARIA only when no semantic element exists.
@@ -189,6 +204,7 @@ A scannable summary of the issues that recur in this codebase. **impl** builds t
 - **Server actions:** authenticate, zod-parse input, scope writes to the caller (no IDOR). **Return `void`/relevant data on success, `{ error }` for user-facing failures, `throw` for unexpected ones — never `{ ok }`.** Decision test: _would you show this exact sentence to the user, and can they act on it?_ yes → `{ error }`, no → throw. (§3, §4)
 - **Feedback:** **every action shows a toast** (`sonner`) — success, specific error for `{ error }`, generic on an unexpected throw; `revalidatePath`/`revalidateTag` after writes. (§4)
 - **Errors:** **one global boundary** (`global-error.tsx` + a single route-group `error.tsx`), **never per-page `error.tsx`**; expected errors are toasts, not the boundary. (§4)
+- **Logging:** no `console.log` in app code; unexpected failures **throw** (Vercel logs them with a stack and request context) rather than being logged and swallowed; every `console.error` sits on a documented fail-open path, a script, or a client catch that toasts. (§4)
 - **Queries:** `select` what's rendered but **reuse shared `lib` types** (slight over-fetch OK; never sensitive/internal/other-users' fields to a client); no N+1; `$transaction` for multi-step writes. (§2)
 - **Async states:** every async surface ships loading + empty (plus the error model above). (§4)
 - **Components:** server-first; `'use client'` only on the smallest leaf; **no `useEffect` (empty-deps especially)**; **shadcn/Radix primitives, not hand-rolled raw elements**; role-gate nav where the route is role-gated. (§1, §5)
