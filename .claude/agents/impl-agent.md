@@ -97,10 +97,13 @@ gh issue edit N --repo SGAOperations/aplio --remove-label "plan approved" --add-
      --title "#N <Ticket Title In Title Case>" \
      --body-file .temp/pr-N.md \
      --assignee "<issue-assignee-login>" \
+     --label "claude" \
      --head N-ticket-name-in-kebab-case
    ```
 
    `--assignee` is the **issue's assignee login recorded in pre-flight** (`@me` if the issue had none) — the PR must carry the same owner as its issue or it never shows up in that operator's `ready for review` query. **Substitute the literal login string you read in pre-flight; never `$(...)` command substitution** — it isn't allow-listed and would silently produce an empty argument.
+
+   `--label "claude"` is what **activates the approval gate**: `.github/workflows/approval-check.yml` runs only on PRs carrying `claude`, so a PR opened without it merges with **no** approval gate at all.
 
    **Always target `dev`** (the integration branch) — never open feature PRs against `main`. Releases flow `dev → main` via the `/release` command.
 

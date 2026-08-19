@@ -1,5 +1,5 @@
-# Gates PRs into `dev` on the `approved` pipeline label. `labeled`/`unlabeled`
-# re-trigger so the verdict updates as the pipeline swaps labels.
+# Gates `dev` PRs on `approved`, only when labeled `claude` — others skip.
+# NEVER narrow the trigger or rename the job: no check run = pending forever.
 # `branches: [dev]` is safe only because the required-check registration is
 # `dev`-scoped too — NEVER add this to the `main/dev` ruleset (id 15248252);
 # dev → main release PRs carry no pipeline labels.
@@ -18,6 +18,7 @@ permissions:
 jobs:
   run-approval-check:
     runs-on: ubuntu-latest
+    if: contains(github.event.pull_request.labels.*.name, 'claude')
     timeout-minutes: 5
     steps:
       - name: Check pipeline labels
@@ -58,7 +59,7 @@ jobs:
           EOF
 
           if ! grep -Fxq "approved" "$RUNNER_TEMP/labels.txt"; then
-            echo "::error::Missing the 'approved' label. A PR into dev is merge-able only after review-agent (or a human, for manual PRs) applies 'approved'."
+            echo "::error::Missing the 'approved' label. This PR carries 'claude', so it is a pipeline PR and merges only once review-agent applies 'approved'. If it is not a pipeline PR, remove the 'claude' label and this check will skip."
             FAILED=1
           fi
 
