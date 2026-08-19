@@ -357,6 +357,10 @@ export const REVIEWER_APPLICATION_STATUSES = [
 export const REVIEWER_APPLICATION_STATUS_OPTIONS =
   APPLICATION_STATUS_OPTIONS.filter((o) => o.value !== 'draft');
 
+// Single source for the /applications sort union and its zod enum.
+export const APPLICATION_SORT_FIELDS = ['date', 'name', 'status'] as const;
+export const APPLICATION_SORT_DIRECTIONS = ['asc', 'desc'] as const;
+
 // Single source of truth for the server guard and the rendered quick actions.
 // Array order is display order; `draft`/`withdrawn` have no reviewer moves.
 export const APPLICATION_STATUS_TRANSITIONS = {

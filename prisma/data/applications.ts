@@ -3,6 +3,10 @@ import 'server-only';
 import { $Enums, type Prisma } from '@/prisma/client';
 
 import {
+  buildApplicationWhere,
+  buildReviewablePositionWhere,
+} from '@/lib/auth/scopes';
+import {
   PUBLISHED_POSITION_WHERE,
   VISIBLE_POSITION_WHERE,
 } from '@/lib/constants';
@@ -91,25 +95,6 @@ function normalizeApplicationAnswers(application: ApplicationAnswersPayload): {
   };
 }
 
-// Keeps list, denominator, and detail page agreeing: drafts out, withdrawn in.
-function buildBaseWhere(user: Reviewer) {
-  return user.isAdmin
-    ? {
-        deletedAt: null,
-        status: { not: 'draft' as const },
-        position: PUBLISHED_POSITION_WHERE,
-      }
-    : {
-        deletedAt: null,
-        status: { not: 'draft' as const },
-        // Merge, don't overwrite: losing the managers scoping is an authorization regression.
-        position: {
-          ...PUBLISHED_POSITION_WHERE,
-          managers: { some: { id: user.id } },
-        },
-      };
-}
-
 // Scoped to the caller (no IDOR); returns the caller's application at any status
 // (draft, withdrawn, or otherwise) so the apply route decides what to render.
 // Predicate must match createDraftApplication's pre-create lookup, or the page
@@ -167,7 +152,7 @@ export async function getApplicationForReview(
   user: Reviewer,
 ): Promise<ApplicationForReview | null> {
   const application = await prisma.application.findFirst({
-    where: { id, ...buildBaseWhere(user) },
+    where: { id, ...buildApplicationWhere(user, 'listable') },
     select: {
       id: true,
       status: true,
@@ -202,11 +187,7 @@ export async function getApplicationStatusCounts(
 ): Promise<Partial<Record<$Enums.ApplicationStatus, number>>> {
   const rows = await prisma.application.groupBy({
     by: ['status'],
-    // buildBaseWhere only excludes draft — withdrawn must be excluded after the spread.
-    where: {
-      ...buildBaseWhere(reviewer),
-      status: { notIn: ['draft', 'withdrawn'] },
-    },
+    where: buildApplicationWhere(reviewer, 'reviewable'),
     _count: true,
   });
 
@@ -219,11 +200,7 @@ export async function getRecentApplications(
   take = 10,
 ): Promise<AdminApplicationListItem[]> {
   return prisma.application.findMany({
-    // buildBaseWhere only excludes draft — withdrawn must be excluded after the spread.
-    where: {
-      ...buildBaseWhere(reviewer),
-      status: { notIn: ['draft', 'withdrawn'] },
-    },
+    where: buildApplicationWhere(reviewer, 'reviewable'),
     select: {
       id: true,
       status: true,
@@ -242,7 +219,7 @@ export async function getApplications(
   user: Reviewer,
   filters: ApplicationFilters,
 ): Promise<AdminApplicationListItem[]> {
-  const baseWhere = buildBaseWhere(user);
+  const baseWhere = buildApplicationWhere(user, 'listable');
 
   // Prisma DateTime filters are range-based, so a date query becomes a range.
   const MONTH_NAMES = [
@@ -380,19 +357,16 @@ export async function getMyRecentActivity(
 }
 
 export async function getApplicationsTotal(user: Reviewer): Promise<number> {
-  return prisma.application.count({ where: buildBaseWhere(user) });
+  return prisma.application.count({
+    where: buildApplicationWhere(user, 'listable'),
+  });
 }
 
 export async function getReviewablePositions(
   user: Reviewer,
 ): Promise<{ id: string; title: string }[]> {
-  // Drafts excluded: a filter shouldn't offer a position with zero visible rows.
-  const where = user.isAdmin
-    ? PUBLISHED_POSITION_WHERE
-    : { ...PUBLISHED_POSITION_WHERE, managers: { some: { id: user.id } } };
-
   return prisma.position.findMany({
-    where,
+    where: buildReviewablePositionWhere(user),
     select: { id: true, title: true },
     orderBy: { title: 'asc' },
   });

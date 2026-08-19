@@ -35,10 +35,12 @@ import type { Application, Position, User } from '@/prisma/client';
 import {
   getApplicationForApply,
   getApplicationForReview,
+  getApplicationStatusCounts,
   getApplications,
   getApplicationsTotal,
   getMyApplications,
   getMySubmittedCount,
+  getRecentApplications,
   getReviewablePositions,
 } from '@/prisma/data/applications';
 import { checkPositionAccess, isManager } from '@/prisma/data/managers';
@@ -381,6 +383,45 @@ describe('updateApplicationStatus', () => {
       }),
     ).rejects.toThrow('Application not found or not authorized');
   });
+
+  it('throws for the managing manager when the position is draft or soft-deleted', async () => {
+    const draftPositionApplicant = await createTestUser();
+    const onDraftPosition = await createTestApplication(
+      draftPositionApplicant,
+      draftPosition,
+      { status: 'applied' },
+    );
+    const deletedPositionApplicant = await createTestUser();
+    const onDeletedPosition = await createTestApplication(
+      deletedPositionApplicant,
+      deletedPosition,
+      { status: 'applied' },
+    );
+
+    actAs(managerA);
+    await expect(
+      updateApplicationStatus({
+        applicationId: onDraftPosition.id,
+        status: 'reviewing',
+      }),
+    ).rejects.toThrow('Application not found or not authorized');
+    await expect(
+      updateApplicationStatus({
+        applicationId: onDeletedPosition.id,
+        status: 'reviewing',
+      }),
+    ).rejects.toThrow('Application not found or not authorized');
+  });
+
+  it('throws for the managing manager when the application is withdrawn', async () => {
+    actAs(managerA);
+    await expect(
+      updateApplicationStatus({
+        applicationId: withdrawnApplicationA.id,
+        status: 'reviewing',
+      }),
+    ).rejects.toThrow('Application not found or not authorized');
+  });
 });
 
 describe('updateApplicationStatuses', () => {
@@ -456,6 +497,59 @@ describe('updateApplicationStatuses', () => {
       select: { status: true },
     });
     expect(stillWithdrawn.status).toBe('withdrawn');
+  });
+
+  it('skips a row on a draft or soft-deleted position', async () => {
+    const draftPositionApplicant = await createTestUser();
+    const onDraftPosition = await createTestApplication(
+      draftPositionApplicant,
+      draftPosition,
+      { status: 'applied' },
+    );
+    const deletedPositionApplicant = await createTestUser();
+    const onDeletedPosition = await createTestApplication(
+      deletedPositionApplicant,
+      deletedPosition,
+      { status: 'applied' },
+    );
+
+    actAs(managerA);
+    const result = await updateApplicationStatuses({
+      applicationIds: [onDraftPosition.id, onDeletedPosition.id],
+      status: 'reviewing',
+    });
+    expect(result).toEqual({
+      error:
+        "None of the selected applications can move to Reviewing — that's only reachable from Applied, Reached out, or Interview scheduled.",
+    });
+
+    const stillDraftPosition = await prisma.application.findUniqueOrThrow({
+      where: { id: onDraftPosition.id },
+      select: { status: true },
+    });
+    expect(stillDraftPosition.status).toBe('applied');
+  });
+});
+
+describe('getApplicationStatusCounts / getRecentApplications listable vs reviewable', () => {
+  it('excludes withdrawn from the reviewable pair while getApplications keeps it', async () => {
+    const counts = await getApplicationStatusCounts(managerA);
+    expect(counts.withdrawn).toBeUndefined();
+
+    const recent = (await getRecentApplications(managerA)).map((a) => a.id);
+    expect(recent).not.toContain(withdrawnApplicationA.id);
+    expect(recent).toContain(applicationA1.id);
+
+    const listable = (await getApplications(managerA, {})).map((a) => a.id);
+    expect(listable).toContain(withdrawnApplicationA.id);
+  });
+
+  it('scopes both to the managing manager', async () => {
+    const recentAsManagerB = (await getRecentApplications(managerB)).map(
+      (a) => a.id,
+    );
+    expect(recentAsManagerB).not.toContain(applicationA1.id);
+    expect(recentAsManagerB).toContain(applicationB1.id);
   });
 });
 
