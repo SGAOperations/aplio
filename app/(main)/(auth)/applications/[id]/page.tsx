@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { getApplicationForReview } from '@/prisma/data/applications';
 
 import { getCurrentUser } from '@/lib/auth/server';
+import { getRenamedTo } from '@/lib/utils';
 
 import { ApplicationAnswersList } from '@/components/features/application-answers-list';
 import { ApplicationStatusControl } from '@/components/features/application-status-control';
@@ -51,12 +52,7 @@ export default async function ApplicationDetailPage({
     application.applicantName ??
     application.user.name ??
     application.user.email;
-  const renamedTo =
-    application.applicantName &&
-    application.user.name &&
-    application.applicantName !== application.user.name
-      ? application.user.name
-      : null;
+  const renamedTo = getRenamedTo(application);
 
   return (
     <div className="mx-auto max-w-5xl">

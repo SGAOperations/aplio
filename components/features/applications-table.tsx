@@ -14,6 +14,7 @@ import type {
   ApplicationSortDirection,
   ApplicationSortField,
 } from '@/lib/types';
+import { getRenamedTo } from '@/lib/utils';
 
 import { ApplicationsBulkBar } from '@/components/features/applications-bulk-bar';
 // Server-side sort; its param format stays decoupled from useSortableTable's.
@@ -215,12 +216,7 @@ export function ApplicationsTable({
               {applications.map((app) => {
                 const displayName =
                   app.applicantName ?? app.user.name ?? app.user.email;
-                const renamedTo =
-                  app.applicantName &&
-                  app.user.name &&
-                  app.applicantName !== app.user.name
-                    ? app.user.name
-                    : null;
+                const renamedTo = getRenamedTo(app);
                 const isChecked = selectedIds.has(app.id);
                 return (
                   <TableRow
@@ -276,12 +272,7 @@ export function ApplicationsTable({
           {applications.map((app) => {
             const displayName =
               app.applicantName ?? app.user.name ?? app.user.email;
-            const renamedTo =
-              app.applicantName &&
-              app.user.name &&
-              app.applicantName !== app.user.name
-                ? app.user.name
-                : null;
+            const renamedTo = getRenamedTo(app);
             const isChecked = selectedIds.has(app.id);
             return (
               <div key={app.id} className="flex gap-3 p-4">

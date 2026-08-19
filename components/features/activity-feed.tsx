@@ -11,6 +11,7 @@ import {
   STATUS_BADGE_VARIANT_TO_DOT,
 } from '@/lib/constants';
 import { type ActivityItem, type Reviewer } from '@/lib/types';
+import { getRenamedTo } from '@/lib/utils';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LocalTime } from '@/components/ui/local-time';
@@ -123,11 +124,12 @@ export async function ReviewerActivityFeed({
 
   const items: ActivityItem[] = applications.map((app) => {
     const applicantLabel = app.applicantName ?? app.user.name ?? app.user.email;
+    const renamedTo = getRenamedTo(app);
     const variant = APPLICATION_STATUS_BADGE_VARIANT[app.status];
     return {
       id: app.id,
       statusVariant: variant,
-      sentence: `${applicantLabel} applied for ${app.position.title}`,
+      sentence: `${applicantLabel}${renamedTo ? ` (${renamedTo})` : ''} applied for ${app.position.title}`,
       timestamp: app.submittedAt,
     };
   });
