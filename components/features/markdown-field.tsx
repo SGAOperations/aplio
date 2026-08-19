@@ -191,7 +191,7 @@ const TOOLBAR_ITEMS: {
     label: 'Underline',
     icon: Underline,
     action: { kind: 'inline', before: '<u>', after: '</u>' },
-    shortcut: { code: 'KeyU', display: 'Ctrl+Shift+U', shiftKey: true },
+    shortcut: { code: 'KeyU', display: 'Ctrl+U' },
   },
   {
     label: 'Heading',
@@ -283,10 +283,7 @@ export function MarkdownField() {
           const el = textareaRef.current;
           if (!el) return;
 
-          // Matched on the physical `code`, not `key` — on Linux, IME/compose
-          // sequences (e.g. Ctrl+Shift+U for Unicode input) can rewrite `key`
-          // before our handler runs, but `code` still reports the real key,
-          // so preventDefault reliably blocks the browser's native behavior.
+          // code, not key — key can be rewritten by IME/compose before preventDefault runs.
           const isModPressed = event.metaKey || event.ctrlKey;
           if (isModPressed) {
             const item = TOOLBAR_ITEMS.find(

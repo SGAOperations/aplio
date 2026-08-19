@@ -67,9 +67,14 @@ const linkComponent: Components['a'] = ({ href, children }) => (
   </a>
 );
 
+// Dotted, not solid — keeps this from reading as a link (links are solid + text-primary).
+const underlineComponent: Components['u'] = ({ children }) => (
+  <u className="underline decoration-dotted underline-offset-2">{children}</u>
+);
+
 const fullComponents: Components = {
   a: linkComponent,
-  u: ({ children }) => <u className="underline">{children}</u>,
+  u: underlineComponent,
   h2: ({ children }) => (
     <h2 className="text-foreground mt-3 text-base font-medium first:mt-0">
       {children}
@@ -127,7 +132,7 @@ const fullComponents: Components = {
 // heading elements into the document outline.
 const compactComponents: Components = {
   a: linkComponent,
-  u: ({ children }) => <u className="underline">{children}</u>,
+  u: underlineComponent,
   h2: ({ children }) => (
     <p className="text-foreground font-semibold">{children}</p>
   ),
