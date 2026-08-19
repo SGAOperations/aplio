@@ -376,8 +376,9 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
         title={`Deactivate ${deactivateTarget?.displayName}?`}
         description={
           <>
-            {deactivateTarget?.displayName} will be blocked from accessing Aplio
-            on their next request. This can&apos;t be undone from this page.
+            {deactivateTarget?.displayName} will be signed out immediately and
+            blocked from signing back in. This can&apos;t be undone from this
+            page.
           </>
         }
         confirmLabel="Deactivate"

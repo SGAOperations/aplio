@@ -60,14 +60,20 @@ export async function deactivateUser(
     return { error: 'You cannot deactivate your own account.' };
 
   // Leaves the email intact, so it isn't freed for reuse by a new signup.
-  const result = await prisma.user.updateMany({
-    where: { id: userId, deletedAt: null },
-    data: { deletedAt: new Date(), deletedById: user.id },
-  });
+  await prisma.$transaction(async (tx) => {
+    const result = await tx.user.updateMany({
+      where: { id: userId, deletedAt: null },
+      data: { deletedAt: new Date(), deletedById: user.id },
+    });
 
-  // Not reachable from the freshly-rendered admin list → unexpected → throw.
-  if (result.count === 0)
-    throw new Error('User not found or already deactivated');
+    // Not reachable from the freshly-rendered admin list → unexpected → throw.
+    if (result.count === 0)
+      throw new Error('User not found or already deactivated');
+
+    // Deletes rather than expires — reactivation can't resurrect a session
+    // on a device the user no longer controls.
+    await tx.session.deleteMany({ where: { userId } });
+  });
 
   revalidatePath('/users');
 }
