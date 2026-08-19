@@ -1,18 +1,24 @@
 name: TypeScript Check
 on:
   pull_request:
+concurrency:
+  group: tsc-check-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   run-tsc-check:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
       - name: Set up Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: package.json
+          cache: npm
       - name: Install dependencies
-        run: npm install
+        run: npm ci
       - name: Generate Prisma client
-        run: npx prisma generate
+        run: npm run prisma:generate
       - name: Run tsc check
         run: npm run tsc:check
