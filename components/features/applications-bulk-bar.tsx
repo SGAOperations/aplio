@@ -80,7 +80,7 @@ export function ApplicationsBulkBar({
           toast.success(
             `Updated ${updated} of ${updated + skipped} applications`,
             {
-              description: `${statusLabel} is only reachable from ${formatAlternatives(sourceLabels)}. The skipped rows are still selected.`,
+              description: `${statusLabel} is only reachable from ${formatAlternatives(sourceLabels)}.`,
             },
           );
         }
