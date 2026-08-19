@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
+import { safeRedirectTo, withRedirectTo } from '@/lib/auth/redirect';
 import { getOptionalUser } from '@/lib/auth/server';
 import { PRIVACY_HREF, TERMS_HREF } from '@/lib/constants';
 import { isBypassAllowed } from '@/lib/utils';
@@ -10,12 +11,6 @@ import { LoginView } from '@/components/features/login-view';
 import { NameField } from '@/components/features/name-field';
 
 export const metadata: Metadata = { title: 'Sign In' };
-
-// Same-origin relative paths only — "//" would be an open redirect.
-function safeRedirectTo(value: string | undefined): string {
-  if (value && /^\/(?!\/)/.test(value)) return value;
-  return '/positions';
-}
 
 // Applying: hide sign-in language, show only application copy.
 function isApplyRedirect(value: string): boolean {
@@ -64,7 +59,10 @@ export default async function SignInPage({
       {isDev && (
         <p className="text-muted-foreground text-center text-xs">
           Dev:{' '}
-          <Link href="/login/bypass" className="underline">
+          <Link
+            href={withRedirectTo('/login/bypass', redirectTo)}
+            className="underline"
+          >
             switch user via bypass login
           </Link>
         </p>

@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 
 import { z } from 'zod';
 
+import { safeRedirectTo } from '@/lib/auth/redirect';
 import {
   BYPASS_ROLES,
   BYPASS_USERS,
@@ -19,7 +20,7 @@ const BYPASS_POSITION_ID = 'bypass-position';
 const roleSchema = z.enum(BYPASS_ROLES);
 
 // Hard no-op unless isBypassAllowed() says otherwise.
-export async function loginAsBypassUser(role: BypassRole) {
+export async function loginAsBypassUser(role: BypassRole, redirectTo?: string) {
   if (!isBypassAllowed()) return;
 
   const parsedRole = roleSchema.safeParse(role);
@@ -58,7 +59,7 @@ export async function loginAsBypassUser(role: BypassRole) {
     path: '/',
   });
 
-  redirect('/');
+  redirect(safeRedirectTo(redirectTo));
 }
 
 // Hard no-op unless isBypassAllowed() says otherwise.

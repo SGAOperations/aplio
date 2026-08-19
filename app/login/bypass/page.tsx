@@ -4,14 +4,22 @@ import { notFound } from 'next/navigation';
 
 import { loginAsBypassUser } from '@/prisma/services/dev-bypass';
 
+import { safeRedirectTo, withRedirectTo } from '@/lib/auth/redirect';
 import { isBypassAllowed } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
 
 export const metadata: Metadata = { title: 'Dev Login' };
 
-export default function BypassLoginPage() {
+export default async function BypassLoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
   if (!isBypassAllowed()) notFound();
+
+  const { redirectTo } = await searchParams;
+  const safeTo = safeRedirectTo(redirectTo);
 
   return (
     <div className="flex min-h-screen items-center justify-center">
@@ -23,17 +31,19 @@ export default function BypassLoginPage() {
           </p>
         </div>
         <div className="flex flex-col gap-3">
-          <form action={loginAsBypassUser.bind(null, 'admin')}>
+          <form action={loginAsBypassUser.bind(null, 'admin', safeTo)}>
             <Button type="submit" className="w-full">
               Admin
             </Button>
           </form>
-          <form action={loginAsBypassUser.bind(null, 'applicant')}>
+          <form action={loginAsBypassUser.bind(null, 'applicant', safeTo)}>
             <Button type="submit" variant="outline" className="w-full">
               Applicant
             </Button>
           </form>
-          <form action={loginAsBypassUser.bind(null, 'position-manager')}>
+          <form
+            action={loginAsBypassUser.bind(null, 'position-manager', safeTo)}
+          >
             <Button type="submit" variant="outline" className="w-full">
               Position Manager
             </Button>
@@ -44,7 +54,9 @@ export default function BypassLoginPage() {
             Or sign in with a real account to test production-style auth.
           </p>
           <Button variant="ghost" className="w-full" asChild>
-            <Link href="/login">Sign in with real auth</Link>
+            <Link href={withRedirectTo('/login', redirectTo)}>
+              Sign in with real auth
+            </Link>
           </Button>
         </div>
       </div>

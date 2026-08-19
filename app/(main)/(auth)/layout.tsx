@@ -4,7 +4,8 @@ import type { ReactNode } from 'react';
 import { isManager } from '@/prisma/data/managers';
 import { getProfileCompleteness } from '@/prisma/data/profile';
 
-import { getCurrentUser, requireName } from '@/lib/auth/server';
+import { withRedirectTo } from '@/lib/auth/redirect';
+import { currentPath, getCurrentUser, requireName } from '@/lib/auth/server';
 
 export default async function AuthGateLayout({
   children,
@@ -23,7 +24,7 @@ export default async function AuthGateLayout({
 
   // Onboarding gate, not an authorization denial.
   const { complete } = await getProfileCompleteness(user.id);
-  if (!complete) redirect('/profile');
+  if (!complete) redirect(withRedirectTo('/profile', await currentPath()));
 
   return <>{children}</>;
 }
