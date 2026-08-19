@@ -213,7 +213,8 @@ export function ApplicationsTable({
             </TableHeader>
             <TableBody>
               {applications.map((app) => {
-                const displayName = app.user.name ?? app.user.email;
+                const displayName =
+                  app.applicantName ?? app.user.name ?? app.user.email;
                 const isChecked = selectedIds.has(app.id);
                 return (
                   <TableRow
@@ -237,7 +238,7 @@ export function ApplicationsTable({
                       >
                         {displayName}
                       </Link>
-                      {app.user.name && (
+                      {(app.applicantName ?? app.user.name) && (
                         <span className="text-muted-foreground block text-xs">
                           {app.user.email}
                         </span>
@@ -262,7 +263,8 @@ export function ApplicationsTable({
         {/* Mobile stacked cards — shown only on mobile */}
         <div className="flex flex-col divide-y md:hidden">
           {applications.map((app) => {
-            const displayName = app.user.name ?? app.user.email;
+            const displayName =
+              app.applicantName ?? app.user.name ?? app.user.email;
             const isChecked = selectedIds.has(app.id);
             return (
               <div key={app.id} className="flex gap-3 p-4">
@@ -282,7 +284,7 @@ export function ApplicationsTable({
                     </Link>
                     <ApplicationStatusBadge status={app.status} />
                   </div>
-                  {app.user.name && (
+                  {(app.applicantName ?? app.user.name) && (
                     <span className="text-muted-foreground truncate text-xs">
                       {app.user.email}
                     </span>

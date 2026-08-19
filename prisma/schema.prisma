@@ -192,12 +192,16 @@ model Application {
   positionId  String
   status      ApplicationStatus @default(applied)
   submittedAt DateTime          @default(now())
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  deletedAt   DateTime?
-  createdById String
-  updatedById String
-  deletedById String?
+  // Snapshot of User.name as of submission, so a later profile rename can't
+  // rewrite what the applicant was called when they applied. Same idea as
+  // GlobalApplicationAnswer.questionLabel. Null until submitApplication runs.
+  applicantName String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+  createdById   String
+  updatedById   String
+  deletedById   String?
 
   createdBy User  @relation("ApplicationCreatedBy", fields: [createdById], references: [id])
   updatedBy User  @relation("ApplicationUpdatedBy", fields: [updatedById], references: [id])

@@ -132,6 +132,7 @@ export type AdminApplicationListItem = Prisma.ApplicationGetPayload<{
     id: true;
     status: true;
     submittedAt: true;
+    applicantName: true;
     position: { select: { id: true; title: true } };
     user: { select: { id: true; name: true; email: true } };
   };
@@ -253,6 +254,7 @@ export type ApplicationForReview = Prisma.ApplicationGetPayload<{
     id: true;
     status: true;
     submittedAt: true;
+    applicantName: true;
     user: { select: { name: true; email: true } };
     position: { select: { id: true; title: true } };
   };

@@ -122,7 +122,7 @@ export async function ReviewerActivityFeed({
   const applications = await getRecentApplications(reviewer, 10);
 
   const items: ActivityItem[] = applications.map((app) => {
-    const applicantLabel = app.user.name ?? app.user.email;
+    const applicantLabel = app.applicantName ?? app.user.name ?? app.user.email;
     const variant = APPLICATION_STATUS_BADGE_VARIANT[app.status];
     return {
       id: app.id,

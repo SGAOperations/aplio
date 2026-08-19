@@ -441,6 +441,8 @@ export async function submitApplication(
       data: {
         status: 'applied',
         submittedAt: new Date(),
+        // Snapshot, not a live join — see Application.applicantName.
+        applicantName: currentUser.name,
         updatedById: currentUser.id,
       },
     });

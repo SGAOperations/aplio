@@ -73,7 +73,8 @@ function ApplicationList({
   return (
     <ul className="divide-y">
       {applications.map((app) => {
-        const applicantLabel = app.user.name ?? app.user.email;
+        const applicantLabel =
+          app.applicantName ?? app.user.name ?? app.user.email;
         return (
           <li
             key={app.id}

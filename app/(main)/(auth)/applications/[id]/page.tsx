@@ -29,7 +29,12 @@ export async function generateMetadata({
   const user = await getCurrentUser();
   const application = await getApplicationForReview(id, user);
   if (!application) return {};
-  return { title: application.user.name ?? application.user.email };
+  return {
+    title:
+      application.applicantName ??
+      application.user.name ??
+      application.user.email,
+  };
 }
 
 export default async function ApplicationDetailPage({
@@ -42,7 +47,10 @@ export default async function ApplicationDetailPage({
 
   if (!application) notFound();
 
-  const applicantName = application.user.name ?? application.user.email;
+  const applicantName =
+    application.applicantName ??
+    application.user.name ??
+    application.user.email;
 
   return (
     <div className="mx-auto max-w-5xl">
