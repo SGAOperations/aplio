@@ -41,7 +41,7 @@ jobs:
           UNPINNED=$(jq -r '
             .packages
             | to_entries[]
-            | select(.key != "" and (.value.link | not))
+            | select(.key != "" and (.value.link | not) and (.value.inBundle | not))
             | select((.value.resolved | not) or (.value.integrity | not))
             | .key
           ' package-lock.json)

@@ -100,7 +100,10 @@ jobs:
       - name: Preflight — migration status
         run: |
           set -uo pipefail
+          set +e
           npm run prisma:migrate:status > "$RUNNER_TEMP/status.txt" 2>&1
+          STATUS_EXIT=$?
+          set -e
           {
             echo "### Migration status ($TARGET)"
             echo
@@ -112,9 +115,19 @@ jobs:
           # "Drift detected" means the schema diverged outside of tracked
           # migrations — never safe to apply on top of. Untracked/pending
           # migrations alone are the expected pre-apply state and pass through.
+          # Any other non-zero exit (bad DATABASE_URL, auth failure, corrupted
+          # migration history, transient network error) must fail closed rather
+          # than fall through to "no drift string found, assume safe".
           if grep -qi 'drift detected' "$RUNNER_TEMP/status.txt"; then
             echo "::error::Migration drift detected against $TARGET — refusing to apply. See the step summary."
             exit 1
+          elif [ "$STATUS_EXIT" -ne 0 ]; then
+            if grep -qiE 'have not yet been applied' "$RUNNER_TEMP/status.txt"; then
+              echo "Pending migrations detected against $TARGET — expected pre-apply state, continuing."
+            else
+              echo "::error::prisma migrate status failed unexpectedly (exit $STATUS_EXIT) against $TARGET — refusing to apply. See the step summary."
+              exit 1
+            fi
           fi
         env:
           TARGET: ${{ inputs.target || github.ref_name }}
