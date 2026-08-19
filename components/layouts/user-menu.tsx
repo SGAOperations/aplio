@@ -13,6 +13,7 @@ import {
   Sun,
   SunMoon,
   UserCircle,
+  UserPen,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -22,6 +23,7 @@ import { logoutBypassUser } from '@/prisma/services/dev-bypass';
 import type { NavIdentity } from '@/lib/types';
 import { isError } from '@/lib/utils';
 
+import { EditNameDialog } from '@/components/features/edit-name-dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,6 +37,8 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+
+const MENU_ITEM_TOUCH_TARGET = 'min-h-11 md:min-h-0';
 
 interface UserMenuProps {
   identity: NavIdentity;
@@ -113,7 +117,7 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
           )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
+        <DropdownMenuItem asChild className={MENU_ITEM_TOUCH_TARGET}>
           <Link
             href="/profile"
             className="flex items-center gap-2"
@@ -124,8 +128,21 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
+        <EditNameDialog
+          currentName={name}
+          trigger={
+            <DropdownMenuItem
+              onSelect={(e) => e.preventDefault()}
+              className={`cursor-pointer text-sm ${MENU_ITEM_TOUCH_TARGET}`}
+            >
+              <UserPen className="size-4" aria-hidden />
+              Edit name
+            </DropdownMenuItem>
+          }
+        />
+        <DropdownMenuSeparator />
         <DropdownMenuSub>
-          <DropdownMenuSubTrigger className="gap-2">
+          <DropdownMenuSubTrigger className={`gap-2 ${MENU_ITEM_TOUCH_TARGET}`}>
             <SunMoon className="size-4" aria-hidden />
             Theme
           </DropdownMenuSubTrigger>
@@ -145,7 +162,7 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
           variant="destructive"
           disabled={pending}
           onSelect={handleLogout}
-          className="cursor-pointer text-sm"
+          className={`cursor-pointer text-sm ${MENU_ITEM_TOUCH_TARGET}`}
         >
           <LogOut className="size-4" aria-hidden />
           Log out

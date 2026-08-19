@@ -192,12 +192,14 @@ model Application {
   positionId  String
   status      ApplicationStatus @default(applied)
   submittedAt DateTime          @default(now())
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  deletedAt   DateTime?
-  createdById String
-  updatedById String
-  deletedById String?
+  // Frozen User.name at submission; null until then.
+  applicantName String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+  createdById   String
+  updatedById   String
+  deletedById   String?
 
   createdBy User  @relation("ApplicationCreatedBy", fields: [createdById], references: [id])
   updatedBy User  @relation("ApplicationUpdatedBy", fields: [updatedById], references: [id])

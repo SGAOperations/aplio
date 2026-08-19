@@ -5,6 +5,7 @@ import { ArrowRight, Inbox } from 'lucide-react';
 import { getRecentApplications } from '@/prisma/data/applications';
 
 import { type AdminApplicationListItem, type Reviewer } from '@/lib/types';
+import { getRenamedTo } from '@/lib/utils';
 
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -73,7 +74,9 @@ function ApplicationList({
   return (
     <ul className="divide-y">
       {applications.map((app) => {
-        const applicantLabel = app.user.name ?? app.user.email;
+        const applicantLabel =
+          app.applicantName ?? app.user.name ?? app.user.email;
+        const renamedTo = getRenamedTo(app);
         return (
           <li
             key={app.id}
@@ -84,6 +87,11 @@ function ApplicationList({
               className="min-w-0 flex-1 truncate text-sm font-medium hover:underline"
             >
               {applicantLabel}
+              {renamedTo && (
+                <span className="text-muted-foreground ml-1 text-xs">
+                  ({renamedTo})
+                </span>
+              )}
             </Link>
             <span className="text-muted-foreground shrink-0 text-xs">
               {app.position.title}

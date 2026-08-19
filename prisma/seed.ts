@@ -190,6 +190,9 @@ async function main() {
               userId: user.id,
               positionId: position.id,
               status: def.status,
+              // Mirrors submitApplication: only a submitted application has a
+              // name snapshot; drafts stay null.
+              ...(def.status !== 'draft' ? { applicantName: user.name } : {}),
               ...(def.submittedInDays !== undefined
                 ? { submittedAt: utcDayOffset(now, -def.submittedInDays) }
                 : {}),
