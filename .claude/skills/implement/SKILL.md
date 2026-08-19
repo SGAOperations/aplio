@@ -32,14 +32,14 @@ Keep that path. **Every instruction file is read by absolute path from there** �
 ## 3. Resolve the mode from state
 
 ```bash
-gh pr view <n> --repo SGAOperations/aplio --json labels,headRefName,baseRefName,title
+gh pr view <n> --repo SGAOperations/aplio --json labels,headRefName,baseRefName,title,body
 ```
 
 - Resolves to a PR labeled `needs revision` → **revise mode** (`.claude/agents/revise-agent.md`).
 - Otherwise:
 
   ```bash
-  gh issue view <n> --repo SGAOperations/aplio --json labels,assignees,title
+  gh issue view <n> --repo SGAOperations/aplio --json labels,assignees,title,body
   ```
 
   Labeled `plan approved` → **impl mode** (`.claude/agents/impl-agent.md`). **Record the issue's assignee login** (`@me` if none) — the PR must carry it.
