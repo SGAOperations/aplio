@@ -1,10 +1,8 @@
-# Enforces the `approved` pipeline label as a hard merge gate on PRs into
-# `dev`. `labeled`/`unlabeled` are non-default `pull_request` types and are
-# required here — without them the verdict never re-evaluates when the
-# pipeline swaps a label, and it stays stuck at whatever it was on open.
-# The `branches: [dev]` filter is only safe because the required-check
-# registration is `dev`-scoped too — NEVER add this check to the `main/dev`
-# ruleset (id 15248252); dev → main release PRs carry no pipeline labels.
+# Gates PRs into `dev` on the `approved` pipeline label. `labeled`/`unlabeled`
+# re-trigger so the verdict updates as the pipeline swaps labels.
+# `branches: [dev]` is safe only because the required-check registration is
+# `dev`-scoped too — NEVER add this to the `main/dev` ruleset (id 15248252);
+# dev → main release PRs carry no pipeline labels.
 
 name: Approval Check
 
