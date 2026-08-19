@@ -1,0 +1,76 @@
+# Enforces the `approved` pipeline label as a hard merge gate on PRs into
+# `dev`. `labeled`/`unlabeled` are non-default `pull_request` types and are
+# required here — without them the verdict never re-evaluates when the
+# pipeline swaps a label, and it stays stuck at whatever it was on open.
+# The `branches: [dev]` filter is only safe because the required-check
+# registration is `dev`-scoped too — NEVER add this check to the `main/dev`
+# ruleset (id 15248252); dev → main release PRs carry no pipeline labels.
+
+name: Approval Check
+
+on:
+  pull_request:
+    branches: [dev]
+    types: [opened, reopened, synchronize, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  run-approval-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check pipeline labels
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -uo pipefail
+
+          # One label per line, in the ticket's order. `blocked` is an
+          # issue-stage label carried here as defence-in-depth.
+          BLOCKING_LABELS="needs revision
+          needs human
+          reviewing
+          revising
+          refreshing
+          blocked"
+
+          if ! gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels \
+              --jq '.labels[].name' > "$RUNNER_TEMP/labels.txt"; then
+            echo "::error::Could not read labels for PR #$PR."
+            exit 1
+          fi
+
+          echo "Labels on PR #$PR:"
+          cat "$RUNNER_TEMP/labels.txt"
+
+          FAILED=0
+          FOUND_BLOCKING=""
+
+          while IFS= read -r LABEL; do
+            [ -z "$LABEL" ] && continue
+            if grep -Fxq "$LABEL" "$RUNNER_TEMP/labels.txt"; then
+              FOUND_BLOCKING="$FOUND_BLOCKING$LABEL, "
+            fi
+          done <<EOF
+          $BLOCKING_LABELS
+          EOF
+
+          if ! grep -Fxq "approved" "$RUNNER_TEMP/labels.txt"; then
+            echo "::error::Missing the 'approved' label. A PR into dev is merge-able only after review-agent (or a human, for manual PRs) applies 'approved'."
+            FAILED=1
+          fi
+
+          if [ -n "$FOUND_BLOCKING" ]; then
+            echo "::error::Blocking pipeline label(s): ${FOUND_BLOCKING%, }. The PR is mid-pipeline; wait for it to reach 'approved'."
+            FAILED=1
+          fi
+
+          if [ "$FAILED" -eq 1 ]; then
+            exit 1
+          fi
+
+          echo "'approved' present, no blocking pipeline labels — merge gate satisfied."
