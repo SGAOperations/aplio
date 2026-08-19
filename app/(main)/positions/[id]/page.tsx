@@ -10,12 +10,13 @@ import { getPositionDetail } from '@/prisma/data/positions';
 import { getOptionalManagerAccess } from '@/lib/auth/guards';
 import { requireName } from '@/lib/auth/server';
 import type { PositionDetail } from '@/lib/types';
-import { getPositionAvailability } from '@/lib/utils';
+import { getPositionAvailability, markdownToPlainText } from '@/lib/utils';
 
 import { PositionStatusBadge } from '@/components/features/status-badge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { LocalTime } from '@/components/ui/local-time';
+import { Markdown } from '@/components/ui/markdown';
 import { WarningCallout } from '@/components/ui/warning-callout';
 
 async function resolvePositionView(
@@ -44,7 +45,7 @@ export async function generateMetadata({
   if (!view) return {};
   return {
     title: view.position.title,
-    description: view.position.description.slice(0, 155),
+    description: markdownToPlainText(view.position.description).slice(0, 155),
   };
 }
 
@@ -65,7 +66,6 @@ export default async function PublicPositionDetailPage({
   const isAccepting = availability === 'accepting';
   const isClosed =
     availability === 'closed_by_date' || position.status === 'closed';
-  const description = position.description.trim();
 
   return (
     <div className="flex flex-col gap-8">
@@ -95,10 +95,8 @@ export default async function PublicPositionDetailPage({
       )}
 
       <div className="max-w-2xl">
-        {description ? (
-          <p className="text-muted-foreground text-sm leading-relaxed">
-            {description}
-          </p>
+        {markdownToPlainText(position.description) ? (
+          <Markdown variant="full" source={position.description} />
         ) : (
           <p className="text-muted-foreground text-sm italic">
             No description yet.

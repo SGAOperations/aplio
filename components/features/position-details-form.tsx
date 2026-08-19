@@ -12,6 +12,7 @@ import type { PositionStatus } from '@/prisma/client';
 
 import { STATUS_OPTIONS, positionFormSchema } from '@/lib/constants';
 
+import { MarkdownField } from '@/components/features/markdown-field';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -30,7 +31,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 
 interface PositionDetailsFormProps {
   position: {
@@ -99,19 +99,7 @@ export function PositionDetailsForm({ position }: PositionDetailsFormProps) {
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description</FormLabel>
-              <FormControl>
-                <Textarea rows={4} disabled={isSubmitting} {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <MarkdownField />
 
         <FormField
           control={form.control}

@@ -117,7 +117,30 @@ export function isAnswered(question: AnswerQuestion, value: string[]): boolean {
   return partitionAnswerValue(question, value).fitted.length > 0;
 }
 
-/** closesAt is already the resolved end-of-day instant — see lib/dates.ts#orgDayEnd. */
+/**
+ * Strips markdown syntax to plain text for metadata and emptiness checks.
+ * Never used to render a description — use `<Markdown>` for that.
+ */
+export function markdownToPlainText(markdown: string): string {
+  return markdown
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^(.+)\n(=+|-+)$/gm, '$1')
+    .replace(/^\s{0,3}>\s?/gm, '')
+    .replace(/^\s*([-*_]\s*){3,}$/gm, ' ')
+    .replace(/^\s*[-*+]\s+/gm, '')
+    .replace(/^\s*\d+[.)]\s+/gm, '')
+    .replace(/\|/g, ' ')
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/(\*\*|__)(.*?)\1/g, '$2')
+    .replace(/(\*|_)(.*?)\1/g, '$2')
+    .replace(/~~(.*?)~~/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export function getPositionAvailability(
   position: PositionWindow,
   now: Date = new Date(),

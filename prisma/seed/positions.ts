@@ -7,7 +7,7 @@ export const positionDefs: PositionDef[] = [
   {
     title: 'Senator — College of Engineering',
     description:
-      'Represent the interests of engineering students in the Student Government Association.',
+      '## About the role\n\nRepresent the interests of engineering students in the Student Government Association.\n\n- Attend weekly SGA sessions\n- Meet with department leadership\n- Champion **student-led** initiatives\n\nQuestions? [Reach out to the SGA office](https://example.com/sga-office).',
     status: 'open',
     opensInDays: 0,
     closesInDays: 21,
@@ -57,7 +57,7 @@ export const positionDefs: PositionDef[] = [
   {
     title: 'Director of Technology',
     description:
-      'Lead digital initiatives for the SGA, maintain the student portal, and improve tech infrastructure.',
+      'Lead digital initiatives for the SGA, maintain the student portal, and improve tech infrastructure.\n\n1. Ship the new applicant portal\n2. Keep uptime above 99.5%\n3. Mentor a small team of student developers\n\n_Prior experience with Next.js is a plus, but not required._',
     status: 'open',
     opensInDays: -7,
     closesInDays: 2,

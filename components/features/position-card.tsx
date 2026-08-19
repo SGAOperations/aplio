@@ -13,12 +13,13 @@ import type {
   PositionApplicationStats,
   PositionWithQuestions,
 } from '@/lib/types';
-import { cn, getPositionAvailability } from '@/lib/utils';
+import { cn, getPositionAvailability, markdownToPlainText } from '@/lib/utils';
 
 import { PositionStatusBadge } from '@/components/features/status-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LocalTime } from '@/components/ui/local-time';
+import { Markdown } from '@/components/ui/markdown';
 
 interface PositionCardProps {
   position: PositionWithQuestions;
@@ -152,9 +153,15 @@ export function PositionCard({
               applicationStats && 'sm:flex sm:flex-1 sm:flex-col',
             )}
           >
-            <p className="text-muted-foreground line-clamp-2 text-sm">
-              {position.description}
-            </p>
+            {markdownToPlainText(position.description) && (
+              <div className="max-h-15 overflow-clip text-sm [overflow-wrap:anywhere]">
+                <Markdown
+                  variant="compact"
+                  source={position.description}
+                  className="[&_p]:line-clamp-3"
+                />
+              </div>
+            )}
             {dateLabel && (
               <p className="text-muted-foreground mt-1 text-xs">{dateLabel}</p>
             )}
