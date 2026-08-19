@@ -67,9 +67,8 @@ export function EditNameDialog({ currentName, trigger }: EditNameDialogProps) {
         )}
       />
       <WarningCallout icon={TriangleAlert}>
-        Changing your name updates it everywhere — including applications
-        you&apos;ve already submitted, and ones that have already been reviewed
-        or decided.
+        This updates your name going forward. Applications you&apos;ve already
+        submitted keep the name you used at the time.
       </WarningCallout>
     </FormDialog>
   );

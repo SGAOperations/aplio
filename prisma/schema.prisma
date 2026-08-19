@@ -192,9 +192,7 @@ model Application {
   positionId  String
   status      ApplicationStatus @default(applied)
   submittedAt DateTime          @default(now())
-  // Snapshot of User.name as of submission, so a later profile rename can't
-  // rewrite what the applicant was called when they applied. Same idea as
-  // GlobalApplicationAnswer.questionLabel. Null until submitApplication runs.
+  // Frozen User.name at submission; null until then.
   applicantName String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
