@@ -97,18 +97,19 @@ Rule: **every stage agent's first action is swapping its trigger label for its i
 
 ### Issue labels
 
-| Label                    | Set by                                   | Type      | Meaning                                           |
-| ------------------------ | ---------------------------------------- | --------- | ------------------------------------------------- |
-| `claude`                 | Cockpit (at opt-in)                      | marker    | Claude is handling this ticket                    |
-| `ready`                  | Cockpit (at opt-in)                      | trigger   | Dispatch `plan-agent`                             |
-| `planning`               | `plan-agent`                             | in-flight | Plan being researched/written                     |
-| `plan review`            | `plan-agent`                             | gate      | Plan written — awaiting human approval in cockpit |
-| `plan changes requested` | Cockpit (human feedback)                 | trigger   | Dispatch `plan-agent` in revision mode            |
-| `plan approved`          | Cockpit (human approval, or `auto plan`) | trigger   | Dispatch `impl-agent`                             |
-| `auto plan`              | Cockpit (at opt-in)                      | marker    | Plan gate skipped: `plan review` auto-approved    |
-| `in progress`            | `impl-agent`                             | in-flight | Implementation underway                           |
-| `pr opened`              | `impl-agent`                             | terminal  | PR open; remaining state tracked on the PR        |
-| `blocked`                | `impl-agent`                             | gate      | Needs human decision; details in issue comment    |
+| Label                    | Set by                                   | Type      | Meaning                                                                |
+| ------------------------ | ---------------------------------------- | --------- | ---------------------------------------------------------------------- |
+| `claude`                 | Cockpit (at opt-in)                      | marker    | Claude is handling this ticket                                         |
+| `ready`                  | Cockpit (at opt-in)                      | trigger   | Dispatch `plan-agent`                                                  |
+| `planning`               | `plan-agent`                             | in-flight | Plan being researched/written                                          |
+| `plan review`            | `plan-agent`                             | gate      | Plan written — awaiting human approval in cockpit                      |
+| `plan changes requested` | Cockpit (human feedback)                 | trigger   | Dispatch `plan-agent` in revision mode                                 |
+| `plan approved`          | Cockpit (human approval, or `auto plan`) | trigger   | Dispatch `impl-agent`                                                  |
+| `auto plan`              | Cockpit (at opt-in)                      | marker    | Plan gate skipped: `plan review` auto-approved                         |
+| `operator route`         | Cockpit (at the plan gate)               | marker    | Stages 2/4 run in an operator session (`/implement`); never dispatched |
+| `in progress`            | `impl-agent`                             | in-flight | Implementation underway                                                |
+| `pr opened`              | `impl-agent`                             | terminal  | PR open; remaining state tracked on the PR                             |
+| `blocked`                | `impl-agent`                             | gate      | Needs human decision; details in issue comment                         |
 
 ### PR labels
 
@@ -123,6 +124,7 @@ Rule: **every stage agent's first action is swapping its trigger label for its i
 | `needs human`      | Cockpit / `revise-agent`         | gate      | 5 cycles without convergence, or an ambiguous rebase conflict needing the author; pipeline stops                             |
 | `refresh branch`   | Cockpit / human                  | trigger   | Dispatch `revise-agent` in refresh mode — rebase onto base and force-push, no code changes                                   |
 | `refreshing`       | `revise-agent`                   | in-flight | Branch refresh underway; the PR's other labels (e.g. `approved`) are left in place                                           |
+| `operator route`   | `/implement` (at PR creation) | marker    | Stages 2/4 run in an operator session; the cockpit never dispatches `revise-agent` for it        |
 
 ## Stages and models
 
@@ -136,6 +138,8 @@ Rule: **every stage agent's first action is swapping its trigger label for its i
 | 4. Revise    | `.claude/agents/revise-agent.md` | sonnet                                    | Targeted fixes from a structured list                                |
 
 All four workers read `.claude/docs/ENGINEERING.md` before working; the review agent treats it as a review dimension.
+
+**Stages 2 and 4 have an operator variant.** A ticket touching `CLAUDE.md` or `.claude/**` can't be implemented by a dispatched agent (the harness denies its `Edit`), so those two stages run in the operator's own session via `/implement`, following these same agent files — see "Config tickets".
 
 ## Permission rationale
 
@@ -161,6 +165,32 @@ Permission mode: every stage agent runs **`permissionMode: dontAsk`** (auto-deny
 
 **CI merge gate — `approval-check.yml`.** PRs into `dev` are gated on the `approved` label **only when the PR carries `claude`** (a job-level `if:`). Every other PR — human, Dependabot — gets a `skipped` check run, which GitHub counts as satisfied, so it merges on its own merits. This is deliberately **fail-open**: an unlabelled pipeline PR is indistinguishable in CI from a human one and simply loses its gate. Nothing in the workflow can close that, so the mitigations live upstream — `impl-agent` passes `--label "claude"` at `gh pr create` (so the gate is live on the PR's first event) and the cockpit's **ungated-PR sweep** reports any tracked PR missing it. Never narrow the workflow's trigger to exclude a PR: a workflow that never runs creates no check run, leaving the required check pending forever.
 
+## Config tickets (`CLAUDE.md` / `.claude/**`)
+
+**The harness denies `Edit`/`Write` under `.claude/` to dispatched subagents, and `settings.json` cannot grant it back.** This repo already allows `Edit(**)`/`Write(**)` with no `.claude/` deny rule and the denial persists anyway — it sits above project config, so there is nothing to fix in the permission model. An operator's **main session** is unaffected: reading `.claude/agents/impl-agent.md` and acting on it spawns no subagent, so no subagent restriction applies. That asymmetry is the whole basis of this route.
+
+**The route** — `plan-agent` declares it, the cockpit marks it, an operator runs it:
+
+1. **Declare.** When the plan's **## Changes** touches `CLAUDE.md` or `.claude/**`, its first line is exactly `ROUTE: operator session` (see "Implementation plan").
+2. **Mark.** At the plan gate the cockpit reads the issue body for that sentinel and adds **`operator route`** in the same edit as `plan approved`. The marker is sticky and travels to the PR (`/implement` passes `--label "operator route"` to `gh pr create`), so every later cockpit decision is a pure label check.
+3. **Run.** The operator opens a **named session** and runs `/implement <issue-or-pr-number>`. That skill resolves the stage from the item's labels, creates a worktree under `.claude/worktrees/impl-<n>`, and follows the **unmodified** `impl-agent.md` / `revise-agent.md` plus a short list of subagent-only overrides. The override list lives in the skill and nowhere else — one place to drift, one place to check.
+
+**What moves and what doesn't.** Only stages **2** and **4**. `plan-agent` and `review-agent` are read-only and work through `gh`, so stages 1 and 3 run unchanged. `refresh branch` is still dispatched to `revise-agent` — a rebase and force-push edit no files, and a conflict inside `CLAUDE.md` / `.claude/docs/**` is already on the never-touch list and escalates.
+
+**The invariant this deviates from.** Everywhere else a trigger label means something is dispatching. An `operator route` item **keeps** its trigger label (`plan approved` / `needs revision`) and is **never** dispatched — the cockpit announces the command instead. Recovery is unchanged (re-apply the trigger), but the label alone no longer implies motion. That is why `operator route` appears in the cockpit's gate queries, its unowned sweep, and its `status` output: an unowned config ticket is otherwise invisible in a way an unowned normal ticket isn't, because no cockpit will ever nag about it.
+
+**Session naming.** These sessions are long-lived and several run at once, so launch each with the issue number in its display name:
+
+```bash
+claude -n "#503: operator config route"   # then, in that session: /implement 503
+```
+
+`-n/--name` sets the name shown in the prompt box, the `/resume` picker, and the terminal title. It is settable **only at launch** — a running session can neither read nor change its own name — so the cockpit's announcement hands over the command with the name pre-filled, and the skill re-states the expected string. The name always carries the **issue** number, even when the command takes a PR number.
+
+**Always in a worktree.** `/implement` never works in the main checkout, for two reasons: editing `.claude/` from the session that is _using_ it mutates your live configuration mid-task, and the ticket may be editing the very agent file the session is following. In a worktree the session reads its instructions by absolute path from the main checkout while every edit lands on the worktree copy, so the committed behaviour holds for the whole run. Reclaim the worktree with `/worktree-clean` once the PR merges.
+
+**Unverified:** whether the manual escape hatch `claude --agent impl-agent` carries the same restriction (its frontmatter forces `dontAsk` and worktree isolation). Untested — use `/implement` for config tickets regardless. If a future Claude Code version lifts the harness restriction, this whole route can be deleted; the sentinel and the label are the only things to unwind.
+
 ## Pipeline output formats
 
 Defined once here; the stage agents follow these exactly.
@@ -179,6 +209,7 @@ Every plan, review, summary, and comment is written for a human scanning fast:
 
 Appended below the ticket under a `---` then `## Implementation Plan`; revision mode replaces only that block. **Do not restate the ticket** — reference it. Fixed sections in this order; the conditional ones appear **only when they apply** (omit otherwise — no stub):
 
+- **`ROUTE: operator session`** _(only when the plan touches `CLAUDE.md` or `.claude/**`)_ — a bare line before `## Overview`, exactly that text, plus one sentence naming why. It routes stages 2 and 4 to an operator session; see "Config tickets".
 - **## Overview** — 2–4 sentences: what, why, the approach.
 - **## Changes** — files to create/modify, one bullet each: `` `path` — one-line reason ``.
 - **## Implementation** — ordered `- [ ]` checkboxes, one line each; fold validation / states / error-model notes into the step they belong to.
@@ -280,6 +311,7 @@ Closing the cockpit session also halts dispatch (it is the only dispatcher) but 
 | Labels manually changed on GitHub                                                                                | Fine — labels are the source of truth                                                                                                                                    | The next tick acts on whatever the labels say                                                                                                                                                                                                           |
 | Stale worktrees / orphan `node_modules` dirs accumulating under `.claude/worktrees/`                             | Agents cut off mid-run; on Windows the harness leaves dirs git can't delete                                                                                              | Run **`/worktree-clean`** from the main checkout — it prunes registrations and force-deletes orphan dirs (`git worktree remove` alone fails with `Invalid argument` once `node_modules` exists). The cockpit reports these but never auto-deletes them. |
 | An agent stopped with `BLOCKED:` or hit `maxTurns`                                                               | Clean stop by design (not a crash)                                                                                                                                       | Resolve the blocker (or widen scope/permissions), then `retry #N`                                                                                                                                                                                       |
+| An issue sits at `plan approved`, or a PR at `needs revision`, and nothing dispatches                            | It carries `operator route` — a config ticket (`CLAUDE.md` / `.claude/**`) the cockpit never dispatches for                                                              | Open a named session and run it yourself: `claude -n "#N: <short name>"`, then `/implement <n>`. See "Config tickets"                                                                                                                                   |
 
 ## Reading current state without the cockpit
 

@@ -68,6 +68,8 @@ Construct the **full new issue body** (original ticket description preserved on 
 gh issue edit N --repo SGAOperations/aplio --body-file .temp/plan-N.md
 ```
 
+**Route declaration (config tickets).** If any file in your **## Changes** section is `CLAUDE.md` or lives under `.claude/`, the plan body's **first line — directly under the `## Implementation Plan` heading, before `## Overview` — must be exactly `ROUTE: operator session`**, followed by one sentence naming why. The harness blocks a dispatched subagent from editing those paths, so the cockpit routes stages 2 and 4 to an operator session instead (`.claude/docs/PIPELINE.md` → "Config tickets"). Emit it in **revision mode** too — a revised plan can change route. Never emit it for a plan that touches neither.
+
 **Use the fixed structure** in `.claude/docs/PIPELINE.md` → "Implementation plan" — the canonical section list, order, and writing style. Think through how the feature should actually work and look (it's a product/UX design, not just a file checklist), but write it tight: bullets, short sentences, **don't restate the ticket**, omit sections that don't apply. The plan must still _decide_ the substance — even though it's brief:
 
 - **Design each UX state** (happy + unhappy/edge), layout/hierarchy, key interactions, and the actual **copy** — in the **## UX states** section (only if there's UI).

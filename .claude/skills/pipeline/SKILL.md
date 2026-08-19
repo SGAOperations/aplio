@@ -18,6 +18,7 @@ You are the orchestrator of the agent pipeline in `.claude/docs/PIPELINE.md`. Th
 - Never act on issues/PRs that lack a pipeline **trigger** label — opt-in is human-initiated.
 - **Never act on an item assigned to another operator** — ownership transfers only through an explicit human take-over (see Ownership).
 - Never dispatch for an item with an **in-flight** label (`planning`, `in progress`, `reviewing`, `revising`, `refreshing`) — an agent owns it or a human paused it.
+- **Never dispatch `impl-agent` or `revise-agent` for an item labelled `operator route`** — the harness blocks a dispatched agent from editing `CLAUDE.md` / `.claude/**`, so stages 2 and 4 run in the operator's own session. **Announce the command instead** (see Operator-route items). `review-agent` and refresh-mode dispatches are unaffected.
 - Every dispatch runs in the background (`run_in_background: true`). Worktree isolation, model, tool scope, and **permission mode (`dontAsk` — auto-denies anything not allow-listed)** all come from the subagent definition in `.claude/agents/` — you do not set them at the call site. (Since CC v2.1.186 a background subagent's prompts surface to you unless it runs `dontAsk` **and** this session is in default mode — see Model & permission mode.)
 - **Respect the draining flag:** while draining (see Stop controls), dispatch nothing new and schedule no wakeup; only report state and relay completions.
 
@@ -45,10 +46,12 @@ gh issue list --repo SGAOperations/aplio --assignee "@me" --label "plan review" 
 gh issue list --repo SGAOperations/aplio --assignee "@me" --label "blocked" --json number,title
 gh pr list --repo SGAOperations/aplio --assignee "@me" --label "approved" --json number,title
 gh pr list --repo SGAOperations/aplio --assignee "@me" --label "needs human" --json number,title
+gh issue list --repo SGAOperations/aplio --assignee "@me" --label "operator route" --json number,title,labels
+gh pr list --repo SGAOperations/aplio --assignee "@me" --label "operator route" --json number,title,labels
 
 # Unowned sweep → report only, never act (see Ownership above)
-gh issue list --repo SGAOperations/aplio --search "no:assignee" --limit 100 --json number,title,labels --jq '[.[] | select(.labels | map(.name) | any(. == "ready" or . == "plan changes requested" or . == "plan approved" or . == "plan review" or . == "blocked"))]'
-gh pr list --repo SGAOperations/aplio --search "no:assignee" --limit 100 --json number,title,labels --jq '[.[] | select(.labels | map(.name) | any(. == "ready for review" or . == "needs revision" or . == "approved" or . == "needs human"))]'
+gh issue list --repo SGAOperations/aplio --search "no:assignee" --limit 100 --json number,title,labels --jq '[.[] | select(.labels | map(.name) | any(. == "ready" or . == "plan changes requested" or . == "plan approved" or . == "plan review" or . == "blocked" or . == "operator route"))]'
+gh pr list --repo SGAOperations/aplio --search "no:assignee" --limit 100 --json number,title,labels --jq '[.[] | select(.labels | map(.name) | any(. == "ready for review" or . == "needs revision" or . == "approved" or . == "needs human" or . == "operator route"))]'
 
 # Ungated-PR sweep → report only, never act (see Ungated report below)
 gh pr list --repo SGAOperations/aplio --assignee "@me" --json number,title,labels --jq '[.[] | select((.labels | map(.name)) as $l | ($l | any(. == "ready for review" or . == "reviewing" or . == "needs revision" or . == "revising" or . == "approved" or . == "refresh branch" or . == "refreshing" or . == "needs human")) and ($l | index("claude") | not)) | {number, title}]'
@@ -101,14 +104,14 @@ Agent({
 
 Stage → trigger mapping:
 
-| Trigger query result                   | subagent_type                                  |
-| -------------------------------------- | ---------------------------------------------- |
-| Issue labeled `ready`                  | `plan-agent` (fresh plan)                      |
-| Issue labeled `plan changes requested` | `plan-agent` (revision)                        |
-| Issue labeled `plan approved`          | `impl-agent`                                   |
-| PR labeled `ready for review`          | `review-agent`                                 |
-| PR labeled `needs revision`            | `revise-agent` — **after the cycle-cap check** |
-| PR labeled `refresh branch`            | `revise-agent` in **refresh mode**             |
+| Trigger query result                   | subagent_type                                                                                         |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Issue labeled `ready`                  | `plan-agent` (fresh plan)                                                                             |
+| Issue labeled `plan changes requested` | `plan-agent` (revision)                                                                               |
+| Issue labeled `plan approved`          | `impl-agent` — **unless `operator route`: announce, never dispatch**                                  |
+| PR labeled `ready for review`          | `review-agent`                                                                                        |
+| PR labeled `needs revision`            | `revise-agent` — **after the cycle-cap check**; **unless `operator route`: announce, never dispatch** |
+| PR labeled `refresh branch`            | `revise-agent` in **refresh mode**                                                                    |
 
 For a refresh, say so in the prompt so the agent takes its Refresh mode path: `Run your pipeline stage for PR #<n> in refresh mode (label: refresh branch).`
 
@@ -133,11 +136,38 @@ then notify the human.
 
 For each issue labeled `plan review`:
 
+- **Read the route first** — the plan declares whether stages 2/4 can be dispatched at all:
+
+  ```bash
+  gh issue view <n> --repo SGAOperations/aplio --json body --jq '.body | contains("ROUTE: operator session")'
+  ```
+
+  `true` means a **config ticket** (`CLAUDE.md` / `.claude/**`) — add `operator route` in the **same** label edit that approves the plan, and announce instead of dispatching (see Operator-route items).
+
 - **Without `auto plan`:** summarize the plan from the issue body in a few sentences, then ask (AskUserQuestion): **Approve** / **Request changes** / **Discuss**.
-  - Approve → `gh issue edit <n> --repo SGAOperations/aplio --remove-label "plan review" --add-label "plan approved"` (impl dispatches this tick).
+  - Approve →
+    ```bash
+    gh issue edit <n> --repo SGAOperations/aplio --remove-label "plan review" --add-label "plan approved"                 # route false
+    gh issue edit <n> --repo SGAOperations/aplio --remove-label "plan review" --add-label "plan approved,operator route"  # route true
+    ```
+    Route `false` → impl dispatches this tick. Route `true` → dispatch nothing; announce the operator command.
   - Request changes → write the human's feedback to `.temp/feedback-<n>.md`, `gh issue comment <n> --repo SGAOperations/aplio --body-file .temp/feedback-<n>.md`, then `--remove-label "plan review" --add-label "plan changes requested"`.
   - Discuss → converse; finish with one of the two transitions above.
-- **With `auto plan`:** swap `plan review` → `plan approved` immediately, no interaction, and dispatch impl this tick.
+- **With `auto plan`:** run the same route check, swap `plan review` → `plan approved` (plus `operator route` when the route is `true`) immediately, no interaction — and dispatch impl this tick **only** when the route is `false`.
+
+### Operator-route items
+
+An item labelled `operator route` keeps its trigger label but is **never** dispatched (`.claude/docs/PIPELINE.md` → "Config tickets"). Announce it **once per session per item** — the same tracked-announcement pattern as `approved` PRs — and take no other action. Derive the session name from the issue title: `#<issue>: <2–5 lowercase words>`.
+
+- **Issue at `plan approved` + `operator route`:**
+
+  > 🧰 #503 is a **config ticket** (touches `CLAUDE.md` / `.claude/**`) — dispatched agents can't edit those. Open a named session and run it yourself:
+  > `claude -n "#503: operator config route"` then `/implement 503`
+  > I'll pick it back up at review.
+
+- **PR at `needs revision` + `operator route`** (announce **after** the cycle-cap check, which still runs and can still escalate to `needs human`):
+
+  > 🧰 PR #512 needs revision and is a config ticket — `claude -n "#503: operator config route"` then `/implement 512` in your own session. I'll review again once it's back at `ready for review`. (The session name carries the **issue** number; the command takes the PR number.)
 
 ### Approved PRs
 
@@ -173,7 +203,7 @@ Interpret intent, not literal syntax:
   Dispatch the plan agent the same tick.
 
 - **"scope out X" / "break down X"** — Stage 0 deserves a stronger model than haiku; suggest the human run `/scope` in their main session.
-- **"status"** — re-run the tick queries **live** and build the table from them (never from session memory): each in-flight item + stage, each item waiting on the human, and each PR currently labeled `approved` (the live `gh pr list --assignee "@me" --label approved` result — a merged PR has already dropped out, so it must not appear). It **inherits the assignee filter**, so it reports only this operator's items; append the unowned sweep result as a separate **"unowned"** line, and the ungated-PR sweep result as an **"ungated"** line, so a stalled ticket or a PR with no approval gate is diagnosable from one command.
+- **"status"** — re-run the tick queries **live** and build the table from them (never from session memory): each in-flight item + stage, each item waiting on the human, and each PR currently labeled `approved` (the live `gh pr list --assignee "@me" --label approved` result — a merged PR has already dropped out, so it must not appear). It **inherits the assignee filter**, so it reports only this operator's items; append the unowned sweep result as a separate **"unowned"** line, and the ungated-PR sweep result as an **"ungated"** line, so a stalled ticket or a PR with no approval gate is diagnosable from one command. List `operator route` items under the human-gated group with the commands to run, e.g. `#503 — plan approved · operator route → claude -n "#503: operator config route" · /implement 503`.
 - **"pause #N"** — remove the item's current trigger label; confirm what was removed. Same ownership rule as opt-in: if the item belongs to **another operator**, say so and stop rather than touch its labels.
 - **"resume #N" / "retry #N"** — re-apply the trigger label for where it stalled (issue stuck in `planning` → `ready`; PR stuck in `revising` → `needs revision`; PR stuck in `refreshing` → `refresh branch`; etc.). Same ownership rule as opt-in: if the item is **unassigned**, add `--add-assignee "@me"` in the same command (re-applying a trigger to an unassigned item is a no-op for every cockpit); if it belongs to **another operator**, say so and stop rather than re-trigger.
 - **"refresh #N"** — apply `refresh branch` to that PR and dispatch it this tick, bypassing the per-merge cap. Use it to force a fresh preview deployment on a PR left quota-red. Same ownership rule as opt-in.
@@ -201,4 +231,4 @@ Background-agent completions wake this session automatically; the scheduled wake
 
 ## Manual / recovery
 
-Each stage is also runnable by hand without the cockpit — @-mention the subagent (e.g. `@agent-impl-agent implement #142`) or run a whole session as it via `claude --agent impl-agent`. All durable state is in labels, so `retry #N` (or re-applying the trigger label on GitHub) recovers any stalled item.
+Each stage is also runnable by hand without the cockpit — @-mention the subagent (e.g. `@agent-impl-agent implement #142`) or run a whole session as it via `claude --agent impl-agent`. All durable state is in labels, so `retry #N` (or re-applying the trigger label on GitHub) recovers any stalled item. **Exception:** an `operator route` item is never dispatched — run `/implement <n>` in your own named session, since no subagent can edit `CLAUDE.md` / `.claude/**`.
