@@ -15,17 +15,6 @@ export const isManager = cache(async function isManager(
   return count > 0;
 });
 
-// Admins should pass the full positions list rather than call this.
-export async function getManagedPositionIds(
-  userId: string,
-): Promise<Set<string>> {
-  const managed = await prisma.position.findMany({
-    where: { managers: { some: { id: userId } }, deletedAt: null },
-    select: { id: true },
-  });
-  return new Set(managed.map((p) => p.id));
-}
-
 // Call requirePositionAccess instead, so denial handling stays centralized.
 export async function checkPositionAccess(
   positionId: string,

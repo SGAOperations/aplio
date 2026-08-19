@@ -6,6 +6,7 @@ import type {
   Position,
   PositionQuestion,
   Prisma,
+  Session,
   User,
 } from '@/prisma/client';
 
@@ -101,6 +102,17 @@ export async function createTestPositionQuestion(
       createdById: createdBy.id,
       updatedById: createdBy.id,
       ...overrides,
+    },
+  });
+}
+
+// Cascades on user delete (onDelete: Cascade), so cleanup needs no extra step.
+export async function createTestSession(user: User): Promise<Session> {
+  return prisma.session.create({
+    data: {
+      userId: user.id,
+      token: `${TEST_PREFIX}${randomUUID()}`,
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
     },
   });
 }

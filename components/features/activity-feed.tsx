@@ -11,9 +11,9 @@ import {
   STATUS_BADGE_VARIANT_TO_DOT,
 } from '@/lib/constants';
 import { type ActivityItem, type Reviewer } from '@/lib/types';
-import { formatRelativeTime } from '@/lib/utils';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { LocalTime } from '@/components/ui/local-time';
 
 // ─── Presentational leaf ─────────────────────────────────────────────────────
 
@@ -49,8 +49,6 @@ function ActivityFeedList({ items, emptyDescription }: ActivityFeedListProps) {
                 const dotClass =
                   STATUS_BADGE_VARIANT_TO_DOT[item.statusVariant] ??
                   'bg-muted-foreground';
-                const isoString = item.timestamp.toISOString();
-                const relativeTime = formatRelativeTime(item.timestamp);
 
                 return (
                   <li
@@ -64,12 +62,11 @@ function ActivityFeedList({ items, emptyDescription }: ActivityFeedListProps) {
                     <p className="line-clamp-2 min-w-0 flex-1 text-sm">
                       {item.sentence}
                     </p>
-                    <time
-                      dateTime={isoString}
+                    <LocalTime
+                      date={item.timestamp}
+                      precision="relative"
                       className="text-muted-foreground ml-auto shrink-0 text-xs tabular-nums"
-                    >
-                      {relativeTime}
-                    </time>
+                    />
                   </li>
                 );
               })}

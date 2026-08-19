@@ -12,10 +12,12 @@ import type { PositionStatus } from '@/prisma/client';
 
 import { STATUS_OPTIONS, positionFormSchema } from '@/lib/constants';
 
+import { MarkdownField } from '@/components/features/markdown-field';
 import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -29,7 +31,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 
 interface PositionDetailsFormProps {
   position: {
@@ -44,11 +45,6 @@ interface PositionDetailsFormProps {
 
 type PositionFormValues = z.infer<typeof positionFormSchema>;
 
-function formatDateForInput(iso: string | null): string {
-  if (!iso) return '';
-  return iso.slice(0, 16);
-}
-
 // Always visible, not dialog-triggered: shadcn Form primitives directly, no FormDialog.
 export function PositionDetailsForm({ position }: PositionDetailsFormProps) {
   const form = useForm<PositionFormValues>({
@@ -57,8 +53,8 @@ export function PositionDetailsForm({ position }: PositionDetailsFormProps) {
       title: position.title,
       description: position.description,
       status: position.status,
-      opensAt: formatDateForInput(position.opensAt),
-      closesAt: formatDateForInput(position.closesAt),
+      opensAt: position.opensAt ?? '',
+      closesAt: position.closesAt ?? '',
     },
   });
   const isSubmitting = form.formState.isSubmitting;
@@ -103,19 +99,7 @@ export function PositionDetailsForm({ position }: PositionDetailsFormProps) {
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description</FormLabel>
-              <FormControl>
-                <Textarea rows={4} disabled={isSubmitting} {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <MarkdownField />
 
         <FormField
           control={form.control}
@@ -154,12 +138,11 @@ export function PositionDetailsForm({ position }: PositionDetailsFormProps) {
               <FormItem>
                 <FormLabel>Opens At</FormLabel>
                 <FormControl>
-                  <Input
-                    type="datetime-local"
-                    disabled={isSubmitting}
-                    {...field}
-                  />
+                  <Input type="date" disabled={isSubmitting} {...field} />
                 </FormControl>
+                <FormDescription>
+                  Applications open at 12:00 AM Eastern on this day.
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -172,12 +155,11 @@ export function PositionDetailsForm({ position }: PositionDetailsFormProps) {
               <FormItem>
                 <FormLabel>Closes At</FormLabel>
                 <FormControl>
-                  <Input
-                    type="datetime-local"
-                    disabled={isSubmitting}
-                    {...field}
-                  />
+                  <Input type="date" disabled={isSubmitting} {...field} />
                 </FormControl>
+                <FormDescription>
+                  Applications close at 11:59 PM Eastern on this day.
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}

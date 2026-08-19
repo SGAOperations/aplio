@@ -9,6 +9,7 @@ import {
 } from '@/prisma/data/positions';
 
 import { requireListedManagerOr404 } from '@/lib/auth/guards';
+import { toOrgDayString } from '@/lib/dates';
 import { isPositionActive } from '@/lib/utils';
 
 import { PositionDangerZone } from '@/components/features/position-danger-zone';
@@ -83,8 +84,12 @@ export default async function EditPositionPage({
                 title: position.title,
                 description: position.description,
                 status: position.status,
-                opensAt: position.opensAt?.toISOString() ?? null,
-                closesAt: position.closesAt?.toISOString() ?? null,
+                opensAt: position.opensAt
+                  ? toOrgDayString(position.opensAt)
+                  : null,
+                closesAt: position.closesAt
+                  ? toOrgDayString(position.closesAt)
+                  : null,
               }}
             />
           ) : (

@@ -11,9 +11,11 @@ import { createPosition } from '@/prisma/actions/position-actions';
 
 import { STATUS_OPTIONS, positionFormSchema } from '@/lib/constants';
 
+import { MarkdownField } from '@/components/features/markdown-field';
 import { Button } from '@/components/ui/button';
 import {
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -28,7 +30,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 
 type PositionFormValues = z.infer<typeof positionFormSchema>;
 
@@ -64,23 +65,7 @@ function PositionFormFields() {
         )}
       />
 
-      <FormField
-        name="description"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Description</FormLabel>
-            <FormControl>
-              <Textarea
-                placeholder="Position description"
-                rows={4}
-                disabled={isSubmitting}
-                {...field}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      <MarkdownField />
 
       <FormField
         name="status"
@@ -116,8 +101,11 @@ function PositionFormFields() {
           <FormItem>
             <FormLabel>Opens at (optional)</FormLabel>
             <FormControl>
-              <Input type="datetime-local" disabled={isSubmitting} {...field} />
+              <Input type="date" disabled={isSubmitting} {...field} />
             </FormControl>
+            <FormDescription>
+              Applications open at 12:00 AM Eastern on this day.
+            </FormDescription>
             <FormMessage />
           </FormItem>
         )}
@@ -129,8 +117,11 @@ function PositionFormFields() {
           <FormItem>
             <FormLabel>Closes at (optional)</FormLabel>
             <FormControl>
-              <Input type="datetime-local" disabled={isSubmitting} {...field} />
+              <Input type="date" disabled={isSubmitting} {...field} />
             </FormControl>
+            <FormDescription>
+              Applications close at 11:59 PM Eastern on this day.
+            </FormDescription>
             <FormMessage />
           </FormItem>
         )}

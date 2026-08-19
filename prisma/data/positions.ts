@@ -81,7 +81,7 @@ export const positionActivitySelect = {
   },
 };
 
-// Filtered post-fetch: the end-of-day closesAt math has no clean Prisma where.
+// Filtered post-fetch so isAcceptingApplications stays the single source of truth.
 export async function getOpenPositions(): Promise<PositionWithQuestions[]> {
   const positions = await prisma.position.findMany({
     where: { status: 'open', deletedAt: null },
@@ -112,7 +112,7 @@ export async function getRecentlyClosedPositions(): Promise<
     orderBy: [{ closesAt: 'desc' }, { title: 'asc' }],
   });
 
-  // Defensive against a closesAt end-of-day edge case slipping an open row through.
+  // Defensive: keeps isAcceptingApplications as the single source of truth for the edge cases.
   return positions.filter((p) => {
     if (p.status === 'closed') return true;
     const availability = getPositionAvailability(p);
@@ -203,15 +203,6 @@ export const getPositionForApply = cache(async function getPositionForApply(
     select: positionWithQuestionsSelect,
   });
 });
-
-export async function getPositionAccess(
-  id: string,
-): Promise<{ id: string; title: string; managers: { id: string }[] } | null> {
-  return prisma.position.findFirst({
-    where: { id, deletedAt: null },
-    select: { id: true, title: true, managers: { select: { id: true } } },
-  });
-}
 
 // Cross-position data — admin-gated callers only.
 export async function getOpenPositionsSummary(

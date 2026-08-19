@@ -15,7 +15,6 @@ import {
   type DraftApplication,
   type MyApplicationDetail,
   type MyApplicationListItem,
-  type PositionApplicationListItem,
   type PositionApplicationStats,
   type Reviewer,
 } from '@/lib/types';
@@ -160,29 +159,6 @@ export async function getMyApplication(
   if (!application) return null;
 
   return { ...application, ...normalizeApplicationAnswers(application) };
-}
-
-const positionApplicationSelect = {
-  id: true,
-  status: true,
-  submittedAt: true,
-  user: { select: { id: true, name: true, email: true } },
-} as const;
-
-export async function getPositionApplications(
-  positionId: string,
-): Promise<PositionApplicationListItem[]> {
-  return prisma.application.findMany({
-    where: {
-      positionId,
-      deletedAt: null,
-      status: { notIn: ['draft', 'withdrawn'] },
-      // Drafts stay visible; defence in depth, callers pass non-deleted ids.
-      position: VISIBLE_POSITION_WHERE,
-    },
-    select: positionApplicationSelect,
-    orderBy: { submittedAt: 'desc' },
-  });
 }
 
 // Unauthorized and missing both return null; the page maps either to notFound().

@@ -13,7 +13,7 @@ import {
   type SortableColumn,
   useSortableTable,
 } from '@/lib/use-sortable-table';
-import { formatDate, formatTableCount } from '@/lib/utils';
+import { formatTableCount } from '@/lib/utils';
 
 import { SortableHeader } from '@/components/features/sortable-header';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +23,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { LocalTime } from '@/components/ui/local-time';
 import {
   Table,
   TableBody,
@@ -239,7 +240,9 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>{formatDate(user.createdAt)}</TableCell>
+                      <TableCell>
+                        <LocalTime date={user.createdAt} precision="date" />
+                      </TableCell>
                       <TableCell>
                         {appCount > 0 ? (
                           <Button
@@ -373,8 +376,9 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
         title={`Deactivate ${deactivateTarget?.displayName}?`}
         description={
           <>
-            {deactivateTarget?.displayName} will be blocked from accessing Aplio
-            on their next request. This can&apos;t be undone from this page.
+            {deactivateTarget?.displayName} will be signed out immediately and
+            blocked from signing back in. This can&apos;t be undone from this
+            page.
           </>
         }
         confirmLabel="Deactivate"

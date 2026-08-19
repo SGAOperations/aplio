@@ -7,6 +7,9 @@ import type { PositionAvailability } from '@/lib/types';
 
 import type { BadgeVariant } from '@/components/ui/badge';
 
+// Authoring zone for position windows — see lib/dates.ts.
+export const ORG_TIMEZONE = 'America/New_York';
+
 export const QUESTION_TYPE_VALUES = [
   'short_answer',
   'long_answer',
@@ -435,13 +438,25 @@ export const STATUS_LABELS: Record<PositionStatus, string> = {
 export const STATUS_OPTIONS: { value: PositionStatus; label: string }[] =
   STATUS_VALUES.map((value) => ({ value, label: STATUS_LABELS[value] }));
 
+export const POSITION_DESCRIPTION_MAX_LENGTH = 10000;
+export const MARKDOWN_GUIDE_URL = 'https://www.markdownguide.org/basic-syntax/';
+
 // Mirrors createPositionSchema/updatePositionSchema — keep the shapes in sync.
+const orgDayInputSchema = z.union([z.iso.date(), z.literal('')], {
+  error: 'Enter a valid date',
+});
+
 export const positionFormSchema = z.object({
   title: z.string().min(1, 'Title is required'),
-  description: z.string(),
+  description: z
+    .string()
+    .max(
+      POSITION_DESCRIPTION_MAX_LENGTH,
+      `Description must be ${POSITION_DESCRIPTION_MAX_LENGTH.toLocaleString()} characters or fewer.`,
+    ),
   status: z.enum(STATUS_VALUES),
-  opensAt: z.string().optional(),
-  closesAt: z.string().optional(),
+  opensAt: orgDayInputSchema.optional(),
+  closesAt: orgDayInputSchema.optional(),
 });
 
 export const STATUS_VARIANTS: Record<PositionStatus, BadgeVariant> = {
@@ -519,6 +534,15 @@ export const nameSchema = z.object({
 // Shared with lib/auth/config.ts's session-create hook so the client can
 // branch on this specific refusal instead of a generic OTP failure.
 export const ACCOUNT_DEACTIVATED_ERROR_CODE = 'ACCOUNT_DEACTIVATED';
+
+// Shared across checkSignInAllowed, LoginView's OTP failure, and /login's
+// reason=deactivated notice so the copy can't drift between surfaces.
+export const ACCOUNT_DEACTIVATED_MESSAGE =
+  'Your account has been deactivated. Please contact an administrator.';
+
+// Value of /login's ?reason= query param when getCurrentUser redirects a
+// deactivated caller there.
+export const LOGIN_DEACTIVATED_REASON = 'deactivated';
 
 // Shared between the checkSignInAllowed server action and LoginView's email step resolver.
 export const signInEmailSchema = z.object({
