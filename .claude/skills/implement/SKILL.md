@@ -1,6 +1,6 @@
 ---
 name: implement
-description: Run pipeline stage 2 or 4 yourself, in your own session, for a config ticket — one touching CLAUDE.md or .claude/**, which a dispatched agent cannot edit. Resolves the stage from the item's labels, works in a dedicated worktree, and follows the existing impl-agent / revise-agent definitions unchanged. Manual only. Usage: /implement <issue-or-pr-number>
+description: Run pipeline stage 2 or 4 yourself, in your own session, for a ticket marked SESSION REQUIRED — one that cannot be handed to a dispatched agent, today because it touches CLAUDE.md or .claude/**. Resolves the stage from the item's labels, works in a dedicated worktree, and follows the existing impl-agent / revise-agent definitions unchanged. Manual only. Usage: /implement <issue-or-pr-number>
 disable-model-invocation: true
 allowed-tools: Read, Edit, Write, Glob, Grep, Bash, AskUserQuestion
 ---
@@ -9,7 +9,7 @@ allowed-tools: Read, Edit, Write, Glob, Grep, Bash, AskUserQuestion
 
 **Trigger:** manual, in an operator's own session. **Input:** an issue or PR number (`<n>`). **Repo:** `SGAOperations/aplio`.
 
-The harness denies `Edit`/`Write` under `.claude/` to **dispatched subagents**, and `settings.json` cannot grant it back — so `impl-agent` and `revise-agent` can't run for tickets that touch `CLAUDE.md` or `.claude/**`. Your session has no such restriction. This skill is a **thin wrapper**: it points you at the existing agent definition and overrides only the rules that exist because that agent is a subagent. Background and rationale: `.claude/docs/PIPELINE.md` → "Config tickets".
+The harness denies `Edit`/`Write` under `.claude/` to **dispatched subagents**, and `settings.json` cannot grant it back — so `impl-agent` and `revise-agent` can't run for tickets that touch `CLAUDE.md` or `.claude/**`. Your session has no such restriction. Those tickets are marked **`SESSION REQUIRED`** in their body, and the cockpit announces them instead of dispatching. This skill is a **thin wrapper**: it points you at the existing agent definition and overrides only the rules that exist because that agent is a subagent. Background and rationale: `.claude/docs/PIPELINE.md` → "Session-required tickets".
 
 **The agent files are the workflow. Do not modify them, and do not reimplement them here.**
 
@@ -46,7 +46,7 @@ gh pr view <n> --repo SGAOperations/aplio --json labels,headRefName,baseRefName,
 
 - Anything else → stop, report the current labels, change nothing: `#<n> is not awaiting an operator (labels: …). Nothing was changed.`
 
-**If the item carries the trigger label but not `operator route`,** ask first (AskUserQuestion): _"#412 has no `operator route` label, so the cockpit may dispatch `impl-agent` for it too. Proceed anyway / Cancel."_ A double dispatch — cockpit and operator on the same item — is the hazard this guards.
+**If the item carries the trigger label but its body has no `SESSION REQUIRED` marker,** ask first (AskUserQuestion): _"#412 isn't marked `SESSION REQUIRED`, so the cockpit will dispatch an agent for it too. Proceed anyway / Cancel."_ A double dispatch — cockpit and operator on the same item — is the hazard this guards.
 
 Then report the resolved mode, worktree path and branch before the slow steps, so the operator can see you picked the right stage.
 
@@ -81,7 +81,15 @@ In revise mode, rebase onto the base branch from inside the worktree: `git rebas
 
 Read the resolved agent file from the **main checkout** and follow it end to end: label swaps, the plan checklist, the `.temp/commit-msg.txt` commit format, the three CI checks, push by refspec, PR body format, base `dev`, the issue's assignee, thread resolution, the revision note. Also read `.claude/docs/ENGINEERING.md` and its **Pre-PR self-check**, as the agent file requires.
 
-**One addition to `gh pr create` (impl mode):** pass `--label "operator route"` so the marker travels to the PR — the same precedent as copying the assignee, and it makes every later cockpit decision a pure label check.
+**Carry the marker into the PR (impl mode).** The cockpit re-reads it on the PR to decide stage 4, so the PR description must repeat it verbatim, directly under `Closes #N`:
+
+```
+Closes #503
+
+> **SESSION REQUIRED:** touches `CLAUDE.md` / `.claude/**` — a dispatched agent can't edit those
+```
+
+Same literal string as the issue plan, same rendering — `.claude/docs/PIPELINE.md` → "Session-required tickets". **No label is involved on either surface.** Otherwise `gh pr create` is exactly as the agent file specifies:
 
 ```bash
 gh pr create --repo SGAOperations/aplio \
@@ -89,7 +97,6 @@ gh pr create --repo SGAOperations/aplio \
   --title "#<n> <Ticket Title In Title Case>" \
   --body-file .temp/pr-<n>.md \
   --assignee "<issue-assignee-login>" \
-  --label "operator route" \
   --head <n>-ticket-name-in-kebab-case
 ```
 
