@@ -36,11 +36,11 @@ export function PositionStatusBadge({ position }: PositionStatusBadgeProps) {
   const availability = getPositionAvailability(position);
   const variant =
     availability === 'unavailable'
-      ? (STATUS_VARIANTS[position.status] ?? 'outline')
+      ? STATUS_VARIANTS[position.status]
       : AVAILABILITY_VARIANTS[availability];
   const label =
     availability === 'unavailable'
-      ? (STATUS_LABELS[position.status] ?? position.status)
+      ? STATUS_LABELS[position.status]
       : AVAILABILITY_LABELS[availability];
 
   return <Badge variant={variant}>{label}</Badge>;

@@ -420,7 +420,7 @@ export async function getPositionApplicationStats(
   for (const row of rows) {
     const existing = map.get(row.positionId) ?? {
       positionId: row.positionId,
-      counts: {} as Partial<Record<$Enums.ApplicationStatus, number>>,
+      counts: {},
       total: 0,
     };
     existing.counts[row.status] = row._count;

@@ -48,8 +48,7 @@ function ActivityFeedList({ items, emptyDescription }: ActivityFeedListProps) {
             <ol>
               {items.map((item) => {
                 const dotClass =
-                  STATUS_BADGE_VARIANT_TO_DOT[item.statusVariant] ??
-                  'bg-muted-foreground';
+                  STATUS_BADGE_VARIANT_TO_DOT[item.statusVariant];
 
                 return (
                   <li

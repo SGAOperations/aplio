@@ -74,7 +74,7 @@ export async function updateGlobalAnswer(
 
   // matchesShortAnswerFormat trims internally, so save the trimmed value.
   const persistedValue =
-    question?.type === 'short_answer' && question.format
+    question.type === 'short_answer' && question.format
       ? parsed.data.value.map((v) => v.trim())
       : parsed.data.value;
 

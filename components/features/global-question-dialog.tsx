@@ -94,7 +94,7 @@ function RequiredField() {
         <FormItem className="flex flex-row items-center gap-3">
           <FormControl>
             <Switch
-              checked={field.value as boolean}
+              checked={field.value}
               onCheckedChange={field.onChange}
               disabled={formState.isSubmitting}
             />
@@ -148,7 +148,7 @@ function AllowOtherField() {
         <FormItem className="flex flex-row items-center gap-3">
           <FormControl>
             <Switch
-              checked={field.value as boolean}
+              checked={field.value}
               onCheckedChange={field.onChange}
               disabled={formState.isSubmitting}
             />

@@ -501,7 +501,7 @@ export function ApplicationStepper({
               variant={isCustomizing ? 'default' : 'outline'}
               size="sm"
               className="mt-0.5 shrink-0"
-              onClick={handleToggleCustomize}
+              onClick={() => void handleToggleCustomize()}
               disabled={isReverting}
             >
               {isCustomizing
@@ -603,7 +603,10 @@ export function ApplicationStepper({
             >
               Back
             </Button>
-            <Button onClick={onSubmit} disabled={isSubmitting || isRedirecting}>
+            <Button
+              onClick={() => void onSubmit()}
+              disabled={isSubmitting || isRedirecting}
+            >
               {isSubmitting || isRedirecting
                 ? isResubmit
                   ? 'Resubmitting...'

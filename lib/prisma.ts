@@ -1,8 +1,10 @@
+import 'server-only';
+
 import { PrismaPg } from '@prisma/adapter-pg';
 
 import { PrismaClient } from '@/prisma/client';
 
-const globalForPrisma = global as unknown as { prisma: PrismaClient };
+const globalForPrisma = global as unknown as { prisma?: PrismaClient };
 
 /** Neon/pg already treat these sslmode aliases as verify-full; explicit silences a pg v9 warning. */
 function normalizeConnectionString(url: string): string {
