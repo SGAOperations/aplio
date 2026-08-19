@@ -7,7 +7,7 @@ import { getCurrentUser } from '@/lib/auth/server';
 import { getRenamedTo } from '@/lib/utils';
 
 import { ApplicationAnswersList } from '@/components/features/application-answers-list';
-import { ApplicationStatusControl } from '@/components/features/application-status-control';
+import { ApplicationStatusActions } from '@/components/features/application-status-actions';
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
 import { PageHeader } from '@/components/layouts/page-header';
 import {
@@ -111,9 +111,10 @@ export default async function ApplicationDetailPage({
             </CardHeader>
             <CardContent className="flex flex-col gap-3 p-3 pt-0">
               <ApplicationStatusBadge status={application.status} />
-              <ApplicationStatusControl
+              <ApplicationStatusActions
                 applicationId={application.id}
                 currentStatus={application.status}
+                applicantName={applicantName}
               />
             </CardContent>
           </Card>

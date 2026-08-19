@@ -418,14 +418,16 @@ describe('updateApplicationStatuses', () => {
     expect(untouched.status).toBe('applied');
   });
 
-  it('throws when every id is out of scope', async () => {
+  it('returns an error when every id is out of scope', async () => {
     actAs(managerA);
-    await expect(
-      updateApplicationStatuses({
-        applicationIds: [applicationB1.id],
-        status: 'reviewing',
-      }),
-    ).rejects.toThrow('No applications were updated');
+    const result = await updateApplicationStatuses({
+      applicationIds: [applicationB1.id],
+      status: 'reviewing',
+    });
+    expect(result).toEqual({
+      error:
+        "None of the selected applications can move to Reviewing — that's only reachable from Applied, Reached out, or Interview scheduled.",
+    });
   });
 
   it('skips a withdrawn row while updating the rest', async () => {
