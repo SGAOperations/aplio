@@ -71,7 +71,7 @@ export function AnswerFileLink({ target, url }: AnswerFileLinkProps) {
         variant="outline"
         size="sm"
         className="min-h-11 shrink-0 sm:min-h-9"
-        onClick={handleDownload}
+        onClick={() => void handleDownload()}
         disabled={isPending}
         aria-label={`Download ${filename}`}
       >

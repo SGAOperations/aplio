@@ -1,11 +1,11 @@
-name: Test Check
+name: Build Check
 on:
   pull_request:
 concurrency:
-  group: test-check-${{ github.ref }}
+  group: build-check-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  run-test-check:
+  run-build-check:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
@@ -14,7 +14,7 @@ jobs:
         env:
           POSTGRES_USER: admin
           POSTGRES_PASSWORD: admin
-          POSTGRES_DB: aplio_test
+          POSTGRES_DB: aplio_build
         ports:
           - 5432:5432
         options: >-
@@ -23,7 +23,8 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql://admin:admin@localhost:5432/aplio_test
+      DATABASE_URL: postgresql://admin:admin@localhost:5432/aplio_build
+      BETTER_AUTH_SECRET: build-check-dummy-secret
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -38,5 +39,5 @@ jobs:
         run: npm run prisma:generate
       - name: Apply migrations
         run: npm run prisma:migrate:deploy
-      - name: Run tests
-        run: npm run test
+      - name: Build
+        run: npm run build

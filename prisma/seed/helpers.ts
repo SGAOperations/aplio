@@ -27,7 +27,11 @@ export function utcDayOffset(now: Date, days: number): Date {
  * would land on the wrong org-local day depending on the season.
  */
 export function orgDayOffset(now: Date, days: number): string {
-  const [year, month, date] = toOrgDayString(now).split('-').map(Number);
+  const [year, month, date] = toOrgDayString(now).split('-').map(Number) as [
+    number,
+    number,
+    number,
+  ];
   const shifted = new Date(Date.UTC(year, month - 1, date + days));
   return shifted.toISOString().slice(0, 10);
 }

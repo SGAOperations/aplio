@@ -1,16 +1,22 @@
 name: Linting Check
 on:
   pull_request:
+concurrency:
+  group: linting-check-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   run-linting-check:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
       - name: Set up Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: package.json
+          cache: npm
       - name: Install modules
-        run: npm install
+        run: npm ci
       - name: Run linting check
         run: npm run eslint:check

@@ -29,6 +29,13 @@ function zoneOffsetMs(timeZone: string, at: Date): number {
   return asUTC - at.getTime();
 }
 
+function parseOrgDay(day: string): [number, number, number] {
+  const [year, month, date] = day.split('-').map(Number);
+  if (year === undefined || month === undefined || date === undefined)
+    throw new Error(`Invalid org day: ${day}`);
+  return [year, month, date];
+}
+
 // `naive` is org-local wall time encoded as UTC fields; resolves it to the real
 // UTC instant. Two-pass since the offset itself depends on the instant (DST).
 function resolveOrgWallClock(naive: Date): Date {
@@ -40,7 +47,7 @@ function resolveOrgWallClock(naive: Date): Date {
 
 /** `YYYY-MM-DD` (org-local calendar day) → the UTC instant of that day's start. */
 export function orgDayStart(day: string): Date {
-  const [year, month, date] = day.split('-').map(Number);
+  const [year, month, date] = parseOrgDay(day);
   return resolveOrgWallClock(
     new Date(Date.UTC(year, month - 1, date, 0, 0, 0, 0)),
   );
@@ -49,7 +56,7 @@ export function orgDayStart(day: string): Date {
 // `YYYY-MM-DD` (org-local calendar day) → the UTC instant of that day's end (23:59:59.999).
 // Resolves the whole second first — zoneOffsetMs's Date.UTC always carries ms=0.
 export function orgDayEnd(day: string): Date {
-  const [year, month, date] = day.split('-').map(Number);
+  const [year, month, date] = parseOrgDay(day);
   const wholeSecond = resolveOrgWallClock(
     new Date(Date.UTC(year, month - 1, date, 23, 59, 59, 0)),
   );

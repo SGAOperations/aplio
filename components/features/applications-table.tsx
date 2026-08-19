@@ -103,7 +103,7 @@ export function ApplicationsTable({
       // Default to desc for date (newest first), asc for name/status (A-Z).
       handleSort(field, field === 'date' ? 'desc' : 'asc');
     } else {
-      handleSort(field, sort?.direction === 'asc' ? 'desc' : 'asc');
+      handleSort(field, sort.direction === 'asc' ? 'desc' : 'asc');
     }
   }
 

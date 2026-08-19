@@ -27,7 +27,7 @@ export function sanitizeRedirectTo(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   if (!SAFE_PATH.test(value)) return null;
 
-  const pathname = value.split(/[?#]/)[0];
+  const pathname = value.split(/[?#]/)[0] ?? value;
   // Rejected rather than normalized — no in-app destination needs traversal.
   if (pathname.split('/').includes('..')) return null;
   if (pathname === '/login' || pathname.startsWith('/login/')) return null;

@@ -99,7 +99,7 @@ function ReadOnlyQuestionCard({
         // Read-only shows the profile's own answer, so the target is profile-scoped.
         <AnswerFileLink
           target={{ scope: 'profile', questionId: question.id }}
-          url={displayValue[0]}
+          url={displayValue[0] ?? ''}
         />
       ) : question.type === 'multiple_choice' ? (
         <div className="flex flex-wrap gap-1.5">
@@ -501,7 +501,7 @@ export function ApplicationStepper({
               variant={isCustomizing ? 'default' : 'outline'}
               size="sm"
               className="mt-0.5 shrink-0"
-              onClick={handleToggleCustomize}
+              onClick={() => void handleToggleCustomize()}
               disabled={isReverting}
             >
               {isCustomizing
@@ -603,7 +603,10 @@ export function ApplicationStepper({
             >
               Back
             </Button>
-            <Button onClick={onSubmit} disabled={isSubmitting || isRedirecting}>
+            <Button
+              onClick={() => void onSubmit()}
+              disabled={isSubmitting || isRedirecting}
+            >
               {isSubmitting || isRedirecting
                 ? isResubmit
                   ? 'Resubmitting...'

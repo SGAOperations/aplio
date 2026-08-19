@@ -276,9 +276,8 @@ export async function getApplications(
       );
       const yearPart = parts.find((p) => /^\d{4}$/.test(p));
       if (monthIdx !== -1 && yearPart) {
-        const monthNum = MONTH_NAMES.findIndex((m) =>
-          parts[monthIdx].startsWith(m),
-        );
+        const monthPart = parts[monthIdx] as string;
+        const monthNum = MONTH_NAMES.findIndex((m) => monthPart.startsWith(m));
         const y = parseInt(yearPart, 10);
         dateWhere = {
           submittedAt: {
@@ -421,7 +420,7 @@ export async function getPositionApplicationStats(
   for (const row of rows) {
     const existing = map.get(row.positionId) ?? {
       positionId: row.positionId,
-      counts: {} as Partial<Record<$Enums.ApplicationStatus, number>>,
+      counts: {},
       total: 0,
     };
     existing.counts[row.status] = row._count;

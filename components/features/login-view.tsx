@@ -210,7 +210,7 @@ export function LoginView({ copy }: LoginViewProps) {
 
         <Form {...otpForm}>
           <form
-            onSubmit={otpForm.handleSubmit(handleOtpSubmit)}
+            onSubmit={(e) => void otpForm.handleSubmit(handleOtpSubmit)(e)}
             className="flex w-full flex-col gap-4"
           >
             <FormField
@@ -276,7 +276,7 @@ export function LoginView({ copy }: LoginViewProps) {
         <Button
           variant="secondary"
           type="button"
-          onClick={handleResend}
+          onClick={() => void handleResend()}
           disabled={isResending || resendSecondsLeft > 0}
           className="w-full"
         >
@@ -307,7 +307,7 @@ export function LoginView({ copy }: LoginViewProps) {
 
       <Form {...emailForm}>
         <form
-          onSubmit={emailForm.handleSubmit(handleEmailSubmit)}
+          onSubmit={(e) => void emailForm.handleSubmit(handleEmailSubmit)(e)}
           className="flex w-full flex-col gap-4"
         >
           <FormField

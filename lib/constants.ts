@@ -233,21 +233,21 @@ export function getAnswerValueError(
     case 'short_answer':
       if (value.length > 1)
         return 'Only one answer is allowed for this question.';
-      if (value[0].length > ANSWER_SHORT_MAX_LENGTH)
+      if ((value[0] ?? '').length > ANSWER_SHORT_MAX_LENGTH)
         return `Answer must be ${ANSWER_SHORT_MAX_LENGTH} characters or fewer.`;
       return null;
 
     case 'long_answer':
       if (value.length > 1)
         return 'Only one answer is allowed for this question.';
-      if (value[0].length > ANSWER_LONG_MAX_LENGTH)
+      if ((value[0] ?? '').length > ANSWER_LONG_MAX_LENGTH)
         return `Answer must be ${ANSWER_LONG_MAX_LENGTH} characters or fewer.`;
       return null;
 
     case 'single_choice': {
       if (value.length > 1)
         return 'Only one answer is allowed for this question.';
-      const entry = value[0];
+      const entry = value[0] ?? '';
       if (question.options.includes(entry)) return null;
       // Not a current option — no free text allowed, or this is the "Other" entry.
       if (!question.allowOther)
@@ -273,7 +273,7 @@ export function getAnswerValueError(
         return 'Only one "Other" answer is allowed.';
       if (
         nonOptionEntries.length === 1 &&
-        nonOptionEntries[0].length > ANSWER_OTHER_MAX_LENGTH
+        (nonOptionEntries[0] ?? '').length > ANSWER_OTHER_MAX_LENGTH
       )
         return `Answer must be ${ANSWER_OTHER_MAX_LENGTH} characters or fewer.`;
       return null;

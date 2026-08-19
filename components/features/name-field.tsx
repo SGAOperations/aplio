@@ -63,7 +63,7 @@ export function NameField({ defaultName, redirectTo }: NameFieldProps) {
       </div>
       <Form {...form}>
         <form
-          onSubmit={form.handleSubmit(onSubmit)}
+          onSubmit={(e) => void form.handleSubmit(onSubmit)(e)}
           className="flex w-full flex-col gap-4"
         >
           <FormField

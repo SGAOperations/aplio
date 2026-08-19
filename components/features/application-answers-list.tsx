@@ -33,7 +33,7 @@ export function ApplicationAnswersList({
                 questionId: answer.questionId,
                 isGlobal: answer.isGlobal,
               }}
-              url={answer.value[0]}
+              url={answer.value[0] ?? ''}
             />
           ) : answer.value.length === 1 ? (
             <p className="text-sm">{answer.value[0]}</p>

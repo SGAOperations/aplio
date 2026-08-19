@@ -153,8 +153,8 @@ function continueList(el: HTMLTextAreaElement): boolean {
   const match = ordered ?? unordered;
   if (!match) return false;
 
-  const indent = match[1];
-  const rest = ordered ? ordered[5] : unordered ? unordered[4] : '';
+  const indent = match[1] ?? '';
+  const rest = (ordered ? ordered[5] : unordered ? unordered[4] : '') ?? '';
 
   if (rest.trim() === '') {
     // Empty marker line — remove it and exit the list.
