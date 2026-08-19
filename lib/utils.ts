@@ -67,6 +67,13 @@ export function toStringArray(v: unknown): string[] {
   return [];
 }
 
+/** Alternatives ("reachable from X or Y"), not a conjunction — "or" throughout. */
+export function formatAlternatives(labels: string[]): string {
+  if (labels.length <= 1) return labels.join('');
+  if (labels.length === 2) return labels.join(' or ');
+  return `${labels.slice(0, -1).join(', ')}, or ${labels[labels.length - 1]}`;
+}
+
 /** Joins truthy ids for `aria-describedby`; `undefined` when none apply. */
 export function composeDescribedBy(
   ...ids: Array<string | false | null | undefined>

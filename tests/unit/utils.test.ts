@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { MANAGED_POSITIONS_WINDOW_DAYS } from '@/lib/constants';
 import type { AnswerQuestion, PositionActivity } from '@/lib/types';
 import {
+  formatAlternatives,
   formatTableCount,
   getPositionAvailability,
   isAnswered,
@@ -396,6 +397,28 @@ describe('summarizeBulkStatusChange', () => {
       skippedCount: 2,
       skippedLabel: '1 draft application and 1 withdrawn application',
     });
+  });
+});
+
+describe('formatAlternatives', () => {
+  it('returns a single label as-is', () => {
+    expect(formatAlternatives(['Reviewing'])).toBe('Reviewing');
+  });
+
+  it('joins two labels with "or"', () => {
+    expect(formatAlternatives(['Reached out', 'Reviewing'])).toBe(
+      'Reached out or Reviewing',
+    );
+  });
+
+  it('joins three or more labels with a comma list and a trailing "or"', () => {
+    expect(formatAlternatives(['Applied', 'Reached out', 'Reviewing'])).toBe(
+      'Applied, Reached out, or Reviewing',
+    );
+  });
+
+  it('returns an empty string for no labels', () => {
+    expect(formatAlternatives([])).toBe('');
   });
 });
 

@@ -35,6 +35,7 @@ import { prisma } from '@/lib/prisma';
 import { type AnswerQuestion } from '@/lib/types';
 import {
   type ResponseType,
+  formatAlternatives,
   isAcceptingApplications,
   isAnswered,
   isError,
@@ -578,10 +579,14 @@ export async function updateApplicationStatuses(
     data: { status, updatedById: user.id },
   });
 
-  if (result.count === 0)
+  if (result.count === 0) {
+    const sourceLabels = getApplicationStatusSources(status).map(
+      (source) => APPLICATION_STATUS_LABELS[source],
+    );
     return {
-      error: `None of the selected applications can move to ${APPLICATION_STATUS_LABELS[status]}.`,
+      error: `None of the selected applications can move to ${APPLICATION_STATUS_LABELS[status]} — that's only reachable from ${formatAlternatives(sourceLabels)}.`,
     };
+  }
 
   revalidatePath('/applications');
   // Wildcard segment: a bulk update has no individual positionIds to hand.

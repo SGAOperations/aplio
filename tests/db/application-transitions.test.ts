@@ -269,7 +269,8 @@ describe('updateApplicationStatuses bulk mixed selections', () => {
       status: 'accepted',
     });
     expect(result).toEqual({
-      error: 'None of the selected applications can move to Accepted.',
+      error:
+        "None of the selected applications can move to Accepted — that's only reachable from Interview scheduled or Reviewing.",
     });
   });
 

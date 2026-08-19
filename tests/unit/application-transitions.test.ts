@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { $Enums } from '@/prisma/client';
 
 import {
+  APPLICATION_STATUS_ACTION_LABELS,
   APPLICATION_STATUS_TRANSITIONS,
   APPLICATION_STATUS_VALUES,
   REJECTABLE_APPLICATION_STATUSES,
@@ -42,6 +43,14 @@ describe('APPLICATION_STATUS_TRANSITIONS', () => {
         expect(to).not.toBe('draft');
         expect(to).not.toBe('withdrawn');
       }
+  });
+});
+
+describe('APPLICATION_STATUS_ACTION_LABELS', () => {
+  it('describes interview_scheduled as a status, not an imperative action', () => {
+    expect(APPLICATION_STATUS_ACTION_LABELS.interview_scheduled).toBe(
+      'Interview scheduled',
+    );
   });
 });
 

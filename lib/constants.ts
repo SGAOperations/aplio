@@ -465,7 +465,7 @@ export const APPLICATION_STATUS_ACTION_LABELS: Record<
   applied: 'Move to applied',
   reached_out: 'Mark reached out',
   reviewing: 'Move to reviewing',
-  interview_scheduled: 'Schedule interview',
+  interview_scheduled: 'Interview scheduled',
   accepted: 'Accept',
   rejected: 'Reject',
 };

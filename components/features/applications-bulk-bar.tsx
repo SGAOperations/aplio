@@ -11,10 +11,11 @@ import type { $Enums } from '@/prisma/client';
 import {
   APPLICATION_STATUS_LABELS,
   REVIEWER_APPLICATION_STATUS_OPTIONS,
+  getApplicationStatusSources,
   isNonReviewableApplicationStatus,
 } from '@/lib/constants';
 import type { ApplicationListRow } from '@/lib/types';
-import { summarizeBulkStatusChange } from '@/lib/utils';
+import { formatAlternatives, summarizeBulkStatusChange } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -73,11 +74,13 @@ export function ApplicationsBulkBar({
         if (skipped === 0) {
           toast.success(`Updated ${updated} ${applicationNoun(updated)}`);
         } else {
+          const sourceLabels = getApplicationStatusSources(status).map(
+            (source) => APPLICATION_STATUS_LABELS[source],
+          );
           toast.success(
             `Updated ${updated} of ${updated + skipped} applications`,
             {
-              description:
-                "Withdrawn applications can't be updated. The skipped rows are still selected.",
+              description: `${statusLabel} is only reachable from ${formatAlternatives(sourceLabels)}. The skipped rows are still selected.`,
             },
           );
         }

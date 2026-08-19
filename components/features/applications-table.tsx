@@ -16,6 +16,7 @@ import type {
 } from '@/lib/types';
 import { getRenamedTo } from '@/lib/utils';
 
+import { ApplicationStatusActions } from '@/components/features/application-status-actions';
 import { ApplicationsBulkBar } from '@/components/features/applications-bulk-bar';
 // Server-side sort; its param format stays decoupled from useSortableTable's.
 import { SortableHeader } from '@/components/features/sortable-header';
@@ -255,7 +256,15 @@ export function ApplicationsTable({
                       {app.position.title}
                     </TableCell>
                     <TableCell>
-                      <ApplicationStatusBadge status={app.status} />
+                      <div className="flex items-center gap-1">
+                        <ApplicationStatusBadge status={app.status} />
+                        <ApplicationStatusActions
+                          applicationId={app.id}
+                          currentStatus={app.status}
+                          applicantName={displayName}
+                          compact
+                        />
+                      </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       <LocalTime date={app.submittedAt} precision="date" />
@@ -297,7 +306,15 @@ export function ApplicationsTable({
                         </span>
                       )}
                     </div>
-                    <ApplicationStatusBadge status={app.status} />
+                    <div className="flex shrink-0 items-center gap-1">
+                      <ApplicationStatusBadge status={app.status} />
+                      <ApplicationStatusActions
+                        applicationId={app.id}
+                        currentStatus={app.status}
+                        applicantName={displayName}
+                        compact
+                      />
+                    </div>
                   </div>
                   {(app.applicantName ?? app.user.name) && (
                     <span className="text-muted-foreground truncate text-xs">
