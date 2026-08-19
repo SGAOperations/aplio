@@ -1,28 +1,6 @@
-# Migrate DB — deploy pending migrations to long-lived environments
-#
-# Required secrets (GitHub → Settings → Secrets and variables → Actions):
-#   PRODUCTION_DATABASE_URL — direct/unpooled Postgres connection string for the
-#                             production database; used on pushes to `main`.
-#   DEV_DATABASE_URL        — direct/unpooled Postgres connection string for the
-#                             dev database; used on pushes to `dev`.
-#
-# Both secrets MUST use a direct (unpooled) connection — `prisma migrate deploy`
-# requires a direct connection; a pooled/PgBouncer endpoint will cause the
-# migration step to fail. The selected secret is assigned to DATABASE_URL at
-# runtime by branch (push) or by the `target` input (workflow_dispatch).
-#
-# `workflow_dispatch` lets `target: dev` be exercised on demand — e.g. to
-# validate this workflow itself before it ever touches production — without
-# waiting for a migration to land on the `dev` branch.
-#
-# Failure model: a failed migration fails this workflow loudly (no continue-on-error).
-#
-# Rollback runbook (no automated rollback):
-#   1. Stop — do not re-run this workflow against the same target.
-#   2. Restore the target database from its most recent Neon point-in-time
-#      branch (Neon console → Branches → Restore) to just before the apply.
-#   3. Revert the migration commit on the affected branch (`git revert`), then
-#      re-run this workflow so `prisma_migrations` and the schema agree again.
+# Deploys pending migrations to dev/production. Requires direct (unpooled)
+# PRODUCTION_DATABASE_URL / DEV_DATABASE_URL secrets. No automated rollback —
+# restore the Neon branch, then `git revert` the migration commit.
 
 name: Migrate DB
 
@@ -112,12 +90,7 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           cat "$RUNNER_TEMP/status.txt"
-          # "Drift detected" means the schema diverged outside of tracked
-          # migrations — never safe to apply on top of. Untracked/pending
-          # migrations alone are the expected pre-apply state and pass through.
-          # Any other non-zero exit (bad DATABASE_URL, auth failure, corrupted
-          # migration history, transient network error) must fail closed rather
-          # than fall through to "no drift string found, assume safe".
+          # fail closed on drift or any unexpected non-zero exit
           if grep -qi 'drift detected' "$RUNNER_TEMP/status.txt"; then
             echo "::error::Migration drift detected against $TARGET — refusing to apply. See the step summary."
             exit 1

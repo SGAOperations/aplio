@@ -1,9 +1,4 @@
-# Deliberately not a "lock must change whenever package.json changes" rule —
-# a release version bump would false-fail it, and `npm install
-# --package-lock-only` re-resolves ranges so its diff isn't a valid signal.
-# `run-lockfile-check` instead verifies the lock is internally consistent and
-# fully pinned.
-
+# Verifies the lockfile is internally consistent and fully pinned.
 name: Lockfile Check
 
 on:
