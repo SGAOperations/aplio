@@ -155,7 +155,7 @@ export function ProfileQuestion({
         ) : question.type === 'file_upload' ? (
           <AnswerFileLink
             target={{ scope: 'profile', questionId: question.id }}
-            url={getValues('value')[0]}
+            url={getValues('value')[0] ?? ''}
           />
         ) : question.type === 'multiple_choice' ? (
           <div className="flex flex-wrap gap-1.5">

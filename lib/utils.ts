@@ -100,7 +100,7 @@ export function partitionAnswerValue(
       const fittedIndex = value.findIndex((v) => question.options.includes(v));
       if (fittedIndex === -1) return { fitted: [], orphaned: value };
       return {
-        fitted: [value[fittedIndex]],
+        fitted: [value[fittedIndex] as string],
         orphaned: [
           ...value.slice(0, fittedIndex),
           ...value.slice(fittedIndex + 1),

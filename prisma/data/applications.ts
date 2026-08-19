@@ -276,9 +276,8 @@ export async function getApplications(
       );
       const yearPart = parts.find((p) => /^\d{4}$/.test(p));
       if (monthIdx !== -1 && yearPart) {
-        const monthNum = MONTH_NAMES.findIndex((m) =>
-          parts[monthIdx].startsWith(m),
-        );
+        const monthPart = parts[monthIdx] as string;
+        const monthNum = MONTH_NAMES.findIndex((m) => monthPart.startsWith(m));
         const y = parseInt(yearPart, 10);
         dateWhere = {
           submittedAt: {

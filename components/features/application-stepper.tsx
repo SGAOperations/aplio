@@ -99,7 +99,7 @@ function ReadOnlyQuestionCard({
         // Read-only shows the profile's own answer, so the target is profile-scoped.
         <AnswerFileLink
           target={{ scope: 'profile', questionId: question.id }}
-          url={displayValue[0]}
+          url={displayValue[0] ?? ''}
         />
       ) : question.type === 'multiple_choice' ? (
         <div className="flex flex-wrap gap-1.5">
