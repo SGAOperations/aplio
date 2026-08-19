@@ -215,6 +215,12 @@ export function ApplicationsTable({
               {applications.map((app) => {
                 const displayName =
                   app.applicantName ?? app.user.name ?? app.user.email;
+                const renamedTo =
+                  app.applicantName &&
+                  app.user.name &&
+                  app.applicantName !== app.user.name
+                    ? app.user.name
+                    : null;
                 const isChecked = selectedIds.has(app.id);
                 return (
                   <TableRow
@@ -238,6 +244,11 @@ export function ApplicationsTable({
                       >
                         {displayName}
                       </Link>
+                      {renamedTo && (
+                        <span className="text-muted-foreground ml-1 text-xs">
+                          ({renamedTo})
+                        </span>
+                      )}
                       {(app.applicantName ?? app.user.name) && (
                         <span className="text-muted-foreground block text-xs">
                           {app.user.email}
@@ -265,6 +276,12 @@ export function ApplicationsTable({
           {applications.map((app) => {
             const displayName =
               app.applicantName ?? app.user.name ?? app.user.email;
+            const renamedTo =
+              app.applicantName &&
+              app.user.name &&
+              app.applicantName !== app.user.name
+                ? app.user.name
+                : null;
             const isChecked = selectedIds.has(app.id);
             return (
               <div key={app.id} className="flex gap-3 p-4">
@@ -276,12 +293,19 @@ export function ApplicationsTable({
                 />
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
                   <div className="flex items-start justify-between gap-2">
-                    <Link
-                      href={`/applications/${app.id}`}
-                      className="truncate font-medium hover:underline"
-                    >
-                      {displayName}
-                    </Link>
+                    <div className="min-w-0 truncate">
+                      <Link
+                        href={`/applications/${app.id}`}
+                        className="font-medium hover:underline"
+                      >
+                        {displayName}
+                      </Link>
+                      {renamedTo && (
+                        <span className="text-muted-foreground ml-1 text-xs">
+                          ({renamedTo})
+                        </span>
+                      )}
+                    </div>
                     <ApplicationStatusBadge status={app.status} />
                   </div>
                   {(app.applicantName ?? app.user.name) && (

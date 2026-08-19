@@ -51,12 +51,18 @@ export default async function ApplicationDetailPage({
     application.applicantName ??
     application.user.name ??
     application.user.email;
+  const renamedTo =
+    application.applicantName &&
+    application.user.name &&
+    application.applicantName !== application.user.name
+      ? application.user.name
+      : null;
 
   return (
     <div className="mx-auto max-w-5xl">
       <div className="mb-4">
         <PageHeader
-          title={applicantName}
+          title={renamedTo ? `${applicantName} (${renamedTo})` : applicantName}
           description={application.user.email}
         />
         <p className="text-muted-foreground mt-1 text-sm">
