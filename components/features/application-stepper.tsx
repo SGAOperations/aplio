@@ -19,11 +19,7 @@ import type {
   PositionApplicationAnswer,
 } from '@/prisma/client';
 
-import {
-  SHORT_ANSWER_FORMAT_ERROR_MESSAGES,
-  getAnswerValueError,
-  matchesShortAnswerFormat,
-} from '@/lib/constants';
+import { getAnswerBlurError } from '@/lib/constants';
 import {
   type AnswerQuestion,
   type DraftApplication,
@@ -40,10 +36,9 @@ import {
   toStringArray,
 } from '@/lib/utils';
 
-import { AnswerFileLink } from '@/components/features/answer-file-link';
-import { AnswerMismatchNotice } from '@/components/features/answer-mismatch-notice';
-import { ApplicationQuestion } from '@/components/features/application-question';
-import { QuestionCardLabel } from '@/components/features/question-card-label';
+import { AnswerCard } from '@/components/features/answer-card';
+import { AnswerDisplay } from '@/components/features/answer-display';
+import { AnswerEditor } from '@/components/features/answer-editor';
 import { Button } from '@/components/ui/button';
 import { WarningCallout } from '@/components/ui/warning-callout';
 
@@ -60,68 +55,6 @@ interface QuestionListProps {
   missingGlobalIds?: Set<string>;
   // Keyed by question id: lets a profile-answers revert wait on an in-flight autosave.
   pendingSavesRef?: RefObject<Map<string, Promise<unknown>>>;
-}
-
-function ReadOnlyQuestionCard({
-  question,
-  displayValue,
-  isMissing,
-}: {
-  question: AnswerQuestion;
-  displayValue: string[];
-  isMissing?: boolean;
-}) {
-  // Read-only — full stored value renders as-is; the notice just flags the mismatch.
-  const { orphaned } = partitionAnswerValue(question, displayValue);
-
-  return (
-    <div
-      className={cn(
-        'bg-card rounded-lg border p-4 shadow-sm',
-        isMissing && 'border-destructive',
-      )}
-    >
-      <QuestionCardLabel
-        id={`${question.id}-label`}
-        label={question.label}
-        required={question.required}
-      />
-      {orphaned.length > 0 && (
-        <AnswerMismatchNotice
-          id={`${question.id}-mismatch`}
-          values={orphaned}
-          questionType={question.type}
-        />
-      )}
-      {displayValue.length === 0 ? (
-        <p className="text-muted-foreground text-sm italic">No answer yet</p>
-      ) : question.type === 'file_upload' ? (
-        // Read-only shows the profile's own answer, so the target is profile-scoped.
-        <AnswerFileLink
-          target={{ scope: 'profile', questionId: question.id }}
-          url={displayValue[0] ?? ''}
-        />
-      ) : question.type === 'multiple_choice' ? (
-        <div className="flex flex-wrap gap-1.5">
-          {displayValue.map((v) => (
-            <span
-              key={v}
-              className="bg-muted text-muted-foreground rounded-md px-2 py-0.5 text-sm"
-            >
-              {v}
-            </span>
-          ))}
-        </div>
-      ) : (
-        <p className="text-foreground text-base font-medium">
-          {displayValue[0]}
-        </p>
-      )}
-      {isMissing && (
-        <p className="text-destructive mt-2 text-xs">This field is required</p>
-      )}
-    </div>
-  );
 }
 
 function QuestionList({
@@ -151,13 +84,26 @@ function QuestionList({
                   (a: GlobalAnswer) => a.globalQuestionId === question.id,
                 )?.value,
               );
+          const isMissing = missingGlobalIds?.has(question.id);
           return (
-            <ReadOnlyQuestionCard
+            <AnswerCard
               key={question.id}
               question={question}
-              displayValue={displayValue}
-              isMissing={missingGlobalIds?.has(question.id)}
-            />
+              invalid={isMissing}
+              footer={
+                isMissing && (
+                  <p className="text-destructive mt-2 text-xs">
+                    This field is required
+                  </p>
+                )
+              }
+            >
+              <AnswerDisplay
+                question={question}
+                value={displayValue}
+                fileTarget={{ scope: 'profile', questionId: question.id }}
+              />
+            </AnswerCard>
           );
         }
 
@@ -186,22 +132,13 @@ function QuestionList({
                           ? 'Please answer this question again'
                           : 'This field is required';
                       }
-                      if (
-                        question.type === 'short_answer' &&
-                        question.format &&
-                        arr[0] &&
-                        !matchesShortAnswerFormat(arr[0], question.format)
-                      )
-                        return SHORT_ANSWER_FORMAT_ERROR_MESSAGES[
-                          question.format
-                        ];
                       // Mirrors the server check in createOrUpdateApplicationAnswer.
-                      return getAnswerValueError(question, arr) ?? true;
+                      return getAnswerBlurError(question, arr) ?? true;
                     },
                   }
             }
             render={({ field, fieldState }) => (
-              <ApplicationQuestion
+              <AnswerEditor
                 question={question}
                 field={field}
                 // Falls back to missingGlobalIds so an unfocused required field still errors on Next/Submit.
