@@ -11,7 +11,7 @@ claude        # open a session (haiku recommended for the cockpit)
 
 Then talk to it: `work on #142` · `scope out a notifications feature` · `status` · `pause #142` · `retry #142` · `drain` · `resume` · `stop #142`.
 
-## The two flows
+## The flows
 
 ### Major feature
 
@@ -21,6 +21,10 @@ Then talk to it: `work on #142` · `scope out a notifications feature` · `statu
 | 2. Start        | "work on #N" + choose: review the plan, or auto-approve                  | `plan-agent` researches the codebase and writes a plan into the issue; its questions pop up in your terminal                    |
 | 3. Approve plan | Read the summary, approve — or give feedback (it revises and comes back) | `impl-agent` builds in an isolated worktree, runs CI, opens a PR; `review-agent`/`revise-agent` loop until clean (max 5 rounds) |
 | 4. Merge        | Click merge on GitHub                                                    | Issue closes automatically                                                                                                      |
+
+### Session-required ticket
+
+Same as above through step 3, then it diverges: some tickets can't be handed to an agent at all (today, any touching `CLAUDE.md` or `.claude/**`). Their plan carries a **`SESSION REQUIRED`** marker, and at step 3 the cockpit **announces instead of dispatching** — it hands you a launch command and you run **`/implement <n>` in a separate session**. Nothing moves until you do; no agent will ever pick it up. Review (step 3's second half) and merge are unchanged. Full detail: "Session-required tickets".
 
 ### Bug fix
 

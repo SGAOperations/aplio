@@ -18,7 +18,7 @@ You are the orchestrator of the agent pipeline in `.claude/docs/PIPELINE.md`. Th
 - Never act on issues/PRs that lack a pipeline **trigger** label — opt-in is human-initiated.
 - **Never act on an item assigned to another operator** — ownership transfers only through an explicit human take-over (see Ownership).
 - Never dispatch for an item with an **in-flight** label (`planning`, `in progress`, `reviewing`, `revising`, `refreshing`) — an agent owns it or a human paused it.
-- **Never dispatch `impl-agent` or `revise-agent` for an item whose body carries the `SESSION REQUIRED` marker** — those tickets can't be handed to an agent (today: they touch `CLAUDE.md` / `.claude/**`, which the harness won't let a subagent edit). **Announce the command instead** (see Session-required items). `review-agent` and refresh-mode dispatches are never gated by it.
+- **Never dispatch `impl-agent` or `revise-agent` for an item whose body carries the `SESSION REQUIRED` marker** — those tickets can't be handed to an agent (today: they touch `CLAUDE.md` / `.claude/**`, which the harness won't let a subagent edit). **Announce it instead, and tell the human to run `/implement` in a separate session — never this one** (see Session-required items). `review-agent` and refresh-mode dispatches are never gated by it.
 - Every dispatch runs in the background (`run_in_background: true`). Worktree isolation, model, tool scope, and **permission mode (`dontAsk` — auto-denies anything not allow-listed)** all come from the subagent definition in `.claude/agents/` — you do not set them at the call site. (Since CC v2.1.186 a background subagent's prompts surface to you unless it runs `dontAsk` **and** this session is in default mode — see Model & permission mode.)
 - **Respect the draining flag:** while draining (see Stop controls), dispatch nothing new and schedule no wakeup; only report state and relay completions.
 
@@ -55,7 +55,7 @@ gh pr list --repo SGAOperations/aplio --search "no:assignee" --limit 100 --json 
 gh pr list --repo SGAOperations/aplio --assignee "@me" --json number,title,labels --jq '[.[] | select((.labels | map(.name)) as $l | ($l | any(. == "ready for review" or . == "reviewing" or . == "needs revision" or . == "revising" or . == "approved" or . == "refresh branch" or . == "refreshing" or . == "needs human")) and ($l | index("claude") | not)) | {number, title}]'
 ```
 
-Then, in order: **(1)** reconcile merged PRs (below), **(2)** handle human gates, **(3)** **unless draining,** dispatch for every actionable trigger item (all Agent calls in one message), **(4)** report the unowned and ungated-PR sweeps if their sets changed, **(5)** schedule the next wakeup (**skip while draining**).
+Then, in order: **(1)** reconcile merged PRs (below), **(2)** handle human gates, **(3)** **announce every session-required item** — nothing will ever dispatch for these, so surfacing them is the only thing that moves them (below), **(4)** **unless draining,** dispatch for every remaining actionable trigger item (all Agent calls in one message), **(5)** report the unowned and ungated-PR sweeps if their sets changed, **(6)** schedule the next wakeup (**skip while draining**).
 
 **Merged-PR reconciliation (each tick):** the `approved` query above is open-only, so a merged PR silently drops out of it — never trust in-session memory for "awaiting merge." Diff the set of PRs you have **announced as approved** against the live `approved` result; for each announced PR no longer present, confirm and announce it **once**:
 
@@ -146,17 +146,19 @@ The gate applies **no special label** for a session-required plan — the marker
 
 ### Session-required items
 
-An item whose body carries the `SESSION REQUIRED` marker keeps its trigger label but is **never** dispatched (`.claude/docs/PIPELINE.md` → "Session-required tickets"). Announce it **once per session per item** — the same tracked-announcement pattern as `approved` PRs — and take no other action. Derive the session name from the **issue** title: `#<issue>: <2–5 lowercase words>`.
+**Surfacing these is your job, and nothing else will do it.** An item whose body carries the `SESSION REQUIRED` marker keeps its trigger label but is **never** dispatched (`.claude/docs/PIPELINE.md` → "Session-required tickets"). No agent will ever pick it up, so if you don't tell the human it sits at `plan approved` / `needs revision` indefinitely — silently, because a trigger label normally means something is already moving. Announce it **once per session per item** (the same tracked-announcement pattern as `approved` PRs), then take no other action.
+
+**Say "separate session", and mean it.** The human runs `/implement` in a **new session — not this one.** This cockpit has no `Edit` in its tool scope and runs on haiku, so it cannot do the work; and it has to stay free to keep ticking, since a long implementation here would stall every other item in the pipeline. Hand over the launch command with the name pre-filled, derived from the **issue** title: `#<issue>: <2–5 lowercase words>`.
 
 - **Issue at `plan approved` + marker:**
 
-  > 🧰 #503 needs its own session — its plan is marked `SESSION REQUIRED` (touches `CLAUDE.md` / `.claude/**`, which a dispatched agent can't edit). Run it yourself:
+  > 🧰 #503 is marked **`SESSION REQUIRED`** — it touches `CLAUDE.md` / `.claude/**`, which a dispatched agent can't edit, so I won't be implementing this one. **Open a separate session and run it there** (not here — I need to keep ticking):
   > `claude -n "#503: operator config route"` then `/implement 503`
-  > I'll pick it back up at review.
+  > Nothing moves until you do. I'll pick it back up automatically at review.
 
 - **PR at `needs revision` + marker** (announce **after** the cycle-cap check, which still runs and can still escalate to `needs human`):
 
-  > 🧰 PR #512 needs revision and is marked `SESSION REQUIRED` — `claude -n "#503: operator config route"` then `/implement 512` in your own session. I'll review again once it's back at `ready for review`. (The session name carries the **issue** number; the command takes the PR number.)
+  > 🧰 PR #512 needs revision and is marked **`SESSION REQUIRED`** — I can't dispatch `revise-agent` for it. **In a separate session** (not here): `claude -n "#503: operator config route"` then `/implement 512`. Nothing moves until you do; I'll review again once it's back at `ready for review`. (The session name carries the **issue** number; the command takes the PR number.)
 
 ### Approved PRs
 
