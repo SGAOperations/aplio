@@ -11,7 +11,7 @@ claude        # open a session (haiku recommended for the cockpit)
 
 Then talk to it: `work on #142` · `scope out a notifications feature` · `status` · `pause #142` · `retry #142` · `drain` · `resume` · `stop #142`.
 
-## The two flows
+## The flows
 
 ### Major feature
 
@@ -21,6 +21,10 @@ Then talk to it: `work on #142` · `scope out a notifications feature` · `statu
 | 2. Start        | "work on #N" + choose: review the plan, or auto-approve                  | `plan-agent` researches the codebase and writes a plan into the issue; its questions pop up in your terminal                    |
 | 3. Approve plan | Read the summary, approve — or give feedback (it revises and comes back) | `impl-agent` builds in an isolated worktree, runs CI, opens a PR; `review-agent`/`revise-agent` loop until clean (max 5 rounds) |
 | 4. Merge        | Click merge on GitHub                                                    | Issue closes automatically                                                                                                      |
+
+### Session-required ticket
+
+Same as above through step 3, then it diverges: some tickets can't be handed to an agent at all (today, any touching `CLAUDE.md` or `.claude/**`). Their plan carries a **`SESSION REQUIRED`** marker, and at step 3 the cockpit **announces instead of dispatching** — it hands you a launch command and you run **`/implement <n>` in a separate session**. Nothing moves until you do; no agent will ever pick it up. Review (step 3's second half) and merge are unchanged. Full detail: "Session-required tickets".
 
 ### Bug fix
 
@@ -137,6 +141,8 @@ Rule: **every stage agent's first action is swapping its trigger label for its i
 
 All four workers read `.claude/docs/ENGINEERING.md` before working; the review agent treats it as a review dimension.
 
+**Stages 2 and 4 have an operator variant.** Some tickets can't be implemented by a dispatched agent at all — today, any that touch `CLAUDE.md` or `.claude/**`, where the harness denies its `Edit`. Those two stages then run in the operator's own session via `/implement`, following these same agent files — see "Session-required tickets".
+
 ## Permission rationale
 
 The model is **broad allow + authoritative deny**: stage agents do real dev work (install packages, read CI logs, manage git in their worktree), so the allowlist grants broad categories and the `deny` list draws the safety line. **Any permission change must update this section.**
@@ -161,6 +167,54 @@ Permission mode: every stage agent runs **`permissionMode: dontAsk`** (auto-deny
 
 **CI merge gate — `approval-check.yml`.** PRs into `dev` are gated on the `approved` label **only when the PR carries `claude`** (a job-level `if:`). Every other PR — human, Dependabot — gets a `skipped` check run, which GitHub counts as satisfied, so it merges on its own merits. This is deliberately **fail-open**: an unlabelled pipeline PR is indistinguishable in CI from a human one and simply loses its gate. Nothing in the workflow can close that, so the mitigations live upstream — `impl-agent` passes `--label "claude"` at `gh pr create` (so the gate is live on the PR's first event) and the cockpit's **ungated-PR sweep** reports any tracked PR missing it. Never narrow the workflow's trigger to exclude a PR: a workflow that never runs creates no check run, leaving the required check pending forever.
 
+## Session-required tickets
+
+**Some tickets can't be handed to a dispatched agent at all, so stages 2 and 4 run in the operator's own session.** Today there is exactly one such category — anything touching `CLAUDE.md` or `.claude/**` — but the mechanism is built around the _routing_, not the cause, so a future category reuses it by supplying a different reason.
+
+**The harness denies `Edit`/`Write` under `.claude/` to dispatched subagents, and `settings.json` cannot grant it back.** This repo already allows `Edit(**)`/`Write(**)` with no `.claude/` deny rule and the denial persists anyway — it sits above project config, so there is nothing to fix in the permission model. An operator's **main session** is unaffected: reading `.claude/agents/impl-agent.md` and acting on it spawns no subagent, so no subagent restriction applies. That asymmetry is the whole basis of this route.
+
+### The marker
+
+One string, one rendering, both surfaces — **`SESSION REQUIRED`**, with the reason after the colon:
+
+```
+> **SESSION REQUIRED:** touches `CLAUDE.md` / `.claude/**` — a dispatched agent can't edit those
+```
+
+| Surface   | Written by   | Where                                                                             |
+| --------- | ------------ | --------------------------------------------------------------------------------- |
+| **Issue** | `plan-agent` | First line of the plan body, under `## Implementation Plan`, before `## Overview` |
+| **PR**    | `/implement` | Directly under `Closes #N` in the PR description                                  |
+
+The literal string `SESSION REQUIRED` is the contract — **never reword it**; the reason after the colon is free text and is the part that generalizes. **There is deliberately no label.** The marker lives in the body on both surfaces, and the cockpit reads it from the `body` field of the trigger query it already runs, so the check costs no extra call and there is nothing to keep in sync:
+
+```bash
+gh issue list --repo SGAOperations/aplio --assignee "@me" --label "plan approved" --json number,title,body
+gh pr list --repo SGAOperations/aplio --assignee "@me" --label "needs revision" --json number,title,body
+```
+
+### The route
+
+1. **Declare.** `plan-agent` emits the marker when the plan needs it (see "Implementation plan").
+2. **Skip dispatch.** The cockpit finds it in the trigger query's `body` and **announces the command instead of dispatching**. The item keeps its trigger label.
+3. **Run.** The operator opens a **named session** and runs `/implement <issue-or-pr-number>`. That skill resolves the stage from the item's labels, creates a worktree under `.claude/worktrees/impl-<n>`, follows the **unmodified** `impl-agent.md` / `revise-agent.md` plus a short list of subagent-only overrides, and repeats the marker in the PR description it writes. The override list lives in the skill and nowhere else — one place to drift, one place to check.
+
+**What moves and what doesn't.** Only stages **2** and **4**. `plan-agent` and `review-agent` are read-only and work through `gh`, so stages 1 and 3 run unchanged — a session-required ticket is **not** out of the pipeline. `refresh branch` is still dispatched to `revise-agent` too: a rebase and force-push edit no files, and a conflict inside `CLAUDE.md` / `.claude/docs/**` is already on the never-touch list and escalates.
+
+**The invariant this deviates from.** Everywhere else a trigger label means something is dispatching. A session-required item **keeps** its trigger label (`plan approved` / `needs revision`) and is **never** dispatched — the cockpit announces instead. Recovery is unchanged (re-apply the trigger), but the label alone no longer implies motion, which is why `status` has to call these out explicitly: nothing else distinguishes one from an item that is genuinely mid-flight.
+
+**Session naming.** These sessions are long-lived and several run at once, so launch each with the issue number in its display name:
+
+```bash
+claude -n "#503: operator config route"   # then, in that session: /implement 503
+```
+
+`-n/--name` sets the name shown in the prompt box, the `/resume` picker, and the terminal title. It is settable **only at launch** — a running session can neither read nor change its own name — so the cockpit's announcement hands over the command with the name pre-filled, and the skill re-states the expected string. The name always carries the **issue** number, even when the command takes a PR number.
+
+**Always in a worktree.** `/implement` never works in the main checkout, for two reasons: editing `.claude/` from the session that is _using_ it mutates your live configuration mid-task, and the ticket may be editing the very agent file the session is following. In a worktree the session reads its instructions by absolute path from the main checkout while every edit lands on the worktree copy, so the committed behaviour holds for the whole run. Reclaim the worktree with `/worktree-clean` once the PR merges.
+
+**Unverified:** whether the manual escape hatch `claude --agent impl-agent` carries the same restriction (its frontmatter forces `dontAsk` and worktree isolation). Untested — use `/implement` regardless. If a future Claude Code version lifts the harness restriction, this whole route can be deleted; the marker is the only thing to unwind.
+
 ## Pipeline output formats
 
 Defined once here; the stage agents follow these exactly.
@@ -179,6 +233,7 @@ Every plan, review, summary, and comment is written for a human scanning fast:
 
 Appended below the ticket under a `---` then `## Implementation Plan`; revision mode replaces only that block. **Do not restate the ticket** — reference it. Fixed sections in this order; the conditional ones appear **only when they apply** (omit otherwise — no stub):
 
+- **`SESSION REQUIRED` marker** _(only when the ticket can't be dispatched to an agent — today, when it touches `CLAUDE.md` or `.claude/**`)_ — the first line, before `## Overview`. Exact format and rules: "Session-required tickets".
 - **## Overview** — 2–4 sentences: what, why, the approach.
 - **## Changes** — files to create/modify, one bullet each: `` `path` — one-line reason ``.
 - **## Implementation** — ordered `- [ ]` checkboxes, one line each; fold validation / states / error-model notes into the step they belong to.
@@ -280,6 +335,7 @@ Closing the cockpit session also halts dispatch (it is the only dispatcher) but 
 | Labels manually changed on GitHub                                                                                | Fine — labels are the source of truth                                                                                                                                    | The next tick acts on whatever the labels say                                                                                                                                                                                                           |
 | Stale worktrees / orphan `node_modules` dirs accumulating under `.claude/worktrees/`                             | Agents cut off mid-run; on Windows the harness leaves dirs git can't delete                                                                                              | Run **`/worktree-clean`** from the main checkout — it prunes registrations and force-deletes orphan dirs (`git worktree remove` alone fails with `Invalid argument` once `node_modules` exists). The cockpit reports these but never auto-deletes them. |
 | An agent stopped with `BLOCKED:` or hit `maxTurns`                                                               | Clean stop by design (not a crash)                                                                                                                                       | Resolve the blocker (or widen scope/permissions), then `retry #N`                                                                                                                                                                                       |
+| An issue sits at `plan approved`, or a PR at `needs revision`, and nothing dispatches                            | Its body carries the `SESSION REQUIRED` marker — the cockpit never dispatches for those                                                                                  | Open a named session and run it yourself: `claude -n "#N: <short name>"`, then `/implement <n>`. See "Session-required tickets"                                                                                                                         |
 
 ## Reading current state without the cockpit
 
