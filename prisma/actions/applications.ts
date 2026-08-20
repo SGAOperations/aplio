@@ -14,14 +14,16 @@ import type {
 } from '@/prisma/client';
 
 import { requireOwnership } from '@/lib/auth/guards';
+import {
+  buildApplicationScopeWhere,
+  buildApplicationWhere,
+} from '@/lib/auth/scopes';
 import { getCurrentUser } from '@/lib/auth/server';
 import {
   ANSWER_LONG_MAX_LENGTH,
   ANSWER_MAX_VALUES,
   APPLICANT_EDITABLE_APPLICATION_STATUSES,
   APPLICATION_STATUS_LABELS,
-  NON_REVIEWABLE_APPLICATION_STATUSES,
-  PUBLISHED_POSITION_WHERE,
   REVIEWER_APPLICATION_STATUSES,
   SHORT_ANSWER_FORMAT_ERROR_MESSAGES,
   TERMINAL_DECISION_STATUSES,
@@ -485,26 +487,8 @@ export async function updateApplicationStatus(
   const { applicationId, status } = parsed.data;
 
   // Authorization folded into the query, as in getApplicationForReview.
-  const where = user.isAdmin
-    ? {
-        id: applicationId,
-        deletedAt: null,
-        status: { notIn: NON_REVIEWABLE_APPLICATION_STATUSES },
-        position: PUBLISHED_POSITION_WHERE,
-      }
-    : {
-        id: applicationId,
-        deletedAt: null,
-        status: { notIn: NON_REVIEWABLE_APPLICATION_STATUSES },
-        // Merge, don't overwrite — see prisma/data/applications.ts#buildBaseWhere.
-        position: {
-          ...PUBLISHED_POSITION_WHERE,
-          managers: { some: { id: user.id } },
-        },
-      };
-
   const application = await prisma.application.findFirst({
-    where,
+    where: { id: applicationId, ...buildApplicationWhere(user, 'reviewable') },
     select: { id: true, status: true },
   });
 
@@ -556,26 +540,12 @@ export async function updateApplicationStatuses(
 
   // Forward-only sources: a bulk move-back would silently walk an already-
   // decided row backward, so it's skipped like any other ineligible id.
-  const where = user.isAdmin
-    ? {
-        id: { in: applicationIds },
-        deletedAt: null,
-        status: { in: getApplicationStatusForwardSources(status) },
-        position: PUBLISHED_POSITION_WHERE,
-      }
-    : {
-        id: { in: applicationIds },
-        deletedAt: null,
-        status: { in: getApplicationStatusForwardSources(status) },
-        // Merge, don't overwrite — see prisma/data/applications.ts#buildBaseWhere.
-        position: {
-          ...PUBLISHED_POSITION_WHERE,
-          managers: { some: { id: user.id } },
-        },
-      };
-
   const result = await prisma.application.updateMany({
-    where,
+    where: {
+      id: { in: applicationIds },
+      ...buildApplicationScopeWhere(user),
+      status: { in: getApplicationStatusForwardSources(status) },
+    },
     data: { status, updatedById: user.id },
   });
 
