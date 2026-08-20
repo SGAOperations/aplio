@@ -8,6 +8,7 @@ import { getApplicationForApply } from '@/prisma/data/applications';
 import { getPositionForApply } from '@/prisma/data/positions';
 import { getProfileData } from '@/prisma/data/profile';
 
+import { withRedirectTo } from '@/lib/auth/redirect';
 import { getCurrentUser } from '@/lib/auth/server';
 import {
   APPLICANT_EDITABLE_APPLICATION_STATUSES,
@@ -168,7 +169,9 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
               </p>
             </div>
             <Button asChild className="w-fit">
-              <Link href="/profile">Go to Profile</Link>
+              <Link href={withRedirectTo('/profile', `/positions/${id}/apply`)}>
+                Go to Profile
+              </Link>
             </Button>
           </CardContent>
         </Card>
