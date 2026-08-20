@@ -46,9 +46,7 @@ export function AnswerDisplay({
           ))}
         </div>
       ) : (
-        <p className="text-foreground text-base font-medium">
-          {value[0] ?? 'No answer yet'}
-        </p>
+        <p className="text-foreground text-base font-medium">{value[0]}</p>
       )}
     </>
   );

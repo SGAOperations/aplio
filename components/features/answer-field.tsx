@@ -67,6 +67,16 @@ export function AnswerField({
   );
   const [otherText, setOtherText] = useState(fittedOtherText);
 
+  // Resyncs when `value` changes out from under us without a remount (e.g.
+  // the stepper's "Use profile answers" revert calling setValue directly).
+  const [prevFittedOtherText, setPrevFittedOtherText] =
+    useState(fittedOtherText);
+  if (fittedOtherText !== prevFittedOtherText) {
+    setPrevFittedOtherText(fittedOtherText);
+    setOtherSelected(question.allowOther && fittedOtherText !== '');
+    setOtherText(fittedOtherText);
+  }
+
   const notice = orphaned.length > 0 && (
     <AnswerMismatchNotice
       id={noticeId}
