@@ -2,37 +2,29 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { FileText, Inbox } from 'lucide-react';
 
 import type { $Enums } from '@/prisma/client';
 
+import { type DataTableColumn } from '@/lib/data-table';
 import type {
   ApplicationListRow,
   ApplicationSort,
   ApplicationSortDirection,
   ApplicationSortField,
 } from '@/lib/types';
-import { getRenamedTo } from '@/lib/utils';
+import { getDisplayName, getRenamedTo } from '@/lib/utils';
 
 import { ApplicationStatusActions } from '@/components/features/application-status-actions';
 import { ApplicationsBulkBar } from '@/components/features/applications-bulk-bar';
-// Server-side sort; its param format stays decoupled from useSortableTable's.
-import { SortableHeader } from '@/components/features/sortable-header';
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { DataTable } from '@/components/ui/data-table';
 import { LocalTime } from '@/components/ui/local-time';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 
 interface ApplicationsTableProps {
   applications: ApplicationListRow[];
@@ -62,6 +54,18 @@ export function ApplicationsTable({
 
   // Drops ids no longer in the current view (e.g. after a filter change).
   const selectedRows = applications.filter((a) => selectedIds.has(a.id));
+
+  // Derived once per row and reused across cells/mobileCard.
+  const displayInfo = useMemo(
+    () =>
+      new Map(
+        applications.map((app) => [
+          app.id,
+          { displayName: getDisplayName(app), renamedTo: getRenamedTo(app) },
+        ]),
+      ),
+    [applications],
+  );
 
   function toggleAll() {
     if (allSelected) {
@@ -107,44 +111,126 @@ export function ApplicationsTable({
     }
   }
 
-  if (applications.length === 0) {
-    if (hasActiveFilters)
-      return (
-        <Card>
-          <CardContent className="flex flex-col items-center gap-4 py-16 text-center">
-            <FileText
-              className="text-muted-foreground size-12"
-              aria-hidden="true"
+  const COLUMNS: DataTableColumn<ApplicationListRow>[] = [
+    {
+      key: 'select',
+      header: (
+        <Checkbox
+          checked={isIndeterminate ? 'indeterminate' : allSelected}
+          onCheckedChange={toggleAll}
+          aria-label="Select all applications"
+        />
+      ),
+      headClassName: 'w-10',
+      cellClassName: 'w-10',
+      cell: (app) => {
+        const { displayName } = displayInfo.get(app.id)!;
+        return (
+          <div onClick={(e) => e.stopPropagation()}>
+            <Checkbox
+              checked={selectedIds.has(app.id)}
+              onCheckedChange={() => toggleOne(app.id)}
+              aria-label={`Select ${displayName}`}
             />
-            <div>
-              <p className="text-base font-semibold">
-                No applications match these filters
-              </p>
-              <p className="text-muted-foreground mt-1 text-sm">
-                Try adjusting or clearing your filters.
-              </p>
-            </div>
-            <Button variant="outline" asChild>
-              <Link href="/applications">Clear filters</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      );
-
-    return (
-      <Card>
-        <CardContent className="flex flex-col items-center gap-4 py-16 text-center">
-          <Inbox className="text-muted-foreground size-12" aria-hidden="true" />
-          <div>
-            <p className="text-base font-semibold">No applications yet</p>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Applications will appear here once candidates apply.
-            </p>
           </div>
-        </CardContent>
-      </Card>
-    );
-  }
+        );
+      },
+    },
+    {
+      key: 'name',
+      header: 'Applicant',
+      sortAccessor: (a) => getDisplayName(a),
+      cell: (app) => {
+        const { displayName, renamedTo } = displayInfo.get(app.id)!;
+        return (
+          <>
+            <Link
+              href={`/applications/${app.id}`}
+              className="font-medium hover:underline"
+            >
+              {displayName}
+            </Link>
+            {renamedTo && (
+              <span className="text-muted-foreground ml-1 text-xs">
+                ({renamedTo})
+              </span>
+            )}
+            {(app.applicantName ?? app.user.name) && (
+              <span className="text-muted-foreground block text-xs">
+                {app.user.email}
+              </span>
+            )}
+          </>
+        );
+      },
+    },
+    {
+      key: 'position',
+      header: 'Position',
+      cellClassName: 'text-muted-foreground',
+      cell: (app) => app.position.title,
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      sortAccessor: (a) => a.status,
+      cell: (app) => {
+        const { displayName } = displayInfo.get(app.id)!;
+        return (
+          <div className="flex items-center gap-1">
+            <ApplicationStatusBadge status={app.status} />
+            <ApplicationStatusActions
+              applicationId={app.id}
+              currentStatus={app.status}
+              applicantName={displayName}
+              compact
+            />
+          </div>
+        );
+      },
+    },
+    {
+      key: 'date',
+      header: 'Submitted',
+      sortAccessor: (a) => a.submittedAt,
+      cellClassName: 'text-muted-foreground',
+      cell: (app) => <LocalTime date={app.submittedAt} precision="date" />,
+    },
+  ];
+
+  const emptyState = hasActiveFilters ? (
+    <Card>
+      <CardContent className="flex flex-col items-center gap-4 py-16 text-center">
+        <FileText
+          className="text-muted-foreground size-12"
+          aria-hidden="true"
+        />
+        <div>
+          <p className="text-base font-semibold">
+            No applications match these filters
+          </p>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Try adjusting or clearing your filters.
+          </p>
+        </div>
+        <Button variant="outline" asChild>
+          <Link href="/applications">Clear filters</Link>
+        </Button>
+      </CardContent>
+    </Card>
+  ) : (
+    <Card>
+      <CardContent className="flex flex-col items-center gap-4 py-16 text-center">
+        <Inbox className="text-muted-foreground size-12" aria-hidden="true" />
+        <div>
+          <p className="text-base font-semibold">No applications yet</p>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Applications will appear here once candidates apply.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <div className="flex flex-col gap-3">
@@ -157,182 +243,67 @@ export function ApplicationsTable({
         />
       )}
 
-      {/* overflow-hidden clips the header hover highlight to the card's rounded corners */}
-      <Card className="gap-0 overflow-hidden p-0">
-        {/* Desktop table — hidden on mobile */}
-        <div className="hidden md:block">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-10">
-                  <Checkbox
-                    checked={isIndeterminate ? 'indeterminate' : allSelected}
-                    onCheckedChange={toggleAll}
-                    aria-label="Select all applications"
-                  />
-                </TableHead>
-                <SortableHeader
-                  label="Applicant"
-                  active={sort?.field === 'name'}
-                  direction={sort?.direction ?? 'asc'}
-                  ariaSort={
-                    sort?.field === 'name'
-                      ? sort.direction === 'asc'
-                        ? 'ascending'
-                        : 'descending'
-                      : 'none'
-                  }
-                  onToggle={() => toggleSort('name')}
-                />
-                <TableHead>Position</TableHead>
-                <SortableHeader
-                  label="Status"
-                  active={sort?.field === 'status'}
-                  direction={sort?.direction ?? 'asc'}
-                  ariaSort={
-                    sort?.field === 'status'
-                      ? sort.direction === 'asc'
-                        ? 'ascending'
-                        : 'descending'
-                      : 'none'
-                  }
-                  onToggle={() => toggleSort('status')}
-                />
-                <SortableHeader
-                  label="Submitted"
-                  active={sort?.field === 'date'}
-                  direction={sort?.direction ?? 'asc'}
-                  ariaSort={
-                    sort?.field === 'date'
-                      ? sort.direction === 'asc'
-                        ? 'ascending'
-                        : 'descending'
-                      : 'none'
-                  }
-                  onToggle={() => toggleSort('date')}
-                />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {applications.map((app) => {
-                const displayName =
-                  app.applicantName ?? app.user.name ?? app.user.email;
-                const renamedTo = getRenamedTo(app);
-                const isChecked = selectedIds.has(app.id);
-                return (
-                  <TableRow
-                    key={app.id}
-                    data-state={isChecked ? 'selected' : undefined}
-                  >
-                    <TableCell
-                      onClick={(e) => e.stopPropagation()}
-                      className="w-10"
+      <DataTable
+        rows={applications}
+        columns={COLUMNS}
+        getRowKey={(a) => a.id}
+        caption="Applications"
+        emptyState={emptyState}
+        isRowSelected={(a) => selectedIds.has(a.id)}
+        sort={sort ? { key: sort.field, direction: sort.direction } : undefined}
+        onSortToggle={(key) => toggleSort(key as ApplicationSortField)}
+        mobileCard={(app) => {
+          const { displayName, renamedTo } = displayInfo.get(app.id)!;
+          const isChecked = selectedIds.has(app.id);
+          return (
+            <div className="flex gap-3 p-4">
+              <Checkbox
+                checked={isChecked}
+                onCheckedChange={() => toggleOne(app.id)}
+                aria-label={`Select ${displayName}`}
+                className="mt-0.5 shrink-0"
+              />
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 truncate">
+                    <Link
+                      href={`/applications/${app.id}`}
+                      className="font-medium hover:underline"
                     >
-                      <Checkbox
-                        checked={isChecked}
-                        onCheckedChange={() => toggleOne(app.id)}
-                        aria-label={`Select ${displayName}`}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Link
-                        href={`/applications/${app.id}`}
-                        className="font-medium hover:underline"
-                      >
-                        {displayName}
-                      </Link>
-                      {renamedTo && (
-                        <span className="text-muted-foreground ml-1 text-xs">
-                          ({renamedTo})
-                        </span>
-                      )}
-                      {(app.applicantName ?? app.user.name) && (
-                        <span className="text-muted-foreground block text-xs">
-                          {app.user.email}
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {app.position.title}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <ApplicationStatusBadge status={app.status} />
-                        <ApplicationStatusActions
-                          applicationId={app.id}
-                          currentStatus={app.status}
-                          applicantName={displayName}
-                          compact
-                        />
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      <LocalTime date={app.submittedAt} precision="date" />
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
-
-        {/* Mobile stacked cards — shown only on mobile */}
-        <div className="flex flex-col divide-y md:hidden">
-          {applications.map((app) => {
-            const displayName =
-              app.applicantName ?? app.user.name ?? app.user.email;
-            const renamedTo = getRenamedTo(app);
-            const isChecked = selectedIds.has(app.id);
-            return (
-              <div key={app.id} className="flex gap-3 p-4">
-                <Checkbox
-                  checked={isChecked}
-                  onCheckedChange={() => toggleOne(app.id)}
-                  aria-label={`Select ${displayName}`}
-                  className="mt-0.5 shrink-0"
-                />
-                <div className="flex min-w-0 flex-1 flex-col gap-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 truncate">
-                      <Link
-                        href={`/applications/${app.id}`}
-                        className="font-medium hover:underline"
-                      >
-                        {displayName}
-                      </Link>
-                      {renamedTo && (
-                        <span className="text-muted-foreground ml-1 text-xs">
-                          ({renamedTo})
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1">
-                      <ApplicationStatusBadge status={app.status} />
-                      <ApplicationStatusActions
-                        applicationId={app.id}
-                        currentStatus={app.status}
-                        applicantName={displayName}
-                        compact
-                      />
-                    </div>
+                      {displayName}
+                    </Link>
+                    {renamedTo && (
+                      <span className="text-muted-foreground ml-1 text-xs">
+                        ({renamedTo})
+                      </span>
+                    )}
                   </div>
-                  {(app.applicantName ?? app.user.name) && (
-                    <span className="text-muted-foreground truncate text-xs">
-                      {app.user.email}
-                    </span>
-                  )}
-                  <span className="text-muted-foreground text-sm">
-                    {app.position.title}
-                  </span>
-                  <span className="text-muted-foreground text-xs">
-                    <LocalTime date={app.submittedAt} precision="date" />
-                  </span>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <ApplicationStatusBadge status={app.status} />
+                    <ApplicationStatusActions
+                      applicationId={app.id}
+                      currentStatus={app.status}
+                      applicantName={displayName}
+                      compact
+                    />
+                  </div>
                 </div>
+                {(app.applicantName ?? app.user.name) && (
+                  <span className="text-muted-foreground truncate text-xs">
+                    {app.user.email}
+                  </span>
+                )}
+                <span className="text-muted-foreground text-sm">
+                  {app.position.title}
+                </span>
+                <span className="text-muted-foreground text-xs">
+                  <LocalTime date={app.submittedAt} precision="date" />
+                </span>
               </div>
-            );
-          })}
-        </div>
-      </Card>
+            </div>
+          );
+        }}
+      />
     </div>
   );
 }

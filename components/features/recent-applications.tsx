@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-import { ArrowRight, Inbox } from 'lucide-react';
+import { Inbox } from 'lucide-react';
 
 import { getRecentApplications } from '@/prisma/data/applications';
 
@@ -8,9 +8,8 @@ import { type AdminApplicationListItem, type Reviewer } from '@/lib/types';
 import { getRenamedTo } from '@/lib/utils';
 
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LocalTime } from '@/components/ui/local-time';
-import { Skeleton } from '@/components/ui/skeleton';
+import { SectionCard, SectionCardEmpty } from '@/components/ui/section-card';
 
 interface RecentApplicationsProps {
   reviewer: Reviewer;
@@ -24,45 +23,28 @@ export async function RecentApplications({
   const applications = await getRecentApplications(reviewer, limit);
 
   return (
-    // overflow-hidden clips the header hover highlight to the card's rounded corners
-    <Card className="gap-0 overflow-hidden p-0">
-      <CardHeader className="border-b p-4">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-semibold">
-            Recent Applications
-          </CardTitle>
-          <Link
-            href="/applications"
-            aria-label="See all applications"
-            className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm transition-colors"
-          >
-            See all
-            <ArrowRight className="size-3.5" aria-hidden="true" />
-          </Link>
-        </div>
-      </CardHeader>
-
-      <CardContent className="p-0">
-        {applications.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 py-10 text-center">
-            <Inbox
-              className="text-muted-foreground size-10"
-              aria-hidden="true"
-            />
-            <div>
-              <p className="text-sm font-medium">No applications yet</p>
-              <p className="text-muted-foreground mt-0.5 text-sm">
-                {reviewer.isAdmin
-                  ? 'Submissions across all positions will appear here.'
-                  : 'Submissions to the positions you manage will appear here.'}
-              </p>
-            </div>
-          </div>
-        ) : (
-          <ApplicationList applications={applications} />
-        )}
-      </CardContent>
-    </Card>
+    <SectionCard
+      title="Recent Applications"
+      link={{
+        href: '/applications',
+        label: 'See all',
+        ariaLabel: 'See all applications',
+      }}
+    >
+      {applications.length === 0 ? (
+        <SectionCardEmpty
+          icon={Inbox}
+          title="No applications yet"
+          description={
+            reviewer.isAdmin
+              ? 'Submissions across all positions will appear here.'
+              : 'Submissions to the positions you manage will appear here.'
+          }
+        />
+      ) : (
+        <ApplicationList applications={applications} />
+      )}
+    </SectionCard>
   );
 }
 
@@ -104,30 +86,5 @@ function ApplicationList({
         );
       })}
     </ul>
-  );
-}
-
-export function RecentApplicationsSkeleton() {
-  return (
-    <Card className="gap-0 p-0">
-      <CardHeader className="border-b p-4">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-5 w-40" />
-          <Skeleton className="h-4 w-16" />
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div
-            key={i}
-            className="flex items-center gap-3 border-b px-4 py-3 last:border-0"
-          >
-            <Skeleton className="h-4 flex-1" />
-            <Skeleton className="h-5 w-20 rounded-md" />
-            <Skeleton className="h-4 w-20" />
-          </div>
-        ))}
-      </CardContent>
-    </Card>
   );
 }
