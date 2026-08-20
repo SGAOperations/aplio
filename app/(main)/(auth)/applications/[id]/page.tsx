@@ -4,9 +4,10 @@ import { notFound } from 'next/navigation';
 import { getApplicationForReview } from '@/prisma/data/applications';
 
 import { getCurrentUser } from '@/lib/auth/server';
+import { getRenamedTo } from '@/lib/utils';
 
 import { ApplicationAnswersList } from '@/components/features/application-answers-list';
-import { ApplicationStatusControl } from '@/components/features/application-status-control';
+import { ApplicationStatusActions } from '@/components/features/application-status-actions';
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
 import { PageHeader } from '@/components/layouts/page-header';
 import {
@@ -29,7 +30,12 @@ export async function generateMetadata({
   const user = await getCurrentUser();
   const application = await getApplicationForReview(id, user);
   if (!application) return {};
-  return { title: application.user.name ?? application.user.email };
+  return {
+    title:
+      application.applicantName ??
+      application.user.name ??
+      application.user.email,
+  };
 }
 
 export default async function ApplicationDetailPage({
@@ -42,13 +48,17 @@ export default async function ApplicationDetailPage({
 
   if (!application) notFound();
 
-  const applicantName = application.user.name ?? application.user.email;
+  const applicantName =
+    application.applicantName ??
+    application.user.name ??
+    application.user.email;
+  const renamedTo = getRenamedTo(application);
 
   return (
     <div className="mx-auto max-w-5xl">
       <div className="mb-4">
         <PageHeader
-          title={applicantName}
+          title={renamedTo ? `${applicantName} (${renamedTo})` : applicantName}
           description={application.user.email}
         />
         <p className="text-muted-foreground mt-1 text-sm">
@@ -101,9 +111,10 @@ export default async function ApplicationDetailPage({
             </CardHeader>
             <CardContent className="flex flex-col gap-3 p-3 pt-0">
               <ApplicationStatusBadge status={application.status} />
-              <ApplicationStatusControl
+              <ApplicationStatusActions
                 applicationId={application.id}
                 currentStatus={application.status}
+                applicantName={applicantName}
               />
             </CardContent>
           </Card>

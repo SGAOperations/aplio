@@ -82,12 +82,9 @@ export function useSortableTable<T>(
   const toggle = useCallback(
     (key: string) => {
       if (params.sort !== key) {
-        void setParams({ sort: key as (typeof validKeys)[number], dir: 'asc' });
+        void setParams({ sort: key, dir: 'asc' });
       } else if (params.dir !== 'desc') {
-        void setParams({
-          sort: key as (typeof validKeys)[number],
-          dir: 'desc',
-        });
+        void setParams({ sort: key, dir: 'desc' });
       } else {
         void setParams({ sort: null, dir: null });
       }

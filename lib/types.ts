@@ -7,7 +7,11 @@ import type {
 } from '@/prisma/client';
 import type { $Enums, Prisma } from '@/prisma/client';
 
-import type { REVIEWER_APPLICATION_STATUSES } from '@/lib/constants';
+import type {
+  APPLICATION_SORT_DIRECTIONS,
+  APPLICATION_SORT_FIELDS,
+  REVIEWER_APPLICATION_STATUSES,
+} from '@/lib/constants';
 
 import type { BadgeVariant } from '@/components/ui/badge';
 
@@ -132,6 +136,7 @@ export type AdminApplicationListItem = Prisma.ApplicationGetPayload<{
     id: true;
     status: true;
     submittedAt: true;
+    applicantName: true;
     position: { select: { id: true; title: true } };
     user: { select: { id: true; name: true; email: true } };
   };
@@ -212,8 +217,9 @@ export type Reviewer = { id: string; isAdmin: boolean };
 
 export type ReviewerStatus = (typeof REVIEWER_APPLICATION_STATUSES)[number];
 
-export type ApplicationSortField = 'date' | 'name' | 'status';
-export type ApplicationSortDirection = 'asc' | 'desc';
+export type ApplicationSortField = (typeof APPLICATION_SORT_FIELDS)[number];
+export type ApplicationSortDirection =
+  (typeof APPLICATION_SORT_DIRECTIONS)[number];
 export type ApplicationSort = {
   field: ApplicationSortField;
   direction: ApplicationSortDirection;
@@ -253,6 +259,7 @@ export type ApplicationForReview = Prisma.ApplicationGetPayload<{
     id: true;
     status: true;
     submittedAt: true;
+    applicantName: true;
     user: { select: { name: true; email: true } };
     position: { select: { id: true; title: true } };
   };

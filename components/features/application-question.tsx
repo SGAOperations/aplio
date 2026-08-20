@@ -142,7 +142,7 @@ export function ApplicationQuestion({
           onChange={(e) =>
             field.onChange(e.target.value ? [e.target.value] : [])
           }
-          onBlur={handleBlur}
+          onBlur={() => void handleBlur()}
           maxLength={ANSWER_SHORT_MAX_LENGTH}
           aria-required={question.required}
           aria-invalid={!!error}
@@ -158,7 +158,7 @@ export function ApplicationQuestion({
             onChange={(e) =>
               field.onChange(e.target.value ? [e.target.value] : [])
             }
-            onBlur={handleBlur}
+            onBlur={() => void handleBlur()}
             className="min-h-[120px]"
             maxLength={ANSWER_LONG_MAX_LENGTH}
             aria-required={question.required}
@@ -206,7 +206,7 @@ export function ApplicationQuestion({
                   setOtherSelected(false);
                   setOtherText('');
                   field.onChange([option]);
-                  save([option]);
+                  void save([option]);
                 }}
                 className="accent-primary size-4"
               />
@@ -226,7 +226,7 @@ export function ApplicationQuestion({
                     setOtherSelected(true);
                     const next = otherText ? [otherText] : [];
                     field.onChange(next);
-                    save(next);
+                    void save(next);
                   }}
                   className="accent-primary size-4"
                 />
@@ -252,7 +252,7 @@ export function ApplicationQuestion({
                       setOtherText(e.target.value);
                       field.onChange(e.target.value ? [e.target.value] : []);
                     }}
-                    onBlur={handleBlur}
+                    onBlur={() => void handleBlur()}
                     aria-labelledby={`${labelId} ${question.id}-other-label`}
                     maxLength={ANSWER_OTHER_MAX_LENGTH}
                   />
@@ -282,7 +282,7 @@ export function ApplicationQuestion({
                     ? [...fitted, option]
                     : fitted.filter((v) => v !== option);
                   field.onChange(next);
-                  save(next);
+                  void save(next);
                 }}
               />
               {option}
@@ -304,12 +304,12 @@ export function ApplicationQuestion({
                         ? [...checkedOptions, otherText]
                         : checkedOptions;
                       field.onChange(next);
-                      save(next);
+                      void save(next);
                     } else {
                       // Drops the typed text immediately, so it isn't resubmitted.
                       setOtherText('');
                       field.onChange(checkedOptions);
-                      save(checkedOptions);
+                      void save(checkedOptions);
                     }
                   }}
                 />
@@ -342,7 +342,7 @@ export function ApplicationQuestion({
                           : checkedOptions,
                       );
                     }}
-                    onBlur={handleBlur}
+                    onBlur={() => void handleBlur()}
                     aria-labelledby={`${labelId} ${question.id}-other-label`}
                     maxLength={ANSWER_OTHER_MAX_LENGTH}
                   />

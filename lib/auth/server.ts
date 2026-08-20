@@ -6,13 +6,12 @@ import type { User } from '@/prisma/client';
 
 import { auth } from '@/lib/auth/config';
 import { withRedirectTo } from '@/lib/auth/redirect';
-import { LOGIN_DEACTIVATED_REASON } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 import { isBypassAllowed } from '@/lib/utils';
 
 type UserResolution =
   | { status: 'active'; user: User }
-  | { status: 'deactivated' }
+  | { status: 'deactivated'; user: User }
   | { status: 'anonymous' };
 
 // Better Auth owns the User row, so the session id is the row id.
@@ -26,7 +25,7 @@ const resolveUser = cache(
         });
         if (row)
           return row.deletedAt
-            ? { status: 'deactivated' }
+            ? { status: 'deactivated', user: row }
             : { status: 'active', user: row };
       }
     }
@@ -39,7 +38,7 @@ const resolveUser = cache(
     });
     if (!row) return { status: 'anonymous' };
     return row.deletedAt
-      ? { status: 'deactivated' }
+      ? { status: 'deactivated', user: row }
       : { status: 'active', user: row };
   },
 );
@@ -49,11 +48,21 @@ export async function getIsBypass(): Promise<boolean> {
   return Boolean((await cookies()).get('dev-bypass-user-id')?.value);
 }
 
-// Treats a deactivated caller as anonymous.
+// Treats a deactivated caller as anonymous — getDeactivatedSessionUser is the
+// one that routes it to the explanatory screen.
 export const getOptionalUser = cache(
   async function getOptionalUser(): Promise<User | null> {
     const resolution = await resolveUser();
     return resolution.status === 'active' ? resolution.user : null;
+  },
+);
+
+// A live session whose row has since been soft-deleted — distinct from "no
+// session" so getCurrentUser avoids a silent sign-in loop.
+export const getDeactivatedSessionUser = cache(
+  async function getDeactivatedSessionUser(): Promise<User | null> {
+    const resolution = await resolveUser();
+    return resolution.status === 'deactivated' ? resolution.user : null;
   },
 );
 
@@ -67,11 +76,9 @@ export const getCurrentUser = cache(
     const resolution = await resolveUser();
     if (resolution.status === 'active') return resolution.user;
 
-    if (resolution.status === 'deactivated') {
-      const loginUrl = withRedirectTo('/login', await currentPath());
-      const separator = loginUrl.includes('?') ? '&' : '?';
-      redirect(`${loginUrl}${separator}reason=${LOGIN_DEACTIVATED_REASON}`);
-    }
+    // Routing, not denial: a live session for a deactivated row goes to the
+    // explanatory screen instead of silently bouncing back to /login forever.
+    if (resolution.status === 'deactivated') redirect('/login/deactivated');
 
     const base = isBypassAllowed() ? '/login/bypass' : '/login';
     redirect(withRedirectTo(base, await currentPath()));

@@ -35,14 +35,17 @@ import type { Application, Position, User } from '@/prisma/client';
 import {
   getApplicationForApply,
   getApplicationForReview,
+  getApplicationStatusCounts,
   getApplications,
   getApplicationsTotal,
   getMyApplications,
   getMySubmittedCount,
+  getRecentApplications,
   getReviewablePositions,
 } from '@/prisma/data/applications';
 import { checkPositionAccess, isManager } from '@/prisma/data/managers';
 import { getManagedPositions } from '@/prisma/data/positions';
+import { getUsersForAdmin } from '@/prisma/data/users';
 
 import {
   requireAdmin,
@@ -380,6 +383,45 @@ describe('updateApplicationStatus', () => {
       }),
     ).rejects.toThrow('Application not found or not authorized');
   });
+
+  it('throws for the managing manager when the position is draft or soft-deleted', async () => {
+    const draftPositionApplicant = await createTestUser();
+    const onDraftPosition = await createTestApplication(
+      draftPositionApplicant,
+      draftPosition,
+      { status: 'applied' },
+    );
+    const deletedPositionApplicant = await createTestUser();
+    const onDeletedPosition = await createTestApplication(
+      deletedPositionApplicant,
+      deletedPosition,
+      { status: 'applied' },
+    );
+
+    actAs(managerA);
+    await expect(
+      updateApplicationStatus({
+        applicationId: onDraftPosition.id,
+        status: 'reviewing',
+      }),
+    ).rejects.toThrow('Application not found or not authorized');
+    await expect(
+      updateApplicationStatus({
+        applicationId: onDeletedPosition.id,
+        status: 'reviewing',
+      }),
+    ).rejects.toThrow('Application not found or not authorized');
+  });
+
+  it('throws for the managing manager when the application is withdrawn', async () => {
+    actAs(managerA);
+    await expect(
+      updateApplicationStatus({
+        applicationId: withdrawnApplicationA.id,
+        status: 'reviewing',
+      }),
+    ).rejects.toThrow('Application not found or not authorized');
+  });
 });
 
 describe('updateApplicationStatuses', () => {
@@ -417,14 +459,16 @@ describe('updateApplicationStatuses', () => {
     expect(untouched.status).toBe('applied');
   });
 
-  it('throws when every id is out of scope', async () => {
+  it('returns an error when every id is out of scope', async () => {
     actAs(managerA);
-    await expect(
-      updateApplicationStatuses({
-        applicationIds: [applicationB1.id],
-        status: 'reviewing',
-      }),
-    ).rejects.toThrow('No applications were updated');
+    const result = await updateApplicationStatuses({
+      applicationIds: [applicationB1.id],
+      status: 'reviewing',
+    });
+    expect(result).toEqual({
+      error:
+        "None of the selected applications can move to Reviewing — that's only reachable from Applied, Reached out, or Interview scheduled.",
+    });
   });
 
   it('skips a withdrawn row while updating the rest', async () => {
@@ -453,6 +497,59 @@ describe('updateApplicationStatuses', () => {
       select: { status: true },
     });
     expect(stillWithdrawn.status).toBe('withdrawn');
+  });
+
+  it('skips a row on a draft or soft-deleted position', async () => {
+    const draftPositionApplicant = await createTestUser();
+    const onDraftPosition = await createTestApplication(
+      draftPositionApplicant,
+      draftPosition,
+      { status: 'applied' },
+    );
+    const deletedPositionApplicant = await createTestUser();
+    const onDeletedPosition = await createTestApplication(
+      deletedPositionApplicant,
+      deletedPosition,
+      { status: 'applied' },
+    );
+
+    actAs(managerA);
+    const result = await updateApplicationStatuses({
+      applicationIds: [onDraftPosition.id, onDeletedPosition.id],
+      status: 'reviewing',
+    });
+    expect(result).toEqual({
+      error:
+        "None of the selected applications can move to Reviewing — that's only reachable from Applied, Reached out, or Interview scheduled.",
+    });
+
+    const stillDraftPosition = await prisma.application.findUniqueOrThrow({
+      where: { id: onDraftPosition.id },
+      select: { status: true },
+    });
+    expect(stillDraftPosition.status).toBe('applied');
+  });
+});
+
+describe('getApplicationStatusCounts / getRecentApplications listable vs reviewable', () => {
+  it('excludes withdrawn from the reviewable pair while getApplications keeps it', async () => {
+    const counts = await getApplicationStatusCounts(managerA);
+    expect(counts.withdrawn).toBeUndefined();
+
+    const recent = (await getRecentApplications(managerA)).map((a) => a.id);
+    expect(recent).not.toContain(withdrawnApplicationA.id);
+    expect(recent).toContain(applicationA1.id);
+
+    const listable = (await getApplications(managerA, {})).map((a) => a.id);
+    expect(listable).toContain(withdrawnApplicationA.id);
+  });
+
+  it('scopes both to the managing manager', async () => {
+    const recentAsManagerB = (await getRecentApplications(managerB)).map(
+      (a) => a.id,
+    );
+    expect(recentAsManagerB).not.toContain(applicationA1.id);
+    expect(recentAsManagerB).toContain(applicationB1.id);
   });
 });
 
@@ -557,6 +654,25 @@ describe('toggleUserAdmin / deactivateUser / createUser', () => {
 
     actAs(await prisma.user.findUniqueOrThrow({ where: { id: demoted.id } }));
     await expect(requireAdmin()).rejects.toThrow();
+  });
+});
+
+describe('deactivated users excluded from admin queries', () => {
+  it('never appears in getUsersForAdmin or searchUsers', async () => {
+    const target = await createTestUser({
+      name: 'Deactivated Target',
+      deletedAt: new Date(),
+    });
+
+    const adminList = (await getUsersForAdmin()).map((u) => u.id);
+    expect(adminList).not.toContain(target.id);
+
+    actAs(admin);
+    const searchResult = await searchUsers({ query: target.email });
+    if (isError(searchResult)) throw new Error('expected a result array');
+    expect(searchResult.some((row) => row.primaryEmail === target.email)).toBe(
+      false,
+    );
   });
 });
 

@@ -189,12 +189,6 @@ export function QuestionFileField({
                       handleRemove();
                     }}
                   >
-                    {isPending ? (
-                      <Loader2
-                        className="size-4 animate-spin"
-                        aria-hidden="true"
-                      />
-                    ) : null}
                     Remove file
                   </AlertDialogAction>
                 </AlertDialogFooter>

@@ -58,8 +58,7 @@ function PositionStatCluster({ stats }: PositionStatClusterProps) {
           const count = stats.counts[status] ?? 0;
           const isDimmed = count === 0;
           const variant = APPLICATION_STATUS_BADGE_VARIANT[status];
-          const dotClass =
-            STATUS_BADGE_VARIANT_TO_DOT[variant] ?? 'bg-muted-foreground';
+          const dotClass = STATUS_BADGE_VARIANT_TO_DOT[variant];
 
           return (
             <div key={status}>

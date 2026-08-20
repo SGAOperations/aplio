@@ -233,21 +233,21 @@ export function getAnswerValueError(
     case 'short_answer':
       if (value.length > 1)
         return 'Only one answer is allowed for this question.';
-      if (value[0].length > ANSWER_SHORT_MAX_LENGTH)
+      if ((value[0] ?? '').length > ANSWER_SHORT_MAX_LENGTH)
         return `Answer must be ${ANSWER_SHORT_MAX_LENGTH} characters or fewer.`;
       return null;
 
     case 'long_answer':
       if (value.length > 1)
         return 'Only one answer is allowed for this question.';
-      if (value[0].length > ANSWER_LONG_MAX_LENGTH)
+      if ((value[0] ?? '').length > ANSWER_LONG_MAX_LENGTH)
         return `Answer must be ${ANSWER_LONG_MAX_LENGTH} characters or fewer.`;
       return null;
 
     case 'single_choice': {
       if (value.length > 1)
         return 'Only one answer is allowed for this question.';
-      const entry = value[0];
+      const entry = value[0] ?? '';
       if (question.options.includes(entry)) return null;
       // Not a current option — no free text allowed, or this is the "Other" entry.
       if (!question.allowOther)
@@ -273,7 +273,7 @@ export function getAnswerValueError(
         return 'Only one "Other" answer is allowed.';
       if (
         nonOptionEntries.length === 1 &&
-        nonOptionEntries[0].length > ANSWER_OTHER_MAX_LENGTH
+        (nonOptionEntries[0] ?? '').length > ANSWER_OTHER_MAX_LENGTH
       )
         return `Answer must be ${ANSWER_OTHER_MAX_LENGTH} characters or fewer.`;
       return null;
@@ -356,6 +356,131 @@ export const REVIEWER_APPLICATION_STATUSES = [
 
 export const REVIEWER_APPLICATION_STATUS_OPTIONS =
   APPLICATION_STATUS_OPTIONS.filter((o) => o.value !== 'draft');
+
+// Single source for the /applications sort union and its zod enum.
+export const APPLICATION_SORT_FIELDS = ['date', 'name', 'status'] as const;
+export const APPLICATION_SORT_DIRECTIONS = ['asc', 'desc'] as const;
+
+// Single source of truth for the server guard and the rendered quick actions.
+// Array order is display order; `draft`/`withdrawn` have no reviewer moves.
+export const APPLICATION_STATUS_TRANSITIONS = {
+  draft: { forward: [], back: [] },
+  applied: { forward: ['reached_out', 'reviewing'], back: [] },
+  reached_out: {
+    forward: ['interview_scheduled', 'reviewing'],
+    back: ['applied'],
+  },
+  interview_scheduled: {
+    forward: ['reviewing', 'accepted'],
+    back: ['reached_out'],
+  },
+  reviewing: {
+    forward: ['interview_scheduled', 'accepted'],
+    back: ['reached_out'],
+  },
+  accepted: { forward: [], back: ['reviewing', 'interview_scheduled'] },
+  rejected: { forward: [], back: ['reviewing', 'interview_scheduled'] },
+  withdrawn: { forward: [], back: [] },
+} as const satisfies Record<
+  $Enums.ApplicationStatus,
+  {
+    forward: readonly $Enums.ApplicationStatus[];
+    back: readonly $Enums.ApplicationStatus[];
+  }
+>;
+
+// Same members as UNRESOLVED_APPLICATION_STATUSES, but a different meaning —
+// 'rejected' is reachable from every one of these.
+export const REJECTABLE_APPLICATION_STATUSES = [
+  'applied',
+  'reached_out',
+  'interview_scheduled',
+  'reviewing',
+] as const satisfies $Enums.ApplicationStatus[];
+
+export function getAllowedApplicationStatusTransitions(
+  from: $Enums.ApplicationStatus,
+): $Enums.ApplicationStatus[] {
+  const { forward, back } = APPLICATION_STATUS_TRANSITIONS[from];
+  const isRejectable = (
+    REJECTABLE_APPLICATION_STATUSES as readonly $Enums.ApplicationStatus[]
+  ).includes(from);
+  return [
+    ...forward,
+    ...(isRejectable ? (['rejected'] as const) : []),
+    ...back,
+  ];
+}
+
+export function isAllowedApplicationStatusTransition(
+  from: $Enums.ApplicationStatus,
+  to: $Enums.ApplicationStatus,
+): boolean {
+  return getAllowedApplicationStatusTransitions(from).includes(to);
+}
+
+// Inverts the graph rather than hand-listing sources, so the two can't drift.
+export function getApplicationStatusSources(
+  to: $Enums.ApplicationStatus,
+): $Enums.ApplicationStatus[] {
+  return (
+    Object.keys(APPLICATION_STATUS_TRANSITIONS) as $Enums.ApplicationStatus[]
+  ).filter((from) => isAllowedApplicationStatusTransition(from, to));
+}
+
+// Bulk targets exclude move-back sources: a batch moving several applications
+// toward a target should skip a row already past it, not walk it backward.
+// A target with no forward source at all (e.g. 'applied') is back-only, so
+// there's no "already past it" row to protect — fall back to its back
+// sources rather than making that target permanently unreachable in bulk.
+export function getApplicationStatusForwardSources(
+  to: $Enums.ApplicationStatus,
+): $Enums.ApplicationStatus[] {
+  const forwardSources = (
+    Object.keys(APPLICATION_STATUS_TRANSITIONS) as $Enums.ApplicationStatus[]
+  ).filter((from) => {
+    const { forward } = APPLICATION_STATUS_TRANSITIONS[from];
+    const isRejectable = (
+      REJECTABLE_APPLICATION_STATUSES as readonly $Enums.ApplicationStatus[]
+    ).includes(from);
+    return (
+      (forward as readonly $Enums.ApplicationStatus[]).includes(to) ||
+      (isRejectable && to === 'rejected')
+    );
+  });
+  if (forwardSources.length > 0) return forwardSources;
+
+  return (
+    Object.keys(APPLICATION_STATUS_TRANSITIONS) as $Enums.ApplicationStatus[]
+  ).filter((from) =>
+    (
+      APPLICATION_STATUS_TRANSITIONS[from]
+        .back as readonly $Enums.ApplicationStatus[]
+    ).includes(to),
+  );
+}
+
+// Imperative copy for forward/decision quick-action buttons. 'applied' is a
+// back-target only — a reviewer never moves an application forward into it.
+export const APPLICATION_STATUS_ACTION_LABELS: Record<
+  (typeof REVIEWER_APPLICATION_STATUSES)[number],
+  string
+> = {
+  applied: 'Move to applied',
+  reached_out: 'Mark reached out',
+  reviewing: 'Move to reviewing',
+  interview_scheduled: 'Interview scheduled',
+  accepted: 'Accept',
+  rejected: 'Reject',
+};
+
+export const TERMINAL_DECISION_STATUS_NOTES: Record<
+  'accepted' | 'rejected',
+  string
+> = {
+  accepted: 'Accepted. The applicant can no longer withdraw this application.',
+  rejected: 'Rejected. The applicant can no longer withdraw this application.',
+};
 
 // States a reviewer may not act *on*, unlike REVIEWER_APPLICATION_STATUSES (may set *to*).
 export const NON_REVIEWABLE_APPLICATION_STATUSES = [
@@ -535,14 +660,9 @@ export const nameSchema = z.object({
 // branch on this specific refusal instead of a generic OTP failure.
 export const ACCOUNT_DEACTIVATED_ERROR_CODE = 'ACCOUNT_DEACTIVATED';
 
-// Shared across checkSignInAllowed, LoginView's OTP failure, and /login's
-// reason=deactivated notice so the copy can't drift between surfaces.
+// Shared between checkSignInAllowed and LoginView's OTP failure so the copy can't drift between surfaces.
 export const ACCOUNT_DEACTIVATED_MESSAGE =
   'Your account has been deactivated. Please contact an administrator.';
-
-// Value of /login's ?reason= query param when getCurrentUser redirects a
-// deactivated caller there.
-export const LOGIN_DEACTIVATED_REASON = 'deactivated';
 
 // Shared between the checkSignInAllowed server action and LoginView's email step resolver.
 export const signInEmailSchema = z.object({

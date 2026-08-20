@@ -127,7 +127,8 @@ export async function answerAllRequiredGlobalQuestions(
 
   await Promise.all(
     questions.map((q) => {
-      const value = q.options.length > 0 ? [q.options[0]] : ['placeholder'];
+      const value =
+        q.options.length > 0 ? [q.options[0] as string] : ['placeholder'];
       return prisma.globalAnswer.upsert({
         where: {
           userId_globalQuestionId: { userId: user.id, globalQuestionId: q.id },

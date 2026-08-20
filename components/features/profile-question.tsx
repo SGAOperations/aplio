@@ -47,9 +47,7 @@ export function ProfileQuestion({
   answer,
   isEditing,
 }: ProfileQuestionProps) {
-  const initialValue = (
-    Array.isArray(answer?.value) ? answer.value : []
-  ) as string[];
+  const initialValue = Array.isArray(answer?.value) ? answer.value : [];
   const { control, getValues, reset } = useForm<{ value: string[] }>({
     defaultValues: { value: initialValue },
   });
@@ -123,7 +121,7 @@ export function ProfileQuestion({
       return;
     }
     setValidationError(null);
-    save(value);
+    void save(value);
   }
 
   return (
@@ -155,7 +153,7 @@ export function ProfileQuestion({
         ) : question.type === 'file_upload' ? (
           <AnswerFileLink
             target={{ scope: 'profile', questionId: question.id }}
-            url={getValues('value')[0]}
+            url={getValues('value')[0] ?? ''}
           />
         ) : question.type === 'multiple_choice' ? (
           <div className="flex flex-wrap gap-1.5">
@@ -268,14 +266,14 @@ export function ProfileQuestion({
                         setOtherSelected(true);
                         const next = otherText ? [otherText] : [];
                         field.onChange(next);
-                        save(next);
+                        void save(next);
                         return;
                       }
                       // Clearing the typed text stops it being silently resubmitted.
                       setOtherSelected(false);
                       setOtherText('');
                       field.onChange([v]);
-                      save([v]);
+                      void save([v]);
                     }}
                   >
                     {question.options.map((option: string, i: number) => (
@@ -382,7 +380,7 @@ export function ProfileQuestion({
                           ? fitted.filter((v) => v !== option)
                           : [...fitted, option];
                         field.onChange(next);
-                        save(next);
+                        void save(next);
                       }}
                     />
                     <Label
@@ -409,12 +407,12 @@ export function ProfileQuestion({
                             ? [...checkedOptions, otherText]
                             : checkedOptions;
                           field.onChange(next);
-                          save(next);
+                          void save(next);
                         } else {
                           // Drops the typed text immediately, so it isn't resubmitted.
                           setOtherText('');
                           field.onChange(checkedOptions);
-                          save(checkedOptions);
+                          void save(checkedOptions);
                         }
                       }}
                     />

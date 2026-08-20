@@ -21,6 +21,18 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/** The live name, when it differs from the frozen `applicantName` on the application. */
+export function getRenamedTo(app: {
+  applicantName: string | null;
+  user: { name: string | null };
+}): string | null {
+  return app.applicantName &&
+    app.user.name &&
+    app.applicantName !== app.user.name
+    ? app.user.name
+    : null;
+}
+
 export type ErrorType = { error: string };
 
 export type ResponseType<T> = T | ErrorType;
@@ -55,6 +67,13 @@ export function toStringArray(v: unknown): string[] {
   return [];
 }
 
+/** Alternatives ("reachable from X or Y"), not a conjunction — "or" throughout. */
+export function formatAlternatives(labels: string[]): string {
+  if (labels.length <= 1) return labels.join('');
+  if (labels.length === 2) return labels.join(' or ');
+  return `${labels.slice(0, -1).join(', ')}, or ${labels[labels.length - 1]}`;
+}
+
 /** Joins truthy ids for `aria-describedby`; `undefined` when none apply. */
 export function composeDescribedBy(
   ...ids: Array<string | false | null | undefined>
@@ -81,7 +100,7 @@ export function partitionAnswerValue(
       const fittedIndex = value.findIndex((v) => question.options.includes(v));
       if (fittedIndex === -1) return { fitted: [], orphaned: value };
       return {
-        fitted: [value[fittedIndex]],
+        fitted: [value[fittedIndex] as string],
         orphaned: [
           ...value.slice(0, fittedIndex),
           ...value.slice(fittedIndex + 1),

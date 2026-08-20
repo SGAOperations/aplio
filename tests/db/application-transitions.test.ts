@@ -15,14 +15,18 @@ import {
   deleteDraftApplication,
   submitApplication,
   updateApplicationStatus,
+  updateApplicationStatuses,
   withdrawApplication,
 } from '@/prisma/actions/applications';
 import type { $Enums, GlobalQuestion, Position, User } from '@/prisma/client';
 
 import {
   APPLICANT_EDITABLE_APPLICATION_STATUSES,
+  APPLICATION_STATUS_LABELS,
   APPLICATION_STATUS_VALUES,
+  NON_REVIEWABLE_APPLICATION_STATUSES,
   REVIEWER_APPLICATION_STATUSES,
+  isAllowedApplicationStatusTransition,
 } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 import { isError } from '@/lib/utils';
@@ -151,46 +155,57 @@ describe('deleteDraftApplication', () => {
 });
 
 describe('updateApplicationStatus', () => {
-  for (const target of REVIEWER_APPLICATION_STATUSES) {
-    it(`allows updating an in-scope application into ${target}`, async () => {
-      const applicant = await createTestUser();
-      const managingAdmin = admin;
-      const application = await createTestApplication(applicant, openPosition, {
-        status: 'applied',
-      });
+  // Full source x target matrix, driven off isAllowedApplicationStatusTransition
+  // so this suite can't drift from the graph it's asserting against.
+  for (const from of ALL_STATUSES) {
+    const isNonReviewable = (
+      NON_REVIEWABLE_APPLICATION_STATUSES as readonly string[]
+    ).includes(from);
 
-      actAs(managingAdmin);
-      const result = await updateApplicationStatus({
-        applicationId: application.id,
-        status: target,
-      });
-      expect(result).toBeUndefined();
+    for (const to of REVIEWER_APPLICATION_STATUSES) {
+      const isLegal =
+        !isNonReviewable && isAllowedApplicationStatusTransition(from, to);
 
-      const updated = await prisma.application.findUniqueOrThrow({
-        where: { id: application.id },
-        select: { status: true },
-      });
-      expect(updated.status).toBe(target);
-    });
-  }
+      it(`${isNonReviewable ? 'throws' : isLegal ? 'allows' : 'blocks'} ${from} -> ${to}`, async () => {
+        const applicant = await createTestUser();
+        const application = await createTestApplication(
+          applicant,
+          openPosition,
+          { status: from },
+        );
 
-  it.each(['draft', 'withdrawn'] as const)(
-    'throws when the current status is %s',
-    async (currentStatus) => {
-      const applicant = await createTestUser();
-      const application = await createTestApplication(applicant, openPosition, {
-        status: currentStatus,
-      });
+        actAs(admin);
 
-      actAs(admin);
-      await expect(
-        updateApplicationStatus({
+        if (isNonReviewable) {
+          await expect(
+            updateApplicationStatus({
+              applicationId: application.id,
+              status: to,
+            }),
+          ).rejects.toThrow('Application not found or not authorized');
+          return;
+        }
+
+        const result = await updateApplicationStatus({
           applicationId: application.id,
-          status: 'applied',
-        }),
-      ).rejects.toThrow('Application not found or not authorized');
-    },
-  );
+          status: to,
+        });
+
+        if (isLegal) {
+          expect(result).toBeUndefined();
+          const updated = await prisma.application.findUniqueOrThrow({
+            where: { id: application.id },
+            select: { status: true },
+          });
+          expect(updated.status).toBe(to);
+        } else {
+          expect(result).toEqual({
+            error: `This application is now ${APPLICATION_STATUS_LABELS[from]}, so that move is no longer available. Refresh to see the current options.`,
+          });
+        }
+      });
+    }
+  }
 
   it('returns a zod error when the target status is draft', async () => {
     const applicant = await createTestUser();
@@ -204,6 +219,93 @@ describe('updateApplicationStatus', () => {
       status: 'draft',
     });
     expect(result).toEqual({ error: 'Invalid input' });
+  });
+});
+
+describe('updateApplicationStatuses bulk mixed selections', () => {
+  it('updates only the legal-source rows in a mixed selection and skips the rest', async () => {
+    const appliedApplicant = await createTestUser();
+    const appliedApp = await createTestApplication(
+      appliedApplicant,
+      openPosition,
+      { status: 'applied' },
+    );
+    const acceptedApplicant = await createTestUser();
+    const acceptedApp = await createTestApplication(
+      acceptedApplicant,
+      openPosition,
+      { status: 'accepted' },
+    );
+
+    actAs(admin);
+    const result = await updateApplicationStatuses({
+      applicationIds: [appliedApp.id, acceptedApp.id],
+      status: 'reviewing',
+    });
+    expect(result).toEqual({ updated: 1, skipped: 1 });
+
+    const updatedApplied = await prisma.application.findUniqueOrThrow({
+      where: { id: appliedApp.id },
+      select: { status: true },
+    });
+    expect(updatedApplied.status).toBe('reviewing');
+
+    const untouchedAccepted = await prisma.application.findUniqueOrThrow({
+      where: { id: acceptedApp.id },
+      select: { status: true },
+    });
+    expect(untouchedAccepted.status).toBe('accepted');
+  });
+
+  it('returns an error naming the target when no selected row can legally move there', async () => {
+    const applicant = await createTestUser();
+    const application = await createTestApplication(applicant, openPosition, {
+      status: 'applied',
+    });
+
+    actAs(admin);
+    const result = await updateApplicationStatuses({
+      applicationIds: [application.id],
+      status: 'accepted',
+    });
+    expect(result).toEqual({
+      error:
+        "None of the selected applications can move to Accepted — that's only reachable from Interview scheduled or Reviewing.",
+    });
+  });
+
+  it('bulk-moves a back-only target (applied) since it has no forward source', async () => {
+    const reachedOutApplicant = await createTestUser();
+    const reachedOutApp = await createTestApplication(
+      reachedOutApplicant,
+      openPosition,
+      { status: 'reached_out' },
+    );
+    const reviewingApplicant = await createTestUser();
+    const reviewingApp = await createTestApplication(
+      reviewingApplicant,
+      openPosition,
+      { status: 'reviewing' },
+    );
+
+    actAs(admin);
+    const result = await updateApplicationStatuses({
+      applicationIds: [reachedOutApp.id, reviewingApp.id],
+      status: 'applied',
+    });
+    expect(result).toEqual({ updated: 1, skipped: 1 });
+
+    const updatedReachedOut = await prisma.application.findUniqueOrThrow({
+      where: { id: reachedOutApp.id },
+      select: { status: true },
+    });
+    expect(updatedReachedOut.status).toBe('applied');
+
+    const untouchedReviewing = await prisma.application.findUniqueOrThrow({
+      where: { id: reviewingApp.id },
+      select: { status: true },
+    });
+    expect(untouchedReviewing.status).toBe('reviewing');
   });
 });
 

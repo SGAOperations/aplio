@@ -18,7 +18,7 @@ Aplio is an internal recruiting and application platform. Admins and managers cr
 
 ### Prerequisites
 
-- **Node.js** 22+ LTS (see `@types/node` in `package.json`)
+- **Node.js** version pinned in `package.json`'s `engines` field
 - **npm** (comes with Node)
 - **Docker** (for a local Postgres instance via `docker-compose.yml`) **or** a hosted Neon Postgres URL
 

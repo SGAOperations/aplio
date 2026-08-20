@@ -68,6 +68,14 @@ Construct the **full new issue body** (original ticket description preserved on 
 gh issue edit N --repo SGAOperations/aplio --body-file .temp/plan-N.md
 ```
 
+**Session-required declaration.** Some tickets can't be handed to a dispatched agent at all. Today that means any plan whose **## Changes** touches `CLAUDE.md` or `.claude/**` — the harness blocks a subagent's `Edit` there — but the marker is deliberately about the _routing_, not the cause, so future categories reuse it. For those plans, the body's **first line, directly under the `## Implementation Plan` heading and before `## Overview`**, is the marker, with the reason after the colon:
+
+```
+> **SESSION REQUIRED:** touches `CLAUDE.md` / `.claude/**` — a dispatched agent can't edit those
+```
+
+The literal string `SESSION REQUIRED` is what the cockpit greps for — **never reword it**. The reason after the colon is free text and is the part that generalizes. Emit it in **revision mode** too, since a revised plan can change the routing, and never emit it for a plan that doesn't need a session. Full rules: `.claude/docs/PIPELINE.md` → "Session-required tickets".
+
 **Use the fixed structure** in `.claude/docs/PIPELINE.md` → "Implementation plan" — the canonical section list, order, and writing style. Think through how the feature should actually work and look (it's a product/UX design, not just a file checklist), but write it tight: bullets, short sentences, **don't restate the ticket**, omit sections that don't apply. The plan must still _decide_ the substance — even though it's brief:
 
 - **Design each UX state** (happy + unhappy/edge), layout/hierarchy, key interactions, and the actual **copy** — in the **## UX states** section (only if there's UI).

@@ -15,7 +15,7 @@ const toggleAdminSchema = z.object({
   makeAdmin: z.boolean(),
 });
 
-const deactivateSchema = z.object({ userId: z.string().min(1) });
+const userIdSchema = z.object({ userId: z.string().min(1) });
 
 type ActionError = { error: string };
 
@@ -50,7 +50,7 @@ export async function deactivateUser(
 ): Promise<ActionError | void> {
   const user = await requireAdmin();
 
-  const parsed = deactivateSchema.safeParse(input);
+  const parsed = userIdSchema.safeParse(input);
   if (!parsed.success) return { error: 'Invalid input' };
 
   const { userId } = parsed.data;
@@ -89,9 +89,15 @@ export async function createUser(input: unknown): Promise<ActionError | void> {
   // Racy — the P2002 catch below is what actually guarantees uniqueness.
   const existing = await prisma.user.findFirst({
     where: { email },
-    select: { id: true },
+    select: { id: true, deletedAt: true },
   });
-  if (existing) return { error: 'A user with this email already exists.' };
+  if (existing)
+    return existing.deletedAt
+      ? {
+          error:
+            'That email belongs to a deactivated account. Reactivating requires a direct database change — contact engineering.',
+        }
+      : { error: 'A user with this email already exists.' };
 
   // Verified in better-auth's sign-in/email-otp route: it matches this row
   // by exact email before ever inserting, so it's found here, never duplicated.

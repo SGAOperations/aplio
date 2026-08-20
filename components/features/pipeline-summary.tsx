@@ -40,8 +40,7 @@ export async function PipelineSummary({ reviewer }: PipelineSummaryProps) {
         {PIPELINE_STATUSES.map((status) => {
           const count = counts[status] ?? 0;
           const variant = APPLICATION_STATUS_BADGE_VARIANT[status];
-          const dotClass =
-            STATUS_BADGE_VARIANT_TO_DOT[variant] ?? 'bg-muted-foreground';
+          const dotClass = STATUS_BADGE_VARIANT_TO_DOT[variant];
 
           return (
             <StatCard

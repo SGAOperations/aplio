@@ -11,7 +11,6 @@ import type { z } from 'zod/v4';
 
 import { setUserName } from '@/prisma/actions/profile';
 
-import { authClient } from '@/lib/auth/client';
 import { nameSchema } from '@/lib/constants';
 
 import { Button } from '@/components/ui/button';
@@ -49,15 +48,7 @@ export function NameField({ defaultName, redirectTo }: NameFieldProps) {
         return;
       }
 
-      // Sync the Neon Auth account — client-only singleton, runs after the
-      // server action (which is the gate-clearing source of truth).
-      const authResult = await authClient.updateUser({ name: values.name });
-      if (authResult.error)
-        toast.warning(
-          'Name saved, but account sync failed. Reload if issues persist.',
-        );
-      else toast.success('Name saved');
-
+      toast.success('Name saved');
       router.replace(redirectTo);
     });
   }
@@ -72,7 +63,7 @@ export function NameField({ defaultName, redirectTo }: NameFieldProps) {
       </div>
       <Form {...form}>
         <form
-          onSubmit={form.handleSubmit(onSubmit)}
+          onSubmit={(e) => void form.handleSubmit(onSubmit)(e)}
           className="flex w-full flex-col gap-4"
         >
           <FormField

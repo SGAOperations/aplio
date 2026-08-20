@@ -277,7 +277,7 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
             </Button>
             <Button
               variant="destructive"
-              onClick={handleDelete}
+              onClick={() => void handleDelete()}
               disabled={isDeleting}
             >
               {isDeleting ? 'Deleting…' : 'Delete'}

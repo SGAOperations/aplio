@@ -1,6 +1,9 @@
 name: Test Check
 on:
   pull_request:
+concurrency:
+  group: test-check-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   run-test-check:
     runs-on: ubuntu-latest
@@ -23,9 +26,9 @@ jobs:
       DATABASE_URL: postgresql://admin:admin@localhost:5432/aplio_test
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: package.json
           cache: npm

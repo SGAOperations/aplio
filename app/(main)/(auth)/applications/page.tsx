@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 
+import { z } from 'zod/v4';
+
 import {
   getApplications,
   getApplicationsTotal,
@@ -7,14 +9,12 @@ import {
 } from '@/prisma/data/applications';
 
 import { requireManagerOrAdminOr404 } from '@/lib/auth/guards';
-import { REVIEWER_APPLICATION_STATUSES } from '@/lib/constants';
-import type {
-  ApplicationFilters,
-  ApplicationSort,
-  ApplicationSortDirection,
-  ApplicationSortField,
-  ReviewerStatus,
-} from '@/lib/types';
+import {
+  APPLICATION_SORT_DIRECTIONS,
+  APPLICATION_SORT_FIELDS,
+  REVIEWER_APPLICATION_STATUSES,
+} from '@/lib/constants';
+import type { ApplicationFilters } from '@/lib/types';
 
 import { ApplicationsTable } from '@/components/features/applications-table';
 import { ApplicationsToolbar } from '@/components/features/applications-toolbar';
@@ -26,8 +26,26 @@ interface ApplicationsPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-const VALID_SORT_FIELDS: ApplicationSortField[] = ['date', 'name', 'status'];
-const VALID_SORT_DIRECTIONS: ApplicationSortDirection[] = ['asc', 'desc'];
+// A single-value param is a string; a repeated one arrives as string[] — reject both
+// with .catch(undefined) rather than throwing, so one bad param never sinks the rest.
+const searchParamsSchema = z.object({
+  positionId: z.string().trim().min(1).max(64).optional().catch(undefined),
+  userId: z.string().trim().min(1).max(64).optional().catch(undefined),
+  status: z.enum(REVIEWER_APPLICATION_STATUSES).optional().catch(undefined),
+  q: z.string().trim().min(1).max(200).optional().catch(undefined),
+  sort: z
+    .string()
+    .transform((value) => value.split(':'))
+    .pipe(
+      z.tuple([
+        z.enum(APPLICATION_SORT_FIELDS),
+        z.enum(APPLICATION_SORT_DIRECTIONS),
+      ]),
+    )
+    .transform(([field, direction]) => ({ field, direction }))
+    .optional()
+    .catch(undefined),
+});
 
 export default async function ApplicationsPage({
   searchParams,
@@ -36,33 +54,14 @@ export default async function ApplicationsPage({
   const user = await requireManagerOrAdminOr404();
 
   const sp = await searchParams;
-
-  const rawStatus = typeof sp.status === 'string' ? sp.status : undefined;
-  const validStatus: ReviewerStatus | undefined =
-    rawStatus &&
-    (REVIEWER_APPLICATION_STATUSES as readonly string[]).includes(rawStatus)
-      ? (rawStatus as ReviewerStatus)
-      : undefined;
-
-  const rawSort = typeof sp.sort === 'string' ? sp.sort : undefined;
-  let validSort: ApplicationSort | undefined;
-  if (rawSort) {
-    const [rawField, rawDir] = rawSort.split(':');
-    const field = rawField as ApplicationSortField;
-    const direction = rawDir as ApplicationSortDirection;
-    if (
-      VALID_SORT_FIELDS.includes(field) &&
-      VALID_SORT_DIRECTIONS.includes(direction)
-    )
-      validSort = { field, direction };
-  }
+  const parsed = searchParamsSchema.parse(sp);
 
   const filters: ApplicationFilters = {
-    positionId: typeof sp.positionId === 'string' ? sp.positionId : undefined,
-    status: validStatus,
-    userId: typeof sp.userId === 'string' ? sp.userId : undefined,
-    q: typeof sp.q === 'string' && sp.q.trim() ? sp.q.trim() : undefined,
-    sort: validSort,
+    positionId: parsed.positionId,
+    status: parsed.status,
+    userId: parsed.userId,
+    q: parsed.q,
+    sort: parsed.sort,
   };
 
   const hasActiveFilters = !!(
@@ -86,7 +85,7 @@ export default async function ApplicationsPage({
     : fetchedApplications;
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title="Applications"
         description="Review and track submitted applications."

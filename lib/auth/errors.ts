@@ -57,6 +57,10 @@ export function getOtpVerifyErrorMessage(error: unknown): string {
       return EXPIRED_CODE_MESSAGE;
     case 'INVALID_OTP':
       return INVALID_CODE_MESSAGE;
+    case undefined:
+      break;
+    default:
+      break;
   }
 
   if (status === 429) return VERIFY_RATE_LIMITED_MESSAGE;

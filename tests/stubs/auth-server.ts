@@ -17,6 +17,12 @@ export async function getOptionalUser(): Promise<User | null> {
   return caller;
 }
 
+// No live-session concept in this stub — actAs(null) models "signed out",
+// never "deactivated session", so this is always null.
+export async function getDeactivatedSessionUser(): Promise<User | null> {
+  return null;
+}
+
 export async function getIsBypass(): Promise<boolean> {
   return false;
 }
