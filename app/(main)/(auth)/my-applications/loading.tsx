@@ -9,18 +9,16 @@ export default function MyApplicationsLoading() {
         <Skeleton className="h-4 w-72" />
       </div>
 
-      <Card className="gap-0 p-0">
+      <Card className="gap-0 overflow-hidden p-0">
         <CardContent className="p-0">
           <div className="hidden md:block">
-            <div className="border-b px-4 py-3">
-              <div className="grid grid-cols-4 gap-4">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} className="h-4 w-20" />
-                ))}
-              </div>
+            <div className="flex h-10 items-center gap-4 border-b px-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-4 w-20" />
+              ))}
             </div>
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="border-b px-4 py-4 last:border-0">
+              <div key={i} className="border-b p-4 last:border-0">
                 <div className="grid grid-cols-4 gap-4">
                   <Skeleton className="h-4 w-32" />
                   <Skeleton className="h-5 w-20 rounded-md" />
@@ -33,7 +31,7 @@ export default function MyApplicationsLoading() {
 
           <div className="flex flex-col divide-y md:hidden">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="flex flex-col gap-3 p-4">
+              <div key={i} className="flex flex-col gap-2 p-4">
                 <div className="flex items-center justify-between gap-2">
                   <Skeleton className="h-4 w-40" />
                   <Skeleton className="h-5 w-16 rounded-md" />
