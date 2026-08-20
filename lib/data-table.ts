@@ -72,7 +72,8 @@ export function filterRows<T>(
       const column = columns.find((c) => c.key === filter.key);
       if (!column?.filterValue) continue;
       const value = column.filterValue(row);
-      const values = value == null ? [] : Array.isArray(value) ? value : [value];
+      const values =
+        value == null ? [] : Array.isArray(value) ? value : [value];
       if (!values.includes(filter.value)) return false;
     }
 

@@ -59,7 +59,11 @@ export function SectionCard({
     </Card>
   );
 
-  return sectionLabel ? <section aria-label={sectionLabel}>{card}</section> : card;
+  return sectionLabel ? (
+    <section aria-label={sectionLabel}>{card}</section>
+  ) : (
+    card
+  );
 }
 
 interface SectionCardEmptyProps {

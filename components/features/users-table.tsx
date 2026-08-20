@@ -298,13 +298,21 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
                     Joined <LocalTime date={user.createdAt} precision="date" />
                   </span>
                   {appCount > 0 ? (
-                    <Button variant="link" size="sm" asChild className="h-auto p-0">
+                    <Button
+                      variant="link"
+                      size="sm"
+                      asChild
+                      className="h-auto p-0"
+                    >
                       <Link href={`/applications?userId=${user.id}`}>
-                        {appCount} {appCount === 1 ? 'application' : 'applications'}
+                        {appCount}{' '}
+                        {appCount === 1 ? 'application' : 'applications'}
                       </Link>
                     </Button>
                   ) : (
-                    <span className="text-muted-foreground">0 applications</span>
+                    <span className="text-muted-foreground">
+                      0 applications
+                    </span>
                   )}
                 </div>
                 {isManager && (

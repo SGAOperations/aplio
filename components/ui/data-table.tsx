@@ -139,11 +139,12 @@ export function DataTable<T>({
   const toggle = useCallback(
     (key: string) => {
       if (controlled) {
-        onSortToggle?.(key);
+        onSortToggle(key);
         return;
       }
       if (params.sort !== key) void setParams({ sort: key, dir: 'asc' });
-      else if (params.dir !== 'desc') void setParams({ sort: key, dir: 'desc' });
+      else if (params.dir !== 'desc')
+        void setParams({ sort: key, dir: 'desc' });
       else void setParams({ sort: null, dir: null });
     },
     [controlled, onSortToggle, params.sort, params.dir, setParams],
@@ -219,7 +220,10 @@ export function DataTable<T>({
                   data-state={isRowSelected?.(row) ? 'selected' : undefined}
                 >
                   {columns.map((column) => (
-                    <TableCell key={column.key} className={column.cellClassName}>
+                    <TableCell
+                      key={column.key}
+                      className={column.cellClassName}
+                    >
                       {column.cell(row)}
                     </TableCell>
                   ))}
@@ -254,7 +258,12 @@ export function DataTableRowActions({
   className?: string;
 }) {
   return (
-    <div className={cn('flex flex-wrap gap-2 [&>*]:min-h-11 md:[&>*]:min-h-0', className)}>
+    <div
+      className={cn(
+        'flex flex-wrap gap-2 [&>*]:min-h-11 md:[&>*]:min-h-0',
+        className,
+      )}
+    >
       {children}
     </div>
   );

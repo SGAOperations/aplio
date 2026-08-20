@@ -242,9 +242,7 @@ export function ApplicationsTable({
         caption="Applications"
         emptyState={emptyState}
         isRowSelected={(a) => selectedIds.has(a.id)}
-        sort={
-          sort ? { key: sort.field, direction: sort.direction } : undefined
-        }
+        sort={sort ? { key: sort.field, direction: sort.direction } : undefined}
         onSortToggle={(key) => toggleSort(key as ApplicationSortField)}
         mobileCard={(app) => {
           const displayName =

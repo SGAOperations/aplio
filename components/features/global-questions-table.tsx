@@ -64,7 +64,9 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
             {QUESTION_TYPE_LABELS[q.type]}
           </Badge>
           {q.format && (
-            <Badge variant="outline">{SHORT_ANSWER_FORMAT_LABELS[q.format]}</Badge>
+            <Badge variant="outline">
+              {SHORT_ANSWER_FORMAT_LABELS[q.format]}
+            </Badge>
           )}
         </div>
       ),

@@ -2,26 +2,18 @@ import { Suspense } from 'react';
 
 import { type Reviewer } from '@/lib/types';
 
-import {
-  ActivityFeedSkeleton,
-  ReviewerActivityFeed,
-} from '@/components/features/activity-feed';
+import { ReviewerActivityFeed } from '@/components/features/activity-feed';
 import {
   ManagedPositionsWidget,
   ManagedPositionsWidgetSkeleton,
 } from '@/components/features/managed-positions-widget';
-import {
-  MyApplicationsWidget,
-  MyApplicationsWidgetSkeleton,
-} from '@/components/features/my-applications-widget';
+import { MyApplicationsWidget } from '@/components/features/my-applications-widget';
 import {
   PipelineSummary,
   PipelineSummarySkeleton,
 } from '@/components/features/pipeline-summary';
-import {
-  RecentApplications,
-  RecentApplicationsSkeleton,
-} from '@/components/features/recent-applications';
+import { RecentApplications } from '@/components/features/recent-applications';
+import { SectionCardSkeleton } from '@/components/ui/section-card';
 
 interface ManagerDashboardProps {
   user: Reviewer;
@@ -41,7 +33,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         <PipelineSummary reviewer={user} />
       </Suspense>
 
-      <Suspense fallback={<RecentApplicationsSkeleton />}>
+      <Suspense fallback={<SectionCardSkeleton rowShape="badge-meta" />}>
         <RecentApplications reviewer={user} limit={3} />
       </Suspense>
 
@@ -49,11 +41,17 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         <ManagedPositionsWidget userId={user.id} take={3} />
       </Suspense>
 
-      <Suspense fallback={<ActivityFeedSkeleton />}>
+      <Suspense
+        fallback={
+          <SectionCardSkeleton rowShape="timeline" rows={10} hasLink={false} />
+        }
+      >
         <ReviewerActivityFeed reviewer={user} />
       </Suspense>
 
-      <Suspense fallback={<MyApplicationsWidgetSkeleton />}>
+      <Suspense
+        fallback={<SectionCardSkeleton rowShape="badge-meta" hasSubtitle />}
+      >
         <MyApplicationsWidget userId={user.id} limit={3} />
       </Suspense>
     </div>
