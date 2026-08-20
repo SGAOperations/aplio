@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { MANAGED_POSITIONS_WINDOW_DAYS } from '@/lib/constants';
 import type { AnswerQuestion, PositionActivity } from '@/lib/types';
 import {
+  answerFieldIds,
   formatAlternatives,
   formatTableCount,
   getPositionAvailability,
@@ -11,6 +12,7 @@ import {
   isError,
   isPositionActive,
   partitionAnswerValue,
+  splitOtherAnswer,
   summarizeBulkStatusChange,
 } from '@/lib/utils';
 
@@ -331,6 +333,50 @@ describe('isAnswered', () => {
 
   it('is false for an empty value', () => {
     expect(isAnswered(shortAnswerQuestion, [])).toBe(false);
+  });
+});
+
+describe('answerFieldIds', () => {
+  it('derives every id from the question id', () => {
+    expect(answerFieldIds('q1')).toEqual({
+      labelId: 'q1-label',
+      inputId: 'q1-input',
+      errorId: 'q1-error',
+      noticeId: 'q1-mismatch',
+      statusId: 'q1-status',
+    });
+  });
+});
+
+describe('splitOtherAnswer', () => {
+  const options = { options: ['a', 'b'] };
+
+  it('splits checked options from a trailing "Other" entry', () => {
+    expect(splitOtherAnswer(options, ['a', 'freeform'])).toEqual({
+      selectedOptions: ['a'],
+      otherText: 'freeform',
+    });
+  });
+
+  it('finds an entry not among the options as the "Other" text', () => {
+    expect(splitOtherAnswer(options, ['b', 'typed'])).toEqual({
+      selectedOptions: ['b'],
+      otherText: 'typed',
+    });
+  });
+
+  it('treats an option literally named "Other" as a normal option', () => {
+    expect(splitOtherAnswer({ options: ['a', 'Other'] }, ['Other'])).toEqual({
+      selectedOptions: ['Other'],
+      otherText: '',
+    });
+  });
+
+  it('returns an empty otherText when nothing orphans', () => {
+    expect(splitOtherAnswer(options, ['a', 'b'])).toEqual({
+      selectedOptions: ['a', 'b'],
+      otherText: '',
+    });
   });
 });
 

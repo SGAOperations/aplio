@@ -290,6 +290,27 @@ export function getAnswerValueError(
   }
 }
 
+// Blur-time check: format on the raw first entry, then the shared value rules.
+export function getAnswerBlurError(
+  question: {
+    type: QuestionType;
+    options: string[];
+    allowOther: boolean;
+    format: ShortAnswerFormatValue | null;
+  },
+  value: string[],
+): string | null {
+  if (
+    question.type === 'short_answer' &&
+    question.format &&
+    value[0] &&
+    !matchesShortAnswerFormat(value[0], question.format)
+  )
+    return SHORT_ANSWER_FORMAT_ERROR_MESSAGES[question.format];
+
+  return getAnswerValueError(question, value);
+}
+
 export const questionFormSchema = baseQuestionSchema
   .superRefine(validateOptions)
   .superRefine(validateShortAnswerFormat);
