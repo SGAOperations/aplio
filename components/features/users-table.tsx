@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useTransition } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 
 import { Users } from 'lucide-react';
 import { toast } from 'sonner';
@@ -72,117 +72,121 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
     setDeactivateDialogOpen(true);
   }
 
-  const COLUMNS: DataTableColumn<AdminUserListItem>[] = [
-    {
-      key: 'user',
-      header: 'User',
-      sortAccessor: (u) => u.name ?? u.email,
-      filterValue: (u) => [u.name ?? '', u.email],
-      cell: (u) => (
-        <div className="flex flex-col">
-          <span className="font-medium">{u.name ?? u.email}</span>
-          {u.name && (
-            <span className="text-muted-foreground text-xs">{u.email}</span>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: 'roles',
-      header: 'Roles',
-      cell: (u) => {
-        const isManager = u.managedPositions.length > 0;
-        return (
-          <div className="flex flex-wrap gap-1">
-            {u.isAdmin && <Badge variant="default">Admin</Badge>}
-            {isManager && <Badge variant="secondary">Manager</Badge>}
-            {!u.isAdmin && !isManager && (
-              <span className="text-muted-foreground">—</span>
+  const COLUMNS: DataTableColumn<AdminUserListItem>[] = useMemo(
+    () => [
+      {
+        key: 'user',
+        header: 'User',
+        sortAccessor: (u) => u.name ?? u.email,
+        filterValue: (u) => [u.name ?? '', u.email],
+        cell: (u) => (
+          <div className="flex flex-col">
+            <span className="font-medium">{u.name ?? u.email}</span>
+            {u.name && (
+              <span className="text-muted-foreground text-xs">{u.email}</span>
             )}
           </div>
-        );
+        ),
       },
-    },
-    {
-      key: 'joined',
-      header: 'Joined',
-      sortAccessor: (u) => u.createdAt,
-      cell: (u) => <LocalTime date={u.createdAt} precision="date" />,
-    },
-    {
-      key: 'applications',
-      header: 'Applications',
-      sortAccessor: (u) => u._count.applications,
-      cell: (u) => {
-        const appCount = u._count.applications;
-        return appCount > 0 ? (
-          <Button variant="link" size="sm" asChild className="h-auto p-0">
-            <Link href={`/applications?userId=${u.id}`}>{appCount}</Link>
-          </Button>
-        ) : (
-          <span className="text-muted-foreground">0</span>
-        );
+      {
+        key: 'roles',
+        header: 'Roles',
+        cell: (u) => {
+          const isManager = u.managedPositions.length > 0;
+          return (
+            <div className="flex flex-wrap gap-1">
+              {u.isAdmin && <Badge variant="default">Admin</Badge>}
+              {isManager && <Badge variant="secondary">Manager</Badge>}
+              {!u.isAdmin && !isManager && (
+                <span className="text-muted-foreground">—</span>
+              )}
+            </div>
+          );
+        },
       },
-    },
-    {
-      key: 'managedPositions',
-      header: 'Managed Positions',
-      cell: (u) => {
-        const isManager = u.managedPositions.length > 0;
-        if (!isManager) return <span className="text-muted-foreground">—</span>;
-        return (
-          <div className="flex flex-wrap gap-1">
-            {u.managedPositions.slice(0, 2).map((pos) => (
-              <Badge key={pos.id} variant="outline">
-                {pos.title}
-              </Badge>
-            ))}
-            {u.managedPositions.length > 2 && (
-              <Badge variant="outline">
-                +{u.managedPositions.length - 2} more
-              </Badge>
-            )}
-          </div>
-        );
+      {
+        key: 'joined',
+        header: 'Joined',
+        sortAccessor: (u) => u.createdAt,
+        cell: (u) => <LocalTime date={u.createdAt} precision="date" />,
       },
-    },
-    {
-      key: 'actions',
-      header: 'Actions',
-      cellClassName: 'text-right',
-      cell: (u) => {
-        const isSelf = u.id === currentUserId;
-        return (
-          <DataTableRowActions className="justify-end">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={isSelf}
-              title={
-                isSelf ? 'You cannot change your own admin role' : undefined
-              }
-              aria-disabled={isSelf}
-              onClick={() => openAdminDialog(u)}
-            >
-              {u.isAdmin ? 'Remove admin' : 'Make admin'}
+      {
+        key: 'applications',
+        header: 'Applications',
+        sortAccessor: (u) => u._count.applications,
+        cell: (u) => {
+          const appCount = u._count.applications;
+          return appCount > 0 ? (
+            <Button variant="link" size="sm" asChild className="h-auto p-0">
+              <Link href={`/applications?userId=${u.id}`}>{appCount}</Link>
             </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              disabled={isSelf}
-              title={
-                isSelf ? 'You cannot deactivate your own account' : undefined
-              }
-              aria-disabled={isSelf}
-              onClick={() => openDeactivateDialog(u)}
-            >
-              Deactivate
-            </Button>
-          </DataTableRowActions>
-        );
+          ) : (
+            <span className="text-muted-foreground">0</span>
+          );
+        },
       },
-    },
-  ];
+      {
+        key: 'managedPositions',
+        header: 'Managed Positions',
+        cell: (u) => {
+          const isManager = u.managedPositions.length > 0;
+          if (!isManager)
+            return <span className="text-muted-foreground">—</span>;
+          return (
+            <div className="flex flex-wrap gap-1">
+              {u.managedPositions.slice(0, 2).map((pos) => (
+                <Badge key={pos.id} variant="outline">
+                  {pos.title}
+                </Badge>
+              ))}
+              {u.managedPositions.length > 2 && (
+                <Badge variant="outline">
+                  +{u.managedPositions.length - 2} more
+                </Badge>
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        key: 'actions',
+        header: 'Actions',
+        cellClassName: 'text-right',
+        cell: (u) => {
+          const isSelf = u.id === currentUserId;
+          return (
+            <DataTableRowActions className="justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isSelf}
+                title={
+                  isSelf ? 'You cannot change your own admin role' : undefined
+                }
+                aria-disabled={isSelf}
+                onClick={() => openAdminDialog(u)}
+              >
+                {u.isAdmin ? 'Remove admin' : 'Make admin'}
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={isSelf}
+                title={
+                  isSelf ? 'You cannot deactivate your own account' : undefined
+                }
+                aria-disabled={isSelf}
+                onClick={() => openDeactivateDialog(u)}
+              >
+                Deactivate
+              </Button>
+            </DataTableRowActions>
+          );
+        },
+      },
+    ],
+    [currentUserId],
+  );
 
   const filtered = filterRows(users, COLUMNS, { query });
 

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { FileText, Inbox } from 'lucide-react';
 
@@ -15,7 +15,7 @@ import type {
   ApplicationSortDirection,
   ApplicationSortField,
 } from '@/lib/types';
-import { getRenamedTo } from '@/lib/utils';
+import { getDisplayName, getRenamedTo } from '@/lib/utils';
 
 import { ApplicationStatusActions } from '@/components/features/application-status-actions';
 import { ApplicationsBulkBar } from '@/components/features/applications-bulk-bar';
@@ -54,6 +54,18 @@ export function ApplicationsTable({
 
   // Drops ids no longer in the current view (e.g. after a filter change).
   const selectedRows = applications.filter((a) => selectedIds.has(a.id));
+
+  // Derived once per row and reused across cells/mobileCard.
+  const displayInfo = useMemo(
+    () =>
+      new Map(
+        applications.map((app) => [
+          app.id,
+          { displayName: getDisplayName(app), renamedTo: getRenamedTo(app) },
+        ]),
+      ),
+    [applications],
+  );
 
   function toggleAll() {
     if (allSelected) {
@@ -112,8 +124,7 @@ export function ApplicationsTable({
       headClassName: 'w-10',
       cellClassName: 'w-10',
       cell: (app) => {
-        const displayName =
-          app.applicantName ?? app.user.name ?? app.user.email;
+        const { displayName } = displayInfo.get(app.id)!;
         return (
           <div onClick={(e) => e.stopPropagation()}>
             <Checkbox
@@ -128,11 +139,9 @@ export function ApplicationsTable({
     {
       key: 'name',
       header: 'Applicant',
-      sortAccessor: (a) => a.applicantName ?? a.user.name ?? a.user.email,
+      sortAccessor: (a) => getDisplayName(a),
       cell: (app) => {
-        const displayName =
-          app.applicantName ?? app.user.name ?? app.user.email;
-        const renamedTo = getRenamedTo(app);
+        const { displayName, renamedTo } = displayInfo.get(app.id)!;
         return (
           <>
             <Link
@@ -166,8 +175,7 @@ export function ApplicationsTable({
       header: 'Status',
       sortAccessor: (a) => a.status,
       cell: (app) => {
-        const displayName =
-          app.applicantName ?? app.user.name ?? app.user.email;
+        const { displayName } = displayInfo.get(app.id)!;
         return (
           <div className="flex items-center gap-1">
             <ApplicationStatusBadge status={app.status} />
@@ -245,9 +253,7 @@ export function ApplicationsTable({
         sort={sort ? { key: sort.field, direction: sort.direction } : undefined}
         onSortToggle={(key) => toggleSort(key as ApplicationSortField)}
         mobileCard={(app) => {
-          const displayName =
-            app.applicantName ?? app.user.name ?? app.user.email;
-          const renamedTo = getRenamedTo(app);
+          const { displayName, renamedTo } = displayInfo.get(app.id)!;
           const isChecked = selectedIds.has(app.id);
           return (
             <div className="flex gap-3 p-4">

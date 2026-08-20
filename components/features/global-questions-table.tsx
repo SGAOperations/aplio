@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { ListChecks } from 'lucide-react';
 import { toast } from 'sonner';
@@ -38,89 +38,95 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const COLUMNS: DataTableColumn<GlobalQuestionListItem>[] = [
-    {
-      key: 'order',
-      header: 'Order',
-      headClassName: 'w-16',
-      sortAccessor: (q) => q.order,
-      cell: (q) => q.order,
-    },
-    {
-      key: 'label',
-      header: 'Label',
-      cellClassName: 'font-medium',
-      sortAccessor: (q) => q.label,
-      cell: (q) => q.label,
-    },
-    {
-      key: 'type',
-      header: 'Type',
-      headClassName: 'w-36',
-      sortAccessor: (q) => QUESTION_TYPE_LABELS[q.type],
-      cell: (q) => (
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={QUESTION_TYPE_BADGE_VARIANT[q.type]}>
-            {QUESTION_TYPE_LABELS[q.type]}
-          </Badge>
-          {q.format && (
-            <Badge variant="outline">
-              {SHORT_ANSWER_FORMAT_LABELS[q.format]}
+  const COLUMNS: DataTableColumn<GlobalQuestionListItem>[] = useMemo(
+    () => [
+      {
+        key: 'order',
+        header: 'Order',
+        headClassName: 'w-16',
+        sortAccessor: (q) => q.order,
+        cell: (q) => q.order,
+      },
+      {
+        key: 'label',
+        header: 'Label',
+        cellClassName: 'font-medium',
+        sortAccessor: (q) => q.label,
+        cell: (q) => q.label,
+      },
+      {
+        key: 'type',
+        header: 'Type',
+        headClassName: 'w-36',
+        sortAccessor: (q) => QUESTION_TYPE_LABELS[q.type],
+        cell: (q) => (
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={QUESTION_TYPE_BADGE_VARIANT[q.type]}>
+              {QUESTION_TYPE_LABELS[q.type]}
             </Badge>
-          )}
-        </div>
-      ),
-    },
-    {
-      // Not sortable — rendered chips, not data.
-      key: 'options',
-      header: 'Options',
-      cell: (q) =>
-        q.options.length > 0 || q.allowOther ? (
-          <QuestionOptionChips options={q.options} allowOther={q.allowOther} />
-        ) : (
-          <span className="text-muted-foreground">—</span>
+            {q.format && (
+              <Badge variant="outline">
+                {SHORT_ANSWER_FORMAT_LABELS[q.format]}
+              </Badge>
+            )}
+          </div>
         ),
-    },
-    {
-      key: 'required',
-      header: 'Required',
-      headClassName: 'w-28',
-      // Sort 1 (yes) before 0 (no) when ascending so required questions surface first.
-      sortAccessor: (q) => (q.required ? 1 : 0),
-      cell: (q) =>
-        q.required ? (
-          <Badge variant="outline">Required</Badge>
-        ) : (
-          <span className="text-muted-foreground">—</span>
+      },
+      {
+        // Not sortable — rendered chips, not data.
+        key: 'options',
+        header: 'Options',
+        cell: (q) =>
+          q.options.length > 0 || q.allowOther ? (
+            <QuestionOptionChips
+              options={q.options}
+              allowOther={q.allowOther}
+            />
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          ),
+      },
+      {
+        key: 'required',
+        header: 'Required',
+        headClassName: 'w-28',
+        // Sort 1 (yes) before 0 (no) when ascending so required questions surface first.
+        sortAccessor: (q) => (q.required ? 1 : 0),
+        cell: (q) =>
+          q.required ? (
+            <Badge variant="outline">Required</Badge>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          ),
+      },
+      {
+        // Not sortable
+        key: 'actions',
+        header: 'Actions',
+        headClassName: 'w-32',
+        cell: (q) => (
+          <DataTableRowActions>
+            <GlobalQuestionDialog
+              trigger={
+                <Button variant="outline" size="sm">
+                  Edit
+                </Button>
+              }
+              question={q}
+            />
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setDeletingId(q.id)}
+            >
+              Delete
+            </Button>
+          </DataTableRowActions>
         ),
-    },
-    {
-      // Not sortable
-      key: 'actions',
-      header: 'Actions',
-      headClassName: 'w-32',
-      cell: (q) => (
-        <DataTableRowActions>
-          <GlobalQuestionDialog
-            trigger={
-              <Button variant="outline" size="sm">
-                Edit
-              </Button>
-            }
-            question={q}
-          />
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => setDeletingId(q.id)}
-          >
-            Delete
-          </Button>
-        </DataTableRowActions>
-      ),
-    },
-  ];
+      },
+    ],
+    [],
+  );
 
   async function handleDelete() {
     if (!deletingId) return;
