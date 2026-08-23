@@ -40,9 +40,9 @@ export default async function MyApplicationDetailPage({
 
   return (
     <div className="mx-auto max-w-5xl">
-      {/* Header row: position info on left, compact Progress panel on right */}
-      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0 flex-1">
+      {/* Grid so the panel's row-span keeps a full-height sticky container */}
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start lg:gap-x-6">
+        <div className="min-w-0 lg:col-start-1 lg:row-start-1">
           <PageHeader
             title={application.position.title}
             backHref="/my-applications"
@@ -64,28 +64,27 @@ export default async function MyApplicationDetailPage({
           </p>
         </div>
 
-        <div className="lg:sticky lg:top-6 lg:max-h-[calc(100svh-3rem)] lg:w-72 lg:shrink-0 lg:self-start lg:overflow-y-auto">
+        <div className="mt-4 lg:sticky lg:top-6 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:mt-0 lg:max-h-[calc(100svh-3rem)] lg:overflow-y-auto">
           <MyApplicationStatusCard application={application} />
         </div>
-      </div>
 
-      {/* Answers: full-width below the header */}
-      <div className="flex flex-col gap-4">
-        <SectionCard title="Your profile answers" titleAs="h2">
-          <ApplicationAnswersList
-            answers={application.globalAnswers}
-            emptyMessage="No profile answers saved yet."
-            applicationId={application.id}
-          />
-        </SectionCard>
+        <div className="mt-6 flex flex-col gap-4 lg:col-start-1 lg:row-start-2">
+          <SectionCard title="Your profile answers" titleAs="h2">
+            <ApplicationAnswersList
+              answers={application.globalAnswers}
+              emptyMessage="No profile answers saved yet."
+              applicationId={application.id}
+            />
+          </SectionCard>
 
-        <SectionCard title="Your answers for this position" titleAs="h2">
-          <ApplicationAnswersList
-            answers={application.positionAnswers}
-            emptyMessage="No position answers saved yet."
-            applicationId={application.id}
-          />
-        </SectionCard>
+          <SectionCard title="Your answers for this position" titleAs="h2">
+            <ApplicationAnswersList
+              answers={application.positionAnswers}
+              emptyMessage="No position answers saved yet."
+              applicationId={application.id}
+            />
+          </SectionCard>
+        </div>
       </div>
     </div>
   );
