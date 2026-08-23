@@ -191,9 +191,8 @@ export function LoginView({ copy, otpLink }: LoginViewProps) {
     else failOtp(result.error);
   }
 
-  // Consuming a one-shot credential the browser handed us in the URL — a
-  // session cookie needs a POST, so this can't move server-side. Ref-guarded
-  // so React's dev double-invoke can't spend the single-use code twice.
+  // One-shot URL credential; no server alternative (needs a POST).
+  // Ref-guarded against StrictMode double-invoke.
   useEffect(() => {
     if (!otpLink || linkConsumedRef.current) return;
     linkConsumedRef.current = true;
