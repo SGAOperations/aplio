@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useTransition } from 'react';
+import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -17,6 +17,8 @@ import {
   getOtpSendErrorMessage,
   getOtpVerifyErrorMessage,
 } from '@/lib/auth/errors';
+import type { OtpLinkParams } from '@/lib/auth/otp-link';
+import { strippedOtpLinkHref } from '@/lib/auth/otp-link';
 import {
   ACCOUNT_DEACTIVATED_ERROR_CODE,
   ACCOUNT_DEACTIVATED_MESSAGE,
@@ -43,6 +45,7 @@ import {
 
 interface LoginViewProps {
   copy: { title: string; description: string; sentDescription: string };
+  otpLink?: OtpLinkParams | null;
 }
 
 type EmailFormValues = z.infer<typeof signInEmailSchema>;
@@ -57,10 +60,14 @@ function otpResendCooldownDeadline(): number {
   return Date.now() + OTP_RESEND_COOLDOWN_SECONDS * 1000;
 }
 
-export function LoginView({ copy }: LoginViewProps) {
+export function LoginView({ copy, otpLink }: LoginViewProps) {
   const router = useRouter();
-  const [step, setStep] = useState<'email' | 'otp'>('email');
-  const [capturedEmail, setCapturedEmail] = useState('');
+  const [step, setStep] = useState<'email' | 'otp'>(otpLink ? 'otp' : 'email');
+  const [capturedEmail, setCapturedEmail] = useState(otpLink?.email ?? '');
+  const [linkStatus, setLinkStatus] = useState<'pending' | 'done'>(
+    otpLink ? 'pending' : 'done',
+  );
+  const linkConsumedRef = useRef(false);
   const [isRouting, startTransition] = useTransition();
   const [isResending, setIsResending] = useState(false);
   const [resendCooldownUntil, setResendCooldownUntil] = useState<number | null>(
@@ -88,7 +95,7 @@ export function LoginView({ copy }: LoginViewProps) {
 
   const emailForm = useForm<EmailFormValues>({
     resolver: zodResolver(signInEmailSchema),
-    defaultValues: { email: '' },
+    defaultValues: { email: otpLink?.email ?? '' },
   });
 
   const otpForm = useForm<OtpFormValues>({
@@ -144,35 +151,67 @@ export function LoginView({ copy }: LoginViewProps) {
     setStep('otp');
   }
 
-  function failOtp(error: unknown) {
-    console.error('signIn.emailOtp failed', error);
-    otpForm.setError('otp', {
-      type: 'server',
-      message:
-        getErrorCode(error) === ACCOUNT_DEACTIVATED_ERROR_CODE
-          ? ACCOUNT_DEACTIVATED_MESSAGE
-          : getOtpVerifyErrorMessage(error),
-    });
-  }
+  const failOtp = useCallback(
+    (error: unknown) => {
+      console.error('signIn.emailOtp failed', error);
+      otpForm.setError('otp', {
+        type: 'server',
+        message:
+          getErrorCode(error) === ACCOUNT_DEACTIVATED_ERROR_CODE
+            ? ACCOUNT_DEACTIVATED_MESSAGE
+            : getOtpVerifyErrorMessage(error),
+      });
+    },
+    [otpForm],
+  );
+
+  // Stable identity (no closed-over state) so the mount effect below can
+  // depend on it without re-running on every render.
+  const verifyCode = useCallback(
+    async (
+      email: string,
+      otp: string,
+    ): Promise<{ success: true } | { success: false; error: unknown }> => {
+      try {
+        const result = await authClient.signIn.emailOtp({ email, otp });
+        if (result.error) return { success: false, error: result.error };
+      } catch (error) {
+        return { success: false, error };
+      }
+      return { success: true };
+    },
+    [],
+  );
 
   async function handleOtpSubmit(data: OtpFormValues) {
-    try {
-      const result = await authClient.signIn.emailOtp({
-        email: capturedEmail,
-        otp: data.otp,
-      });
-      if (result.error) {
-        failOtp(result.error);
-        return;
-      }
-    } catch (error) {
-      failOtp(error);
-      return;
-    }
-
-    // /login decides the destination — name form or onward redirect.
-    startTransition(() => router.refresh());
+    const result = await verifyCode(capturedEmail, data.otp);
+    if (result.success)
+      // /login decides the destination — name form or onward redirect.
+      startTransition(() => router.refresh());
+    else failOtp(result.error);
   }
+
+  // Consuming a one-shot credential the browser handed us in the URL — a
+  // session cookie needs a POST, so this can't move server-side. Ref-guarded
+  // so React's dev double-invoke can't spend the single-use code twice.
+  useEffect(() => {
+    if (!otpLink || linkConsumedRef.current) return;
+    linkConsumedRef.current = true;
+
+    void (async () => {
+      window.history.replaceState(
+        null,
+        '',
+        strippedOtpLinkHref(window.location.href),
+      );
+      const result = await verifyCode(otpLink.email, otpLink.otp);
+      if (result.success) startTransition(() => router.refresh());
+      else {
+        failOtp(result.error);
+        setLinkStatus('done');
+      }
+    })();
+  }, [otpLink, router, startTransition, verifyCode, failOtp]);
 
   async function handleResend() {
     setIsResending(true);
@@ -191,6 +230,22 @@ export function LoginView({ copy }: LoginViewProps) {
   function handleBack() {
     otpForm.reset({ otp: '' });
     setStep('email');
+  }
+
+  if (linkStatus === 'pending') {
+    return (
+      <div
+        className="flex w-full flex-col items-center gap-4 text-center"
+        role="status"
+        aria-live="polite"
+      >
+        <h1 className="text-2xl font-semibold">{copy.title}</h1>
+        <Loader2 className="text-muted-foreground animate-spin" />
+        <p className="text-muted-foreground text-sm">
+          Signing you in with the link from your email.
+        </p>
+      </div>
+    );
   }
 
   if (step === 'otp') {
