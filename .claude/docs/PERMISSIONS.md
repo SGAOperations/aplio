@@ -23,15 +23,15 @@ Who may change what, and when. Written against the **target** state — where to
 
 **Publish freezes nothing. The first application freezes nothing.** The only hard freeze is archive. Do not re-derive a stricter rule from the fact that a position is live — freezing fields would be stricter than the settled "questions stay fully editable", which is incoherent.
 
-| Capability (manager)          | `draft`    | `open`                    | `closed`                  | archived   |
-| ----------------------------- | ---------- | ------------------------- | ------------------------- | ---------- |
-| Title, description            | ✓          | ✓                         | ✓                         | ✗          |
-| `opensAt` / `closesAt`        | ✓          | ✓                         | ✓                         | ✗          |
-| Questions (add, edit, delete) | ✓          | ✓                         | ✓                         | ✗          |
-| Managers (add, remove others) | ✓          | ✓                         | ✓                         | ✓          |
-| Status → `open` / `closed`    | ✓          | ✓                         | ✓                         | ✗          |
-| Status → `draft`              | ✓          | only with no applications | only with no applications | ✗          |
-| Delete the position           | admin only | admin only                | admin only                | admin only |
+| Capability (manager)          | `draft`    | `open`                    | `closed`                    | archived   |
+| ----------------------------- | ---------- | ------------------------- | --------------------------- | ---------- |
+| Title, description            | ✓          | ✓                         | ✓                           | ✗          |
+| `opensAt` / `closesAt`        | ✓          | ✓                         | ✓                           | ✗          |
+| Questions (add, edit, delete) | ✓          | ✓                         | ✓                           | ✗          |
+| Managers (add, remove others) | ✓          | ✓                         | ✓                           | ✓          |
+| Status → `open` / `closed`    | ✓          | ✓                         | only if `closesAt` not past | ✗          |
+| Status → `draft`              | ✓          | only with no applications | only with no applications   | ✗          |
+| Delete the position           | admin only | admin only                | admin only                  | admin only |
 
 Managers stay editable on an archived position: membership is how an admin hands oversight off, and `addPositionManager` / `removePositionManager` deliberately skip `checkPositionEditable`.
 
