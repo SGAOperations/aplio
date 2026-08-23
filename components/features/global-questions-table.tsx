@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useOptimistic, useState, useTransition } from 'react';
+import { useMemo, useState } from 'react';
 
 import { ListChecks } from 'lucide-react';
 import { toast } from 'sonner';
@@ -32,6 +32,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
+import { useOptimisticReorder } from '@/components/ui/sortable-list';
 
 interface GlobalQuestionsTableProps {
   questions: GlobalQuestionListItem[];
@@ -40,11 +41,11 @@ interface GlobalQuestionsTableProps {
 export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isReordering, startReorder] = useTransition();
-  const [optimisticQuestions, setOptimisticQuestions] = useOptimistic(
-    questions,
-    (_, next: GlobalQuestionListItem[]) => next,
-  );
+  const {
+    optimisticItems: optimisticQuestions,
+    isReordering,
+    handleReorder,
+  } = useOptimisticReorder(questions, (ids) => reorderGlobalQuestions({ ids }));
 
   const COLUMNS: DataTableColumn<GlobalQuestionListItem>[] = useMemo(
     () => [
@@ -153,26 +154,6 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
     } finally {
       setIsDeleting(false);
     }
-  }
-
-  function handleReorder(ids: string[]) {
-    const byId = new Map(optimisticQuestions.map((q) => [q.id, q]));
-    const next = ids.map((id) => byId.get(id)).filter((q) => q !== undefined);
-
-    startReorder(async () => {
-      setOptimisticQuestions(next);
-      try {
-        const result = await reorderGlobalQuestions({ ids });
-        if (result?.error) {
-          toast.error(result.error);
-          return;
-        }
-        toast.success('Order saved');
-      } catch (error) {
-        console.error(error);
-        toast.error('Something went wrong. Please try again.');
-      }
-    });
   }
 
   if (optimisticQuestions.length === 0)

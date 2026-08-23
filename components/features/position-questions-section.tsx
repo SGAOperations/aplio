@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { useOptimistic, useState, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -19,6 +19,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
   SortableHandle,
   SortableProvider,
+  useOptimisticReorder,
   useSortableItem,
 } from '@/components/ui/sortable-list';
 
@@ -82,9 +83,14 @@ export function PositionQuestionsSection({
   initialQuestions,
 }: PositionQuestionsSectionProps) {
   const [questions, setQuestions] = useState(initialQuestions);
-  const [optimisticQuestions, setOptimisticQuestions] = useOptimistic(
+  const {
+    optimisticItems: optimisticQuestions,
+    isReordering,
+    handleReorder,
+  } = useOptimisticReorder(
     questions,
-    (_, next: RenderedQuestion[]) => next,
+    (ids) => reorderPositionQuestions({ positionId, ids }),
+    setQuestions,
   );
   // `deleteTarget` is never nulled on close — only replaced on the next
   // open — so the dialog's description keeps the last valid value through
@@ -96,7 +102,6 @@ export function PositionQuestionsSection({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [isDeleting, startTransition] = useTransition();
-  const [isReordering, startReorder] = useTransition();
 
   function handleQuestionSaved(updated: RenderedQuestion) {
     setQuestions((prev) => {
@@ -124,29 +129,6 @@ export function PositionQuestionsSection({
         setQuestions((prev) => prev.filter((q) => q.id !== target.id));
         toast.success('Question deleted');
         setDeleteDialogOpen(false);
-      } catch (error) {
-        console.error(error);
-        toast.error('Something went wrong. Please try again.');
-      }
-    });
-  }
-
-  function handleReorder(ids: string[]) {
-    const byId = new Map(optimisticQuestions.map((q) => [q.id, q]));
-    const next = ids
-      .map((id) => byId.get(id))
-      .filter((q): q is RenderedQuestion => q !== undefined);
-
-    startReorder(async () => {
-      setOptimisticQuestions(next);
-      try {
-        const result = await reorderPositionQuestions({ positionId, ids });
-        if (result && 'error' in result) {
-          toast.error(result.error);
-          return;
-        }
-        setQuestions(next);
-        toast.success('Order saved');
       } catch (error) {
         console.error(error);
         toast.error('Something went wrong. Please try again.');

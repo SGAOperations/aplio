@@ -300,23 +300,21 @@ export function DataTable<T>({
   if (rows.length === 0 && emptyState) return <>{emptyState}</>;
 
   const showReorderColumn = !!reorder && rows.length > 1;
-  const dragLive =
+  const sortedByOrder =
     showReorderColumn &&
     sort.key === reorder.orderKey &&
-    sort.direction === 'asc' &&
-    !reorder.disabled;
+    sort.direction === 'asc';
+  const dragLive = sortedByOrder && !reorder.disabled;
   const columnCount = columns.length + (showReorderColumn ? 1 : 0);
 
   return (
     <div className="flex flex-col gap-2">
-      {showReorderColumn && !dragLive && (
+      {showReorderColumn && !sortedByOrder && (
         <p className="text-muted-foreground text-sm">{reorder.sortHint}</p>
       )}
       {/* overflow-hidden clips the header hover highlight to the card's rounded corners */}
       <Card className="gap-0 overflow-hidden p-0">
-        {/* DndContext renders its hidden a11y text/live-region as siblings of
-            its children, so it wraps this whole div rather than nesting inside
-            <tbody> (which may only contain <tr>). */}
+        {/* DndContext must wrap this div, not nest inside <tbody> (a11y live region renders as a sibling). */}
         <ReorderSection
           className="hidden md:block"
           reorderActive={showReorderColumn}

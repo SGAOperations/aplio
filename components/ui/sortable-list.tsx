@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { useMemo } from 'react';
+import { useMemo, useOptimistic, useTransition } from 'react';
 
 import {
   type Announcements,
@@ -23,8 +23,11 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { cn } from '@/lib/utils';
+
+import { Button } from '@/components/ui/button';
 
 interface SortableProviderProps<T> {
   items: T[];
@@ -140,6 +143,45 @@ export function useSortableItem(id: string) {
   };
 }
 
+// Optimistic drag-drop reorder: sets the new order immediately, persists via
+// `reorder`, and rolls back to `items` on error once the transition settles.
+export function useOptimisticReorder<T extends { id: string }>(
+  items: T[],
+  reorder: (ids: string[]) => Promise<{ error: string } | void>,
+  onSaved?: (next: T[]) => void,
+) {
+  const [isReordering, startReorder] = useTransition();
+  const [optimisticItems, setOptimisticItems] = useOptimistic(
+    items,
+    (_, next: T[]) => next,
+  );
+
+  function handleReorder(ids: string[]) {
+    const byId = new Map(optimisticItems.map((item) => [item.id, item]));
+    const next = ids
+      .map((id) => byId.get(id))
+      .filter((item): item is T => item !== undefined);
+
+    startReorder(async () => {
+      setOptimisticItems(next);
+      try {
+        const result = await reorder(ids);
+        if (result?.error) {
+          toast.error(result.error);
+          return;
+        }
+        onSaved?.(next);
+        toast.success('Order saved');
+      } catch (error) {
+        console.error(error);
+        toast.error('Something went wrong. Please try again.');
+      }
+    });
+  }
+
+  return { optimisticItems, isReordering, handleReorder };
+}
+
 interface SortableHandleProps {
   label: string;
   handleProps: ReturnType<typeof useSortableItem>['handleProps'];
@@ -154,18 +196,20 @@ export function SortableHandle({
   className,
 }: SortableHandleProps) {
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
+      size="icon"
       disabled={disabled}
       aria-label={`Reorder ${label}`}
       className={cn(
-        'text-muted-foreground focus-visible:ring-ring/50 flex size-11 shrink-0 touch-none items-center justify-center rounded-md focus-visible:ring-[3px] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:size-8',
-        !disabled && 'hover:text-foreground cursor-grab active:cursor-grabbing',
+        'text-muted-foreground size-11 touch-none disabled:cursor-not-allowed md:size-8',
+        !disabled && 'cursor-grab active:cursor-grabbing',
         className,
       )}
       {...(disabled ? {} : handleProps)}
     >
       <GripVertical className="size-4" aria-hidden="true" />
-    </button>
+    </Button>
   );
 }
