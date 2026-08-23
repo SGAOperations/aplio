@@ -64,7 +64,7 @@ export default async function MyApplicationDetailPage({
           </p>
         </div>
 
-        <div className="lg:w-72 lg:shrink-0">
+        <div className="lg:sticky lg:top-6 lg:max-h-[calc(100svh-3rem)] lg:w-72 lg:shrink-0 lg:self-start lg:overflow-y-auto">
           <MyApplicationStatusCard application={application} />
         </div>
       </div>

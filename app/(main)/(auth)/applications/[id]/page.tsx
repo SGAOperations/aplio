@@ -74,7 +74,7 @@ export default async function ApplicationDetailPage({
           </p>
         </div>
 
-        <div className="lg:w-72 lg:shrink-0">
+        <div className="lg:sticky lg:top-6 lg:max-h-[calc(100svh-3rem)] lg:w-72 lg:shrink-0 lg:self-start lg:overflow-y-auto">
           <SectionCard title="Review" titleAs="h2">
             <div className="flex flex-col gap-3 p-4">
               <div className="self-center">
