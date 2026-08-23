@@ -9,14 +9,8 @@ import { getCurrentUser } from '@/lib/auth/server';
 import { ApplicationAnswersList } from '@/components/features/application-answers-list';
 import { MyApplicationStatusCard } from '@/components/features/my-application-status-card';
 import { PageHeader } from '@/components/layouts/page-header';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import { LocalTime } from '@/components/ui/local-time';
+import { SectionCard } from '@/components/ui/section-card';
 
 interface MyApplicationDetailPageProps {
   params: Promise<{ id: string }>;
@@ -72,40 +66,25 @@ export default async function MyApplicationDetailPage({
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Left: answers (lg:col-span-2) */}
         <div className="flex flex-col gap-4 lg:col-span-2">
-          <Card>
-            <CardHeader className="p-3 pb-2">
-              <CardTitle className="text-base font-semibold">
-                Your profile answers
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-3 pt-0">
-              <ApplicationAnswersList
-                answers={application.globalAnswers}
-                emptyMessage="No profile answers saved yet."
-                applicationId={application.id}
-              />
-            </CardContent>
-          </Card>
+          <SectionCard title="Your profile answers" titleAs="h2">
+            <ApplicationAnswersList
+              answers={application.globalAnswers}
+              emptyMessage="No profile answers saved yet."
+              applicationId={application.id}
+            />
+          </SectionCard>
 
-          <Card>
-            <CardHeader className="p-3 pb-2">
-              <CardTitle className="text-base font-semibold">
-                Your answers for this position
-              </CardTitle>
-              <CardDescription>{application.position.title}</CardDescription>
-            </CardHeader>
-            <CardContent className="p-3 pt-0">
-              <ApplicationAnswersList
-                answers={application.positionAnswers}
-                emptyMessage="No position answers saved yet."
-                applicationId={application.id}
-              />
-            </CardContent>
-          </Card>
+          <SectionCard title="Your answers for this position" titleAs="h2">
+            <ApplicationAnswersList
+              answers={application.positionAnswers}
+              emptyMessage="No position answers saved yet."
+              applicationId={application.id}
+            />
+          </SectionCard>
         </div>
 
-        {/* Right: Status panel — sticky on lg, stacked first on mobile */}
-        <div className="order-first lg:sticky lg:top-6 lg:order-none lg:self-start">
+        {/* Right: Progress panel — sticky on lg, stacked first on mobile */}
+        <div className="order-first lg:sticky lg:top-6 lg:order-none lg:max-h-[calc(100svh-3rem)] lg:self-start lg:overflow-y-auto">
           <MyApplicationStatusCard application={application} />
         </div>
       </div>

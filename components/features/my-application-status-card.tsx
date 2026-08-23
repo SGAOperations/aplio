@@ -6,7 +6,7 @@ import { type MyApplicationDetail } from '@/lib/types';
 import { MyApplicationPrimaryAction } from '@/components/features/my-application-primary-action';
 import { MyApplicationRowActions } from '@/components/features/my-application-row-actions';
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { SectionCard } from '@/components/ui/section-card';
 
 // Exhaustive on the generated enum, so a new status breaks the build here too.
 const STATUS_COPY: Record<$Enums.ApplicationStatus, string> = {
@@ -29,11 +29,8 @@ export function MyApplicationStatusCard({
   application,
 }: MyApplicationStatusCardProps) {
   return (
-    <Card>
-      <CardHeader className="p-3 pb-2">
-        <CardTitle className="text-base font-semibold">Status</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3 p-3 pt-0">
+    <SectionCard title="Progress" titleAs="h2">
+      <div className="flex flex-col gap-3 p-4">
         <ApplicationStatusBadge status={application.status} />
         <p className="text-muted-foreground text-sm">
           {STATUS_COPY[application.status]}
@@ -49,7 +46,7 @@ export function MyApplicationStatusCard({
             />
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </SectionCard>
   );
 }
