@@ -8,9 +8,18 @@ import { toast } from 'sonner';
 
 import { deactivateUser, toggleUserAdmin } from '@/prisma/actions/users';
 
-import { type DataTableColumn, filterRows } from '@/lib/data-table';
+import { USER_ROLE_FILTER_OPTIONS } from '@/lib/constants';
+import {
+  type DataTableColumn,
+  type DataTableFilter,
+  filterRows,
+} from '@/lib/data-table';
 import type { AdminUserListItem } from '@/lib/types';
-import { formatTableCount } from '@/lib/utils';
+import {
+  formatTableCount,
+  getUserRoleRank,
+  getUserRoleTokens,
+} from '@/lib/utils';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,6 +29,13 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { LocalTime } from '@/components/ui/local-time';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface UsersTableProps {
   users: AdminUserListItem[];
@@ -44,6 +60,8 @@ interface DeactivateTarget {
 
 export function UsersTable({ users, currentUserId }: UsersTableProps) {
   const [query, setQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+  const [positionFilter, setPositionFilter] = useState('');
   // `*Target` is never nulled on close — only replaced on the next open —
   // so the dialog's title/description keep the last valid value through
   // Radix's exit animation instead of re-rendering "undefined" mid-fade.
@@ -78,7 +96,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
         key: 'user',
         header: 'User',
         sortAccessor: (u) => u.name ?? u.email,
-        filterValue: (u) => [u.name ?? '', u.email],
+        searchValue: (u) => [u.name ?? '', u.email],
         cell: (u) => (
           <div className="flex flex-col">
             <span className="font-medium">{u.name ?? u.email}</span>
@@ -91,8 +109,10 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       {
         key: 'roles',
         header: 'Roles',
+        sortAccessor: (u) => [getUserRoleRank(u), u.name ?? u.email, u.email],
+        filterValue: getUserRoleTokens,
         cell: (u) => {
-          const isManager = u.managedPositions.length > 0;
+          const isManager = getUserRoleTokens(u).includes('manager');
           return (
             <div className="flex flex-wrap gap-1">
               {u.isAdmin && <Badge variant="default">Admin</Badge>}
@@ -128,6 +148,8 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       {
         key: 'managedPositions',
         header: 'Managed Positions',
+        filterValue: (u) => u.managedPositions.map((p) => p.id),
+        searchValue: (u) => u.managedPositions.map((p) => p.title),
         cell: (u) => {
           const isManager = u.managedPositions.length > 0;
           if (!isManager)
@@ -188,7 +210,33 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
     [currentUserId],
   );
 
-  const filtered = filterRows(users, COLUMNS, { query });
+  const positionOptions = useMemo(() => {
+    const byId = new Map<string, string>();
+    for (const user of users)
+      for (const pos of user.managedPositions) byId.set(pos.id, pos.title);
+    return Array.from(byId, ([id, title]) => ({ id, title })).sort((a, b) =>
+      a.title.localeCompare(b.title),
+    );
+  }, [users]);
+
+  const filters: DataTableFilter[] = [
+    ...(roleFilter ? [{ key: 'roles', value: roleFilter }] : []),
+    ...(positionFilter
+      ? [{ key: 'managedPositions', value: positionFilter }]
+      : []),
+  ];
+  const filtered = filterRows(users, COLUMNS, { query, filters });
+  const isFiltered = !!(query.trim() || roleFilter || positionFilter);
+  const adminCount = filtered.filter((u) => u.isAdmin).length;
+  const managerCount = filtered.filter(
+    (u) => u.managedPositions.length > 0,
+  ).length;
+
+  function clearFilters() {
+    setQuery('');
+    setRoleFilter('');
+    setPositionFilter('');
+  }
 
   function handleToggleAdminConfirm() {
     if (!adminTarget) return;
@@ -245,6 +293,45 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
           <div className="flex flex-col gap-1.5">
+            <Label htmlFor="users-role-filter">Role</Label>
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger id="users-role-filter" className="w-full sm:w-48">
+                <SelectValue placeholder="All roles" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All roles</SelectItem>
+                {USER_ROLE_FILTER_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {positionOptions.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="users-position-filter">Managed position</Label>
+              <Select value={positionFilter} onValueChange={setPositionFilter}>
+                <SelectTrigger
+                  id="users-position-filter"
+                  className="w-full sm:w-48"
+                >
+                  <SelectValue placeholder="All positions" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All positions</SelectItem>
+                  {positionOptions.map((pos) => (
+                    <SelectItem key={pos.id} value={pos.id}>
+                      {pos.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="users-search">Search</Label>
             <Input
               id="users-search"
@@ -255,6 +342,12 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
             />
           </div>
 
+          {isFiltered && (
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
+              Clear filters
+            </Button>
+          )}
+
           <p
             aria-live="polite"
             className="text-muted-foreground self-end text-sm sm:ml-auto"
@@ -263,8 +356,9 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
               shown: filtered.length,
               total: users.length,
               noun: 'user',
-              isFiltered: !!query.trim(),
+              isFiltered,
             })}
+            {` · ${adminCount} ${adminCount === 1 ? 'admin' : 'admins'} · ${managerCount} ${managerCount === 1 ? 'manager' : 'managers'}`}
           </p>
         </div>
 
@@ -273,11 +367,11 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
           columns={COLUMNS}
           getRowKey={(u) => u.id}
           caption="Users"
-          defaultSort={{ key: 'joined', direction: 'desc' }}
-          noMatchMessage="No users match your search."
+          defaultSort={{ key: 'roles', direction: 'asc' }}
+          noMatchMessage="No users match your filters."
           mobileCard={(user) => {
             const isSelf = user.id === currentUserId;
-            const isManager = user.managedPositions.length > 0;
+            const isManager = getUserRoleTokens(user).includes('manager');
             const appCount = user._count.applications;
             return (
               <div className="flex flex-col gap-3 p-4">
