@@ -1,8 +1,8 @@
 import 'server-only';
 
-// Inline styles throughout: email clients ignore Tailwind classes.
+import { getBaseUrl } from '@/lib/base-url';
 
-const LOGO_URL = `https://${process.env.VERCEL_URL ?? 'localhost:3000'}/logo-512.svg`;
+// Inline styles throughout: email clients ignore Tailwind classes.
 
 // Prevent HTML injection in user-supplied values interpolated into email markup.
 function escapeHtml(s: string): string {
@@ -20,6 +20,8 @@ interface LayoutOptions {
 }
 
 function emailLayout({ title, content }: LayoutOptions): string {
+  const logoUrl = `${getBaseUrl()}/logo-512.svg`;
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -42,7 +44,7 @@ function emailLayout({ title, content }: LayoutOptions): string {
                     <table cellpadding="0" cellspacing="0">
                       <tr>
                         <td style="vertical-align:middle;padding-right:10px;">
-                          <img src="${LOGO_URL}" width="34" height="34" alt="" style="display:block;border-radius:6px;" />
+                          <img src="${logoUrl}" width="34" height="34" alt="" style="display:block;border-radius:6px;" />
                         </td>
                         <td style="vertical-align:middle;">
                           <span style="font-size:17px;font-weight:700;color:#ffffff;letter-spacing:-0.01em;">Aplio</span>
@@ -83,21 +85,24 @@ export interface EmailTemplate {
 
 export interface OtpEmailOptions {
   code: string;
+  signInUrl: string;
   expiresInMinutes?: number;
 }
 
 export function otpEmail({
   code,
+  signInUrl,
   expiresInMinutes,
 }: OtpEmailOptions): EmailTemplate {
   const safeCode = escapeHtml(code);
+  const safeSignInUrl = escapeHtml(signInUrl);
   const expiryLine = expiresInMinutes
     ? `This code expires in ${expiresInMinutes} minute${expiresInMinutes === 1 ? '' : 's'}.`
     : '';
 
   const content = `
     <h1 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#09090b;">Your access code</h1>
-    <p style="margin:0 0 24px;font-size:14px;color:#71717a;">Enter this code to sign in to your Aplio account. It is single-use and will expire shortly.</p>
+    <p style="margin:0 0 24px;font-size:14px;color:#71717a;">Enter this code to sign in to your Aplio account — or use the button below to sign in directly. It is single-use and will expire shortly.</p>
     <table width="100%" cellpadding="0" cellspacing="0" style="border:2px solid #D41B2C;border-radius:6px;margin-bottom:24px;">
       <tr>
         <td style="padding:20px;text-align:center;">
@@ -105,6 +110,10 @@ export function otpEmail({
         </td>
       </tr>
     </table>
+    <div style="text-align:center;margin-bottom:24px;">
+      <a href="${safeSignInUrl}" style="display:inline-block;background-color:#D41B2C;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:6px;font-size:14px;font-weight:600;letter-spacing:0.01em;">Sign in to Aplio</a>
+    </div>
+    <p style="margin:0 0 24px;font-size:12px;color:#71717a;">Button not working? Copy this link into your browser:<br /><span style="color:#09090b;word-break:break-all;">${safeSignInUrl}</span></p>
     ${expiryLine ? `<p style="margin:0;font-size:13px;color:#71717a;">${expiryLine}</p>` : ''}
   `;
 
@@ -112,6 +121,7 @@ export function otpEmail({
     'Your Aplio access code',
     '',
     `Code: ${code}`,
+    `Or open this link to sign in: ${signInUrl}`,
     ...(expiryLine ? [expiryLine] : []),
     '',
     'If you did not request this code, you can ignore this email.',
@@ -120,46 +130,6 @@ export function otpEmail({
   return {
     subject: 'Your Aplio access code',
     html: emailLayout({ title: 'Your Aplio access code', content }),
-    text: textLines.join('\n'),
-  };
-}
-
-export interface MagicLinkEmailOptions {
-  url: string;
-  expiresInMinutes?: number;
-}
-
-export function magicLinkEmail({
-  url,
-  expiresInMinutes,
-}: MagicLinkEmailOptions): EmailTemplate {
-  const safeUrl = escapeHtml(url);
-  const expiryLine = expiresInMinutes
-    ? `This link expires in ${expiresInMinutes} minute${expiresInMinutes === 1 ? '' : 's'}.`
-    : '';
-
-  const content = `
-    <h1 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#09090b;">Your sign-in link</h1>
-    <p style="margin:0 0 24px;font-size:14px;color:#71717a;">Use the button below to sign in to your Aplio account &#8212; no password needed.</p>
-    <div style="text-align:center;margin-bottom:24px;">
-      <a href="${safeUrl}" style="display:inline-block;background-color:#D41B2C;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:6px;font-size:14px;font-weight:600;letter-spacing:0.01em;">Sign in to Aplio</a>
-    </div>
-    ${expiryLine ? `<p style="margin:0 0 16px;font-size:13px;color:#71717a;">${expiryLine}</p>` : ''}
-    <p style="margin:0;font-size:12px;color:#71717a;">Or copy this link into your browser:<br /><span style="color:#09090b;word-break:break-all;">${safeUrl}</span></p>
-  `;
-
-  const textLines = [
-    'Sign in to Aplio',
-    '',
-    `Open this link to sign in: ${url}`,
-    ...(expiryLine ? [expiryLine] : []),
-    '',
-    'If you did not request this link, you can ignore this email.',
-  ];
-
-  return {
-    subject: 'Sign in to Aplio',
-    html: emailLayout({ title: 'Sign in to Aplio', content }),
     text: textLines.join('\n'),
   };
 }

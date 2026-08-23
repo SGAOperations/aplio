@@ -107,8 +107,9 @@ Anyone not signed in. The only routes they can use are `/positions`, `/positions
 
 ### AN-4 Sign in with an email code
 
-- **Trigger** — the email step on `/login`, or any redirect from [XC-1](#xc-1-sign-in-gate-and-the-redirectto-round-trip).
+- **Trigger** — the email step on `/login`, any redirect from [XC-1](#xc-1-sign-in-gate-and-the-redirectto-round-trip), or the sign-in link/button in the OTP email (`/login?email=<address>&otp=<code>`).
 - **Happy path** — the email is validated against `signInEmailSchema`; `checkSignInAllowed` rejects deactivated accounts before any mail is sent; `isOtpResendAllowed` enforces the server-side cooldown; then `authClient.emailOtp.sendVerificationOtp`. Toast **"Code sent."** and the view switches to the 6-digit `InputOTP` step ("Check your inbox for a one-time code."). The code auto-submits at 6 digits via `authClient.signIn.emailOtp`, then `router.refresh()` hands the destination decision back to `/login`.
+- **Happy path — email link** — `/login` parses `email`/`otp` via `parseOtpLinkParams`; `LoginView` shows a "Signing you in…" panel, strips both params from the URL (`history.replaceState`) before calling `authClient.signIn.emailOtp` client-side with them, then `router.refresh()` — the same code path a typed code takes, so the rate limit, the 300s expiry and the 3-attempt cap all apply unchanged. Works on a device that never saw the email step, since the link carries the email itself. `redirectTo` is deliberately not carried in the link.
 - **Failure / edge**
   - Invalid email → inline field error "Please enter a valid email address"; nothing is sent.
   - Deactivated account → toast with `ACCOUNT_DEACTIVATED_MESSAGE`; stays on the email step ([XC-7](#xc-7-deactivated-account)).
@@ -116,6 +117,8 @@ Anyone not signed in. The only routes they can use are `/positions`, `/positions
   - Send fails or is rate-limited → the mapped message from `getOtpSendErrorMessage`; stays on the email step.
   - Wrong or expired code → inline error under the OTP field from `getOtpVerifyErrorMessage`; the account-deactivated error code maps to `ACCOUNT_DEACTIVATED_MESSAGE` instead. Fewer than 6 digits → "Please enter the 6-digit code".
   - **Use a different email** returns to the email step and clears the code.
+  - Invalid or expired code from the link → falls through to the ordinary OTP step with the email pre-captured and the inline error already set; **Send a new code** and **Use a different email** are both available.
+  - Malformed or partial link params (bad email, non-6-digit otp, missing param) → the ordinary email step, with the address prefilled if it was valid.
 - **End state** — a session exists. A user row is created on first sign-in if the email was not already invited ([AD-7](#ad-7-create-a-user)). The user goes to the name form if they have no name, otherwise to the sanitized `redirectTo`.
 
 ### AN-5 Request a new code
