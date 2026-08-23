@@ -144,6 +144,28 @@ export function isAnswered(question: AnswerQuestion, value: string[]): boolean {
   return partitionAnswerValue(question, value).fitted.length > 0;
 }
 
+/** Ids shared by every answer surface, so a card's label/input/error/notice/status stay wired to each other. */
+export function answerFieldIds(questionId: string) {
+  return {
+    labelId: `${questionId}-label`,
+    inputId: `${questionId}-input`,
+    errorId: `${questionId}-error`,
+    noticeId: `${questionId}-mismatch`,
+    statusId: `${questionId}-status`,
+  };
+}
+
+/** Splits a fitted answer into its checked options and its free-text "Other" entry, if any. */
+export function splitOtherAnswer(
+  question: { options: string[] },
+  fitted: string[],
+): { selectedOptions: string[]; otherText: string } {
+  return {
+    selectedOptions: fitted.filter((v) => question.options.includes(v)),
+    otherText: fitted.find((v) => !question.options.includes(v)) ?? '',
+  };
+}
+
 /**
  * Strips markdown syntax to plain text for metadata and emptiness checks.
  * Never used to render a description — use `<Markdown>` for that.
