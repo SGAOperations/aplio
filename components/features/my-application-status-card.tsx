@@ -31,7 +31,9 @@ export function MyApplicationStatusCard({
   return (
     <SectionCard title="Progress" titleAs="h2">
       <div className="flex flex-col gap-3 p-4">
-        <ApplicationStatusBadge status={application.status} />
+        <div className="self-center">
+          <ApplicationStatusBadge status={application.status} />
+        </div>
         <p className="text-muted-foreground text-sm">
           {STATUS_COPY[application.status]}
         </p>

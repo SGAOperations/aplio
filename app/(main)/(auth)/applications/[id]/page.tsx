@@ -51,51 +51,35 @@ export default async function ApplicationDetailPage({
 
   return (
     <div className="mx-auto max-w-5xl">
-      <div className="mb-4">
-        <PageHeader
-          title={renamedTo ? `${applicantName} (${renamedTo})` : applicantName}
-          description={application.user.email}
-          backHref="/applications"
-          backLabel="Back to Applications"
-        />
-        <p className="text-muted-foreground mt-1 text-sm">
-          <Link
-            href={`/positions/${application.position.id}`}
-            className="underline"
-          >
-            {application.position.title}
-          </Link>{' '}
-          · Applied{' '}
-          <LocalTime date={application.submittedAt} precision="date" />
-        </p>
-      </div>
-
-      {/* Two-column layout at lg: Review panel sticky on right; answers on left */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        {/* Left: answers (lg:col-span-2) */}
-        <div className="flex flex-col gap-4 lg:col-span-2">
-          <SectionCard title="Profile answers" titleAs="h2">
-            <ApplicationAnswersList
-              answers={application.globalAnswers}
-              emptyMessage="No profile answers."
-              applicationId={application.id}
-            />
-          </SectionCard>
-
-          <SectionCard title="Position answers" titleAs="h2">
-            <ApplicationAnswersList
-              answers={application.positionAnswers}
-              emptyMessage="No position-specific answers."
-              applicationId={application.id}
-            />
-          </SectionCard>
+      {/* Header row: applicant info on left, compact Review panel on right */}
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 flex-1">
+          <PageHeader
+            title={
+              renamedTo ? `${applicantName} (${renamedTo})` : applicantName
+            }
+            description={application.user.email}
+            backHref="/applications"
+            backLabel="Back to Applications"
+          />
+          <p className="text-muted-foreground mt-1 text-sm">
+            <Link
+              href={`/positions/${application.position.id}`}
+              className="underline"
+            >
+              {application.position.title}
+            </Link>{' '}
+            · Applied{' '}
+            <LocalTime date={application.submittedAt} precision="date" />
+          </p>
         </div>
 
-        {/* Right: Review panel — sticky on lg, stacked first on mobile */}
-        <div className="order-first lg:sticky lg:top-6 lg:order-none lg:max-h-[calc(100svh-3rem)] lg:self-start lg:overflow-y-auto">
+        <div className="lg:w-72 lg:shrink-0">
           <SectionCard title="Review" titleAs="h2">
             <div className="flex flex-col gap-3 p-4">
-              <ApplicationStatusBadge status={application.status} />
+              <div className="self-center">
+                <ApplicationStatusBadge status={application.status} />
+              </div>
               <ApplicationStatusActions
                 applicationId={application.id}
                 currentStatus={application.status}
@@ -104,6 +88,25 @@ export default async function ApplicationDetailPage({
             </div>
           </SectionCard>
         </div>
+      </div>
+
+      {/* Answers: full-width below the header */}
+      <div className="flex flex-col gap-4">
+        <SectionCard title="Profile answers" titleAs="h2">
+          <ApplicationAnswersList
+            answers={application.globalAnswers}
+            emptyMessage="No profile answers."
+            applicationId={application.id}
+          />
+        </SectionCard>
+
+        <SectionCard title="Position answers" titleAs="h2">
+          <ApplicationAnswersList
+            answers={application.positionAnswers}
+            emptyMessage="No position-specific answers."
+            applicationId={application.id}
+          />
+        </SectionCard>
       </div>
     </div>
   );
