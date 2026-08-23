@@ -41,9 +41,8 @@ function compareScalar(a: SortValue, b: SortValue): number {
   });
 }
 
-// Tuples compare index-by-index over their shared length; within that range a
-// null/undefined element sorts after a present one. An equal shared prefix
-// falls back to array length, so a shorter tuple sorts before a longer one.
+// Tuples compare index-by-index; a missing element sorts last; equal
+// prefix → shorter array first.
 export function compareValues(
   a: SortValue | SortTupleValue[],
   b: SortValue | SortTupleValue[],
