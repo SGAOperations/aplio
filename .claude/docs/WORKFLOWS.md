@@ -27,9 +27,9 @@ Behaviour shared by many workflows is stated once under [Cross-cutting behaviour
 
 **[Applicant (AP)](#applicant-ap)** — [AP-1](#ap-1-see-your-dashboard) · [AP-2](#ap-2-answer-profile-questions) · [AP-3](#ap-3-change-your-name) · [AP-4](#ap-4-return-to-an-interrupted-flow) · [AP-5](#ap-5-start-an-application) · [AP-6](#ap-6-answer-application-questions) · [AP-7](#ap-7-customize-or-revert-profile-answers) · [AP-8](#ap-8-upload-or-remove-a-file-answer) · [AP-9](#ap-9-submit-an-application) · [AP-10](#ap-10-track-your-applications) · [AP-11](#ap-11-view-one-of-your-applications) · [AP-12](#ap-12-download-your-own-file-answer) · [AP-13](#ap-13-withdraw-an-application) · [AP-14](#ap-14-edit-and-resubmit-a-withdrawn-application) · [AP-15](#ap-15-delete-a-draft) · [AP-16](#ap-16-sign-out)
 
-**[Position manager (PM)](#position-manager-pm)** — [PM-1](#pm-1-see-your-dashboard) · [PM-2](#pm-2-see-the-positions-you-manage) · [PM-3](#pm-3-create-a-position) · [PM-4](#pm-4-edit-position-details) · [PM-5](#pm-5-manage-position-questions) · [PM-6](#pm-6-add-a-manager) · [PM-7](#pm-7-remove-a-manager) · [PM-8](#pm-8-work-the-application-queue) · [PM-9](#pm-9-open-an-application-for-review) · [PM-10](#pm-10-download-an-applicants-file-answer) · [PM-11](#pm-11-move-one-application-through-the-status-graph) · [PM-12](#pm-12-move-several-applications-at-once)
+**[Position manager (PM)](#position-manager-pm)** — [PM-1](#pm-1-see-your-dashboard) · [PM-2](#pm-2-see-the-positions-you-manage) · [PM-3](#pm-3-create-a-position) · [PM-4](#pm-4-edit-position-details) · [PM-5](#pm-5-manage-position-questions) · [PM-6](#pm-6-add-a-manager) · [PM-7](#pm-7-remove-a-manager) · [PM-8](#pm-8-work-the-application-queue) · [PM-9](#pm-9-open-an-application-for-review) · [PM-10](#pm-10-download-an-applicants-file-answer) · [PM-11](#pm-11-move-one-application-through-the-status-graph) · [PM-12](#pm-12-move-several-applications-at-once) · [PM-13](#pm-13-reorder-position-questions)
 
-**[Admin (AD)](#admin-ad)** — [AD-1](#ad-1-see-every-position) · [AD-2](#ad-2-edit-an-archived-position) · [AD-3](#ad-3-delete-a-position) · [AD-4](#ad-4-create-a-global-question) · [AD-5](#ad-5-edit-a-global-question) · [AD-6](#ad-6-delete-a-global-question) · [AD-7](#ad-7-create-a-user) · [AD-8](#ad-8-grant-or-revoke-admin) · [AD-9](#ad-9-deactivate-a-user) · [AD-10](#ad-10-find-a-user)
+**[Admin (AD)](#admin-ad)** — [AD-1](#ad-1-see-every-position) · [AD-2](#ad-2-edit-an-archived-position) · [AD-3](#ad-3-delete-a-position) · [AD-4](#ad-4-create-a-global-question) · [AD-5](#ad-5-edit-a-global-question) · [AD-6](#ad-6-delete-a-global-question) · [AD-7](#ad-7-create-a-user) · [AD-8](#ad-8-grant-or-revoke-admin) · [AD-9](#ad-9-deactivate-a-user) · [AD-10](#ad-10-find-a-user) · [AD-11](#ad-11-reorder-global-questions)
 
 ---
 
@@ -473,10 +473,22 @@ A user who manages at least one non-deleted position. Manager status is **derive
   - Unexpected throw → **"Something went wrong. Please try again."**
 - **End state** — the eligible rows move; the rest are untouched and counted as skipped.
 
+### PM-13 Reorder position questions
+
+- **Trigger** — the drag handle on a question card, Questions tab on `/positions/[id]/edit`.
+- **Happy path** — the list is wrapped in a shared `SortableProvider` (dnd-kit); dropping a card calls `reorderPositionQuestions` with the full ordered id list, which renumbers every live question `1..N` in one transaction. The new order shows immediately (`useOptimistic`) while the write is in flight. Toast **"Order saved"**.
+- **Failure / edge**
+  - The id set changed since the page loaded (a question added or deleted in another tab) → **"The question list changed since this page loaded. Refresh and try reordering again."**; the list reverts to the server's order.
+  - Archived position → `ARCHIVED_POSITION_EDIT_ERROR`, same gate as [PM-5](#pm-5-manage-position-questions); the read-only view draws no handles at all.
+  - No access to the position → the action throws.
+  - Unexpected throw → **"Something went wrong. Please try again."**
+  - A card in inline-edit mode has no handle and can't be picked up; every other card still reorders around it.
+  - Full keyboard support — Space/Enter picks up, arrows move, Space/Enter drops, Escape cancels — each step announced to screen readers ("Picked up …", "… moved to position N of M.").
+- **End state** — new and in-progress applications see the new order immediately ([AP-6](#ap-6-answer-application-questions)). Already-submitted applications are unaffected: answers render in the order they were answered, not question order, so a later reorder never re-sequences a reviewer's view of a submitted application.
+
 ### Known open
 
 - `/applications` truncates at 100 rows with no pagination or cursor — the toolbar reports the truncation but there is no way to reach row 101 except by filtering.
-- Position questions store an `order` but there is no reorder affordance; order is fixed at creation time.
 - No notification of any kind is sent on a status change — an applicant learns their outcome only by revisiting `/my-applications`.
 
 ---
@@ -577,6 +589,17 @@ An admin is a **manager on every position**: every [Position manager](#position-
 - **Failure / edge**
   - No match → the table's "No users match your filters." row/card; **Clear filters** resets search, role and managed position together.
 - **End state** — read-only; promote/deactivate ([AD-8](#ad-8-grant-or-revoke-admin), [AD-9](#ad-9-deactivate-a-user)) work unchanged from either the desktop row or the mobile card.
+
+### AD-11 Reorder global questions
+
+- **Trigger** — the drag handle on a `/global-questions` row (desktop table) or mobile card.
+- **Happy path** — `reorderGlobalQuestions` renumbers every live question `1..N` in one transaction; the table holds the list in `useOptimistic` so the drop lands instantly. Dragging is only live while sorted by **Order** ascending — sorting by any other column disables the handles and shows the hint **"Sort by Order to drag questions into a new order."** above the table; clicking the Order header restores it. Toast **"Order saved"**.
+- **Failure / edge**
+  - The id set changed since the page loaded (a question added or deleted in another tab) → **"The question list changed since this page loaded. Refresh and try reordering again."**; the list reverts to the server's order.
+  - Non-admin → the action throws; the page is `requireAdminOr404`.
+  - Unexpected throw → **"Something went wrong. Please try again."**
+  - Full keyboard support, same as [PM-13](#pm-13-reorder-position-questions).
+- **End state** — `/profile` reflects the new order immediately ([AP-2](#ap-2-answer-profile-questions)); a gap left by a soft-deleted question closes on the next reorder.
 
 ### Known open
 
