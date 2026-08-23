@@ -332,6 +332,10 @@ export interface NavIdentity {
   isBypass: boolean;
 }
 
+// Rank order (Admin, Manager) — a user can hold both; badges/filters use every
+// token, sort rank uses only the first.
+export type UserRoleFilter = 'admin' | 'manager';
+
 export interface NavItem {
   href: string;
   label: string;
