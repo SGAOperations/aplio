@@ -9,11 +9,14 @@ import { checkPositionEditable } from '@/prisma/data/positions';
 import { requirePositionAccess } from '@/lib/auth/guards';
 import {
   ARCHIVED_POSITION_EDIT_ERROR,
+  QUESTION_ORDER_STALE_ERROR,
   baseQuestionSchema,
+  reorderIdsSchema,
   validateOptions,
   validateShortAnswerFormat,
 } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
+import { isSameIdSet } from '@/lib/utils';
 
 const createPositionQuestionSchema = baseQuestionSchema
   .extend({ positionId: z.string().min(1) })
@@ -28,6 +31,11 @@ const updatePositionQuestionSchema = baseQuestionSchema
 const deletePositionQuestionSchema = z.object({
   id: z.string().min(1),
   positionId: z.string().min(1),
+});
+
+const reorderPositionQuestionsSchema = z.object({
+  positionId: z.string().min(1),
+  ids: reorderIdsSchema,
 });
 
 export async function createPositionQuestion(
@@ -45,6 +53,7 @@ export async function createPositionQuestion(
   if (!(await checkPositionEditable(positionId, user)))
     return { error: ARCHIVED_POSITION_EDIT_ERROR };
 
+  // Best-effort append; a concurrent insert can duplicate order, resolved by the read tiebreak.
   const created = await prisma.$transaction(async (tx) => {
     const maxOrder = await tx.positionQuestion.aggregate({
       where: { positionId, deletedAt: null },
@@ -103,6 +112,43 @@ export async function updatePositionQuestion(
   });
 
   if (result.count === 0) return { error: 'This question no longer exists.' };
+
+  revalidatePath(`/positions/${positionId}/edit`);
+}
+
+export async function reorderPositionQuestions(
+  input: unknown,
+): Promise<void | { error: string }> {
+  const parsed = reorderPositionQuestionsSchema.safeParse(input);
+  if (!parsed.success) return { error: 'Invalid input' };
+
+  const { positionId, ids } = parsed.data;
+
+  const user = await requirePositionAccess(positionId);
+
+  if (!(await checkPositionEditable(positionId, user)))
+    return { error: ARCHIVED_POSITION_EDIT_ERROR };
+
+  const live = await prisma.positionQuestion.findMany({
+    where: { positionId, deletedAt: null },
+    select: { id: true },
+  });
+  if (
+    !isSameIdSet(
+      ids,
+      live.map((q) => q.id),
+    )
+  )
+    return { error: QUESTION_ORDER_STALE_ERROR };
+
+  await prisma.$transaction(
+    ids.map((id, index) =>
+      prisma.positionQuestion.updateMany({
+        where: { id, positionId },
+        data: { order: index + 1, updatedById: user.id },
+      }),
+    ),
+  );
 
   revalidatePath(`/positions/${positionId}/edit`);
 }

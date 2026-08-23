@@ -6,11 +6,14 @@ import { z } from 'zod/v4';
 
 import { requireAdmin } from '@/lib/auth/guards';
 import {
+  QUESTION_ORDER_STALE_ERROR,
   baseQuestionSchema,
+  reorderIdsSchema,
   validateOptions,
   validateShortAnswerFormat,
 } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
+import { isSameIdSet } from '@/lib/utils';
 
 const createSchema = baseQuestionSchema
   .superRefine(validateOptions)
@@ -22,6 +25,8 @@ const updateSchema = baseQuestionSchema
   .superRefine(validateShortAnswerFormat);
 
 const deleteSchema = z.object({ id: z.string().min(1, 'ID is required') });
+
+const reorderSchema = z.object({ ids: reorderIdsSchema });
 
 type ActionError = { error: string };
 
@@ -36,7 +41,7 @@ export async function createGlobalQuestion(
 
   const { label, type, required, options, allowOther, format } = parsed.data;
 
-  // Transactional, or concurrent inserts collide on order.
+  // Best-effort append; a concurrent insert can duplicate order, resolved by the read tiebreak.
   await prisma.$transaction(async (tx) => {
     const aggregate = await tx.globalQuestion.aggregate({
       where: { deletedAt: null },
@@ -118,6 +123,41 @@ export async function deleteGlobalQuestion(
     where: { id },
     data: { deletedAt: new Date(), deletedById: user.id },
   });
+
+  revalidatePath('/global-questions');
+  revalidatePath('/profile');
+}
+
+export async function reorderGlobalQuestions(
+  input: unknown,
+): Promise<ActionError | void> {
+  const user = await requireAdmin();
+
+  const parsed = reorderSchema.safeParse(input);
+  if (!parsed.success) return { error: 'Invalid input' };
+
+  const { ids } = parsed.data;
+
+  const live = await prisma.globalQuestion.findMany({
+    where: { deletedAt: null },
+    select: { id: true },
+  });
+  if (
+    !isSameIdSet(
+      ids,
+      live.map((q) => q.id),
+    )
+  )
+    return { error: QUESTION_ORDER_STALE_ERROR };
+
+  await prisma.$transaction(
+    ids.map((id, index) =>
+      prisma.globalQuestion.update({
+        where: { id },
+        data: { order: index + 1, updatedById: user.id },
+      }),
+    ),
+  );
 
   revalidatePath('/global-questions');
   revalidatePath('/profile');
