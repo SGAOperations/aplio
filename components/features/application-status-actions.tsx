@@ -216,7 +216,7 @@ export function ApplicationStatusActions({
             <Button
               key={target}
               variant={i === 0 ? 'default' : 'outline'}
-              className="w-full"
+              className="min-h-11 w-full sm:min-h-9"
               disabled={isPending}
               onClick={() => handleForwardSelect(target)}
             >
@@ -229,7 +229,7 @@ export function ApplicationStatusActions({
           {isRejectable && (
             <Button
               variant="outline"
-              className="text-destructive hover:text-destructive w-full"
+              className="text-destructive hover:text-destructive min-h-11 w-full sm:min-h-9"
               disabled={isPending}
               onClick={() => openConfirm('rejected')}
             >
@@ -248,7 +248,7 @@ export function ApplicationStatusActions({
               key={target}
               variant="ghost"
               size="sm"
-              className="text-muted-foreground w-full justify-start"
+              className="text-muted-foreground min-h-11 w-full justify-start sm:min-h-9"
               disabled={isPending}
               onClick={() => performMove(target)}
             >
