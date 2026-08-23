@@ -1,11 +1,14 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useOptimistic, useState, useTransition } from 'react';
 
 import { ListChecks } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { deleteGlobalQuestion } from '@/prisma/actions/global-questions';
+import {
+  deleteGlobalQuestion,
+  reorderGlobalQuestions,
+} from '@/prisma/actions/global-questions';
 
 import {
   QUESTION_TYPE_BADGE_VARIANT,
@@ -37,6 +40,11 @@ interface GlobalQuestionsTableProps {
 export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isReordering, startReorder] = useTransition();
+  const [optimisticQuestions, setOptimisticQuestions] = useOptimistic(
+    questions,
+    (_, next: GlobalQuestionListItem[]) => next,
+  );
 
   const COLUMNS: DataTableColumn<GlobalQuestionListItem>[] = useMemo(
     () => [
@@ -147,7 +155,27 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
     }
   }
 
-  if (questions.length === 0)
+  function handleReorder(ids: string[]) {
+    const byId = new Map(optimisticQuestions.map((q) => [q.id, q]));
+    const next = ids.map((id) => byId.get(id)).filter((q) => q !== undefined);
+
+    startReorder(async () => {
+      setOptimisticQuestions(next);
+      try {
+        const result = await reorderGlobalQuestions({ ids });
+        if (result?.error) {
+          toast.error(result.error);
+          return;
+        }
+        toast.success('Order saved');
+      } catch (error) {
+        console.error(error);
+        toast.error('Something went wrong. Please try again.');
+      }
+    });
+  }
+
+  if (optimisticQuestions.length === 0)
     return (
       <EmptyState
         icon={ListChecks}
@@ -164,11 +192,18 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
   return (
     <>
       <DataTable
-        rows={questions}
+        rows={optimisticQuestions}
         columns={COLUMNS}
         getRowKey={(q) => q.id}
         caption="Global questions"
         defaultSort={{ key: 'order', direction: 'asc' }}
+        reorder={{
+          orderKey: 'order',
+          getItemLabel: (q) => q.label,
+          onReorder: handleReorder,
+          sortHint: 'Sort by Order to drag questions into a new order.',
+          disabled: isReordering,
+        }}
         mobileCard={(question) => (
           <div className="flex flex-col gap-3 p-4">
             <div className="flex items-start justify-between gap-2">
