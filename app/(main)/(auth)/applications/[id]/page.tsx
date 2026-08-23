@@ -70,7 +70,7 @@ export default async function ApplicationDetailPage({
         </p>
       </div>
 
-      {/* Two-column layout at lg: Status panel sticky on right; answers on left */}
+      {/* Two-column layout at lg: Review panel sticky on right; answers on left */}
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Left: answers (lg:col-span-2) */}
         <div className="flex flex-col gap-4 lg:col-span-2">
