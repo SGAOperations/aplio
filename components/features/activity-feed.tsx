@@ -13,8 +13,8 @@ import {
 import { type ActivityItem, type Reviewer } from '@/lib/types';
 import { getRenamedTo } from '@/lib/utils';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LocalTime } from '@/components/ui/local-time';
+import { SectionCard, SectionCardEmpty } from '@/components/ui/section-card';
 
 // ─── Presentational leaf ─────────────────────────────────────────────────────
 
@@ -25,56 +25,41 @@ interface ActivityFeedListProps {
 
 function ActivityFeedList({ items, emptyDescription }: ActivityFeedListProps) {
   return (
-    <section aria-label="Recent activity">
-      <Card className="gap-0 p-0">
-        <CardHeader className="border-b p-4">
-          <CardTitle className="text-base font-semibold">
-            Recent activity
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {items.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-10 text-center">
-              <Activity
-                className="text-muted-foreground size-10"
-                aria-hidden="true"
-              />
-              <p className="text-sm font-medium">No recent activity</p>
-              <p className="text-muted-foreground text-sm">
-                {emptyDescription}
-              </p>
-            </div>
-          ) : (
-            <ol>
-              {items.map((item) => {
-                const dotClass =
-                  STATUS_BADGE_VARIANT_TO_DOT[item.statusVariant];
+    <SectionCard title="Recent activity" sectionLabel="Recent activity">
+      {items.length === 0 ? (
+        <SectionCardEmpty
+          icon={Activity}
+          title="No recent activity"
+          description={emptyDescription}
+        />
+      ) : (
+        <ol>
+          {items.map((item) => {
+            const dotClass = STATUS_BADGE_VARIANT_TO_DOT[item.statusVariant];
 
-                return (
-                  <li
-                    key={item.id}
-                    className="flex items-start gap-3 border-b px-4 py-3 last:border-0"
-                  >
-                    <span
-                      className={`mt-1.5 size-2 shrink-0 rounded-full ${dotClass}`}
-                      aria-hidden="true"
-                    />
-                    <p className="line-clamp-2 min-w-0 flex-1 text-sm">
-                      {item.sentence}
-                    </p>
-                    <LocalTime
-                      date={item.timestamp}
-                      precision="relative"
-                      className="text-muted-foreground ml-auto shrink-0 text-xs tabular-nums"
-                    />
-                  </li>
-                );
-              })}
-            </ol>
-          )}
-        </CardContent>
-      </Card>
-    </section>
+            return (
+              <li
+                key={item.id}
+                className="flex items-start gap-3 border-b px-4 py-3 last:border-0"
+              >
+                <span
+                  className={`mt-1.5 size-2 shrink-0 rounded-full ${dotClass}`}
+                  aria-hidden="true"
+                />
+                <p className="line-clamp-2 min-w-0 flex-1 text-sm">
+                  {item.sentence}
+                </p>
+                <LocalTime
+                  date={item.timestamp}
+                  precision="relative"
+                  className="text-muted-foreground ml-auto shrink-0 text-xs tabular-nums"
+                />
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </SectionCard>
   );
 }
 
@@ -142,29 +127,5 @@ export async function ReviewerActivityFeed({
           : 'New applications to the positions you manage will show up here.'
       }
     />
-  );
-}
-
-// ─── Shared skeleton ─────────────────────────────────────────────────────────
-
-export function ActivityFeedSkeleton() {
-  return (
-    <Card className="gap-0 p-0">
-      <CardHeader className="border-b p-4">
-        <div className="bg-muted h-5 w-32 animate-pulse rounded" />
-      </CardHeader>
-      <CardContent className="p-0">
-        {Array.from({ length: 10 }).map((_, i) => (
-          <div
-            key={i}
-            className="flex items-center gap-3 border-b px-4 py-3 last:border-0"
-          >
-            <div className="bg-muted size-2 shrink-0 animate-pulse rounded-full" />
-            <div className="bg-muted h-4 flex-1 animate-pulse rounded" />
-            <div className="bg-muted h-3 w-12 animate-pulse rounded" />
-          </div>
-        ))}
-      </CardContent>
-    </Card>
   );
 }

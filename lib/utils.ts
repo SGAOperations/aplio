@@ -33,6 +33,14 @@ export function getRenamedTo(app: {
     : null;
 }
 
+/** Applicant's frozen name, falling back to the live user's name then email. */
+export function getDisplayName(app: {
+  applicantName: string | null;
+  user: { name: string | null; email: string };
+}): string {
+  return app.applicantName ?? app.user.name ?? app.user.email;
+}
+
 export type ErrorType = { error: string };
 
 export type ResponseType<T> = T | ErrorType;
@@ -134,6 +142,28 @@ export function partitionAnswerValue(
 /** True when the stored answer has any part that still fits the question's current shape. */
 export function isAnswered(question: AnswerQuestion, value: string[]): boolean {
   return partitionAnswerValue(question, value).fitted.length > 0;
+}
+
+/** Ids shared by every answer surface, so a card's label/input/error/notice/status stay wired to each other. */
+export function answerFieldIds(questionId: string) {
+  return {
+    labelId: `${questionId}-label`,
+    inputId: `${questionId}-input`,
+    errorId: `${questionId}-error`,
+    noticeId: `${questionId}-mismatch`,
+    statusId: `${questionId}-status`,
+  };
+}
+
+/** Splits a fitted answer into its checked options and its free-text "Other" entry, if any. */
+export function splitOtherAnswer(
+  question: { options: string[] },
+  fitted: string[],
+): { selectedOptions: string[]; otherText: string } {
+  return {
+    selectedOptions: fitted.filter((v) => question.options.includes(v)),
+    otherText: fitted.find((v) => !question.options.includes(v)) ?? '',
+  };
 }
 
 /**

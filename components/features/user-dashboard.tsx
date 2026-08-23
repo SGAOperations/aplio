@@ -1,51 +1,18 @@
 import { Suspense } from 'react';
 
-import {
-  ActivityFeedSkeleton,
-  ApplicantActivityFeed,
-} from '@/components/features/activity-feed';
+import { ApplicantActivityFeed } from '@/components/features/activity-feed';
 import {
   ApplicantSummary,
   ApplicantSummarySkeleton,
 } from '@/components/features/applicant-summary';
-import {
-  MyApplicationsWidget,
-  MyApplicationsWidgetSkeleton,
-} from '@/components/features/my-applications-widget';
+import { MyApplicationsWidget } from '@/components/features/my-applications-widget';
 import { OpenPositionsWidget } from '@/components/features/open-positions-widget';
 import { ProfileCompletenessBanner } from '@/components/features/profile-completeness-banner';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
+import { SectionCardSkeleton } from '@/components/ui/section-card';
 
 interface UserDashboardProps {
   userId: string;
   userName: string | null;
-}
-
-function OpenPositionsWidgetSkeleton() {
-  return (
-    <Card className="gap-0 p-0">
-      <CardHeader className="border-b p-4">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-5 w-32" />
-          <Skeleton className="h-4 w-16" />
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="border-b px-4 py-4 last:border-0">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex flex-1 flex-col gap-1.5">
-                <Skeleton className="h-4 w-40" />
-                <Skeleton className="h-3 w-64" />
-              </div>
-              <Skeleton className="h-8 w-16 rounded-md" />
-            </div>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
 }
 
 export function UserDashboard({ userId, userName }: UserDashboardProps) {
@@ -70,15 +37,21 @@ export function UserDashboard({ userId, userName }: UserDashboardProps) {
         <ApplicantSummary userId={userId} />
       </Suspense>
 
-      <Suspense fallback={<MyApplicationsWidgetSkeleton />}>
+      <Suspense
+        fallback={<SectionCardSkeleton rowShape="badge-meta" hasSubtitle />}
+      >
         <MyApplicationsWidget userId={userId} limit={3} />
       </Suspense>
 
-      <Suspense fallback={<OpenPositionsWidgetSkeleton />}>
+      <Suspense fallback={<SectionCardSkeleton rowShape="stacked-action" />}>
         <OpenPositionsWidget limit={3} />
       </Suspense>
 
-      <Suspense fallback={<ActivityFeedSkeleton />}>
+      <Suspense
+        fallback={
+          <SectionCardSkeleton rowShape="timeline" rows={10} hasLink={false} />
+        }
+      >
         <ApplicantActivityFeed userId={userId} />
       </Suspense>
     </div>

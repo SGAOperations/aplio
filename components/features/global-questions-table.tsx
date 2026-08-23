@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { ListChecks } from 'lucide-react';
 import { toast } from 'sonner';
@@ -12,18 +12,14 @@ import {
   QUESTION_TYPE_LABELS,
   SHORT_ANSWER_FORMAT_LABELS,
 } from '@/lib/constants';
+import { type DataTableColumn } from '@/lib/data-table';
 import type { GlobalQuestionListItem } from '@/lib/types';
-import {
-  type SortableColumn,
-  useSortableTable,
-} from '@/lib/use-sortable-table';
 
 import { GlobalQuestionDialog } from '@/components/features/global-question-dialog';
 import { QuestionOptionChips } from '@/components/features/question-option-chips';
-import { SortableHeader } from '@/components/features/sortable-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { DataTable, DataTableRowActions } from '@/components/ui/data-table';
 import {
   Dialog,
   DialogContent,
@@ -33,36 +29,103 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 
 interface GlobalQuestionsTableProps {
   questions: GlobalQuestionListItem[];
 }
 
-const COLUMNS: SortableColumn<GlobalQuestionListItem>[] = [
-  { key: 'order', accessor: (q) => q.order },
-  { key: 'label', accessor: (q) => q.label },
-  { key: 'type', accessor: (q) => QUESTION_TYPE_LABELS[q.type] },
-  // Sort 1 (yes) before 0 (no) when ascending so required questions surface first.
-  { key: 'required', accessor: (q) => (q.required ? 1 : 0) },
-];
-
 export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Default sort: order ascending — the meaningful sequence for global questions.
-  const { sortedRows, sort, toggle, ariaSort } = useSortableTable(
-    questions,
-    COLUMNS,
-    { defaultSort: { key: 'order', direction: 'asc' } },
+  const COLUMNS: DataTableColumn<GlobalQuestionListItem>[] = useMemo(
+    () => [
+      {
+        key: 'order',
+        header: 'Order',
+        headClassName: 'w-16',
+        sortAccessor: (q) => q.order,
+        cell: (q) => q.order,
+      },
+      {
+        key: 'label',
+        header: 'Label',
+        cellClassName: 'font-medium',
+        sortAccessor: (q) => q.label,
+        cell: (q) => q.label,
+      },
+      {
+        key: 'type',
+        header: 'Type',
+        headClassName: 'w-36',
+        sortAccessor: (q) => QUESTION_TYPE_LABELS[q.type],
+        cell: (q) => (
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={QUESTION_TYPE_BADGE_VARIANT[q.type]}>
+              {QUESTION_TYPE_LABELS[q.type]}
+            </Badge>
+            {q.format && (
+              <Badge variant="outline">
+                {SHORT_ANSWER_FORMAT_LABELS[q.format]}
+              </Badge>
+            )}
+          </div>
+        ),
+      },
+      {
+        // Not sortable — rendered chips, not data.
+        key: 'options',
+        header: 'Options',
+        cell: (q) =>
+          q.options.length > 0 || q.allowOther ? (
+            <QuestionOptionChips
+              options={q.options}
+              allowOther={q.allowOther}
+            />
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          ),
+      },
+      {
+        key: 'required',
+        header: 'Required',
+        headClassName: 'w-28',
+        // Sort 1 (yes) before 0 (no) when ascending so required questions surface first.
+        sortAccessor: (q) => (q.required ? 1 : 0),
+        cell: (q) =>
+          q.required ? (
+            <Badge variant="outline">Required</Badge>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          ),
+      },
+      {
+        // Not sortable
+        key: 'actions',
+        header: 'Actions',
+        headClassName: 'w-32',
+        cell: (q) => (
+          <DataTableRowActions>
+            <GlobalQuestionDialog
+              trigger={
+                <Button variant="outline" size="sm">
+                  Edit
+                </Button>
+              }
+              question={q}
+            />
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setDeletingId(q.id)}
+            >
+              Delete
+            </Button>
+          </DataTableRowActions>
+        ),
+      },
+    ],
+    [],
   );
 
   async function handleDelete() {
@@ -100,160 +163,61 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
 
   return (
     <>
-      {/* Desktop table */}
-      <Card className="hidden gap-0 p-0 md:block">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <SortableHeader
-                label="Order"
-                active={sort.key === 'order'}
-                direction={sort.direction}
-                ariaSort={ariaSort('order')}
-                onToggle={() => toggle('order')}
-                className="w-16"
-              />
-              <SortableHeader
-                label="Label"
-                active={sort.key === 'label'}
-                direction={sort.direction}
-                ariaSort={ariaSort('label')}
-                onToggle={() => toggle('label')}
-              />
-              <SortableHeader
-                label="Type"
-                active={sort.key === 'type'}
-                direction={sort.direction}
-                ariaSort={ariaSort('type')}
-                onToggle={() => toggle('type')}
-                className="w-36"
-              />
-              {/* Options column — not sortable (rendered chips, not data) */}
-              <TableHead>Options</TableHead>
-              <SortableHeader
-                label="Required"
-                active={sort.key === 'required'}
-                direction={sort.direction}
-                ariaSort={ariaSort('required')}
-                onToggle={() => toggle('required')}
-                className="w-28"
-              />
-              {/* Actions column — not sortable */}
-              <TableHead className="w-32">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sortedRows.map((question) => (
-              <TableRow key={question.id}>
-                <TableCell>{question.order}</TableCell>
-                <TableCell className="font-medium">{question.label}</TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant={QUESTION_TYPE_BADGE_VARIANT[question.type]}>
-                      {QUESTION_TYPE_LABELS[question.type]}
-                    </Badge>
-                    {question.format && (
-                      <Badge variant="outline">
-                        {SHORT_ANSWER_FORMAT_LABELS[question.format]}
-                      </Badge>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  {question.options.length > 0 || question.allowOther ? (
-                    <QuestionOptionChips
-                      options={question.options}
-                      allowOther={question.allowOther}
-                    />
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {question.required ? (
-                    <Badge variant="outline">Required</Badge>
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-2">
-                    <GlobalQuestionDialog
-                      trigger={
-                        <Button variant="outline" size="sm">
-                          Edit
-                        </Button>
-                      }
-                      question={question}
-                    />
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => setDeletingId(question.id)}
-                    >
-                      Delete
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Card>
-
-      {/* Mobile stacked cards — sort order from sortedRows reflects active sort */}
-      <div className="flex flex-col gap-3 md:hidden">
-        {sortedRows.map((question) => (
-          <Card key={question.id} className="p-4">
-            <div className="flex flex-col gap-3">
-              <div className="flex items-start justify-between gap-2">
-                <p className="font-medium">{question.label}</p>
-                <div className="flex items-center gap-2">
-                  <Badge variant={QUESTION_TYPE_BADGE_VARIANT[question.type]}>
-                    {QUESTION_TYPE_LABELS[question.type]}
-                  </Badge>
-                  {question.format && (
-                    <Badge variant="outline">
-                      {SHORT_ANSWER_FORMAT_LABELS[question.format]}
-                    </Badge>
-                  )}
-                </div>
-              </div>
+      <DataTable
+        rows={questions}
+        columns={COLUMNS}
+        getRowKey={(q) => q.id}
+        caption="Global questions"
+        defaultSort={{ key: 'order', direction: 'asc' }}
+        mobileCard={(question) => (
+          <div className="flex flex-col gap-3 p-4">
+            <div className="flex items-start justify-between gap-2">
+              <p className="font-medium">{question.label}</p>
               <div className="flex items-center gap-2">
-                <span className="text-muted-foreground text-xs">
-                  Order: {question.order}
-                </span>
-                {question.required && (
-                  <Badge variant="outline" className="text-xs">
-                    Required
+                <Badge variant={QUESTION_TYPE_BADGE_VARIANT[question.type]}>
+                  {QUESTION_TYPE_LABELS[question.type]}
+                </Badge>
+                {question.format && (
+                  <Badge variant="outline">
+                    {SHORT_ANSWER_FORMAT_LABELS[question.format]}
                   </Badge>
                 )}
               </div>
-              <QuestionOptionChips
-                options={question.options}
-                allowOther={question.allowOther}
-              />
-              <div className="flex gap-2">
-                <GlobalQuestionDialog
-                  trigger={
-                    <Button variant="outline" size="sm">
-                      Edit
-                    </Button>
-                  }
-                  question={question}
-                />
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => setDeletingId(question.id)}
-                >
-                  Delete
-                </Button>
-              </div>
             </div>
-          </Card>
-        ))}
-      </div>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground text-xs">
+                Order: {question.order}
+              </span>
+              {question.required && (
+                <Badge variant="outline" className="text-xs">
+                  Required
+                </Badge>
+              )}
+            </div>
+            <QuestionOptionChips
+              options={question.options}
+              allowOther={question.allowOther}
+            />
+            <DataTableRowActions>
+              <GlobalQuestionDialog
+                trigger={
+                  <Button variant="outline" size="sm">
+                    Edit
+                  </Button>
+                }
+                question={question}
+              />
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setDeletingId(question.id)}
+              >
+                Delete
+              </Button>
+            </DataTableRowActions>
+          </div>
+        )}
+      />
 
       <Dialog
         open={!!deletingId}

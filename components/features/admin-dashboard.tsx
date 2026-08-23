@@ -2,45 +2,14 @@ import { Suspense } from 'react';
 
 import { type Reviewer } from '@/lib/types';
 
-import {
-  ActivityFeedSkeleton,
-  ReviewerActivityFeed,
-} from '@/components/features/activity-feed';
+import { ReviewerActivityFeed } from '@/components/features/activity-feed';
 import { OpenPositionsSummary } from '@/components/features/open-positions-summary';
 import {
   PipelineSummary,
   PipelineSummarySkeleton,
 } from '@/components/features/pipeline-summary';
-import {
-  RecentApplications,
-  RecentApplicationsSkeleton,
-} from '@/components/features/recent-applications';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-
-function OpenPositionsSummarySkeleton() {
-  return (
-    <Card className="gap-0 p-0">
-      <CardHeader className="border-b p-4">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-5 w-32" />
-          <Skeleton className="h-4 w-16" />
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div
-            key={i}
-            className="flex items-center justify-between border-b px-4 py-3 last:border-0"
-          >
-            <Skeleton className="h-4 w-40" />
-            <Skeleton className="h-4 w-20" />
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
+import { RecentApplications } from '@/components/features/recent-applications';
+import { SectionCardSkeleton } from '@/components/ui/section-card';
 
 interface AdminDashboardProps {
   reviewer: Reviewer;
@@ -60,15 +29,19 @@ export function AdminDashboard({ reviewer }: AdminDashboardProps) {
         <PipelineSummary reviewer={reviewer} />
       </Suspense>
 
-      <Suspense fallback={<RecentApplicationsSkeleton />}>
+      <Suspense fallback={<SectionCardSkeleton rowShape="badge-meta" />}>
         <RecentApplications reviewer={reviewer} limit={3} />
       </Suspense>
 
-      <Suspense fallback={<OpenPositionsSummarySkeleton />}>
+      <Suspense fallback={<SectionCardSkeleton rowShape="meta" />}>
         <OpenPositionsSummary take={3} />
       </Suspense>
 
-      <Suspense fallback={<ActivityFeedSkeleton />}>
+      <Suspense
+        fallback={
+          <SectionCardSkeleton rowShape="timeline" rows={10} hasLink={false} />
+        }
+      >
         <ReviewerActivityFeed reviewer={reviewer} />
       </Suspense>
     </div>

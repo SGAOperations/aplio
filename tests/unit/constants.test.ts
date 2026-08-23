@@ -8,6 +8,7 @@ import {
   REVIEWER_APPLICATION_STATUSES,
   TERMINAL_DECISION_STATUSES,
   UNRESOLVED_APPLICATION_STATUSES,
+  getAnswerBlurError,
   getAnswerValueError,
   matchesShortAnswerFormat,
 } from '@/lib/constants';
@@ -176,6 +177,39 @@ describe('getAnswerValueError', () => {
         ]),
       ).toBeNull();
     });
+  });
+});
+
+describe('getAnswerBlurError', () => {
+  const formattedQuestion = {
+    type: 'short_answer' as const,
+    format: 'email' as const,
+    ...choiceQuestion,
+  };
+
+  it('rejects a bad format before the value rules run', () => {
+    expect(getAnswerBlurError(formattedQuestion, ['not-an-email'])).toBe(
+      'Enter a valid email address',
+    );
+  });
+
+  it('falls through to getAnswerValueError once the format is fine', () => {
+    expect(getAnswerBlurError(formattedQuestion, ['a@b.com', 'extra'])).toBe(
+      'Only one answer is allowed for this question.',
+    );
+  });
+
+  it('allows a value matching both the format and the value rules', () => {
+    expect(getAnswerBlurError(formattedQuestion, ['a@b.com'])).toBeNull();
+  });
+
+  it('skips the format check for a question without one', () => {
+    expect(
+      getAnswerBlurError(
+        { type: 'short_answer', format: null, ...choiceQuestion },
+        ['ok'],
+      ),
+    ).toBeNull();
   });
 });
 
