@@ -33,6 +33,14 @@ export function getRenamedTo(app: {
     : null;
 }
 
+/** Applicant's frozen name, falling back to the live user's name then email. */
+export function getDisplayName(app: {
+  applicantName: string | null;
+  user: { name: string | null; email: string };
+}): string {
+  return app.applicantName ?? app.user.name ?? app.user.email;
+}
+
 export type ErrorType = { error: string };
 
 export type ResponseType<T> = T | ErrorType;

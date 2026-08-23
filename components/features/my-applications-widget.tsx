@@ -1,7 +1,5 @@
 import Link from 'next/link';
 
-import { ArrowRight } from 'lucide-react';
-
 import {
   getMyApplicationStatusCounts,
   getRecentMyApplications,
@@ -11,9 +9,8 @@ import { APPLICATION_STATUS_LABELS } from '@/lib/constants';
 import { type MyApplicationListItem } from '@/lib/types';
 
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LocalTime } from '@/components/ui/local-time';
-import { Skeleton } from '@/components/ui/skeleton';
+import { SectionCard, SectionCardEmpty } from '@/components/ui/section-card';
 
 interface MyApplicationsWidgetProps {
   userId: string;
@@ -62,47 +59,31 @@ export async function MyApplicationsWidget({
   const summary = buildCountsSummary(counts);
 
   return (
-    // overflow-hidden clips the header hover highlight to the card's rounded corners
-    <Card className="gap-0 overflow-hidden p-0">
-      <CardHeader className="border-b p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-base font-semibold">
-              My Applications
-            </CardTitle>
-            {summary && (
-              <p className="text-muted-foreground mt-1 text-sm">{summary}</p>
-            )}
-          </div>
-          <Link
-            href="/my-applications"
-            aria-label="See all applications"
-            className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm transition-colors"
-          >
-            See all
-            <ArrowRight className="size-3.5" aria-hidden="true" />
-          </Link>
-        </div>
-      </CardHeader>
-
-      <CardContent className="p-0">
-        {applications.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-8 text-center">
-            <p className="text-muted-foreground text-sm">
-              You haven&apos;t started any applications yet.
-            </p>
+    <SectionCard
+      title="My Applications"
+      subtitle={summary || undefined}
+      link={{
+        href: '/my-applications',
+        label: 'See all',
+        ariaLabel: 'See all applications',
+      }}
+    >
+      {applications.length === 0 ? (
+        <SectionCardEmpty
+          description="You haven't started any applications yet."
+          action={
             <Link
               href="/positions"
               className="text-primary text-sm font-medium hover:underline"
             >
               Browse positions
             </Link>
-          </div>
-        ) : (
-          <ApplicationList applications={applications} />
-        )}
-      </CardContent>
-    </Card>
+          }
+        />
+      ) : (
+        <ApplicationList applications={applications} />
+      )}
+    </SectionCard>
   );
 }
 
@@ -135,33 +116,5 @@ function ApplicationList({
         </li>
       ))}
     </ul>
-  );
-}
-
-export function MyApplicationsWidgetSkeleton() {
-  return (
-    <Card className="gap-0 p-0">
-      <CardHeader className="border-b p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col gap-2">
-            <Skeleton className="h-5 w-36" />
-            <Skeleton className="h-4 w-48" />
-          </div>
-          <Skeleton className="h-4 w-16" />
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div
-            key={i}
-            className="flex items-center gap-3 border-b px-4 py-3 last:border-0"
-          >
-            <Skeleton className="h-4 flex-1" />
-            <Skeleton className="h-5 w-20 rounded-md" />
-            <Skeleton className="h-4 w-20" />
-          </div>
-        ))}
-      </CardContent>
-    </Card>
   );
 }
