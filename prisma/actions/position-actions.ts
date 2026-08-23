@@ -14,8 +14,10 @@ import {
 import { getCurrentUser } from '@/lib/auth/server';
 import {
   ARCHIVED_POSITION_EDIT_ERROR,
+  POSITION_DATE_ORDER_ERROR,
   POSITION_DELETE_BLOCKED_ERROR,
   POSITION_DESCRIPTION_MAX_LENGTH,
+  validatePositionDates,
 } from '@/lib/constants';
 import { orgDayEnd, orgDayStart } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
@@ -23,30 +25,40 @@ import type { PositionManager, UserSearchResult } from '@/lib/types';
 import { type ResponseType } from '@/lib/utils';
 
 // description defaults to '' so a draft can be created quickly.
-const createPositionSchema = z.object({
-  title: z.string().min(1),
-  description: z
-    .string()
-    .max(POSITION_DESCRIPTION_MAX_LENGTH)
-    .optional()
-    .default(''),
-  status: z.enum(['draft', 'open', 'closed']),
-  opensAt: z.iso.date().optional(),
-  closesAt: z.iso.date().optional(),
-});
+const createPositionSchema = z
+  .object({
+    title: z.string().min(1),
+    description: z
+      .string()
+      .max(POSITION_DESCRIPTION_MAX_LENGTH)
+      .optional()
+      .default(''),
+    status: z.enum(['draft', 'open', 'closed']),
+    opensAt: z.iso.date().optional(),
+    closesAt: z.iso.date().optional(),
+  })
+  .superRefine(validatePositionDates);
 
-const updatePositionSchema = z.object({
-  id: z.string().min(1),
-  title: z.string().min(1),
-  description: z
-    .string()
-    .max(POSITION_DESCRIPTION_MAX_LENGTH)
-    .optional()
-    .default(''),
-  status: z.enum(['draft', 'open', 'closed']),
-  opensAt: z.iso.date().optional(),
-  closesAt: z.iso.date().optional(),
-});
+const updatePositionSchema = z
+  .object({
+    id: z.string().min(1),
+    title: z.string().min(1),
+    description: z
+      .string()
+      .max(POSITION_DESCRIPTION_MAX_LENGTH)
+      .optional()
+      .default(''),
+    status: z.enum(['draft', 'open', 'closed']),
+    opensAt: z.iso.date().optional(),
+    closesAt: z.iso.date().optional(),
+  })
+  .superRefine(validatePositionDates);
+
+// The refinement's messages are the only user-actionable parse failures.
+const parseError = (error: z.ZodError) =>
+  error.issues.some((issue) => issue.message === POSITION_DATE_ORDER_ERROR)
+    ? POSITION_DATE_ORDER_ERROR
+    : 'Invalid input';
 
 const deletePositionSchema = z.object({ id: z.string().min(1) });
 
@@ -66,7 +78,7 @@ export async function createPosition(
   const user = await requireManagerOrAdmin();
 
   const parsed = createPositionSchema.safeParse(input);
-  if (!parsed.success) return { error: 'Invalid input' };
+  if (!parsed.success) return { error: parseError(parsed.error) };
 
   const { title, description, status, opensAt, closesAt } = parsed.data;
 
@@ -93,7 +105,7 @@ export async function updatePosition(
   input: unknown,
 ): Promise<void | { error: string }> {
   const parsed = updatePositionSchema.safeParse(input);
-  if (!parsed.success) return { error: 'Invalid input' };
+  if (!parsed.success) return { error: parseError(parsed.error) };
 
   const { id, title, description, status, opensAt, closesAt } = parsed.data;
 
