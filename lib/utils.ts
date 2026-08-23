@@ -7,6 +7,7 @@ import {
   APPLICATION_STATUS_LABELS,
   MANAGED_POSITIONS_WINDOW_DAYS,
   NON_REVIEWABLE_APPLICATION_STATUSES,
+  USER_ROLE_FILTER_OPTIONS,
   isNonReviewableApplicationStatus,
 } from '@/lib/constants';
 import type {
@@ -15,6 +16,7 @@ import type {
   PositionActivity,
   PositionAvailability,
   PositionWindow,
+  UserRoleFilter,
 } from '@/lib/types';
 
 export function cn(...inputs: ClassValue[]) {
@@ -264,6 +266,26 @@ export function formatTableCount({
 
   if (!isFiltered && !shownCapped) return `${total} ${nounLabel}`;
   return `${shownLabel} / ${total} ${nounLabel}`;
+}
+
+interface RoleTokenInput {
+  isAdmin: boolean;
+  managedPositions: readonly unknown[];
+}
+
+/** Badge semantics — a user who is both admin and manager returns both tokens. */
+export function getUserRoleTokens(user: RoleTokenInput): UserRoleFilter[] {
+  const tokens: UserRoleFilter[] = [];
+  if (user.isAdmin) tokens.push('admin');
+  if (user.managedPositions.length > 0) tokens.push('manager');
+  return tokens;
+}
+
+/** Rank for grouping/sorting — the first (highest) role token, or last when the user has none. */
+export function getUserRoleRank(user: RoleTokenInput): number {
+  const [first] = getUserRoleTokens(user);
+  if (!first) return USER_ROLE_FILTER_OPTIONS.length;
+  return USER_ROLE_FILTER_OPTIONS.findIndex((o) => o.value === first);
 }
 
 export type BulkStatusChangeSummary = {

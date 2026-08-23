@@ -10,13 +10,21 @@ export default function UsersLoading() {
         <Skeleton className="h-4 w-64" />
       </div>
 
-      {/* Toolbar skeleton — search input + count line */}
+      {/* Toolbar skeleton — role/position filters + search input + count line */}
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+        <div className="flex flex-col gap-1.5">
+          <Skeleton className="h-3 w-10" />
+          <Skeleton className="h-9 w-full sm:w-48" />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Skeleton className="h-3 w-28" />
+          <Skeleton className="h-9 w-full sm:w-48" />
+        </div>
         <div className="flex flex-col gap-1.5">
           <Skeleton className="h-3 w-14" />
           <Skeleton className="h-9 w-64" />
         </div>
-        <Skeleton className="h-4 w-20 sm:ml-auto" />
+        <Skeleton className="h-4 w-48 sm:ml-auto" />
       </div>
 
       {/* Table skeleton */}

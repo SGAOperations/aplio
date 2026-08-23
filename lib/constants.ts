@@ -3,7 +3,7 @@ import { z } from 'zod/v4';
 import { $Enums } from '@/prisma/client';
 import type { PositionStatus, Prisma, QuestionType } from '@/prisma/client';
 
-import type { PositionAvailability } from '@/lib/types';
+import type { PositionAvailability, UserRoleFilter } from '@/lib/types';
 
 import type { BadgeVariant } from '@/components/ui/badge';
 
@@ -377,6 +377,15 @@ export const REVIEWER_APPLICATION_STATUSES = [
 
 export const REVIEWER_APPLICATION_STATUS_OPTIONS =
   APPLICATION_STATUS_OPTIONS.filter((o) => o.value !== 'draft');
+
+// Array order is rank order — also drives getUserRoleRank's fallback.
+export const USER_ROLE_FILTER_OPTIONS: {
+  value: UserRoleFilter;
+  label: string;
+}[] = [
+  { value: 'admin', label: 'Admin' },
+  { value: 'manager', label: 'Manager' },
+];
 
 // Single source for the /applications sort union and its zod enum.
 export const APPLICATION_SORT_FIELDS = ['date', 'name', 'status'] as const;

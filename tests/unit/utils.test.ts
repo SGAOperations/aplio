@@ -7,6 +7,8 @@ import {
   formatAlternatives,
   formatTableCount,
   getPositionAvailability,
+  getUserRoleRank,
+  getUserRoleTokens,
   isAnswered,
   isBypassAllowed,
   isError,
@@ -465,6 +467,54 @@ describe('formatAlternatives', () => {
 
   it('returns an empty string for no labels', () => {
     expect(formatAlternatives([])).toBe('');
+  });
+});
+
+describe('getUserRoleTokens', () => {
+  it('returns admin for an admin who manages nothing', () => {
+    expect(getUserRoleTokens({ isAdmin: true, managedPositions: [] })).toEqual([
+      'admin',
+    ]);
+  });
+
+  it('returns manager for a non-admin who manages a position', () => {
+    expect(
+      getUserRoleTokens({ isAdmin: false, managedPositions: [{ id: 'p1' }] }),
+    ).toEqual(['manager']);
+  });
+
+  it('returns both, admin first, for an admin who also manages a position', () => {
+    expect(
+      getUserRoleTokens({ isAdmin: true, managedPositions: [{ id: 'p1' }] }),
+    ).toEqual(['admin', 'manager']);
+  });
+
+  it('returns no tokens for neither', () => {
+    expect(getUserRoleTokens({ isAdmin: false, managedPositions: [] })).toEqual(
+      [],
+    );
+  });
+});
+
+describe('getUserRoleRank', () => {
+  it('ranks admin 0', () => {
+    expect(getUserRoleRank({ isAdmin: true, managedPositions: [] })).toBe(0);
+  });
+
+  it('ranks manager 1', () => {
+    expect(
+      getUserRoleRank({ isAdmin: false, managedPositions: [{ id: 'p1' }] }),
+    ).toBe(1);
+  });
+
+  it('ranks an admin who also manages by the higher (admin) rank', () => {
+    expect(
+      getUserRoleRank({ isAdmin: true, managedPositions: [{ id: 'p1' }] }),
+    ).toBe(0);
+  });
+
+  it('ranks neither last', () => {
+    expect(getUserRoleRank({ isAdmin: false, managedPositions: [] })).toBe(2);
   });
 });
 

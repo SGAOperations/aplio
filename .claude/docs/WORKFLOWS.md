@@ -29,7 +29,7 @@ Behaviour shared by many workflows is stated once under [Cross-cutting behaviour
 
 **[Position manager (PM)](#position-manager-pm)** — [PM-1](#pm-1-see-your-dashboard) · [PM-2](#pm-2-see-the-positions-you-manage) · [PM-3](#pm-3-create-a-position) · [PM-4](#pm-4-edit-position-details) · [PM-5](#pm-5-manage-position-questions) · [PM-6](#pm-6-add-a-manager) · [PM-7](#pm-7-remove-a-manager) · [PM-8](#pm-8-work-the-application-queue) · [PM-9](#pm-9-open-an-application-for-review) · [PM-10](#pm-10-download-an-applicants-file-answer) · [PM-11](#pm-11-move-one-application-through-the-status-graph) · [PM-12](#pm-12-move-several-applications-at-once)
 
-**[Admin (AD)](#admin-ad)** — [AD-1](#ad-1-see-every-position) · [AD-2](#ad-2-edit-an-archived-position) · [AD-3](#ad-3-delete-a-position) · [AD-4](#ad-4-create-a-global-question) · [AD-5](#ad-5-edit-a-global-question) · [AD-6](#ad-6-delete-a-global-question) · [AD-7](#ad-7-create-a-user) · [AD-8](#ad-8-grant-or-revoke-admin) · [AD-9](#ad-9-deactivate-a-user)
+**[Admin (AD)](#admin-ad)** — [AD-1](#ad-1-see-every-position) · [AD-2](#ad-2-edit-an-archived-position) · [AD-3](#ad-3-delete-a-position) · [AD-4](#ad-4-create-a-global-question) · [AD-5](#ad-5-edit-a-global-question) · [AD-6](#ad-6-delete-a-global-question) · [AD-7](#ad-7-create-a-user) · [AD-8](#ad-8-grant-or-revoke-admin) · [AD-9](#ad-9-deactivate-a-user) · [AD-10](#ad-10-find-a-user)
 
 ---
 
@@ -567,6 +567,14 @@ An admin is a **manager on every position**: every [Position manager](#position-
   - Already deactivated → the action throws → generic toast.
   - Their email is deliberately left intact, which is why [AD-7](#ad-7-create-a-user) refuses to reuse it.
 - **End state** — the user is signed out everywhere. A new sign-in attempt is refused before the code is sent, and any surviving session lands on `/login/deactivated` ([XC-7](#xc-7-deactivated-account)). Their applications remain visible to reviewers.
+
+### AD-10 Find a user
+
+- **Trigger** — `/users`.
+- **Happy path** — rows default-sort by role: admins, then managers, then everyone else, alphabetical by name (email fallback) within each group. Roles is a sortable column; clicking it restores this order after another sort has replaced it. **Role** (All/Admin/Manager) and **Managed position** filters compose with the existing search box (name, email, or a managed position's title); the Managed position select is omitted entirely when no user manages anything. The count line shows the filtered total plus admin and manager counts — both always render, including zero — and updates live as filters change. Role is badge semantics: a user who is both admin and manager counts toward, and is matched by, both figures, even though they sort into the admin group.
+- **Failure / edge**
+  - No match → the table's "No users match your filters." row/card; **Clear filters** resets search, role and managed position together.
+- **End state** — read-only; promote/deactivate ([AD-8](#ad-8-grant-or-revoke-admin), [AD-9](#ad-9-deactivate-a-user)) work unchanged from either the desktop row or the mobile card.
 
 ### Known open
 
