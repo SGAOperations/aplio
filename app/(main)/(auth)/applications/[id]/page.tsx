@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { getApplicationForReview } from '@/prisma/data/applications';
@@ -10,14 +11,8 @@ import { ApplicationAnswersList } from '@/components/features/application-answer
 import { ApplicationStatusActions } from '@/components/features/application-status-actions';
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
 import { PageHeader } from '@/components/layouts/page-header';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import { LocalTime } from '@/components/ui/local-time';
+import { SectionCard } from '@/components/ui/section-card';
 
 interface ApplicationDetailPageProps {
   params: Promise<{ id: string }>;
@@ -60,9 +55,17 @@ export default async function ApplicationDetailPage({
         <PageHeader
           title={renamedTo ? `${applicantName} (${renamedTo})` : applicantName}
           description={application.user.email}
+          backHref="/applications"
+          backLabel="Back to Applications"
         />
         <p className="text-muted-foreground mt-1 text-sm">
-          {application.position.title} · Applied{' '}
+          <Link
+            href={`/positions/${application.position.id}`}
+            className="underline"
+          >
+            {application.position.title}
+          </Link>{' '}
+          · Applied{' '}
           <LocalTime date={application.submittedAt} precision="date" />
         </p>
       </div>
@@ -71,53 +74,35 @@ export default async function ApplicationDetailPage({
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Left: answers (lg:col-span-2) */}
         <div className="flex flex-col gap-4 lg:col-span-2">
-          <Card>
-            <CardHeader className="p-3 pb-2">
-              <CardTitle className="text-base font-semibold">
-                Profile answers
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-3 pt-0">
-              <ApplicationAnswersList
-                answers={application.globalAnswers}
-                emptyMessage="No profile answers."
-                applicationId={application.id}
-              />
-            </CardContent>
-          </Card>
+          <SectionCard title="Profile answers" titleAs="h2">
+            <ApplicationAnswersList
+              answers={application.globalAnswers}
+              emptyMessage="No profile answers."
+              applicationId={application.id}
+            />
+          </SectionCard>
 
-          <Card>
-            <CardHeader className="p-3 pb-2">
-              <CardTitle className="text-base font-semibold">
-                Position answers
-              </CardTitle>
-              <CardDescription>{application.position.title}</CardDescription>
-            </CardHeader>
-            <CardContent className="p-3 pt-0">
-              <ApplicationAnswersList
-                answers={application.positionAnswers}
-                emptyMessage="No position-specific answers."
-                applicationId={application.id}
-              />
-            </CardContent>
-          </Card>
+          <SectionCard title="Position answers" titleAs="h2">
+            <ApplicationAnswersList
+              answers={application.positionAnswers}
+              emptyMessage="No position-specific answers."
+              applicationId={application.id}
+            />
+          </SectionCard>
         </div>
 
-        {/* Right: Status panel — sticky on lg, stacked first on mobile */}
-        <div className="order-first lg:sticky lg:top-6 lg:order-none lg:self-start">
-          <Card>
-            <CardHeader className="p-3 pb-2">
-              <CardTitle className="text-base font-semibold">Status</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3 p-3 pt-0">
+        {/* Right: Review panel — sticky on lg, stacked first on mobile */}
+        <div className="order-first lg:sticky lg:top-6 lg:order-none lg:max-h-[calc(100svh-3rem)] lg:self-start lg:overflow-y-auto">
+          <SectionCard title="Review" titleAs="h2">
+            <div className="flex flex-col gap-3 p-4">
               <ApplicationStatusBadge status={application.status} />
               <ApplicationStatusActions
                 applicationId={application.id}
                 currentStatus={application.status}
                 applicantName={applicantName}
               />
-            </CardContent>
-          </Card>
+            </div>
+          </SectionCard>
         </div>
       </div>
     </div>
