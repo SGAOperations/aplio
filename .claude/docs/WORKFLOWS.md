@@ -286,7 +286,7 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 ### AP-11 View one of your applications
 
 - **Trigger** — a position title link on `/my-applications`, or the redirect after submitting ([AP-9](#ap-9-submit-an-application)).
-- **Happy path** — `getMyApplication(id, user.id)` is scoped to the caller with the same visibility as the list. The page shows the position title, "Applied <date>" (or "Draft · last saved <date>"), a link to the position, both answer groups — "Your profile answers" and "Your answers for this position" — and a sticky "Progress" panel. Answers render by shape (short/single/multiple choice in a label-value row, long answers full-width as prose, files as a Download row) from the snapshotted `questionLabel`/`value`/`type` — never a live question lookup, so a retyped or relabeled question still shows the original label and every stored value.
+- **Happy path** — `getMyApplication(id, user.id)` is scoped to the caller with the same visibility as the list. The header shows the position title with the status badge directly beside it, the status sentence underneath, and the primary/row actions (Continue, Edit & resubmit, Withdraw, Delete draft — whichever applies) right-aligned on that same header row; below it, "Applied <date>" (or "Draft · last saved <date>") and a link to the position, then both answer groups — "Your profile answers" and "Your answers for this position" — full width. Answers render by shape (short/single/multiple choice in a label-value row, long answers full-width as prose, files as a Download row) from the snapshotted `questionLabel`/`value`/`type` — never a live question lookup, so a retyped or relabeled question still shows the original label and every stored value.
 - **Failure / edge**
   - Not the caller's, soft-deleted, or on an unpublished position → `notFound()`, so a bookmarked URL cannot outlive its list row.
   - No answers in a group → "No profile answers saved yet." / "No position answers saved yet."
@@ -433,13 +433,13 @@ A user who manages at least one non-deleted position. Manager status is **derive
 ### PM-9 Open an application for review
 
 - **Trigger** — a row on `/applications` (`/applications/[id]`).
-- **Happy path** — `getApplicationForReview(id, user)` uses the `listable` scope — withdrawn rows are kept, drafts are not. The page shows a "Back to Applications" link, the applicant's snapshotted name, their email, a linked position title, the applied date, the profile and position answer groups, and a sticky "Review" panel with the available transitions. Answers render by shape (short/single/multiple choice in a label-value row, long answers full-width as prose, files as a Download row) from the snapshotted `questionLabel`/`value`/`type` — never a live question lookup, so a question retyped or relabeled after submission still shows the original label and every stored value.
+- **Happy path** — `getApplicationForReview(id, user)` uses the `listable` scope — withdrawn rows are kept, drafts are not. The page shows a "Back to Applications" link, then a header row with the applicant's snapshotted name and status badge together, their email underneath, and the available status transitions right-aligned on that same row; below it, a linked position title and the applied date, then the profile and position answer groups full width. Answers render by shape (short/single/multiple choice in a label-value row, long answers full-width as prose, files as a Download row) from the snapshotted `questionLabel`/`value`/`type` — never a live question lookup, so a question retyped or relabeled after submission still shows the original label and every stored value.
 - **Failure / edge**
   - Outside the caller's scope, a draft, or missing → `notFound()`; unauthorized and missing are indistinguishable.
   - The applicant renamed themselves since submitting → the heading reads "<snapshotted name> (<current name>)".
   - Empty answer groups → "No profile answers." / "No position-specific answers."
   - An individual answer with no stored value → "No answer".
-  - `withdrawn` → the "Review" panel shows the note "This application was withdrawn by the applicant and can no longer be updated." with no transition buttons.
+  - `withdrawn` → the header row shows the note "This application was withdrawn by the applicant and can no longer be updated." in place of transition buttons.
   - `accepted` / `rejected` → the note from `TERMINAL_DECISION_STATUS_NOTES`: "Accepted. The applicant can no longer withdraw this application." (and the `rejected` twin), plus the back-transitions the graph allows.
 - **End state** — read-only until a transition is made.
 
