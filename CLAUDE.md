@@ -5,6 +5,7 @@ These are the always-true rules for this repo. Depth lives in dedicated docs —
 - **`.claude/docs/ENGINEERING.md`** — the quality bar (architecture, data integrity, security, UX states, a11y, performance). Read it before any planning or code work.
 - **`.claude/docs/PIPELINE.md`** — the automated agent pipeline and its GitHub label state machine.
 - **`.claude/docs/DESIGN.md`** — the design system: tokens, type/spacing scale, component conventions. Read it before building or changing UI.
+- **`.claude/docs/WORKFLOWS.md`** — what each user flow does end to end, per persona. Read it before changing a user-facing flow, and update the affected entry in the same PR.
 - **`.claude/docs/nextjs-notes.md`** — current Next.js 16 App Router behavior (caching, RSC boundaries, server actions). Trust it over training data.
 
 ## Tech Stack
