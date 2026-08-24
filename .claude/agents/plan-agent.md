@@ -41,7 +41,7 @@ gh issue edit N --repo SGAOperations/aplio --remove-label "plan changes requeste
 
 ## Work
 
-1. **Read the standards.** Read `.claude/docs/ENGINEERING.md` and the root `CLAUDE.md`. Plans must specify, per feature: loading/error/empty states, accessibility, and the validation strategy (zod schema + auth scoping for every server action).
+1. **Read the standards.** Read `docs/ENGINEERING.md` and the root `CLAUDE.md`. Plans must specify, per feature: loading/error/empty states, accessibility, and the validation strategy (zod schema + auth scoping for every server action).
 2. **Read full issue context:** `gh issue view N --repo SGAOperations/aplio` and `gh issue view N --repo SGAOperations/aplio --comments`. In **revision mode** the body already holds a plan; the human comments after it are the change requests — revise precisely, don't restart unless asked.
 3. **Research the codebase.** Read every file the issue references, identify all files to create/modify, and trace downstream consumers.
    - **Scope against linked tickets.** Read the **linked issues' descriptions** — the parent epic and sibling sub-issues plus direct blockers (the `/scope` decomposition) — to set scope boundaries: cover **exactly this ticket's slice**, without duplicating a sibling's responsibility or re-implementing a dependency. Fetch the links, then read each:
