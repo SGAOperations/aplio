@@ -47,6 +47,7 @@ await prisma.$transaction(async (tx) => {
 ```
 
 - **Schema discipline.** Status-like fields are Prisma `enum`s following existing enum naming; foreign keys get explicit relations; fields queried in `where`/`orderBy` at scale get `@@index`. Schema changes always come with the corresponding migration and are called out in the plan.
+- **Application status audit trail.** Every write that changes `Application.status` records an `ApplicationStatusEvent` in the same transaction — four paths do this today (`submitApplication`, `updateApplicationStatus`, `updateApplicationStatuses`, `withdrawApplication`); a fifth write path would otherwise silently skip the trail.
 - **Validate at every boundary.** Every server action parses its input with a zod schema before touching the database — even when the form also validates client-side. Client validation is UX; server validation is integrity.
 
 ## 3. Security

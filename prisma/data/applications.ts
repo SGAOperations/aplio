@@ -17,6 +17,7 @@ import {
   type ApplicationFilters,
   type ApplicationForReview,
   type ApplicationReviewAnswer,
+  type ApplicationStatusHistoryEntry,
   type DraftApplication,
   type MyApplicationDetail,
   type MyApplicationListItem,
@@ -169,6 +170,38 @@ export async function getApplicationForReview(
   if (!application) return null;
 
   return { ...application, ...normalizeApplicationAnswers(application) };
+}
+
+// listable scope via the relation — a history row for another manager's
+// application never resolves, so it can't leak through this query either.
+export async function getApplicationStatusHistory(
+  applicationId: string,
+  user: Reviewer,
+): Promise<ApplicationStatusHistoryEntry[]> {
+  const events = await prisma.applicationStatusEvent.findMany({
+    where: {
+      applicationId,
+      application: buildApplicationWhere(user, 'listable'),
+    },
+    // id tiebreaks createdAt: uuid(7) is time-ordered, and bulk createMany
+    // rows can share a timestamp.
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    select: {
+      id: true,
+      from: true,
+      to: true,
+      createdAt: true,
+      changedBy: { select: { name: true, email: true } },
+    },
+  });
+
+  return events.map((event) => ({
+    id: event.id,
+    from: event.from,
+    to: event.to,
+    createdAt: event.createdAt,
+    changedByName: event.changedBy.name ?? event.changedBy.email,
+  }));
 }
 
 export async function getMyApplicationStatusCounts(

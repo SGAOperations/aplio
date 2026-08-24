@@ -275,6 +275,16 @@ export type ApplicationForReview = Prisma.ApplicationGetPayload<{
   positionAnswers: ApplicationReviewAnswer[];
 };
 
+// Newest-first timeline row; changedByName is pre-resolved server-side (name
+// ?? email) so the actor's User row never crosses to the client.
+export type ApplicationStatusHistoryEntry = {
+  id: string;
+  from: $Enums.ApplicationStatus | null;
+  to: $Enums.ApplicationStatus;
+  changedByName: string;
+  createdAt: Date;
+};
+
 // Kept in sync with lib/constants.ts#questionFileTargetSchema.
 export type QuestionFileTarget =
   | { scope: 'profile'; questionId: string }
