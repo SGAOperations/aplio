@@ -1,12 +1,9 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 
 import { z } from 'zod/v4';
 
-import {
-  getApplications,
-  getApplicationsTotal,
-  getReviewablePositions,
-} from '@/prisma/data/applications';
+import { getReviewablePositions } from '@/prisma/data/applications';
 
 import { requireManagerOrAdminOr404 } from '@/lib/auth/guards';
 import {
@@ -16,7 +13,8 @@ import {
 } from '@/lib/constants';
 import type { ApplicationFilters } from '@/lib/types';
 
-import { ApplicationsTable } from '@/components/features/applications-table';
+import { ApplicationsResults } from '@/components/features/applications-results';
+import { ApplicationsTableSkeleton } from '@/components/features/applications-table-skeleton';
 import { ApplicationsToolbar } from '@/components/features/applications-toolbar';
 import { PageHeader } from '@/components/layouts/page-header';
 
@@ -45,6 +43,8 @@ const searchParamsSchema = z.object({
     .transform(([field, direction]) => ({ field, direction }))
     .optional()
     .catch(undefined),
+  // Junk, arrays and absurd offsets all fall back to page 1 rather than a 500.
+  page: z.coerce.number().int().min(1).max(10_000).optional().catch(undefined),
 });
 
 export default async function ApplicationsPage({
@@ -55,6 +55,7 @@ export default async function ApplicationsPage({
 
   const sp = await searchParams;
   const parsed = searchParamsSchema.parse(sp);
+  const page = parsed.page ?? 1;
 
   const filters: ApplicationFilters = {
     positionId: parsed.positionId,
@@ -72,17 +73,7 @@ export default async function ApplicationsPage({
     filters.sort
   );
 
-  const [fetchedApplications, positions, total] = await Promise.all([
-    getApplications(user, filters),
-    getReviewablePositions(user),
-    getApplicationsTotal(user),
-  ]);
-
-  // 101 rows fetched: `> 100` distinguishes truncation from an exact 100-row match.
-  const shownCapped = fetchedApplications.length > 100;
-  const applications = shownCapped
-    ? fetchedApplications.slice(0, 100)
-    : fetchedApplications;
+  const positions = await getReviewablePositions(user);
 
   return (
     <div className="flex flex-col gap-6">
@@ -94,17 +85,20 @@ export default async function ApplicationsPage({
       <ApplicationsToolbar
         positions={positions}
         filters={filters}
-        shown={applications.length}
-        total={total}
-        shownCapped={shownCapped}
         hasActiveFilters={hasActiveFilters}
       />
 
-      <ApplicationsTable
-        applications={applications}
-        hasActiveFilters={hasActiveFilters}
-        sort={filters.sort}
-      />
+      <Suspense
+        key={JSON.stringify({ ...filters, page })}
+        fallback={<ApplicationsTableSkeleton />}
+      >
+        <ApplicationsResults
+          user={user}
+          filters={filters}
+          page={page}
+          hasActiveFilters={hasActiveFilters}
+        />
+      </Suspense>
     </div>
   );
 }
