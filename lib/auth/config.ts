@@ -14,7 +14,7 @@ import { sendEmail } from '@/lib/email/resend';
 import { otpEmail } from '@/lib/email/templates';
 import { prisma } from '@/lib/prisma';
 
-const OTP_EXPIRY_SECONDS = 300;
+const OTP_EXPIRY_SECONDS = 600;
 
 function requireSecret(): string {
   const secret = process.env.BETTER_AUTH_SECRET;
