@@ -23,6 +23,7 @@ import {
   type DraftApplication,
   type MyApplicationDetail,
   type MyApplicationListItem,
+  type MyPositionApplication,
   type PositionApplicationStats,
   type ReviewableApplicant,
   type Reviewer,
@@ -142,6 +143,20 @@ export async function getRecentMyApplications(
     orderBy: { updatedAt: 'desc' },
     take,
   });
+}
+
+// Feeds the browse page's applied marker. No status filter — the caller needs
+// draft and withdrawn too. One row per position: the [userId, positionId]
+// unique constraint guarantees it.
+export async function getMyApplicationsByPosition(
+  userId: string,
+): Promise<Map<string, MyPositionApplication>> {
+  const applications = await prisma.application.findMany({
+    where: { userId, deletedAt: null },
+    select: { id: true, positionId: true, status: true },
+  });
+
+  return new Map(applications.map((a) => [a.positionId, a]));
 }
 
 // Same visibility as getMyApplications, so a bookmarked URL can't outlive its list row.
