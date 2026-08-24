@@ -287,6 +287,16 @@ export type ApplicationStatusHistoryEntry = {
   createdAt: Date;
 };
 
+// Reviewer-only cross-scope row; canOpen is resolved server-side so no
+// manager identity crosses out of the query.
+export type ApplicantOtherApplication = {
+  id: string;
+  status: $Enums.ApplicationStatus;
+  submittedAt: Date;
+  position: { id: string; title: string };
+  canOpen: boolean;
+};
+
 // Kept in sync with lib/constants.ts#questionFileTargetSchema.
 export type QuestionFileTarget =
   | { scope: 'profile'; questionId: string }

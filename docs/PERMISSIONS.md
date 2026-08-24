@@ -2,7 +2,7 @@
 
 Who may do what, and when. Written against the **target** state — where today's code disagrees, the deviation is listed at the bottom with the ticket that closes it.
 
-**[Principals](#principals)** · [Denial convention](#denial-convention) · [Route access](#route-access) · [Server-action authorization](#server-action-authorization) · [Position visibility](#position-visibility) · [Position status lifecycle](#position-status-lifecycle) · [What freezes when](#what-freezes-when) · [Guardrails instead of freezes](#guardrails-instead-of-freezes) · [Archive](#archive) · [Manager vs admin](#manager-vs-admin) · [Question editing and answer preservation](#question-editing-and-answer-preservation) · [Application lifecycle](#application-lifecycle) · [Known-open deviations](#known-open-deviations)
+**[Principals](#principals)** · [Denial convention](#denial-convention) · [Route access](#route-access) · [Server-action authorization](#server-action-authorization) · [Position visibility](#position-visibility) · [Position status lifecycle](#position-status-lifecycle) · [What freezes when](#what-freezes-when) · [Guardrails instead of freezes](#guardrails-instead-of-freezes) · [Archive](#archive) · [Manager vs admin](#manager-vs-admin) · [Question editing and answer preservation](#question-editing-and-answer-preservation) · [Application lifecycle](#application-lifecycle) · [Cross-scope disclosure](#cross-scope-disclosure) · [Known-open deviations](#known-open-deviations)
 
 ## Principals
 
@@ -170,6 +170,16 @@ Manager is M2M membership in `Position.managers` (`prisma/schema.prisma`), not a
 - **Three same-members-different-meaning constant pairs keep getting confused:** `NON_REVIEWABLE_APPLICATION_STATUSES` (`draft`, `withdrawn` — a reviewer may not act **on** these) vs `REVIEWER_APPLICATION_STATUSES` (the six statuses a reviewer may set **to** — excludes `draft` and `withdrawn`); `UNRESOLVED_APPLICATION_STATUSES` (`applied`, `reached_out`, `interview_scheduled`, `reviewing`) vs `REJECTABLE_APPLICATION_STATUSES` (same four members, different meaning — reachable to `rejected`); `APPLICANT_EDITABLE_APPLICATION_STATUSES` (`draft`, `withdrawn`) vs `NON_REVIEWABLE_APPLICATION_STATUSES` (same two members, different meaning again).
 - **Bulk moves (`updateApplicationStatuses`) are forward-only.** `getApplicationStatusForwardSources(status)` finds the sources that can reach `status` moving forward; rows outside that set are skipped, not walked backward, and the skip count is returned (`{ updated, skipped }`) rather than erroring.
 - **Deleting a draft is recoverable.** `deleteDraftApplication` only sets `deletedAt`/`deletedById` — it never touches `GlobalApplicationAnswer`/`PositionApplicationAnswer` rows, and `restoreDraftApplication` reuses the same row rather than creating a new one, so `@@unique([userId, positionId])` is never in play. A soft-deleted draft stays a `draft` for every other purpose (`createDraftApplication`, `createOrUpdateApplicationAnswer` and `submitApplication` each add an explicit `deletedAt` check ahead of their existing guards, returning `DRAFT_DELETED_MESSAGE`), and is excluded from every reviewer scope and count the same way any other soft-deleted row is.
+
+## Cross-scope disclosure
+
+The one place a manager is shown records outside `buildReviewablePositionWhere` — **deliberate policy, not a known-open deviation.**
+
+- `getApplicantOtherApplications(applicationId, user)` (`prisma/data/applications.ts`) backs the "Other applications" section on `/applications/[id]`. It runs in two steps: step 1 authorizes the caller against the **anchor** application with the untouched `buildApplicationWhere(user, 'listable')` — no access to that application, no list. Step 2 fetches the same applicant's other applications **platform-wide**, including positions the caller doesn't manage — the retained `PUBLISHED_POSITION_WHERE` (not the full `buildReviewablePositionWhere`) is the only position filter.
+- **Full internal status, not the applicant-facing one.** These rows show `reached_out` / `interview_scheduled` / `reviewing` precisely — `PUBLIC_APPLICATION_STATUS` collapsing does not apply, since this surface is reviewer-only, not applicant-facing.
+- **Seeing a row is not access to it.** Each row carries a server-resolved `canOpen` boolean (`canReviewPosition`, `lib/utils.ts`) rather than exposing manager identity; `/applications/[otherId]` still enforces its own scope independently, so a stale `canOpen: true` 404s rather than leaking anything.
+- **No manager names or emails ever appear here** — the query only self-filters the `managers` relation to the caller's own id to compute `canOpen`; it never selects another manager's identity.
+- Anyone refactoring the two-step query into one must keep step 1's authorization predicate on the anchor row — that predicate is the only thing keeping this read scoped to reviewers who are already authorized on the application being viewed.
 
 ## Known-open deviations
 
