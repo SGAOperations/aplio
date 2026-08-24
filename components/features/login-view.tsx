@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
+import { useCallback, useEffect, useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -64,10 +64,6 @@ export function LoginView({ copy, otpLink }: LoginViewProps) {
   const router = useRouter();
   const [step, setStep] = useState<'email' | 'otp'>(otpLink ? 'otp' : 'email');
   const [capturedEmail, setCapturedEmail] = useState(otpLink?.email ?? '');
-  const [linkStatus, setLinkStatus] = useState<'pending' | 'done'>(
-    otpLink ? 'pending' : 'done',
-  );
-  const linkConsumedRef = useRef(false);
   const [isRouting, startTransition] = useTransition();
   const [isResending, setIsResending] = useState(false);
   const [resendCooldownUntil, setResendCooldownUntil] = useState<number | null>(
@@ -100,7 +96,7 @@ export function LoginView({ copy, otpLink }: LoginViewProps) {
 
   const otpForm = useForm<OtpFormValues>({
     resolver: zodResolver(otpSchema),
-    defaultValues: { otp: '' },
+    defaultValues: { otp: otpLink?.otp ?? '' },
     mode: 'onSubmit',
     reValidateMode: 'onSubmit',
   });
@@ -191,26 +187,15 @@ export function LoginView({ copy, otpLink }: LoginViewProps) {
     else failOtp(result.error);
   }
 
-  // One-shot URL credential; no server alternative (needs a POST).
-  // Ref-guarded against StrictMode double-invoke.
+  // Strip the one-time code from the URL so it can't linger in history or a referrer.
   useEffect(() => {
-    if (!otpLink || linkConsumedRef.current) return;
-    linkConsumedRef.current = true;
-
-    void (async () => {
-      window.history.replaceState(
-        null,
-        '',
-        strippedOtpLinkHref(window.location.href),
-      );
-      const result = await verifyCode(otpLink.email, otpLink.otp);
-      if (result.success) startTransition(() => router.refresh());
-      else {
-        failOtp(result.error);
-        setLinkStatus('done');
-      }
-    })();
-  }, [otpLink, router, startTransition, verifyCode, failOtp]);
+    if (!otpLink) return;
+    window.history.replaceState(
+      null,
+      '',
+      strippedOtpLinkHref(window.location.href),
+    );
+  }, [otpLink]);
 
   async function handleResend() {
     setIsResending(true);
@@ -229,22 +214,6 @@ export function LoginView({ copy, otpLink }: LoginViewProps) {
   function handleBack() {
     otpForm.reset({ otp: '' });
     setStep('email');
-  }
-
-  if (linkStatus === 'pending') {
-    return (
-      <div
-        className="flex w-full flex-col items-center gap-4 text-center"
-        role="status"
-        aria-live="polite"
-      >
-        <h1 className="text-2xl font-semibold">{copy.title}</h1>
-        <Loader2 className="text-muted-foreground animate-spin" />
-        <p className="text-muted-foreground text-sm">
-          Signing you in with the link from your email.
-        </p>
-      </div>
-    );
   }
 
   if (step === 'otp') {
