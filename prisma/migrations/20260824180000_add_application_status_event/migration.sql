@@ -19,9 +19,8 @@ ALTER TABLE "ApplicationStatusEvent" ADD CONSTRAINT "ApplicationStatusEvent_appl
 -- AddForeignKey
 ALTER TABLE "ApplicationStatusEvent" ADD CONSTRAINT "ApplicationStatusEvent_changedById_fkey" FOREIGN KEY ("changedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- Backfill: one synthetic event per existing application, from its current
--- status with no prior state — the timeline renders this as the "before
--- history tracking" row rather than inventing a transition that never happened.
+-- Backfill: one synthetic event per existing application, with no prior
+-- state, rendered as the "before history tracking" row.
 INSERT INTO "ApplicationStatusEvent" ("id", "applicationId", "from", "to", "changedById", "createdAt")
 SELECT gen_random_uuid()::text, a."id", NULL::"ApplicationStatus", a."status", a."updatedById", a."updatedAt"
 FROM "Application" a;

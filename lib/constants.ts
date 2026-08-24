@@ -430,9 +430,8 @@ export const REJECTABLE_APPLICATION_STATUSES = [
   'reviewing',
 ] as const satisfies $Enums.ApplicationStatus[];
 
-// Same members as REJECTABLE_APPLICATION_STATUSES — Accept is offered
-// alongside Reject from every unresolved status, not just the two the
-// `forward` graph happens to reach.
+// Same members as REJECTABLE_APPLICATION_STATUSES — Accept is offered from
+// every unresolved status, not just the two the `forward` graph reaches.
 export const ACCEPTABLE_APPLICATION_STATUSES = [
   'applied',
   'reached_out',
@@ -473,15 +472,6 @@ export function isAllowedApplicationStatusTransition(
   to: $Enums.ApplicationStatus,
 ): boolean {
   return getAllowedApplicationStatusTransitions(from).includes(to);
-}
-
-// Inverts the graph rather than hand-listing sources, so the two can't drift.
-export function getApplicationStatusSources(
-  to: $Enums.ApplicationStatus,
-): $Enums.ApplicationStatus[] {
-  return (
-    Object.keys(APPLICATION_STATUS_TRANSITIONS) as $Enums.ApplicationStatus[]
-  ).filter((from) => isAllowedApplicationStatusTransition(from, to));
 }
 
 // Bulk targets exclude move-back sources: a batch moving several applications
@@ -560,9 +550,8 @@ export const NON_REVIEWABLE_APPLICATION_STATUS_NOTES: Record<
   draft: 'This application has not been submitted yet.',
 };
 
-// Partitions a status's allowed moves for the header's caret menu: the
-// remaining forward pipeline steps above the separator, Accept/Reject below —
-// move-backs never appear here, only in the status dialog's any-status Select.
+// Partitions a status's allowed moves for the header's caret menu: forward
+// steps above the separator, Accept/Reject below — never move-backs.
 export function getApplicationStatusMenuGroups(
   from: $Enums.ApplicationStatus,
 ): {
@@ -580,10 +569,8 @@ export function getApplicationStatusMenuGroups(
   };
 }
 
-// Null when there's nothing to undo: no events yet, the only event is the
-// backfill row (`from` null), or `from` is draft/withdrawn — every
-// application's first real event is draft -> applied, so a freshly submitted
-// application correctly has no undo (a reviewer may not set either status).
+// Null when there's nothing to undo: no events yet, the latest is the
+// backfill row (`from` null), or `from` is draft/withdrawn.
 export function getApplicationStatusUndoTarget(
   latest: { from: $Enums.ApplicationStatus | null } | null | undefined,
 ): $Enums.ApplicationStatus | null {
@@ -615,10 +602,8 @@ export const NON_TERMINAL_APPLICATION_STATUSES = [
   'reviewing',
 ] as const satisfies $Enums.ApplicationStatus[];
 
-// Withdraw is an applicant action; letting it reach these would let a
-// withdraw -> resubmit round-trip launder a reviewer's decision. Independent
-// of ApplicationStatusEvent existing — the override path in updateApplicationStatus
-// is the only sanctioned way back out of accepted/rejected.
+// Withdraw is an applicant action; reaching these would let a
+// withdraw -> resubmit round-trip launder a reviewer's decision.
 export const TERMINAL_DECISION_STATUSES: readonly $Enums.ApplicationStatus[] = [
   'accepted',
   'rejected',

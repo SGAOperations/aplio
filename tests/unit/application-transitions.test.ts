@@ -12,7 +12,6 @@ import {
   getAllowedApplicationStatusTransitions,
   getApplicationStatusForwardSources,
   getApplicationStatusMenuGroups,
-  getApplicationStatusSources,
   getApplicationStatusUndoTarget,
   isAllowedApplicationStatusTransition,
 } from '@/lib/constants';
@@ -70,18 +69,6 @@ describe('rejected reachability', () => {
         REJECTABLE_APPLICATION_STATUSES as readonly $Enums.ApplicationStatus[]
       ).includes(status);
       expect(canReject).toBe(expected);
-    }
-  });
-});
-
-describe('getApplicationStatusSources', () => {
-  it('is the exact inverse of getAllowedApplicationStatusTransitions', () => {
-    for (const to of ALL_STATUSES) {
-      const sources = getApplicationStatusSources(to);
-      const expected = ALL_STATUSES.filter((from) =>
-        isAllowedApplicationStatusTransition(from, to),
-      );
-      expect(new Set(sources)).toEqual(new Set(expected));
     }
   });
 });

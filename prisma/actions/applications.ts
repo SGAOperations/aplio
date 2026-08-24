@@ -486,10 +486,8 @@ export async function submitApplication(
 const updateApplicationStatusSchema = z.object({
   applicationId: z.string().min(1),
   status: z.enum(REVIEWER_APPLICATION_STATUSES),
-  // Bypasses isAllowedApplicationStatusTransition — the status dialog's
-  // any-status Select and undo both go through this flag. Target is still
-  // restricted to REVIEWER_APPLICATION_STATUSES above, which already
-  // excludes draft/withdrawn — that's the whole of the override restriction.
+  // Bypasses isAllowedApplicationStatusTransition for the status dialog's
+  // any-status Select and undo — target is still restricted to REVIEWER_APPLICATION_STATUSES above.
   override: z.boolean().optional().default(false),
 });
 
@@ -530,9 +528,8 @@ export async function updateApplicationStatus(
         error: `This application is now ${APPLICATION_STATUS_LABELS[application.status]}, so that move is no longer available. Refresh to see the current options.`,
       };
 
-    // CAS on the exact status just read — tighter than the old `in:
-    // getApplicationStatusSources(status)` predicate, and the only way the
-    // event's `from` below is provably the status that was replaced.
+    // CAS on the exact status just read, so the event's `from` below is
+    // provably the status that was replaced.
     const updateResult = await tx.application.updateMany({
       where: { id: applicationId, status: application.status },
       data: { status, updatedById: user.id },
@@ -579,9 +576,8 @@ export async function updateApplicationStatuses(
   const { status } = parsed.data;
 
   const { eligible, updatedIds } = await prisma.$transaction(async (tx) => {
-    // Forward-only sources: a bulk move-back would silently walk an already-
-    // decided row backward, so it's skipped like any other ineligible id.
-    // Captured with its current status so each row's event gets a correct `from`.
+    // Forward-only sources so a bulk move-back can't silently walk an
+    // already-decided row backward; captured with its status for the event's `from`.
     const eligible = await tx.application.findMany({
       where: {
         id: { in: applicationIds },
@@ -593,9 +589,8 @@ export async function updateApplicationStatuses(
 
     if (eligible.length === 0) return { eligible, updatedIds: [] };
 
-    // Per-row (id, status) pairs keep the CAS on the bulk path too — a row a
-    // concurrent write moved between the read above and here is dropped
-    // rather than getting an event with a wrong `from`.
+    // Per-row (id, status) pairs keep the CAS on the bulk path too — a
+    // concurrently-moved row is dropped rather than getting a wrong `from`.
     const updated = await tx.application.updateManyAndReturn({
       where: {
         AND: [

@@ -6,6 +6,8 @@ import type { $Enums } from '@/prisma/client';
 
 import {
   APPLICATION_STATUS_ACTION_LABELS,
+  APPLICATION_STATUS_LABELS,
+  APPLICATION_STATUS_TRANSITIONS,
   getApplicationStatusMenuGroups,
   isNonReviewableApplicationStatus,
 } from '@/lib/constants';
@@ -17,6 +19,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -41,6 +44,7 @@ export function ApplicationStatusActions({
   if (isNonReviewableApplicationStatus(currentStatus)) return null;
 
   const { forward, decisions } = getApplicationStatusMenuGroups(currentStatus);
+  const { back } = APPLICATION_STATUS_TRANSITIONS[currentStatus];
 
   return (
     <>
@@ -76,6 +80,20 @@ export function ApplicationStatusActions({
               {APPLICATION_STATUS_ACTION_LABELS[target]}
             </DropdownMenuItem>
           ))}
+          {back.length > 0 && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Move back</DropdownMenuLabel>
+              {back.map((target) => (
+                <DropdownMenuItem
+                  key={target}
+                  onSelect={() => selectTarget(target)}
+                >
+                  Move back to {APPLICATION_STATUS_LABELS[target]}
+                </DropdownMenuItem>
+              ))}
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
       <ConfirmDialog {...confirmDialogProps} />
