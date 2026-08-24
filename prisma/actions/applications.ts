@@ -419,7 +419,8 @@ export async function submitApplication(
       application.globalAnswers.map((a) => a.globalQuestionId),
     );
     const toMaterialize = globalQuestions.filter(
-      (q) => !existingIds.has(q.id) && (resolvedValues.get(q.id)?.length ?? 0) > 0,
+      (q) =>
+        !existingIds.has(q.id) && (resolvedValues.get(q.id)?.length ?? 0) > 0,
     );
     if (toMaterialize.length > 0) {
       await tx.globalApplicationAnswer.createMany({

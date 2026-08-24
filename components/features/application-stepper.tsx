@@ -252,7 +252,8 @@ export function ApplicationStepper({
   const hasNewRequiredGlobals = useMemo(
     () =>
       globalQuestions.some(
-        (q) => q.required && !isAnswered(q, resolvedGlobalValues.get(q.id) ?? []),
+        (q) =>
+          q.required && !isAnswered(q, resolvedGlobalValues.get(q.id) ?? []),
       ),
     [globalQuestions, resolvedGlobalValues],
   );
