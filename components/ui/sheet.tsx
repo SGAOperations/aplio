@@ -7,6 +7,8 @@ import { XIcon } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
+import { Button } from '@/components/ui/button';
+
 function Sheet({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
@@ -77,12 +79,16 @@ function SheetContent({
         {...props}
       >
         {children}
-        <DialogPrimitive.Close
-          data-slot="sheet-close"
-          className="ring-offset-background focus:ring-ring absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
-        >
-          <XIcon />
-          <span className="sr-only">Close</span>
+        <DialogPrimitive.Close asChild>
+          <Button
+            data-slot="sheet-close"
+            variant="ghost"
+            size="icon"
+            className="absolute top-2 right-2"
+          >
+            <XIcon />
+            <span className="sr-only">Close</span>
+          </Button>
         </DialogPrimitive.Close>
       </DialogPrimitive.Content>
     </SheetPortal>
