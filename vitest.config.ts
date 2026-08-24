@@ -35,6 +35,9 @@ export default defineConfig({
             '@/lib/auth/server': fileURLToPath(
               new URL('./tests/stubs/auth-server.ts', import.meta.url),
             ),
+            '@vercel/blob': fileURLToPath(
+              new URL('./tests/stubs/vercel-blob.ts', import.meta.url),
+            ),
             'next/cache': fileURLToPath(
               new URL('./tests/stubs/next-cache.ts', import.meta.url),
             ),
