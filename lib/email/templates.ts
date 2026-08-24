@@ -5,7 +5,7 @@ import { getBaseUrl } from '@/lib/base-url';
 // Inline styles throughout: email clients ignore Tailwind classes.
 
 // Prevent HTML injection in user-supplied values interpolated into email markup.
-function escapeHtml(s: string): string {
+export function escapeHtml(s: string): string {
   return s
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -14,12 +14,13 @@ function escapeHtml(s: string): string {
     .replace(/'/g, '&#39;');
 }
 
-interface LayoutOptions {
+export interface LayoutOptions {
   title: string;
   content: string;
+  footer: string;
 }
 
-function emailLayout({ title, content }: LayoutOptions): string {
+export function emailLayout({ title, content, footer }: LayoutOptions): string {
   const logoUrl = `${getBaseUrl()}/logo-512.svg`;
 
   return `<!DOCTYPE html>
@@ -65,8 +66,7 @@ function emailLayout({ title, content }: LayoutOptions): string {
           <!-- Footer -->
           <tr>
             <td style="padding-top:24px;font-size:12px;color:#71717a;text-align:center;">
-              You&#39;re receiving this because a sign-in was requested for your Aplio account.<br />
-              Didn&#39;t request this? You can safely ignore it.
+              ${footer}
             </td>
           </tr>
         </table>
@@ -88,6 +88,10 @@ export interface OtpEmailOptions {
   signInUrl: string;
   expiresInMinutes?: number;
 }
+
+// Author-written HTML, never user input — safe to interpolate unescaped.
+const OTP_FOOTER = `You&#39;re receiving this because a sign-in was requested for your Aplio account.<br />
+              Didn&#39;t request this? You can safely ignore it.`;
 
 export function otpEmail({
   code,
@@ -129,7 +133,11 @@ export function otpEmail({
 
   return {
     subject: 'Your Aplio access code',
-    html: emailLayout({ title: 'Your Aplio access code', content }),
+    html: emailLayout({
+      title: 'Your Aplio access code',
+      content,
+      footer: OTP_FOOTER,
+    }),
     text: textLines.join('\n'),
   };
 }
