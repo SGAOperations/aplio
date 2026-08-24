@@ -1,8 +1,6 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
-import { Inbox, Pencil } from 'lucide-react';
-
 import {
   APPLICANT_EDITABLE_APPLICATION_STATUSES,
   APPLICATION_STATUS_BADGE_VARIANT,
@@ -10,6 +8,7 @@ import {
   POSITION_CARD_STAT_STATUSES,
   STATUS_BADGE_VARIANT_TO_DOT,
 } from '@/lib/constants';
+import { ACTION_ICONS, CONCEPT_ICONS } from '@/lib/icons';
 import type {
   MyPositionApplication,
   PositionApplicationStats,
@@ -186,17 +185,20 @@ export function PositionCard({
               {canManage ? (
                 <>
                   <Button asChild variant="outline" size="sm">
-                    <Link href={`/positions/${position.id}`}>View Details</Link>
+                    <Link href={`/positions/${position.id}`}>
+                      <ACTION_ICONS.goTo />
+                      View Details
+                    </Link>
                   </Button>
                   <Button asChild variant="outline" size="sm">
                     <Link href={`/positions/${position.id}/edit`}>
-                      <Pencil className="size-4" />
+                      <ACTION_ICONS.edit />
                       Edit
                     </Link>
                   </Button>
                   <Button asChild variant="outline" size="sm">
                     <Link href={`/applications?positionId=${position.id}`}>
-                      <Inbox className="size-4" />
+                      <CONCEPT_ICONS.application />
                       Applications
                     </Link>
                   </Button>
@@ -207,6 +209,7 @@ export function PositionCard({
                     canContinueOrResubmit ? (
                       <Button asChild size="sm">
                         <Link href={`/positions/${position.id}/apply`}>
+                          <ACTION_ICONS.submit />
                           {myApplication.status === 'draft'
                             ? 'Continue application'
                             : 'Edit & resubmit'}
@@ -218,6 +221,7 @@ export function PositionCard({
                           href={`/my-applications/${myApplication.id}`}
                           aria-label={`View your application for ${position.title}`}
                         >
+                          <ACTION_ICONS.goTo />
                           View application
                         </Link>
                       </Button>
@@ -227,12 +231,14 @@ export function PositionCard({
                       <Button asChild size="sm">
                         {isAuthenticated ? (
                           <Link href={`/positions/${position.id}/apply`}>
+                            <ACTION_ICONS.submit />
                             Apply
                           </Link>
                         ) : (
                           <Link
                             href={`/login?redirectTo=/positions/${position.id}/apply`}
                           >
+                            <ACTION_ICONS.submit />
                             Apply
                           </Link>
                         )}
@@ -240,7 +246,10 @@ export function PositionCard({
                     )
                   )}
                   <Button asChild variant="outline" size="sm">
-                    <Link href={`/positions/${position.id}`}>View Details</Link>
+                    <Link href={`/positions/${position.id}`}>
+                      <ACTION_ICONS.goTo />
+                      View Details
+                    </Link>
                   </Button>
                 </>
               )}

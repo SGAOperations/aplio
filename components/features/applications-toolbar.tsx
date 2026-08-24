@@ -3,9 +3,8 @@
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { X } from 'lucide-react';
-
 import { REVIEWER_APPLICATION_STATUS_OPTIONS } from '@/lib/constants';
+import { ACTION_ICONS } from '@/lib/icons';
 import type { ApplicationFilters, ReviewableApplicant } from '@/lib/types';
 
 import { Button } from '@/components/ui/button';
@@ -223,7 +222,7 @@ export function ApplicationsToolbar({
               onClick={clearSearch}
               className="absolute top-1/2 right-1 -translate-y-1/2 md:size-7"
             >
-              <X aria-hidden="true" />
+              <ACTION_ICONS.dismiss />
             </Button>
           )}
         </div>
@@ -236,6 +235,7 @@ export function ApplicationsToolbar({
           onClick={clearFilters}
           className="w-full sm:w-auto"
         >
+          <ACTION_ICONS.clearFilters />
           Clear filters
         </Button>
       )}

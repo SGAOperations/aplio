@@ -4,11 +4,10 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
-import { FileText, Inbox } from 'lucide-react';
-
 import type { $Enums } from '@/prisma/client';
 
 import { type DataTableColumn } from '@/lib/data-table';
+import { ACTION_ICONS, CONCEPT_ICONS, STATE_ICONS } from '@/lib/icons';
 import type {
   ApplicationListRow,
   ApplicationSort,
@@ -21,9 +20,9 @@ import { ApplicationStatusActions } from '@/components/features/application-stat
 import { ApplicationsBulkBar } from '@/components/features/applications-bulk-bar';
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DataTable } from '@/components/ui/data-table';
+import { EmptyState } from '@/components/ui/empty-state';
 import { LocalTime } from '@/components/ui/local-time';
 
 interface ApplicationsTableProps {
@@ -206,37 +205,25 @@ export function ApplicationsTable({
   ];
 
   const emptyState = hasActiveFilters ? (
-    <Card>
-      <CardContent className="flex flex-col items-center gap-4 py-16 text-center">
-        <FileText
-          className="text-muted-foreground size-12"
-          aria-hidden="true"
-        />
-        <div>
-          <p className="text-base font-semibold">
-            No applications match these filters
-          </p>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Try adjusting or clearing your filters.
-          </p>
-        </div>
+    <EmptyState
+      icon={STATE_ICONS.noResults}
+      title="No applications match these filters"
+      description="Try adjusting or clearing your filters."
+      action={
         <Button variant="outline" asChild>
-          <Link href="/applications">Clear filters</Link>
+          <Link href="/applications">
+            <ACTION_ICONS.clearFilters />
+            Clear filters
+          </Link>
         </Button>
-      </CardContent>
-    </Card>
+      }
+    />
   ) : (
-    <Card>
-      <CardContent className="flex flex-col items-center gap-4 py-16 text-center">
-        <Inbox className="text-muted-foreground size-12" aria-hidden="true" />
-        <div>
-          <p className="text-base font-semibold">No applications yet</p>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Applications will appear here once candidates apply.
-          </p>
-        </div>
-      </CardContent>
-    </Card>
+    <EmptyState
+      icon={CONCEPT_ICONS.application}
+      title="No applications yet"
+      description="Applications will appear here once candidates apply."
+    />
   );
 
   return (

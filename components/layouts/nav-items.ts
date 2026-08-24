@@ -1,26 +1,27 @@
-import {
-  BriefcaseBusiness,
-  ClipboardList,
-  FileText,
-  FolderKanban,
-  Home,
-  Inbox,
-  Users,
-} from 'lucide-react';
+import { FolderKanban } from 'lucide-react';
 
+import { CONCEPT_ICONS } from '@/lib/icons';
 import type { NavItem } from '@/lib/types';
 
-export const homeNavItem: NavItem = { href: '/', label: 'Home', icon: Home };
+export const homeNavItem: NavItem = {
+  href: '/',
+  label: 'Home',
+  icon: CONCEPT_ICONS.home,
+};
 
 export const positionsNavItem: NavItem = {
   href: '/positions',
   label: 'Positions',
-  icon: BriefcaseBusiness,
+  icon: CONCEPT_ICONS.position,
 };
 
 export const applyNavItems: NavItem[] = [
   positionsNavItem,
-  { href: '/my-applications', label: 'My Applications', icon: Inbox },
+  {
+    href: '/my-applications',
+    label: 'My Applications',
+    icon: CONCEPT_ICONS.myApplication,
+  },
 ];
 
 export const myPositionsNavItem: NavItem = {
@@ -32,13 +33,21 @@ export const myPositionsNavItem: NavItem = {
 // Shown to admins AND managers — anyone who can review applications.
 export const manageReviewerNavItems: NavItem[] = [
   myPositionsNavItem,
-  { href: '/applications', label: 'Applications', icon: FileText },
+  {
+    href: '/applications',
+    label: 'Applications',
+    icon: CONCEPT_ICONS.application,
+  },
 ];
 
 // Shown to admins only — Users and Global Questions are admin-only.
 export const manageAdminNavItems: NavItem[] = [
-  { href: '/users', label: 'Users', icon: Users },
-  { href: '/global-questions', label: 'Global Questions', icon: ClipboardList },
+  { href: '/users', label: 'Users', icon: CONCEPT_ICONS.user },
+  {
+    href: '/global-questions',
+    label: 'Global Questions',
+    icon: CONCEPT_ICONS.question,
+  },
 ];
 
 // Positions only: the others are auth-gated and would bounce to login.

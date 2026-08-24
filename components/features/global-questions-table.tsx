@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from 'react';
 
-import { ListChecks } from 'lucide-react';
 import { toast } from 'sonner';
 
 import {
@@ -16,6 +15,7 @@ import {
   SHORT_ANSWER_FORMAT_LABELS,
 } from '@/lib/constants';
 import { type DataTableColumn } from '@/lib/data-table';
+import { ACTION_ICONS, CONCEPT_ICONS } from '@/lib/icons';
 import type { GlobalQuestionListItem } from '@/lib/types';
 
 import { GlobalQuestionDialog } from '@/components/features/global-question-dialog';
@@ -118,18 +118,19 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
           <DataTableRowActions>
             <GlobalQuestionDialog
               trigger={
-                <Button variant="outline" size="sm">
-                  Edit
+                <Button variant="ghost" size="icon" aria-label="Edit question">
+                  <ACTION_ICONS.edit />
                 </Button>
               }
               question={q}
             />
             <Button
-              variant="destructive"
-              size="sm"
+              variant="ghost"
+              size="icon"
+              aria-label={`Delete question "${q.label}"`}
               onClick={() => setDeletingId(q.id)}
             >
-              Delete
+              <ACTION_ICONS.delete className="text-destructive" />
             </Button>
           </DataTableRowActions>
         ),
@@ -160,12 +161,17 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
   if (optimisticQuestions.length === 0)
     return (
       <EmptyState
-        icon={ListChecks}
+        icon={CONCEPT_ICONS.question}
         title="No questions yet"
         description="Add your first global question — applicants answer it once in their profile."
         action={
           <GlobalQuestionDialog
-            trigger={<Button size="sm">Add Question</Button>}
+            trigger={
+              <Button size="sm">
+                <ACTION_ICONS.create />
+                Add Question
+              </Button>
+            }
           />
         }
       />
@@ -218,18 +224,23 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
             <DataTableRowActions>
               <GlobalQuestionDialog
                 trigger={
-                  <Button variant="outline" size="sm">
-                    Edit
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Edit question"
+                  >
+                    <ACTION_ICONS.edit />
                   </Button>
                 }
                 question={question}
               />
               <Button
-                variant="destructive"
-                size="sm"
+                variant="ghost"
+                size="icon"
+                aria-label={`Delete question "${question.label}"`}
                 onClick={() => setDeletingId(question.id)}
               >
-                Delete
+                <ACTION_ICONS.delete className="text-destructive" />
               </Button>
             </DataTableRowActions>
           </div>
@@ -261,6 +272,11 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
               onClick={() => void handleDelete()}
               disabled={isDeleting}
             >
+              {isDeleting ? (
+                <ACTION_ICONS.pending className="animate-spin" />
+              ) : (
+                <ACTION_ICONS.delete />
+              )}
               {isDeleting ? 'Deleting…' : 'Delete'}
             </Button>
           </DialogFooter>

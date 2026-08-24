@@ -1,5 +1,3 @@
-import { TriangleAlert } from 'lucide-react';
-
 import type { QuestionType } from '@/prisma/client';
 
 import { WarningCallout } from '@/components/ui/warning-callout';
@@ -19,7 +17,7 @@ export function AnswerMismatchNotice({
   if (values.length === 0) return null;
 
   return (
-    <WarningCallout id={id} icon={TriangleAlert} className="mb-2">
+    <WarningCallout id={id} className="mb-2">
       <div className="flex flex-col gap-1">
         <p className="font-medium">This question has changed</p>
         <p>

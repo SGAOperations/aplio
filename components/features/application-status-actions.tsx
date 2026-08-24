@@ -1,7 +1,5 @@
 'use client';
 
-import { MoreHorizontal } from 'lucide-react';
-
 import type { $Enums } from '@/prisma/client';
 
 import {
@@ -11,6 +9,7 @@ import {
   getApplicationStatusMenuGroups,
   isNonReviewableApplicationStatus,
 } from '@/lib/constants';
+import { ACTION_ICONS } from '@/lib/icons';
 
 import { useApplicationStatusMove } from '@/components/features/use-application-status-move';
 import { Button } from '@/components/ui/button';
@@ -56,7 +55,7 @@ export function ApplicationStatusActions({
             aria-label={`Change status for ${displayName}`}
             disabled={isPending}
           >
-            <MoreHorizontal aria-hidden />
+            <ACTION_ICONS.more />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">

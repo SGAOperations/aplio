@@ -3,11 +3,11 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
-import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { deletePosition } from '@/prisma/actions/position-actions';
 
+import { ACTION_ICONS } from '@/lib/icons';
 import type { PositionDeletionSummary } from '@/lib/types';
 import { isError } from '@/lib/utils';
 
@@ -107,8 +107,10 @@ export function PositionDangerZone({
                 }}
               >
                 {isPending ? (
-                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                ) : null}
+                  <ACTION_ICONS.pending className="animate-spin" />
+                ) : (
+                  <ACTION_ICONS.delete />
+                )}
                 Delete position
               </AlertDialogAction>
             </AlertDialogFooter>

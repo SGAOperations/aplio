@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 
-import { Briefcase } from 'lucide-react';
-
+import { CONCEPT_ICONS } from '@/lib/icons';
 import type { ManagedPosition, PositionApplicationStats } from '@/lib/types';
 import { isPositionActive } from '@/lib/utils';
 
@@ -36,13 +35,17 @@ export function ManagedPositionsSection({
       aria-labelledby="active-positions-heading"
       className="flex flex-col gap-4"
     >
-      <h2 id="active-positions-heading" className="text-lg font-semibold">
+      <h2
+        id="active-positions-heading"
+        className="flex items-center gap-2 text-lg font-semibold"
+      >
+        <CONCEPT_ICONS.position className="text-muted-foreground size-4" />
         Active
       </h2>
 
       {active.length === 0 ? (
         <EmptyState
-          icon={Briefcase}
+          icon={CONCEPT_ICONS.position}
           title="No active positions"
           description={
             noManagedPositions

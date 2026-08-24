@@ -2,8 +2,6 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
-import { Info } from 'lucide-react';
-
 import { getApplicationForApply } from '@/prisma/data/applications';
 import { getPositionForApply } from '@/prisma/data/positions';
 import { getProfileData } from '@/prisma/data/profile';
@@ -15,6 +13,7 @@ import {
   APPLICATION_STATUS_LABELS,
   UNRESOLVED_APPLICATION_STATUSES,
 } from '@/lib/constants';
+import { CONCEPT_ICONS, STATE_ICONS } from '@/lib/icons';
 import {
   isAcceptingApplications,
   isAnswered,
@@ -100,7 +99,8 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
         <Card className="gap-0 p-0">
           <CardContent className="flex flex-col gap-4 p-4">
             <div>
-              <h2 className="text-lg font-semibold tracking-tight">
+              <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+                <CONCEPT_ICONS.myApplication className="text-muted-foreground size-4" />
                 You&apos;ve already applied
               </h2>
               <div className="mt-2 flex items-center gap-2">
@@ -137,7 +137,8 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
         <Card className="gap-0 p-0">
           <CardContent className="flex flex-col gap-4 p-4">
             <div>
-              <h2 className="text-lg font-semibold tracking-tight">
+              <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+                <STATE_ICONS.archived className="text-muted-foreground size-4" />
                 Applications are closed
               </h2>
               <p className="text-muted-foreground mt-2 text-sm">
@@ -211,7 +212,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
         <div className="flex flex-col gap-6">
           {isResubmit && (
             <div className="border-info/40 bg-info/10 text-foreground flex gap-2 rounded-lg border p-3 text-sm">
-              <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              <STATE_ICONS.info className="mt-0.5 size-4 shrink-0" />
               <div className="flex flex-col gap-1">
                 <p className="font-medium">This application is withdrawn</p>
                 <p>

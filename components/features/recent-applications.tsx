@@ -1,9 +1,8 @@
 import Link from 'next/link';
 
-import { Inbox } from 'lucide-react';
-
 import { getRecentApplications } from '@/prisma/data/applications';
 
+import { CONCEPT_ICONS } from '@/lib/icons';
 import { type AdminApplicationListItem, type Reviewer } from '@/lib/types';
 import { getRenamedTo } from '@/lib/utils';
 
@@ -25,6 +24,7 @@ export async function RecentApplications({
   return (
     <SectionCard
       title="Recent Applications"
+      icon={CONCEPT_ICONS.application}
       link={{
         href: '/applications',
         label: 'See all',
@@ -33,7 +33,7 @@ export async function RecentApplications({
     >
       {applications.length === 0 ? (
         <SectionCardEmpty
-          icon={Inbox}
+          icon={CONCEPT_ICONS.application}
           title="No applications yet"
           description={
             reviewer.isAdmin

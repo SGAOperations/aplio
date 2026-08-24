@@ -9,9 +9,10 @@ import {
 } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { z } from 'zod/v4';
+
+import { ACTION_ICONS } from '@/lib/icons';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -96,7 +97,9 @@ function FormDialog<
             </div>
             <DialogFooter>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="animate-spin" />}
+                {isSubmitting && (
+                  <ACTION_ICONS.pending className="animate-spin" />
+                )}
                 {submitLabel}
               </Button>
             </DialogFooter>

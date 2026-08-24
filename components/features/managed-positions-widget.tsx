@@ -1,14 +1,12 @@
 import Link from 'next/link';
 
-import { ArrowRight, Briefcase } from 'lucide-react';
-
 import { getManagedPositionsSummary } from '@/prisma/data/positions';
 
-import { AVAILABILITY_LABELS, AVAILABILITY_VARIANTS } from '@/lib/constants';
-import { getPositionAvailability } from '@/lib/utils';
+import { CONCEPT_ICONS } from '@/lib/icons';
 
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PositionStatusBadge } from '@/components/features/status-badge';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { SectionCard, SectionCardEmpty } from '@/components/ui/section-card';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface ManagedPositionsWidgetProps {
@@ -23,66 +21,46 @@ export async function ManagedPositionsWidget({
   const positions = await getManagedPositionsSummary(userId, take);
 
   return (
-    <Card className="gap-0 overflow-hidden p-0">
-      <CardHeader className="border-b p-4">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-semibold">
-            My Positions
-          </CardTitle>
-          <Link
-            href="/my-positions"
-            aria-label="See all positions"
-            className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm transition-colors"
-          >
-            See all
-            <ArrowRight className="size-3.5" aria-hidden="true" />
-          </Link>
-        </div>
-      </CardHeader>
-
-      <CardContent className="p-0">
-        {positions.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-8 text-center">
-            <Briefcase
-              className="text-muted-foreground size-10"
-              aria-hidden="true"
-            />
-            <p className="text-sm font-medium">No positions yet</p>
-            <p className="text-muted-foreground text-sm">
-              Positions you manage will appear here.
-            </p>
-          </div>
-        ) : (
-          <ul className="divide-y">
-            {positions.map((position) => {
-              const availability = getPositionAvailability(position);
-              return (
-                <li
-                  key={position.id}
-                  className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3"
-                >
-                  <Link
-                    href={`/positions/${position.id}`}
-                    className="min-w-0 flex-1 truncate text-sm font-medium hover:underline"
-                  >
-                    {position.title}
-                  </Link>
-                  <Badge variant={AVAILABILITY_VARIANTS[availability]}>
-                    {AVAILABILITY_LABELS[availability]}
-                  </Badge>
-                  <span className="text-muted-foreground ml-auto shrink-0 text-xs">
-                    {position._count.applications}{' '}
-                    {position._count.applications === 1
-                      ? 'applicant'
-                      : 'applicants'}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
+    <SectionCard
+      title="My Positions"
+      icon={CONCEPT_ICONS.position}
+      link={{
+        href: '/my-positions',
+        label: 'See all',
+        ariaLabel: 'See all positions',
+      }}
+    >
+      {positions.length === 0 ? (
+        <SectionCardEmpty
+          icon={CONCEPT_ICONS.position}
+          title="No positions yet"
+          description="Positions you manage will appear here."
+        />
+      ) : (
+        <ul className="divide-y">
+          {positions.map((position) => (
+            <li
+              key={position.id}
+              className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3"
+            >
+              <Link
+                href={`/positions/${position.id}`}
+                className="min-w-0 flex-1 truncate text-sm font-medium hover:underline"
+              >
+                {position.title}
+              </Link>
+              <PositionStatusBadge position={position} />
+              <span className="text-muted-foreground ml-auto shrink-0 text-xs">
+                {position._count.applications}{' '}
+                {position._count.applications === 1
+                  ? 'applicant'
+                  : 'applicants'}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </SectionCard>
   );
 }
 

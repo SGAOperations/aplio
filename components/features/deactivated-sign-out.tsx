@@ -3,11 +3,11 @@
 import { unstable_rethrow, useRouter } from 'next/navigation';
 import { useTransition } from 'react';
 
-import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { signOutDeactivatedSession } from '@/prisma/actions/auth';
 
+import { ACTION_ICONS } from '@/lib/icons';
 import { isError } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
@@ -36,7 +36,11 @@ export function DeactivatedSignOut() {
 
   return (
     <Button className="w-full" disabled={pending} onClick={handleSignOut}>
-      {pending && <Loader2 className="animate-spin" aria-hidden />}
+      {pending ? (
+        <ACTION_ICONS.pending className="animate-spin" />
+      ) : (
+        <ACTION_ICONS.signOut />
+      )}
       Sign out
     </Button>
   );

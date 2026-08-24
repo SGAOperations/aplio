@@ -1,7 +1,5 @@
 import type { Metadata } from 'next';
 
-import { Briefcase } from 'lucide-react';
-
 import { getMyApplicationsByPosition } from '@/prisma/data/applications';
 import {
   getOpenPositions,
@@ -9,6 +7,7 @@ import {
 } from '@/prisma/data/positions';
 
 import { getOptionalUser, requireName } from '@/lib/auth/server';
+import { CONCEPT_ICONS, STATE_ICONS } from '@/lib/icons';
 import type { MyPositionApplication } from '@/lib/types';
 
 import { PositionCard } from '@/components/features/position-card';
@@ -42,12 +41,16 @@ export default async function PositionsPage() {
         aria-labelledby="open-positions-heading"
         className="flex flex-col gap-4"
       >
-        <h2 id="open-positions-heading" className="text-lg font-semibold">
+        <h2
+          id="open-positions-heading"
+          className="flex items-center gap-2 text-lg font-semibold"
+        >
+          <CONCEPT_ICONS.position className="text-muted-foreground size-4" />
           Open Positions
         </h2>
         {openPositions.length === 0 ? (
           <EmptyState
-            icon={Briefcase}
+            icon={CONCEPT_ICONS.position}
             title="No open positions"
             description="Check back later for open positions."
           />
@@ -71,7 +74,11 @@ export default async function PositionsPage() {
           aria-labelledby="recently-closed-heading"
           className="flex flex-col gap-4"
         >
-          <h2 id="recently-closed-heading" className="text-lg font-semibold">
+          <h2
+            id="recently-closed-heading"
+            className="flex items-center gap-2 text-lg font-semibold"
+          >
+            <STATE_ICONS.archived className="text-muted-foreground size-4" />
             Recently Closed
           </h2>
           <div className="flex flex-col gap-4">

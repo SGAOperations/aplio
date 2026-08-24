@@ -2,8 +2,6 @@
 
 import { useState } from 'react';
 
-import { ChevronDown, Loader2, MoreHorizontal } from 'lucide-react';
-
 import type { $Enums } from '@/prisma/client';
 
 import {
@@ -13,6 +11,7 @@ import {
   getApplicationStatusMenuGroups,
   isNonReviewableApplicationStatus,
 } from '@/lib/constants';
+import { ACTION_ICONS } from '@/lib/icons';
 import type { ApplicationStatusHistoryEntry } from '@/lib/types';
 
 import { ApplicationStatusDialog } from '@/components/features/application-status-dialog';
@@ -54,7 +53,7 @@ export function ApplicationStatusHeaderActions({
       aria-label={`Status history and override for ${applicantName}`}
       onClick={() => setDialogOpen(true)}
     >
-      <MoreHorizontal aria-hidden />
+      <ACTION_ICONS.more />
     </Button>
   );
 
@@ -122,7 +121,7 @@ export function ApplicationStatusHeaderActions({
             onClick={() => move.selectTarget(mainTarget)}
           >
             {move.isPending && move.pendingTarget === mainTarget && (
-              <Loader2 className="animate-spin" aria-hidden />
+              <ACTION_ICONS.pending className="animate-spin" />
             )}
             {APPLICATION_STATUS_ACTION_LABELS[mainTarget]}
           </Button>
@@ -134,7 +133,7 @@ export function ApplicationStatusHeaderActions({
                 className="min-h-11 rounded-l-none border-l px-2 sm:min-h-9"
                 aria-label={`More status options for ${applicantName}`}
               >
-                <ChevronDown aria-hidden />
+                <ACTION_ICONS.expand />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">

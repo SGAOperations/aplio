@@ -9,6 +9,7 @@ import {
 } from '@/prisma/data/applications';
 
 import { getCurrentUser } from '@/lib/auth/server';
+import { CONCEPT_ICONS } from '@/lib/icons';
 import { getRenamedTo } from '@/lib/utils';
 
 import { ApplicantOtherApplications } from '@/components/features/applicant-other-applications';
@@ -105,7 +106,11 @@ export default async function ApplicationDetailPage({
           />
         </Suspense>
 
-        <SectionCard title="Profile answers" titleAs="h2">
+        <SectionCard
+          title="Profile answers"
+          icon={CONCEPT_ICONS.profile}
+          titleAs="h2"
+        >
           <ApplicationAnswersList
             answers={application.globalAnswers}
             emptyMessage="No profile answers."
@@ -115,7 +120,11 @@ export default async function ApplicationDetailPage({
 
         {(application.hasPositionQuestions ||
           application.positionAnswers.length > 0) && (
-          <SectionCard title="Position answers" titleAs="h2">
+          <SectionCard
+            title="Position answers"
+            icon={CONCEPT_ICONS.position}
+            titleAs="h2"
+          >
             <ApplicationAnswersList
               answers={application.positionAnswers}
               emptyMessage="No position-specific answers."

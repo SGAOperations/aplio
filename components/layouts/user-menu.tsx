@@ -7,19 +7,18 @@ import { useTransition } from 'react';
 
 import {
   ChevronUp,
-  LogOut,
+  CircleUser,
   Monitor,
   Moon,
   Sun,
   SunMoon,
-  UserCircle,
-  UserPen,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { signOutUser } from '@/prisma/actions/auth';
 import { logoutBypassUser } from '@/prisma/services/dev-bypass';
 
+import { ACTION_ICONS, CONCEPT_ICONS } from '@/lib/icons';
 import type { NavIdentity } from '@/lib/types';
 import { isError } from '@/lib/utils';
 
@@ -100,10 +99,7 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
             <p className="truncate text-sm font-medium">{displayName}</p>
             <p className="text-muted-foreground text-xs">{roleLabel}</p>
           </div>
-          <ChevronUp
-            className="text-muted-foreground size-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180"
-            aria-hidden
-          />
+          <ChevronUp className="text-muted-foreground size-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent side="top" align="start" className="w-52">
@@ -121,7 +117,7 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
             className="flex items-center gap-2"
             onClick={onNavigate}
           >
-            <UserCircle className="size-4" aria-hidden />
+            <CircleUser />
             Profile
           </Link>
         </DropdownMenuItem>
@@ -133,7 +129,7 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
               onSelect={(e) => e.preventDefault()}
               className="cursor-pointer text-sm"
             >
-              <UserPen className="size-4" aria-hidden />
+              <CONCEPT_ICONS.profile />
               Edit name
             </DropdownMenuItem>
           }
@@ -141,14 +137,14 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
         <DropdownMenuSeparator />
         <DropdownMenuSub>
           <DropdownMenuSubTrigger className="gap-2">
-            <SunMoon className="size-4" aria-hidden />
+            <SunMoon />
             Theme
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
             <DropdownMenuRadioGroup value={theme} onValueChange={setTheme}>
               {THEME_OPTIONS.map(({ value, label, icon: Icon }) => (
                 <DropdownMenuRadioItem key={value} value={value}>
-                  <Icon className="size-4" aria-hidden />
+                  <Icon />
                   {label}
                 </DropdownMenuRadioItem>
               ))}
@@ -162,7 +158,7 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
           onSelect={handleLogout}
           className="cursor-pointer text-sm"
         >
-          <LogOut className="size-4" aria-hidden />
+          <ACTION_ICONS.signOut />
           Log out
         </DropdownMenuItem>
       </DropdownMenuContent>

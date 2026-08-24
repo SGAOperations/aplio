@@ -3,13 +3,13 @@
 import { useRouter } from 'next/navigation';
 import { useFormContext } from 'react-hook-form';
 
-import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import type { z } from 'zod/v4';
 
 import { createPosition } from '@/prisma/actions/position-actions';
 
 import { STATUS_OPTIONS, positionFormSchema } from '@/lib/constants';
+import { ACTION_ICONS } from '@/lib/icons';
 
 import { MarkdownField } from '@/components/features/markdown-field';
 import { Button } from '@/components/ui/button';
@@ -153,7 +153,7 @@ export function PositionCreateDialog() {
     <FormDialog
       trigger={
         <Button>
-          <Plus className="size-4" />
+          <ACTION_ICONS.create />
           New Position
         </Button>
       }

@@ -3,7 +3,6 @@
 import { useForm, useWatch } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { z } from 'zod/v4';
 
@@ -21,6 +20,7 @@ import {
   type ShortAnswerFormatValue,
   questionFormSchema,
 } from '@/lib/constants';
+import { ACTION_ICONS } from '@/lib/icons';
 
 import { FormatField } from '@/components/features/question-format-field';
 import { Button } from '@/components/ui/button';
@@ -257,7 +257,7 @@ export function QuestionForm({
 
         <div className="flex gap-2">
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="animate-spin" />}
+            {isSubmitting && <ACTION_ICONS.pending className="animate-spin" />}
             {question ? 'Save Changes' : 'Add Question'}
           </Button>
           <Button

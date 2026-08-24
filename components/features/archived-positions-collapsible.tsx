@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 
-import { ChevronDown } from 'lucide-react';
+import { ACTION_ICONS } from '@/lib/icons';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -31,10 +31,7 @@ export function ArchivedPositionsCollapsible({
           className="group w-full justify-between sm:w-auto sm:justify-start"
         >
           Archived ({count})
-          <ChevronDown
-            className="size-4 transition-transform group-data-[state=open]:rotate-180"
-            aria-hidden="true"
-          />
+          <ACTION_ICONS.expand className="transition-transform group-data-[state=open]:rotate-180" />
         </Button>
       </CollapsibleTrigger>
       <CollapsibleContent className="flex flex-col gap-4">

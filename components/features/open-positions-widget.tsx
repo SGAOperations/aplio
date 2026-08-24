@@ -1,9 +1,8 @@
 import Link from 'next/link';
 
-import { Briefcase } from 'lucide-react';
-
 import { getOpenPositions } from '@/prisma/data/positions';
 
+import { ACTION_ICONS, CONCEPT_ICONS } from '@/lib/icons';
 import { markdownToPlainText } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
@@ -24,6 +23,7 @@ export async function OpenPositionsWidget({
   return (
     <SectionCard
       title="Open Positions"
+      icon={CONCEPT_ICONS.position}
       link={{
         href: '/positions',
         label: 'See all',
@@ -32,7 +32,7 @@ export async function OpenPositionsWidget({
     >
       {displayed.length === 0 ? (
         <SectionCardEmpty
-          icon={Briefcase}
+          icon={CONCEPT_ICONS.position}
           title="No open positions right now."
           description="Check back soon for new opportunities."
         />
@@ -57,7 +57,10 @@ export async function OpenPositionsWidget({
                 </div>
                 {/* All positions from getOpenPositions() are accepting — always show Apply */}
                 <Button asChild size="sm" className="shrink-0">
-                  <Link href={`/positions/${position.id}/apply`}>Apply</Link>
+                  <Link href={`/positions/${position.id}/apply`}>
+                    <ACTION_ICONS.submit />
+                    Apply
+                  </Link>
                 </Button>
               </div>
             </li>
