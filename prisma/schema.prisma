@@ -329,9 +329,8 @@ model Verification {
   @@index([identifier])
 }
 
-// Append-only like ApplicationStatusEvent, except status/sentAt/deliveredAt/
-// bounceType/error move a row from scheduled to sent/delivered/bounced/etc
-// as reality catches up — no updatedAt/deletedAt audit columns.
+// Append-only like ApplicationStatusEvent: status/sentAt/deliveredAt/bounceType/error
+// mutate as reality catches up — no updatedAt/deletedAt audit columns.
 model EmailLog {
   id                String           @id @default(uuid(7))
   to                String
