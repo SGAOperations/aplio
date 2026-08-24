@@ -38,8 +38,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-const MENU_ITEM_TOUCH_TARGET = 'min-h-11 md:min-h-0';
-
 interface UserMenuProps {
   identity: NavIdentity;
   onNavigate?: () => void;
@@ -117,7 +115,7 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
           )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild className={MENU_ITEM_TOUCH_TARGET}>
+        <DropdownMenuItem asChild>
           <Link
             href="/profile"
             className="flex items-center gap-2"
@@ -133,7 +131,7 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
           trigger={
             <DropdownMenuItem
               onSelect={(e) => e.preventDefault()}
-              className={`cursor-pointer text-sm ${MENU_ITEM_TOUCH_TARGET}`}
+              className="cursor-pointer text-sm"
             >
               <UserPen className="size-4" aria-hidden />
               Edit name
@@ -142,7 +140,7 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
         />
         <DropdownMenuSeparator />
         <DropdownMenuSub>
-          <DropdownMenuSubTrigger className={`gap-2 ${MENU_ITEM_TOUCH_TARGET}`}>
+          <DropdownMenuSubTrigger className="gap-2">
             <SunMoon className="size-4" aria-hidden />
             Theme
           </DropdownMenuSubTrigger>
@@ -162,7 +160,7 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
           variant="destructive"
           disabled={pending}
           onSelect={handleLogout}
-          className={`cursor-pointer text-sm ${MENU_ITEM_TOUCH_TARGET}`}
+          className="cursor-pointer text-sm"
         >
           <LogOut className="size-4" aria-hidden />
           Log out

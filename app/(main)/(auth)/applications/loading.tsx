@@ -11,22 +11,22 @@ export default function ApplicationsLoading() {
       </div>
 
       {/* Toolbar skeleton — Position Select + Applicant Select + Status Select + Search Input */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-        <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+        <div className="flex w-full flex-col gap-1.5 sm:w-48">
           <Skeleton className="h-3 w-14" />
-          <Skeleton className="h-9 w-48" />
+          <Skeleton className="h-11 w-full md:h-9" />
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex w-full flex-col gap-1.5 sm:w-56">
           <Skeleton className="h-3 w-16" />
-          <Skeleton className="h-9 w-56" />
+          <Skeleton className="h-11 w-full md:h-9" />
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex w-full flex-col gap-1.5 sm:w-44">
           <Skeleton className="h-3 w-10" />
-          <Skeleton className="h-9 w-44" />
+          <Skeleton className="h-11 w-full md:h-9" />
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex w-full flex-col gap-1.5 sm:w-64">
           <Skeleton className="h-3 w-12" />
-          <Skeleton className="h-9 w-56" />
+          <Skeleton className="h-11 w-full md:h-9" />
         </div>
       </div>
 

@@ -57,7 +57,7 @@ export function SectionCard({
             <Link
               href={link.href}
               aria-label={link.ariaLabel}
-              className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm transition-colors"
+              className="text-muted-foreground hover:text-foreground flex min-h-11 items-center gap-1 text-sm transition-colors md:min-h-0"
             >
               {link.label}
               <ArrowRight className="size-3.5" aria-hidden="true" />
