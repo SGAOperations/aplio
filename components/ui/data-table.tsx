@@ -139,7 +139,7 @@ function SortableTableRow<T>({
         isDragging && 'relative z-10',
       )}
     >
-      <TableCell className="w-10">
+      <TableCell className="px-2">
         <SortableHandle
           label={handleLabel}
           handleProps={handleProps}
@@ -327,7 +327,7 @@ export function DataTable<T>({
             <TableHeader>
               <TableRow>
                 {showReorderColumn && (
-                  <TableHead className="w-10">
+                  <TableHead className="w-8 px-2">
                     <span className="sr-only">Reorder</span>
                   </TableHead>
                 )}

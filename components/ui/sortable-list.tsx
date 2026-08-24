@@ -145,7 +145,9 @@ export function useSortableItem(id: string) {
 
 // Optimistic drag-drop reorder: sets the new order immediately, persists via
 // `reorder`, and rolls back to `items` on error once the transition settles.
-export function useOptimisticReorder<T extends { id: string }>(
+// Stamps `order` to match the new index so a live re-sort by that same field
+// (DataTable's `reorder.orderKey`) reflects the drop instead of reverting it.
+export function useOptimisticReorder<T extends { id: string; order: number }>(
   items: T[],
   reorder: (ids: string[]) => Promise<{ error: string } | void>,
   onSaved?: (next: T[]) => void,
@@ -159,7 +161,10 @@ export function useOptimisticReorder<T extends { id: string }>(
   function handleReorder(ids: string[]) {
     const byId = new Map(optimisticItems.map((item) => [item.id, item]));
     const next = ids
-      .map((id) => byId.get(id))
+      .map((id, index) => {
+        const item = byId.get(id);
+        return item ? { ...item, order: index + 1 } : undefined;
+      })
       .filter((item): item is T => item !== undefined);
 
     startReorder(async () => {

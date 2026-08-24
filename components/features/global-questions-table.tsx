@@ -52,7 +52,8 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
       {
         key: 'order',
         header: 'Order',
-        headClassName: 'w-16',
+        headClassName: 'w-12 px-2',
+        cellClassName: 'px-2',
         sortAccessor: (q) => q.order,
         cell: (q) => q.order,
       },
