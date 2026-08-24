@@ -21,6 +21,7 @@ import {
   type MyApplicationDetail,
   type MyApplicationListItem,
   type PositionApplicationStats,
+  type ReviewableApplicant,
   type Reviewer,
 } from '@/lib/types';
 
@@ -392,6 +393,17 @@ export async function getReviewablePositions(
     where: buildReviewablePositionWhere(user),
     select: { id: true, title: true },
     orderBy: { title: 'asc' },
+  });
+}
+
+// Cross-user identity — reviewer-gated callers only, same scope as getApplications.
+export async function getReviewableApplicants(
+  user: Reviewer,
+): Promise<ReviewableApplicant[]> {
+  return prisma.user.findMany({
+    where: { applications: { some: buildApplicationWhere(user, 'listable') } },
+    select: { id: true, name: true, email: true },
+    orderBy: [{ name: 'asc' }, { email: 'asc' }],
   });
 }
 
