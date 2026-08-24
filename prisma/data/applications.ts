@@ -145,9 +145,7 @@ export async function getRecentMyApplications(
   });
 }
 
-// Feeds the browse page's applied marker. No status filter — the caller needs
-// draft and withdrawn too. One row per position: the [userId, positionId]
-// unique constraint guarantees it.
+// No status filter — caller needs draft/withdrawn too; one row per position via the [userId, positionId] unique constraint.
 export async function getMyApplicationsByPosition(
   userId: string,
 ): Promise<Map<string, MyPositionApplication>> {
