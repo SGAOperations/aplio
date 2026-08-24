@@ -71,7 +71,7 @@ export function ApplicationStatusDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent>
+        <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle>Application status</DialogTitle>
             <DialogDescription>
@@ -79,7 +79,7 @@ export function ApplicationStatusDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex flex-col gap-4">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
             {canOverride && (
               <div className="flex flex-col gap-2">
                 <h3 className="text-sm font-medium">Change status</h3>
@@ -119,18 +119,14 @@ export function ApplicationStatusDialog({
                     Apply
                   </Button>
                 </div>
-                <p className="text-muted-foreground text-xs">
-                  Any status, including moves the normal flow doesn&apos;t
-                  offer.
-                </p>
               </div>
             )}
 
             {canOverride && undoTarget && (
               <Button
-                variant="outline"
+                variant="link"
                 size="sm"
-                className="w-fit"
+                className="h-auto w-fit p-0"
                 disabled={move.isPending}
                 onClick={() =>
                   move.selectTarget(undoTarget, { override: true })

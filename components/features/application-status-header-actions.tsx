@@ -84,9 +84,17 @@ export function ApplicationStatusHeaderActions({
   const isTerminalDecision =
     currentStatus === 'accepted' || currentStatus === 'rejected';
   const { forward, decisions } = getApplicationStatusMenuGroups(currentStatus);
-  const [mainTarget, ...restForward] = forward;
+  // Reviewing's only forward step re-schedules an interview — a backward-feeling
+  // move once already under review, so Accept leads instead.
+  const leadWithAccept =
+    currentStatus === 'reviewing' && decisions.includes('accepted');
+  const mainTarget = leadWithAccept ? 'accepted' : forward[0];
+  const restForward = leadWithAccept ? forward : forward.slice(1);
+  const menuDecisions = leadWithAccept
+    ? decisions.filter((target) => target !== 'accepted')
+    : decisions;
 
-  const decisionItems = decisions.map((target) => (
+  const decisionItems = menuDecisions.map((target) => (
     <DropdownMenuItem
       key={target}
       variant={target === 'rejected' ? 'destructive' : 'default'}
@@ -138,7 +146,7 @@ export function ApplicationStatusHeaderActions({
                   {APPLICATION_STATUS_ACTION_LABELS[target]}
                 </DropdownMenuItem>
               ))}
-              {restForward.length > 0 && decisions.length > 0 && (
+              {restForward.length > 0 && menuDecisions.length > 0 && (
                 <DropdownMenuSeparator />
               )}
               {decisionItems}
