@@ -96,13 +96,16 @@ export default async function ApplicationDetailPage({
           />
         </SectionCard>
 
-        <SectionCard title="Position answers" titleAs="h2">
-          <ApplicationAnswersList
-            answers={application.positionAnswers}
-            emptyMessage="No position-specific answers."
-            applicationId={application.id}
-          />
-        </SectionCard>
+        {(application.hasPositionQuestions ||
+          application.positionAnswers.length > 0) && (
+          <SectionCard title="Position answers" titleAs="h2">
+            <ApplicationAnswersList
+              answers={application.positionAnswers}
+              emptyMessage="No position-specific answers."
+              applicationId={application.id}
+            />
+          </SectionCard>
+        )}
       </div>
     </div>
   );
