@@ -18,6 +18,7 @@ import {
   buildApplicationWhere,
 } from '@/lib/auth/scopes';
 import { getCurrentUser } from '@/lib/auth/server';
+import { cleanupOrphanedBlob } from '@/lib/blobs';
 import {
   ANSWER_LONG_MAX_LENGTH,
   ANSWER_MAX_VALUES,
