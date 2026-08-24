@@ -51,35 +51,29 @@ export async function sendEmail({
       })
     )?.id;
 
-  let result;
-  try {
-    result = await resend.emails.send({ from, to, subject, html, text });
-  } catch (err) {
-    await prisma.emailLog.create({
+  const logFailure = (message: string) =>
+    prisma.emailLog.create({
       data: {
         to,
         userId: resolvedUserId,
         template,
         subject,
         status: EmailStatus.failed,
-        error: err instanceof Error ? err.message : String(err),
+        error: message,
       },
     });
+
+  let result;
+  try {
+    result = await resend.emails.send({ from, to, subject, html, text });
+  } catch (err) {
+    await logFailure(err instanceof Error ? err.message : String(err));
     throw new Error('Resend send failed', { cause: err });
   }
 
   const { data, error } = result;
   if (error) {
-    await prisma.emailLog.create({
-      data: {
-        to,
-        userId: resolvedUserId,
-        template,
-        subject,
-        status: EmailStatus.failed,
-        error: error.message,
-      },
-    });
+    await logFailure(error.message);
     throw new Error(`Resend send failed: ${error.message}`);
   }
 

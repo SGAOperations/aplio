@@ -44,10 +44,18 @@ enum EmailStatus {
   failed
   scheduled
   cancelled
+  delivered
+  bounced
+  complained
+  suppressed
 }
 
 enum EmailTemplateKey {
   otp
+  application_received
+  application_accepted
+  application_rejected
+  manager_digest
 }
 
 model User {
@@ -221,6 +229,7 @@ model Application {
   position        Position                   @relation(fields: [positionId], references: [id])
   globalAnswers   GlobalApplicationAnswer[]
   positionAnswers PositionApplicationAnswer[]
+  emailLogs       EmailLog[]
 
   @@unique([userId, positionId])
 }
@@ -320,23 +329,30 @@ model Verification {
   @@index([identifier])
 }
 
-// Append-only like ApplicationStatusEvent, except status/sentAt/error move a
-// row from scheduled to sent/cancelled — no updatedAt/deletedAt audit columns.
+// Append-only like ApplicationStatusEvent, except status/sentAt/deliveredAt/
+// bounceType/error move a row from scheduled to sent/delivered/bounced/etc
+// as reality catches up — no updatedAt/deletedAt audit columns.
 model EmailLog {
   id                String           @id @default(uuid(7))
   to                String
   userId            String?
+  applicationId     String?
   template          EmailTemplateKey
   subject           String
   status            EmailStatus
   providerMessageId String?
   scheduledAt       DateTime?
   sentAt            DateTime?
+  deliveredAt       DateTime?
+  bounceType        String?
   error             String?
   createdAt         DateTime         @default(now())
 
-  user User? @relation(fields: [userId], references: [id])
+  user        User?        @relation(fields: [userId], references: [id])
+  application Application? @relation(fields: [applicationId], references: [id])
 
   @@index([userId, createdAt])
+  @@index([applicationId, createdAt])
   @@index([status])
+  @@index([providerMessageId])
 }
