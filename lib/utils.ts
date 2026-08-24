@@ -43,6 +43,16 @@ export function getDisplayName(app: {
   return app.applicantName ?? app.user.name ?? app.user.email;
 }
 
+/** "<From> → <To>", or "Status recorded as <To>" for the null-`from` backfill row. */
+export function getApplicationStatusHistoryRowLabel(entry: {
+  from: $Enums.ApplicationStatus | null;
+  to: $Enums.ApplicationStatus;
+}): string {
+  if (entry.from === null)
+    return `Status recorded as ${APPLICATION_STATUS_LABELS[entry.to]}`;
+  return `${APPLICATION_STATUS_LABELS[entry.from]} → ${APPLICATION_STATUS_LABELS[entry.to]}`;
+}
+
 export type ErrorType = { error: string };
 
 export type ResponseType<T> = T | ErrorType;
