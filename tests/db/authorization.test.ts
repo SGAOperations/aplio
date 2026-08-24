@@ -41,6 +41,7 @@ import {
   getMyApplications,
   getMySubmittedCount,
   getRecentApplications,
+  getReviewableApplicants,
   getReviewablePositions,
 } from '@/prisma/data/applications';
 import { checkPositionAccess, isManager } from '@/prisma/data/managers';
@@ -203,7 +204,7 @@ describe('searchUsers (#357)', () => {
   });
 });
 
-describe('getApplications / getApplicationsCount / getApplicationForReview / getReviewablePositions', () => {
+describe('getApplications / getApplicationsCount / getApplicationForReview / getReviewablePositions / getReviewableApplicants', () => {
   it('scopes getApplications to the managing manager, admin sees both, draft/deleted excluded, withdrawn included', async () => {
     const asManagerA = await getApplications(managerA, {});
     const idsA = asManagerA.map((a) => a.id);
@@ -295,6 +296,48 @@ describe('getApplications / getApplicationsCount / getApplicationForReview / get
     expect(asAdmin).toContain(positionB.id);
     expect(asAdmin).not.toContain(draftPosition.id);
     expect(asAdmin).not.toContain(deletedPosition.id);
+  });
+
+  it('scopes getReviewableApplicants to the managing manager, admin sees both, draft-only excluded, withdrawn-only included', async () => {
+    const asManagerA = (await getReviewableApplicants(managerA)).map(
+      (a) => a.id,
+    );
+    expect(asManagerA).toContain(applicantAppliedA.id);
+    expect(asManagerA).toContain(applicantWithdrawnA.id);
+    expect(asManagerA).not.toContain(applicantDraftA.id);
+    expect(asManagerA).not.toContain(applicantAppliedB.id);
+
+    const asManagerB = (await getReviewableApplicants(managerB)).map(
+      (a) => a.id,
+    );
+    expect(asManagerB).toContain(applicantAppliedB.id);
+    expect(asManagerB).not.toContain(applicantAppliedA.id);
+
+    const asAdmin = (await getReviewableApplicants(admin)).map((a) => a.id);
+    expect(asAdmin).toContain(applicantAppliedA.id);
+    expect(asAdmin).toContain(applicantAppliedB.id);
+    expect(asAdmin).not.toContain(applicantDraftA.id);
+  });
+
+  it('excludes an applicant whose only application is on a draft or soft-deleted position', async () => {
+    const draftPositionApplicant = await createTestUser();
+    await createTestApplication(draftPositionApplicant, draftPosition, {
+      status: 'applied',
+    });
+    const deletedPositionApplicant = await createTestUser();
+    await createTestApplication(deletedPositionApplicant, deletedPosition, {
+      status: 'applied',
+    });
+
+    const asManagerA = (await getReviewableApplicants(managerA)).map(
+      (a) => a.id,
+    );
+    expect(asManagerA).not.toContain(draftPositionApplicant.id);
+    expect(asManagerA).not.toContain(deletedPositionApplicant.id);
+
+    const asAdmin = (await getReviewableApplicants(admin)).map((a) => a.id);
+    expect(asAdmin).not.toContain(draftPositionApplicant.id);
+    expect(asAdmin).not.toContain(deletedPositionApplicant.id);
   });
 });
 
