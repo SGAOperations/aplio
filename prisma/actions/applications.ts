@@ -41,6 +41,7 @@ import {
   isAcceptingApplications,
   isAnswered,
   isError,
+  resolveGlobalAnswerValues,
   toStringArray,
 } from '@/lib/utils';
 
@@ -62,61 +63,6 @@ function hasUnansweredRequiredPosition(
           isAnswered(q, toStringArray(a.value)),
       ),
   );
-}
-
-// Only backfills a missing row — an existing (possibly cleared) row is left alone.
-async function syncGlobalAnswersFromProfile(
-  tx: Prisma.TransactionClient,
-  applicationId: string,
-  userId: string,
-): Promise<string[]> {
-  const [questions, existingAnswers] = await Promise.all([
-    tx.globalQuestion.findMany({
-      where: { deletedAt: null },
-      orderBy: { order: 'asc' },
-      include: { answers: { where: { userId, deletedAt: null } } },
-    }),
-    tx.globalApplicationAnswer.findMany({
-      where: { applicationId },
-      select: { globalQuestionId: true, value: true },
-    }),
-  ]);
-
-  const existingByQuestionId = new Map(
-    existingAnswers.map((a) => [a.globalQuestionId, a.value]),
-  );
-
-  const toBackfill = questions.filter(
-    (q) =>
-      !existingByQuestionId.has(q.id) &&
-      toStringArray(q.answers[0]?.value).length > 0,
-  );
-
-  if (toBackfill.length > 0) {
-    await tx.globalApplicationAnswer.createMany({
-      data: toBackfill.map((q) => ({
-        applicationId,
-        globalQuestionId: q.id,
-        questionLabel: q.label,
-        value: q.answers[0]!.value,
-        createdById: userId,
-        updatedById: userId,
-      })),
-      // Guards two tabs backfilling the same question concurrently.
-      skipDuplicates: true,
-    });
-  }
-
-  const backfilledIds = new Set(toBackfill.map((q) => q.id));
-
-  return questions
-    .filter(
-      (q) =>
-        q.required &&
-        !backfilledIds.has(q.id) &&
-        !isAnswered(q, toStringArray(existingByQuestionId.get(q.id))),
-    )
-    .map((q) => q.label);
 }
 
 // Keeps the toast readable when several questions are missing at once.
@@ -201,6 +147,7 @@ export async function createDraftApplication(
             create: globalAnswers.map((answer: GlobalAnswerWithQuestion) => ({
               globalQuestionId: answer.globalQuestionId,
               questionLabel: answer.globalQuestion.label,
+              questionType: answer.globalQuestion.type,
               value: answer.value,
               createdById: currentUser.id,
               updatedById: currentUser.id,
@@ -338,6 +285,7 @@ export async function createOrUpdateApplicationAnswer(params: {
         applicationId,
         globalQuestionId: questionId,
         questionLabel: question.label,
+        questionType: question.type,
         value: globalPersistedValue,
         createdById: currentUser.id,
         updatedById: currentUser.id,
@@ -363,6 +311,7 @@ export async function createOrUpdateApplicationAnswer(params: {
       applicationId,
       positionQuestionId: questionId,
       questionLabel: question.label,
+      questionType: question.type,
       value: persistedValue,
       createdById: currentUser.id,
       updatedById: currentUser.id,
@@ -380,11 +329,13 @@ export async function submitApplication(
   const parsed = submitApplicationSchema.safeParse({ applicationId });
   if (!parsed.success) return { error: 'Invalid input' };
 
-  // Backfill and status update must land atomically, or two tabs could race the write.
+  // Snapshot materialization and the status update must land atomically, or
+  // two tabs could race the write.
   const result = await prisma.$transaction(async (tx) => {
     const application = await tx.application.findUnique({
       where: { id: parsed.data.applicationId },
       include: {
+        globalAnswers: true,
         positionAnswers: true,
         position: {
           select: {
@@ -416,11 +367,38 @@ export async function submitApplication(
     if (!isAcceptingApplications(application.position))
       return { error: 'This position is no longer accepting applications.' };
 
-    const missingGlobalLabels = await syncGlobalAnswersFromProfile(
-      tx,
-      application.id,
-      currentUser.id,
+    // Read, not write: resolve every global question's value without touching the DB.
+    const [globalQuestions, profileAnswers] = await Promise.all([
+      tx.globalQuestion.findMany({
+        where: { deletedAt: null },
+        orderBy: { order: 'asc' },
+        select: {
+          id: true,
+          label: true,
+          type: true,
+          required: true,
+          options: true,
+          allowOther: true,
+          format: true,
+        },
+      }),
+      tx.globalAnswer.findMany({
+        where: { userId: currentUser.id, deletedAt: null },
+        select: { globalQuestionId: true, value: true },
+      }),
+    ]);
+
+    const resolvedValues = resolveGlobalAnswerValues(
+      globalQuestions.map((q) => q.id),
+      application.globalAnswers,
+      profileAnswers,
     );
+
+    const missingGlobalLabels = globalQuestions
+      .filter(
+        (q) => q.required && !isAnswered(q, resolvedValues.get(q.id) ?? []),
+      )
+      .map((q) => q.label);
     if (missingGlobalLabels.length > 0)
       return {
         error: `Answer these required profile questions before submitting: ${formatMissingQuestions(missingGlobalLabels)}.`,
@@ -435,6 +413,31 @@ export async function submitApplication(
       return {
         error: 'Please answer all required questions before submitting.',
       };
+
+    // Materialize: only questions with no existing row and a non-empty
+    // resolved value get one — an unanswered optional global still gets no row.
+    const existingIds = new Set(
+      application.globalAnswers.map((a) => a.globalQuestionId),
+    );
+    const toMaterialize = globalQuestions.filter(
+      (q) =>
+        !existingIds.has(q.id) && (resolvedValues.get(q.id)?.length ?? 0) > 0,
+    );
+    if (toMaterialize.length > 0) {
+      await tx.globalApplicationAnswer.createMany({
+        data: toMaterialize.map((q) => ({
+          applicationId: application.id,
+          globalQuestionId: q.id,
+          questionLabel: q.label,
+          questionType: q.type,
+          value: resolvedValues.get(q.id)!,
+          createdById: currentUser.id,
+          updatedById: currentUser.id,
+        })),
+        // Guards two tabs materializing the same question concurrently.
+        skipDuplicates: true,
+      });
+    }
 
     // Status scoped again here, closing the check-then-write race between
     // the read above and this write (e.g. a concurrent second tab).
@@ -619,11 +622,11 @@ export async function deleteDraftApplication(
     // file_upload only — other answers are plain text, never blob URLs.
     const [globalAnswers, positionAnswers] = await Promise.all([
       tx.globalApplicationAnswer.findMany({
-        where: { applicationId: id, globalQuestion: { type: 'file_upload' } },
+        where: { applicationId: id, questionType: 'file_upload' },
         select: { value: true },
       }),
       tx.positionApplicationAnswer.findMany({
-        where: { applicationId: id, positionQuestion: { type: 'file_upload' } },
+        where: { applicationId: id, questionType: 'file_upload' },
         select: { value: true },
       }),
     ]);
