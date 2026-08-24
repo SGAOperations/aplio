@@ -7,6 +7,7 @@ import {
   STATUS_BADGE_VARIANT_TO_DOT,
 } from '@/lib/constants';
 import { type Reviewer } from '@/lib/types';
+import { cn } from '@/lib/utils';
 
 import { StatCard } from '@/components/features/stat-card';
 import { Card, CardContent } from '@/components/ui/card';
@@ -35,7 +36,12 @@ export async function PipelineSummary({ reviewer }: PipelineSummaryProps) {
     <section aria-label="Pipeline summary">
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-7">
         {/* Leading "Total" card — sum of all non-draft pipeline statuses */}
-        <StatCard label="Total" value={total} dotClassName="bg-primary" />
+        <StatCard
+          label="Total"
+          value={total}
+          dotClassName="bg-primary"
+          className="col-span-2 md:col-span-1"
+        />
 
         {PIPELINE_STATUSES.map((status) => {
           const count = counts[status] ?? 0;
@@ -58,9 +64,12 @@ export async function PipelineSummary({ reviewer }: PipelineSummaryProps) {
 
 export function PipelineSummarySkeleton() {
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7">
+    <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-7">
       {Array.from({ length: 7 }).map((_, i) => (
-        <Card key={i} className="p-4">
+        <Card
+          key={i}
+          className={cn('p-4', i === 0 && 'col-span-2 md:col-span-1')}
+        >
           <CardContent className="p-0">
             <Skeleton className="h-3 w-20" />
             <Skeleton className="mt-2 h-8 w-12" />

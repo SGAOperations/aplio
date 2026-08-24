@@ -80,7 +80,7 @@ function PaginationPrevious({
 }: PaginationBoundaryLinkProps) {
   const classes = cn(
     buttonVariants({ variant: 'ghost', size: 'default' }),
-    'h-11 gap-1 px-2.5 sm:h-9 sm:pl-2.5',
+    'gap-1 px-2.5 sm:pl-2.5',
     disabled && 'pointer-events-none opacity-50',
     className,
   );
@@ -112,7 +112,7 @@ function PaginationNext({
 }: PaginationBoundaryLinkProps) {
   const classes = cn(
     buttonVariants({ variant: 'ghost', size: 'default' }),
-    'h-11 gap-1 px-2.5 sm:h-9 sm:pr-2.5',
+    'gap-1 px-2.5 sm:pr-2.5',
     disabled && 'pointer-events-none opacity-50',
     className,
   );

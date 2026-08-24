@@ -47,6 +47,7 @@ await prisma.$transaction(async (tx) => {
 ```
 
 - **Schema discipline.** Status-like fields are Prisma `enum`s following existing enum naming; foreign keys get explicit relations; fields queried in `where`/`orderBy` at scale get `@@index`. Schema changes always come with the corresponding migration and are called out in the plan.
+- **Application status audit trail.** Every write that changes `Application.status` records an `ApplicationStatusEvent` in the same transaction — four paths do this today (`submitApplication`, `updateApplicationStatus`, `updateApplicationStatuses`, `withdrawApplication`); a fifth write path would otherwise silently skip the trail.
 - **Validate at every boundary.** Every server action parses its input with a zod schema before touching the database — even when the form also validates client-side. Client validation is UX; server validation is integrity.
 
 ## 3. Security
@@ -86,17 +87,7 @@ export async function withdrawApplication(input: unknown) {
 
 - **Authorization ≠ authentication.** Being logged in is not permission. Every query/mutation is scoped to what the caller may see or change (`where: { ..., applicantId: user.id }` or an explicit role check). Watch for IDOR: any action taking an ID must verify the caller's right to that specific record.
 - **Never hand-roll a role check — use `lib/auth/guards.ts`** (`requireAdmin`, `requireManagerOrAdmin`, `requirePositionAccess`, `requireOwnership`, and the `*Or404` page twins). A bare `if (!user.isAdmin)` in an action or page is a review finding; the only `user.isAdmin` reads outside that module are nav rendering and query scoping.
-- **Capability matrix.** Manager status is _derived_, not stored — no `role`/`isManager` column exists on `User` (`prisma/schema.prisma`); `isManager` counts non-deleted `Position.managers` rows (`prisma/data/managers.ts`). A user managing nothing cannot create their first position: only an admin can add them as a manager to bootstrap that.
-
-  | Capability                                   | Applicant | Manager | Admin | Guard                                                                       |
-  | -------------------------------------------- | --------- | ------- | ----- | --------------------------------------------------------------------------- |
-  | Create position                              | ✗         | ✓       | ✓     | `requireManagerOrAdmin`                                                     |
-  | Edit a position, its questions, its managers | ✗         | ✓ (own) | ✓     | `requirePositionAccess`                                                     |
-  | Delete a position                            | ✗         | ✗       | ✓     | `requireAdmin`                                                              |
-  | Review applications                          | ✗         | ✓ (own) | ✓     | query-scoped by caller (no named guard); page: `requireManagerOrAdminOr404` |
-  | `/users`, `/global-questions`, admin toggle  | ✗         | ✗       | ✓     | `requireAdminOr404` (page) / `requireAdmin` (action)                        |
-  | Apply; view/withdraw own applications        | ✓         | ✓       | ✓     | `requireOwnership` / caller-scoped query                                    |
-  - A manager cannot remove themselves as a manager — only an admin can (`removePositionManager`, `prisma/actions/position-actions.ts`): `if (userId === user.id && !user.isAdmin) return { error: 'You cannot remove yourself as a manager. Ask an admin to do it.' }`.
+- **Capability matrix.** Manager status is _derived_, not stored — no `role`/`isManager` column exists on `User` (`prisma/schema.prisma`); `isManager` counts non-deleted `Position.managers` rows (`prisma/data/managers.ts`). The full capability matrix, route/action gate tables, and the position/application state tables live in **`PERMISSIONS.md`** — read it, don't re-derive it here.
 
 - **Denial shape depends on the surface, and only on that.** In a **server action** a guard **throws** — a denial is never user-facing, so it fails the §4 decision test and must never be returned as `{ error: 'Unauthorized' }`/`{ error: 'Forbidden' }`. In a **page** a guard calls **`notFound()`** — an authenticated-but-not-permitted page renders the same 404 as a missing one, so there is no existence leak and no silent `redirect('/')` to a page the user never asked for.
 - **Authenticate before touching the DB.** Server actions are POST endpoints reachable by anyone holding the action id. Resolve the user _first_ — an existence check or stale-link lookup placed ahead of the guard turns the action into an anonymous existence oracle. `getCurrentUser` is `React.cache`d, so an early call costs a later guard nothing.
@@ -211,3 +202,55 @@ A scannable summary of the issues that recur in this codebase. **impl** builds t
 - **Structure & conventions:** server actions in `prisma/actions/`, queries in `prisma/data/`; **shared types/constants in `lib/types.ts`/`lib/constants.ts`** (not per-service); abstract repetition sensibly (no over-abstraction); named exports only (except route files); no API routes except `/api/auth`; **design tokens, never hardcoded colors**; strict TS, no `any`. (§1, §7)
 - **Hygiene:** no dead scaffolding/shims/transitional re-exports; schema changes ship with their migration. (§1)
 - **Comments:** rare, **one line by default** (two only rarely, never three); terse fragments, not sentences; **no issue/PR/`§` refs**, no narration; JSDoc only where the signature doesn't already say it. (§7)
+
+## 9. Next.js 16 runtime notes (App Router)
+
+Current-behavior reference so agents don't code from stale training data. This repo is on **Next.js 16.2.9, React 19**. When in doubt about caching/rendering, **fetch the canonical page** (links below) rather than recalling — the model has changed across versions.
+
+> Fetch live docs: `nextjs.org/docs/llms.txt` is a machine-readable index; most pages also have a `.md` form. Allowlisted for `WebFetch` in `.claude/settings.json`.
+
+### Caching model in THIS repo: the "previous" model (Cache Components is OFF)
+
+`next.config.ts` does **not** set `cacheComponents: true`, so the **previous caching model applies — not Cache Components / PPR.** Do not write `use cache`, `cacheLife`, or `cacheTag` here; those belong to Cache Components, which is not enabled.
+
+What that means in practice:
+
+- Data is fetched in **server components** via data-fetching functions in `prisma/data/`. Reading request data (`cookies()`, `headers()`, `searchParams`) opts a route into **dynamic (request-time) rendering** — expected for authed, per-user pages.
+- After a mutation, refresh caches explicitly with **`revalidatePath(path)`** or **`revalidateTag(tag)`** from the server action. This is the canonical pattern; always revalidate after a write.
+- Reference (previous model): https://nextjs.org/docs/app/guides/caching-without-cache-components and https://nextjs.org/docs/app/getting-started/revalidating
+
+**If you ever enable Cache Components** (`cacheComponents: true`), the rules change substantially (PPR default, `use cache`/`cacheLife`/`cacheTag`, `updateTag`, "Uncached data accessed outside `<Suspense>`" build errors, `connection()` before non-deterministic ops). Read https://nextjs.org/docs/app/getting-started/caching first — and that is a deliberate architectural change, not a casual edit.
+
+### Proxy (formerly Middleware) — v16.0.0 breaking change
+
+`middleware.ts` is **deprecated** in Next.js 16. The file convention is now `proxy.ts` and the exported function must be named `proxy` (not `middleware`):
+
+```ts
+// proxy.ts — at the project root (or src/)
+export function proxy(request: NextRequest) { ... }
+export const config = { matcher: [...] }
+```
+
+- Rename `middleware.ts` → `proxy.ts`
+- Rename `export function middleware` → `export function proxy`
+- Type is `NextProxy` (not `NextMiddleware`)
+- Official codemod: `npx @next/codemod@canary middleware-to-proxy .`
+- `NextRequest`, `NextResponse`, `config.matcher` are all unchanged
+
+### Stable rules (true regardless of caching model)
+
+- **Server vs Client Components** — server by default; `'use client'` only for interactivity/hooks/browser APIs, on the smallest leaf. Prisma/secrets never reach a client component. Ref: https://nextjs.org/docs/app/getting-started/server-and-client-components
+- **Server Actions** — `'use server'`, used for all mutations and form `action`s; progressive enhancement; validate input with zod; return `void`/data on success, `{ error }` for user-facing failures, `throw` for unexpected ones (§4). Ref: https://nextjs.org/docs/app/getting-started/updating-data
+- **Streaming** — wrap slow async server subtrees in `<Suspense>` with a skeleton; use route-level `loading.tsx` for whole-page fetches; errors go through the global boundary (§4), never a per-page `error.tsx`.
+- **Dynamic APIs are async in 16** — `await cookies()`, `await headers()`, and `params`/`searchParams` are promises in page props. Don't access them synchronously.
+- **Routing** — route groups `(group)`, dynamic segments `[id]`, `generateStaticParams` for static dynamic routes, `generateMetadata` for metadata.
+
+### Canonical links (fetch the `.md` form for current detail)
+
+- App Router index: https://nextjs.org/docs/app
+- Caching (Cache Components): https://nextjs.org/docs/app/getting-started/caching
+- Caching (previous model — **this repo**): https://nextjs.org/docs/app/guides/caching-without-cache-components
+- Revalidating: https://nextjs.org/docs/app/getting-started/revalidating
+- Server & Client Components: https://nextjs.org/docs/app/getting-started/server-and-client-components
+- Updating data / Server Actions: https://nextjs.org/docs/app/getting-started/updating-data
+- Docs index for agents: https://nextjs.org/docs/llms.txt

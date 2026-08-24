@@ -439,13 +439,6 @@ export function DataTableRowActions({
   className?: string;
 }) {
   return (
-    <div
-      className={cn(
-        'flex flex-wrap gap-2 [&>*]:min-h-11 md:[&>*]:min-h-0',
-        className,
-      )}
-    >
-      {children}
-    </div>
+    <div className={cn('flex flex-wrap gap-2', className)}>{children}</div>
   );
 }

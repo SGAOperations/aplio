@@ -1,15 +1,23 @@
+import { cn } from '@/lib/utils';
+
 import { Card, CardContent } from '@/components/ui/card';
 
 interface StatCardProps {
   label: string;
   value: number;
   dotClassName: string;
+  className?: string;
 }
 
 // Presentational and server-safe — no 'use client' needed.
-export function StatCard({ label, value, dotClassName }: StatCardProps) {
+export function StatCard({
+  label,
+  value,
+  dotClassName,
+  className,
+}: StatCardProps) {
   return (
-    <Card className="p-4">
+    <Card className={cn('p-4', className)}>
       <CardContent className="p-0">
         <div className="flex items-center gap-1.5">
           <span

@@ -39,6 +39,25 @@ enum ShortAnswerFormat {
   zip_code
 }
 
+enum EmailStatus {
+  sent
+  failed
+  scheduled
+  cancelled
+  delivered
+  bounced
+  complained
+  suppressed
+}
+
+enum EmailTemplateKey {
+  otp
+  application_received
+  application_accepted
+  application_rejected
+  manager_digest
+}
+
 model User {
   id            String    @id @default(uuid(7))
   // Nullable during the Neon Auth cutover; dropped once no row depends on it.
@@ -68,6 +87,7 @@ model User {
   managedPositions Position[]     @relation("PositionManagers")
   applications     Application[]
   globalAnswers    GlobalAnswer[]
+  emailLogs        EmailLog[]
 
   createdPositions          Position[]                 @relation("PositionCreatedBy")
   updatedPositions          Position[]                 @relation("PositionUpdatedBy")
@@ -90,6 +110,7 @@ model User {
   createdPositionAppAnswers PositionApplicationAnswer[] @relation("PositionApplicationAnswerCreatedBy")
   updatedPositionAppAnswers PositionApplicationAnswer[] @relation("PositionApplicationAnswerUpdatedBy")
   deletedPositionAppAnswers PositionApplicationAnswer[] @relation("PositionApplicationAnswerDeletedBy")
+  applicationStatusEvents   ApplicationStatusEvent[]    @relation("ApplicationStatusEventChangedBy")
 }
 
 model Position {
@@ -209,15 +230,32 @@ model Application {
   position        Position                   @relation(fields: [positionId], references: [id])
   globalAnswers   GlobalApplicationAnswer[]
   positionAnswers PositionApplicationAnswer[]
+  emailLogs       EmailLog[]
+  statusEvents    ApplicationStatusEvent[]
 
   @@unique([userId, positionId])
 }
 
+model ApplicationStatusEvent {
+  id            String             @id @default(uuid(7))
+  applicationId String
+  from          ApplicationStatus?
+  to            ApplicationStatus
+  changedById   String
+  createdAt     DateTime           @default(now())
+
+  application Application @relation(fields: [applicationId], references: [id])
+  changedBy   User        @relation("ApplicationStatusEventChangedBy", fields: [changedById], references: [id])
+
+  @@index([applicationId, createdAt])
+}
+
 model GlobalApplicationAnswer {
-  id               String    @id @default(uuid(7))
+  id               String       @id @default(uuid(7))
   applicationId    String
   globalQuestionId String
   questionLabel    String
+  questionType     QuestionType
   value            String[]
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
@@ -237,10 +275,11 @@ model GlobalApplicationAnswer {
 }
 
 model PositionApplicationAnswer {
-  id                 String    @id @default(uuid(7))
+  id                 String       @id @default(uuid(7))
   applicationId      String
   positionQuestionId String
   questionLabel      String
+  questionType       QuestionType
   value              String[]
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
@@ -306,4 +345,31 @@ model Verification {
   updatedAt  DateTime @updatedAt
 
   @@index([identifier])
+}
+
+// Append-only like ApplicationStatusEvent: status/sentAt/deliveredAt/bounceType/error
+// mutate as reality catches up — no updatedAt/deletedAt audit columns.
+model EmailLog {
+  id                String           @id @default(uuid(7))
+  to                String
+  userId            String?
+  applicationId     String?
+  template          EmailTemplateKey
+  subject           String
+  status            EmailStatus
+  providerMessageId String?
+  scheduledAt       DateTime?
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  bounceType        String?
+  error             String?
+  createdAt         DateTime         @default(now())
+
+  user        User?        @relation(fields: [userId], references: [id])
+  application Application? @relation(fields: [applicationId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([applicationId, createdAt])
+  @@index([status])
+  @@index([providerMessageId])
 }

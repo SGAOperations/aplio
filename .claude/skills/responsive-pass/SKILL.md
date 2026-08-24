@@ -6,7 +6,7 @@ allowed-tools: Read, Grep, Glob, Edit
 
 # Responsive pass
 
-Apply the mobile-first rules from `CLAUDE.md` and `.claude/docs/DESIGN.md` §7.
+Apply the mobile-first rules from `CLAUDE.md` and `docs/DESIGN.md` §7.
 
 ## What to enforce
 
@@ -18,4 +18,4 @@ Apply the mobile-first rules from `CLAUDE.md` and `.claude/docs/DESIGN.md` §7.
 
 ## How
 
-Read the target component, identify desktop-only assumptions (fixed widths, always-visible sidebar, no breakpoints), and refactor to mobile-first. Use `.claude/docs/DESIGN.md` semantic tokens. Verify mentally at 375 / 768 / 1280px; note anything needing a real device/browser check.
+Read the target component, identify desktop-only assumptions (fixed widths, always-visible sidebar, no breakpoints), and refactor to mobile-first. Use `docs/DESIGN.md` semantic tokens. Verify mentally at 375 / 768 / 1280px; note anything needing a real device/browser check.

@@ -27,7 +27,7 @@ If the session wasn't launched with `claude -n "<that string>"`, tell the operat
 git rev-parse --show-toplevel
 ```
 
-Keep that path. **Every instruction file is read by absolute path from there** — `.claude/agents/impl-agent.md`, `.claude/agents/revise-agent.md`, `.claude/docs/ENGINEERING.md`, `.claude/docs/PIPELINE.md`, `CLAUDE.md` — and **every edit goes only to paths inside the worktree.** That split is what makes a ticket that edits `impl-agent.md` safe: you follow the committed version while changing the worktree copy.
+Keep that path. **Every instruction file is read by absolute path from there** — `.claude/agents/impl-agent.md`, `.claude/agents/revise-agent.md`, `docs/ENGINEERING.md`, `.claude/docs/PIPELINE.md`, `CLAUDE.md` — and **every edit goes only to paths inside the worktree.** That split is what makes a ticket that edits `impl-agent.md` safe: you follow the committed version while changing the worktree copy.
 
 ## 3. Resolve the mode from state
 
@@ -79,7 +79,7 @@ In revise mode, rebase onto the base branch from inside the worktree: `git rebas
 
 ## 5. Follow the agent file
 
-Read the resolved agent file from the **main checkout** and follow it end to end: label swaps, the plan checklist, the `.temp/commit-msg.txt` commit format, the three CI checks, push by refspec, PR body format, base `dev`, the issue's assignee, thread resolution, the revision note. Also read `.claude/docs/ENGINEERING.md` and its **Pre-PR self-check**, as the agent file requires.
+Read the resolved agent file from the **main checkout** and follow it end to end: label swaps, the plan checklist, the `.temp/commit-msg.txt` commit format, the three CI checks, push by refspec, PR body format, base `dev`, the issue's assignee, thread resolution, the revision note. Also read `docs/ENGINEERING.md` and its **Pre-PR self-check**, as the agent file requires.
 
 **Carry the marker into the PR (impl mode).** The cockpit re-reads it on the PR to decide stage 4, so the PR description must repeat it verbatim, directly under `Closes #N`:
 

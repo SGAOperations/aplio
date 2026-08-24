@@ -7,6 +7,8 @@ import { XIcon } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
+import { Button } from '@/components/ui/button';
+
 function Sheet({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
@@ -64,9 +66,10 @@ function SheetContent({
           'bg-background fixed z-50 flex flex-col gap-4 shadow-lg transition ease-in-out',
           'data-[state=open]:animate-in data-[state=closed]:animate-out',
           side === 'left' &&
-            'data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left inset-y-0 left-0 h-full w-3/4 border-r sm:max-w-sm',
+            // dvh tracks the mobile toolbar so no gap opens at the bottom
+            'data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left inset-y-0 left-0 h-dvh w-3/4 border-r sm:max-w-sm',
           side === 'right' &&
-            'data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right inset-y-0 right-0 h-full w-3/4 border-l sm:max-w-sm',
+            'data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right inset-y-0 right-0 h-dvh w-3/4 border-l sm:max-w-sm',
           side === 'top' &&
             'data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top inset-x-0 top-0 h-auto border-b',
           side === 'bottom' &&
@@ -76,12 +79,16 @@ function SheetContent({
         {...props}
       >
         {children}
-        <DialogPrimitive.Close
-          data-slot="sheet-close"
-          className="ring-offset-background focus:ring-ring absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
-        >
-          <XIcon />
-          <span className="sr-only">Close</span>
+        <DialogPrimitive.Close asChild>
+          <Button
+            data-slot="sheet-close"
+            variant="ghost"
+            size="icon"
+            className="absolute top-2 right-2"
+          >
+            <XIcon />
+            <span className="sr-only">Close</span>
+          </Button>
         </DialogPrimitive.Close>
       </DialogPrimitive.Content>
     </SheetPortal>

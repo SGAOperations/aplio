@@ -151,7 +151,7 @@ async function readAndWriteAnswerValue(
     });
     const question = await tx.globalQuestion.findUniqueOrThrow({
       where: { id: target.questionId },
-      select: { label: true },
+      select: { label: true, type: true },
     });
     await tx.globalApplicationAnswer.upsert({
       where,
@@ -160,6 +160,7 @@ async function readAndWriteAnswerValue(
         applicationId: target.applicationId,
         globalQuestionId: target.questionId,
         questionLabel: question.label,
+        questionType: question.type,
         value,
         createdById: userId,
         updatedById: userId,
@@ -180,7 +181,7 @@ async function readAndWriteAnswerValue(
   });
   const question = await tx.positionQuestion.findUniqueOrThrow({
     where: { id: target.questionId },
-    select: { label: true },
+    select: { label: true, type: true },
   });
   await tx.positionApplicationAnswer.upsert({
     where,
@@ -189,6 +190,7 @@ async function readAndWriteAnswerValue(
       applicationId: target.applicationId,
       positionQuestionId: target.questionId,
       questionLabel: question.label,
+      questionType: question.type,
       value,
       createdById: userId,
       updatedById: userId,

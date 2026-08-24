@@ -2,13 +2,16 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import { getApplicationForReview } from '@/prisma/data/applications';
+import {
+  getApplicationForReview,
+  getApplicationStatusHistory,
+} from '@/prisma/data/applications';
 
 import { getCurrentUser } from '@/lib/auth/server';
 import { getRenamedTo } from '@/lib/utils';
 
 import { ApplicationAnswersList } from '@/components/features/application-answers-list';
-import { ApplicationStatusActions } from '@/components/features/application-status-actions';
+import { ApplicationStatusHeaderActions } from '@/components/features/application-status-header-actions';
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
 import { PageHeader } from '@/components/layouts/page-header';
 import { LocalTime } from '@/components/ui/local-time';
@@ -39,7 +42,10 @@ export default async function ApplicationDetailPage({
   const { id } = await params;
   const user = await getCurrentUser();
 
-  const application = await getApplicationForReview(id, user);
+  const [application, history] = await Promise.all([
+    getApplicationForReview(id, user),
+    getApplicationStatusHistory(id, user),
+  ]);
 
   if (!application) notFound();
 
@@ -61,10 +67,11 @@ export default async function ApplicationDetailPage({
             <ApplicationStatusBadge status={application.status} />
           }
           actions={
-            <ApplicationStatusActions
+            <ApplicationStatusHeaderActions
               applicationId={application.id}
               currentStatus={application.status}
               applicantName={applicantName}
+              history={history}
             />
           }
         />
@@ -89,13 +96,16 @@ export default async function ApplicationDetailPage({
           />
         </SectionCard>
 
-        <SectionCard title="Position answers" titleAs="h2">
-          <ApplicationAnswersList
-            answers={application.positionAnswers}
-            emptyMessage="No position-specific answers."
-            applicationId={application.id}
-          />
-        </SectionCard>
+        {(application.hasPositionQuestions ||
+          application.positionAnswers.length > 0) && (
+          <SectionCard title="Position answers" titleAs="h2">
+            <ApplicationAnswersList
+              answers={application.positionAnswers}
+              emptyMessage="No position-specific answers."
+              applicationId={application.id}
+            />
+          </SectionCard>
+        )}
       </div>
     </div>
   );

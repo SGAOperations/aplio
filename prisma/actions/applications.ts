@@ -29,7 +29,6 @@ import {
   TERMINAL_DECISION_STATUSES,
   getAnswerValueError,
   getApplicationStatusForwardSources,
-  getApplicationStatusSources,
   isAllowedApplicationStatusTransition,
   matchesShortAnswerFormat,
 } from '@/lib/constants';
@@ -41,6 +40,7 @@ import {
   isAcceptingApplications,
   isAnswered,
   isError,
+  resolveGlobalAnswerValues,
   toStringArray,
 } from '@/lib/utils';
 
@@ -62,61 +62,6 @@ function hasUnansweredRequiredPosition(
           isAnswered(q, toStringArray(a.value)),
       ),
   );
-}
-
-// Only backfills a missing row — an existing (possibly cleared) row is left alone.
-async function syncGlobalAnswersFromProfile(
-  tx: Prisma.TransactionClient,
-  applicationId: string,
-  userId: string,
-): Promise<string[]> {
-  const [questions, existingAnswers] = await Promise.all([
-    tx.globalQuestion.findMany({
-      where: { deletedAt: null },
-      orderBy: { order: 'asc' },
-      include: { answers: { where: { userId, deletedAt: null } } },
-    }),
-    tx.globalApplicationAnswer.findMany({
-      where: { applicationId },
-      select: { globalQuestionId: true, value: true },
-    }),
-  ]);
-
-  const existingByQuestionId = new Map(
-    existingAnswers.map((a) => [a.globalQuestionId, a.value]),
-  );
-
-  const toBackfill = questions.filter(
-    (q) =>
-      !existingByQuestionId.has(q.id) &&
-      toStringArray(q.answers[0]?.value).length > 0,
-  );
-
-  if (toBackfill.length > 0) {
-    await tx.globalApplicationAnswer.createMany({
-      data: toBackfill.map((q) => ({
-        applicationId,
-        globalQuestionId: q.id,
-        questionLabel: q.label,
-        value: q.answers[0]!.value,
-        createdById: userId,
-        updatedById: userId,
-      })),
-      // Guards two tabs backfilling the same question concurrently.
-      skipDuplicates: true,
-    });
-  }
-
-  const backfilledIds = new Set(toBackfill.map((q) => q.id));
-
-  return questions
-    .filter(
-      (q) =>
-        q.required &&
-        !backfilledIds.has(q.id) &&
-        !isAnswered(q, toStringArray(existingByQuestionId.get(q.id))),
-    )
-    .map((q) => q.label);
 }
 
 // Keeps the toast readable when several questions are missing at once.
@@ -201,6 +146,7 @@ export async function createDraftApplication(
             create: globalAnswers.map((answer: GlobalAnswerWithQuestion) => ({
               globalQuestionId: answer.globalQuestionId,
               questionLabel: answer.globalQuestion.label,
+              questionType: answer.globalQuestion.type,
               value: answer.value,
               createdById: currentUser.id,
               updatedById: currentUser.id,
@@ -338,6 +284,7 @@ export async function createOrUpdateApplicationAnswer(params: {
         applicationId,
         globalQuestionId: questionId,
         questionLabel: question.label,
+        questionType: question.type,
         value: globalPersistedValue,
         createdById: currentUser.id,
         updatedById: currentUser.id,
@@ -363,6 +310,7 @@ export async function createOrUpdateApplicationAnswer(params: {
       applicationId,
       positionQuestionId: questionId,
       questionLabel: question.label,
+      questionType: question.type,
       value: persistedValue,
       createdById: currentUser.id,
       updatedById: currentUser.id,
@@ -380,11 +328,13 @@ export async function submitApplication(
   const parsed = submitApplicationSchema.safeParse({ applicationId });
   if (!parsed.success) return { error: 'Invalid input' };
 
-  // Backfill and status update must land atomically, or two tabs could race the write.
+  // Snapshot materialization and the status update must land atomically, or
+  // two tabs could race the write.
   const result = await prisma.$transaction(async (tx) => {
     const application = await tx.application.findUnique({
       where: { id: parsed.data.applicationId },
       include: {
+        globalAnswers: true,
         positionAnswers: true,
         position: {
           select: {
@@ -416,11 +366,38 @@ export async function submitApplication(
     if (!isAcceptingApplications(application.position))
       return { error: 'This position is no longer accepting applications.' };
 
-    const missingGlobalLabels = await syncGlobalAnswersFromProfile(
-      tx,
-      application.id,
-      currentUser.id,
+    // Read, not write: resolve every global question's value without touching the DB.
+    const [globalQuestions, profileAnswers] = await Promise.all([
+      tx.globalQuestion.findMany({
+        where: { deletedAt: null },
+        orderBy: { order: 'asc' },
+        select: {
+          id: true,
+          label: true,
+          type: true,
+          required: true,
+          options: true,
+          allowOther: true,
+          format: true,
+        },
+      }),
+      tx.globalAnswer.findMany({
+        where: { userId: currentUser.id, deletedAt: null },
+        select: { globalQuestionId: true, value: true },
+      }),
+    ]);
+
+    const resolvedValues = resolveGlobalAnswerValues(
+      globalQuestions.map((q) => q.id),
+      application.globalAnswers,
+      profileAnswers,
     );
+
+    const missingGlobalLabels = globalQuestions
+      .filter(
+        (q) => q.required && !isAnswered(q, resolvedValues.get(q.id) ?? []),
+      )
+      .map((q) => q.label);
     if (missingGlobalLabels.length > 0)
       return {
         error: `Answer these required profile questions before submitting: ${formatMissingQuestions(missingGlobalLabels)}.`,
@@ -436,14 +413,40 @@ export async function submitApplication(
         error: 'Please answer all required questions before submitting.',
       };
 
-    // Status scoped again here, closing the check-then-write race between
-    // the read above and this write (e.g. a concurrent second tab).
+    // Materialize: only questions with no existing row and a non-empty
+    // resolved value get one — an unanswered optional global still gets no row.
+    const existingIds = new Set(
+      application.globalAnswers.map((a) => a.globalQuestionId),
+    );
+    const toMaterialize = globalQuestions.filter(
+      (q) =>
+        !existingIds.has(q.id) && (resolvedValues.get(q.id)?.length ?? 0) > 0,
+    );
+    if (toMaterialize.length > 0) {
+      await tx.globalApplicationAnswer.createMany({
+        data: toMaterialize.map((q) => ({
+          applicationId: application.id,
+          globalQuestionId: q.id,
+          questionLabel: q.label,
+          questionType: q.type,
+          value: resolvedValues.get(q.id)!,
+          createdById: currentUser.id,
+          updatedById: currentUser.id,
+        })),
+        // Guards two tabs materializing the same question concurrently.
+        skipDuplicates: true,
+      });
+    }
+
+    // CAS on the exact status just read, closing the check-then-write race
+    // between the read above and this write (e.g. a concurrent second tab) —
+    // and giving the event below a provably correct `from`.
     const updateResult = await tx.application.updateMany({
       where: {
         id: parsed.data.applicationId,
         userId: currentUser.id,
         deletedAt: null,
-        status: { in: APPLICANT_EDITABLE_APPLICATION_STATUSES },
+        status: application.status,
       },
       data: {
         status: 'applied',
@@ -460,6 +463,15 @@ export async function submitApplication(
         error:
           'This application has already been submitted. Refresh to see its current status.',
       };
+
+    await tx.applicationStatusEvent.create({
+      data: {
+        applicationId: parsed.data.applicationId,
+        from: application.status,
+        to: 'applied',
+        changedById: currentUser.id,
+      },
+    });
   });
 
   if (isError(result)) return result;
@@ -474,6 +486,9 @@ export async function submitApplication(
 const updateApplicationStatusSchema = z.object({
   applicationId: z.string().min(1),
   status: z.enum(REVIEWER_APPLICATION_STATUSES),
+  // Bypasses isAllowedApplicationStatusTransition for the status dialog's
+  // any-status Select and undo — target is still restricted to REVIEWER_APPLICATION_STATUSES above.
+  override: z.boolean().optional().default(false),
 });
 
 export async function updateApplicationStatus(
@@ -484,37 +499,59 @@ export async function updateApplicationStatus(
   const parsed = updateApplicationStatusSchema.safeParse(input);
   if (!parsed.success) return { error: 'Invalid input' };
 
-  const { applicationId, status } = parsed.data;
+  const { applicationId, status, override } = parsed.data;
 
-  // Authorization folded into the query, as in getApplicationForReview.
-  const application = await prisma.application.findFirst({
-    where: { id: applicationId, ...buildApplicationWhere(user, 'reviewable') },
-    select: { id: true, status: true },
+  const result = await prisma.$transaction(async (tx) => {
+    // Authorization folded into the query, as in getApplicationForReview.
+    const application = await tx.application.findFirst({
+      where: {
+        id: applicationId,
+        ...buildApplicationWhere(user, 'reviewable'),
+      },
+      select: { id: true, status: true },
+    });
+
+    // IDOR-style miss, unreachable from the UI — throw, don't return.
+    if (!application)
+      throw new Error('Application not found or not authorized');
+
+    if (status === application.status)
+      return {
+        error: `This application is already ${APPLICATION_STATUS_LABELS[status]}.`,
+      };
+
+    if (
+      !override &&
+      !isAllowedApplicationStatusTransition(application.status, status)
+    )
+      return {
+        error: `This application is now ${APPLICATION_STATUS_LABELS[application.status]}, so that move is no longer available. Refresh to see the current options.`,
+      };
+
+    // CAS on the exact status just read, so the event's `from` below is
+    // provably the status that was replaced.
+    const updateResult = await tx.application.updateMany({
+      where: { id: applicationId, status: application.status },
+      data: { status, updatedById: user.id },
+    });
+
+    if (updateResult.count === 0)
+      return {
+        error:
+          'This application just changed. Refresh to see its current status.',
+      };
+
+    await tx.applicationStatusEvent.create({
+      data: {
+        applicationId,
+        from: application.status,
+        to: status,
+        changedById: user.id,
+      },
+    });
   });
 
-  // IDOR-style miss, unreachable from the UI — throw, don't return.
-  if (!application) throw new Error('Application not found or not authorized');
-
-  if (!isAllowedApplicationStatusTransition(application.status, status))
-    return {
-      error: `This application is now ${APPLICATION_STATUS_LABELS[application.status]}, so that move is no longer available. Refresh to see the current options.`,
-    };
-
-  // Narrower than the `where` above: sources never include draft/withdrawn,
-  // which that `notIn` already excludes.
-  const updateResult = await prisma.application.updateMany({
-    where: {
-      id: applicationId,
-      status: { in: getApplicationStatusSources(status) },
-    },
-    data: { status, updatedById: user.id },
-  });
-
-  if (updateResult.count === 0)
-    return {
-      error:
-        'This application just changed. Refresh to see its current status.',
-    };
+  if (result && 'error' in result) return result;
 
   revalidatePath(`/applications/${applicationId}`);
   revalidatePath('/applications');
@@ -538,18 +575,51 @@ export async function updateApplicationStatuses(
   const applicationIds = Array.from(new Set(parsed.data.applicationIds));
   const { status } = parsed.data;
 
-  // Forward-only sources: a bulk move-back would silently walk an already-
-  // decided row backward, so it's skipped like any other ineligible id.
-  const result = await prisma.application.updateMany({
-    where: {
-      id: { in: applicationIds },
-      ...buildApplicationScopeWhere(user),
-      status: { in: getApplicationStatusForwardSources(status) },
-    },
-    data: { status, updatedById: user.id },
+  const { eligible, updatedIds } = await prisma.$transaction(async (tx) => {
+    // Forward-only sources so a bulk move-back can't silently walk an
+    // already-decided row backward; captured with its status for the event's `from`.
+    const eligible = await tx.application.findMany({
+      where: {
+        id: { in: applicationIds },
+        ...buildApplicationScopeWhere(user),
+        status: { in: getApplicationStatusForwardSources(status) },
+      },
+      select: { id: true, status: true },
+    });
+
+    if (eligible.length === 0) return { eligible, updatedIds: [] };
+
+    // Per-row (id, status) pairs keep the CAS on the bulk path too — a
+    // concurrently-moved row is dropped rather than getting a wrong `from`.
+    const updated = await tx.application.updateManyAndReturn({
+      where: {
+        AND: [
+          buildApplicationScopeWhere(user),
+          {
+            OR: eligible.map(({ id, status: from }) => ({ id, status: from })),
+          },
+        ],
+      },
+      data: { status, updatedById: user.id },
+      select: { id: true },
+    });
+
+    if (updated.length > 0) {
+      const priorStatusById = new Map(eligible.map((a) => [a.id, a.status]));
+      await tx.applicationStatusEvent.createMany({
+        data: updated.map((a) => ({
+          applicationId: a.id,
+          from: priorStatusById.get(a.id)!,
+          to: status,
+          changedById: user.id,
+        })),
+      });
+    }
+
+    return { eligible, updatedIds: updated.map((a) => a.id) };
   });
 
-  if (result.count === 0) {
+  if (eligible.length === 0) {
     const sourceLabels = getApplicationStatusForwardSources(status).map(
       (source) => APPLICATION_STATUS_LABELS[source],
     );
@@ -563,10 +633,13 @@ export async function updateApplicationStatuses(
   revalidatePath('/applications/[id]', 'layout');
 
   return {
-    updated: result.count,
-    skipped: applicationIds.length - result.count,
+    updated: updatedIds.length,
+    skipped: applicationIds.length - updatedIds.length,
   };
 }
+
+const WITHDRAW_NOT_ALLOWED_MESSAGE =
+  'This application can no longer be withdrawn.';
 
 export async function withdrawApplication(
   applicationId: string,
@@ -576,18 +649,45 @@ export async function withdrawApplication(
   const parsed = applicationIdSchema.safeParse({ applicationId });
   if (!parsed.success) throw new Error('Invalid input');
 
-  const result = await prisma.application.updateMany({
-    where: {
-      id: parsed.data.applicationId,
-      userId: currentUser.id,
-      deletedAt: null,
-      status: { notIn: ['draft', 'withdrawn', ...TERMINAL_DECISION_STATUSES] },
-    },
-    data: { status: 'withdrawn', updatedById: currentUser.id },
+  const result = await prisma.$transaction(async (tx) => {
+    const application = await tx.application.findFirst({
+      where: {
+        id: parsed.data.applicationId,
+        userId: currentUser.id,
+        deletedAt: null,
+        status: {
+          notIn: ['draft', 'withdrawn', ...TERMINAL_DECISION_STATUSES],
+        },
+      },
+      select: { status: true },
+    });
+
+    if (!application) return { error: WITHDRAW_NOT_ALLOWED_MESSAGE };
+
+    // CAS on the exact status just read, mirroring the other write paths.
+    const updateResult = await tx.application.updateMany({
+      where: {
+        id: parsed.data.applicationId,
+        userId: currentUser.id,
+        status: application.status,
+      },
+      data: { status: 'withdrawn', updatedById: currentUser.id },
+    });
+
+    if (updateResult.count === 0)
+      return { error: WITHDRAW_NOT_ALLOWED_MESSAGE };
+
+    await tx.applicationStatusEvent.create({
+      data: {
+        applicationId: parsed.data.applicationId,
+        from: application.status,
+        to: 'withdrawn',
+        changedById: currentUser.id,
+      },
+    });
   });
 
-  if (result.count === 0)
-    return { error: 'This application can no longer be withdrawn.' };
+  if (result && 'error' in result) return result;
 
   revalidatePath('/my-applications');
   revalidatePath(`/my-applications/${applicationId}`);
@@ -619,11 +719,11 @@ export async function deleteDraftApplication(
     // file_upload only — other answers are plain text, never blob URLs.
     const [globalAnswers, positionAnswers] = await Promise.all([
       tx.globalApplicationAnswer.findMany({
-        where: { applicationId: id, globalQuestion: { type: 'file_upload' } },
+        where: { applicationId: id, questionType: 'file_upload' },
         select: { value: true },
       }),
       tx.positionApplicationAnswer.findMany({
-        where: { applicationId: id, positionQuestion: { type: 'file_upload' } },
+        where: { applicationId: id, questionType: 'file_upload' },
         select: { value: true },
       }),
     ]);

@@ -146,7 +146,7 @@ export async function answerAllRequiredGlobalQuestions(
   );
 }
 
-// FK order: answers -> applications/questions -> positions -> users.
+// FK order: answers/status events -> applications/questions -> positions -> users.
 export async function cleanupFixtures(): Promise<void> {
   const testUser = { email: { startsWith: TEST_PREFIX } } as const;
   const testPosition = { title: { startsWith: TEST_PREFIX } } as const;
@@ -176,6 +176,15 @@ export async function cleanupFixtures(): Promise<void> {
     where: { OR: [{ user: testUser }, { globalQuestion: testGlobalQuestion }] },
   });
 
+  await prisma.applicationStatusEvent.deleteMany({
+    where: {
+      OR: [
+        { application: { user: testUser } },
+        { application: { position: testPosition } },
+      ],
+    },
+  });
+
   await prisma.application.deleteMany({
     where: { OR: [{ user: testUser }, { position: testPosition }] },
   });
@@ -187,6 +196,10 @@ export async function cleanupFixtures(): Promise<void> {
   await prisma.globalQuestion.deleteMany({ where: testGlobalQuestion });
 
   await prisma.position.deleteMany({ where: testPosition });
+
+  await prisma.emailLog.deleteMany({
+    where: { to: { startsWith: TEST_PREFIX } },
+  });
 
   await prisma.user.deleteMany({ where: testUser });
 }

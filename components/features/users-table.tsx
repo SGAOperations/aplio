@@ -25,9 +25,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { DataTable, DataTableRowActions } from '@/components/ui/data-table';
+import {
+  DataTableToolbar,
+  DataTableToolbarField,
+} from '@/components/ui/data-table-toolbar';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { LocalTime } from '@/components/ui/local-time';
 import {
   Select,
@@ -291,11 +294,10 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
   return (
     <>
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="users-role-filter">Role</Label>
+        <DataTableToolbar>
+          <DataTableToolbarField label="Role" htmlFor="users-role-filter">
             <Select value={roleFilter} onValueChange={setRoleFilter}>
-              <SelectTrigger id="users-role-filter" className="w-full sm:w-48">
+              <SelectTrigger id="users-role-filter" className="w-full">
                 <SelectValue placeholder="All roles" />
               </SelectTrigger>
               <SelectContent>
@@ -307,16 +309,15 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </DataTableToolbarField>
 
           {positionOptions.length > 0 && (
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="users-position-filter">Managed position</Label>
+            <DataTableToolbarField
+              label="Managed position"
+              htmlFor="users-position-filter"
+            >
               <Select value={positionFilter} onValueChange={setPositionFilter}>
-                <SelectTrigger
-                  id="users-position-filter"
-                  className="w-full sm:w-48"
-                >
+                <SelectTrigger id="users-position-filter" className="w-full">
                   <SelectValue placeholder="All positions" />
                 </SelectTrigger>
                 <SelectContent>
@@ -328,29 +329,36 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </DataTableToolbarField>
           )}
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="users-search">Search</Label>
+          <DataTableToolbarField
+            label="Search"
+            htmlFor="users-search"
+            className="sm:w-64"
+          >
             <Input
               id="users-search"
               placeholder="Search by name or email"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="max-w-sm"
             />
-          </div>
+          </DataTableToolbarField>
 
           {isFiltered && (
-            <Button variant="ghost" size="sm" onClick={clearFilters}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearFilters}
+              className="w-full sm:w-auto"
+            >
               Clear filters
             </Button>
           )}
 
           <p
             aria-live="polite"
-            className="text-muted-foreground self-end text-sm sm:ml-auto"
+            className="text-muted-foreground w-full text-sm sm:ml-auto sm:w-auto sm:self-end"
           >
             {formatTableCount({
               shown: filtered.length,
@@ -360,7 +368,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
             })}
             {` · ${adminCount} ${adminCount === 1 ? 'admin' : 'admins'} · ${managerCount} ${managerCount === 1 ? 'manager' : 'managers'}`}
           </p>
-        </div>
+        </DataTableToolbar>
 
         <DataTable
           rows={filtered}

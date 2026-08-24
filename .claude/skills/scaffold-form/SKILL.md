@@ -6,7 +6,7 @@ allowed-tools: Read, Grep, Glob, Edit, Write
 
 # Scaffold a form
 
-Wire a form to a Server Action with one zod schema as the source of truth for both client and server (client validation is UX; server validation is integrity — `.claude/docs/ENGINEERING.md` §2–4).
+Wire a form to a Server Action with one zod schema as the source of truth for both client and server (client validation is UX; server validation is integrity — `docs/ENGINEERING.md` §2–4).
 
 ## Steps
 
@@ -17,5 +17,5 @@ Wire a form to a Server Action with one zod schema as the source of truth for bo
    - Submit calls the server action inside `try/catch`; disable the submit button while `isSubmitting` (spinner). On a returned `{ error }` → **specific error toast** (`sonner`) / inline `FormMessage`; on an unexpected `throw` → **generic error toast**; on success → **success toast** (and reset/redirect, using any returned record). Preserve input on failure. Never expect `{ ok }`.
    - Every input has a label; icon-only buttons get `aria-label`.
 4. **Progressive enhancement** where practical (the `<form action={...}>` path works without JS).
-5. **Tokens** — style via `.claude/docs/DESIGN.md` semantic tokens only; mobile-first widths.
+5. **Tokens** — style via `docs/DESIGN.md` semantic tokens only; mobile-first widths.
 6. **Verify** — `npm run tsc:check`; confirm error and pending states render.

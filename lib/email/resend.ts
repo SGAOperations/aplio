@@ -2,6 +2,10 @@ import 'server-only';
 
 import { Resend } from 'resend';
 
+import { EmailStatus, type EmailTemplateKey } from '@/prisma/client';
+
+import { prisma } from '@/lib/prisma';
+
 // Lazy, so a missing env var doesn't break builds or non-email paths.
 let _resend: Resend | null = null;
 
@@ -23,6 +27,8 @@ export interface SendEmailParams {
   subject: string;
   html: string;
   text: string;
+  template: EmailTemplateKey;
+  userId?: string;
 }
 
 export async function sendEmail({
@@ -30,10 +36,56 @@ export async function sendEmail({
   subject,
   html,
   text,
+  template,
+  userId,
 }: SendEmailParams): Promise<void> {
   const resend = getResend();
   const from = getSenderAddress();
 
-  const { error } = await resend.emails.send({ from, to, subject, html, text });
-  if (error) throw new Error(`Resend send failed: ${error.message}`);
+  const resolvedUserId =
+    userId ??
+    (
+      await prisma.user.findUnique({
+        where: { email: to },
+        select: { id: true },
+      })
+    )?.id;
+
+  const logFailure = (message: string) =>
+    prisma.emailLog.create({
+      data: {
+        to,
+        userId: resolvedUserId,
+        template,
+        subject,
+        status: EmailStatus.failed,
+        error: message,
+      },
+    });
+
+  let result;
+  try {
+    result = await resend.emails.send({ from, to, subject, html, text });
+  } catch (err) {
+    await logFailure(err instanceof Error ? err.message : String(err));
+    throw new Error('Resend send failed', { cause: err });
+  }
+
+  const { data, error } = result;
+  if (error) {
+    await logFailure(error.message);
+    throw new Error(`Resend send failed: ${error.message}`);
+  }
+
+  await prisma.emailLog.create({
+    data: {
+      to,
+      userId: resolvedUserId,
+      template,
+      subject,
+      status: EmailStatus.sent,
+      providerMessageId: data.id,
+      sentAt: new Date(),
+    },
+  });
 }

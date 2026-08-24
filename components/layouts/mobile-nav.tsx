@@ -81,15 +81,17 @@ export function MobileNav({
               </SheetTitle>
             </div>
 
-            <NavList
-              topLevelItems={topLevelItems}
-              groups={groups}
-              isActive={isActive}
-              onNavigate={() => setOpen(false)}
-              touchFriendly
-            />
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <NavList
+                topLevelItems={topLevelItems}
+                groups={groups}
+                isActive={isActive}
+                onNavigate={() => setOpen(false)}
+                touchFriendly
+              />
+            </div>
 
-            <div className="border-sidebar-border mt-auto border-t p-2">
+            <div className="border-sidebar-border border-t p-2">
               {identity ? (
                 <UserMenu
                   identity={identity}

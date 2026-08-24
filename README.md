@@ -208,10 +208,11 @@ Issues are tracked in [GitHub Issues](https://github.com/SGAOperations/aplio/iss
 
 ## Further docs
 
-| Document                                                       | Contents                                                               |
-| -------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| [`CLAUDE.md`](CLAUDE.md)                                       | AI-agent conventions, architecture rules, commit/PR format             |
-| [`.claude/docs/ENGINEERING.md`](.claude/docs/ENGINEERING.md)   | Full quality bar: architecture, security, UX states, a11y, performance |
-| [`.claude/docs/DESIGN.md`](.claude/docs/DESIGN.md)             | Design system: tokens, type scale, component conventions               |
-| [`.claude/docs/PIPELINE.md`](.claude/docs/PIPELINE.md)         | Automated agent pipeline and GitHub label state machine                |
-| [`.claude/docs/nextjs-notes.md`](.claude/docs/nextjs-notes.md) | Current Next.js 16 App Router behavior — trust over training data      |
+| Document                                               | Contents                                                                                         |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| [`CLAUDE.md`](CLAUDE.md)                               | AI-agent conventions, architecture rules, commit/PR format                                       |
+| [`docs/ENGINEERING.md`](docs/ENGINEERING.md)           | Full quality bar: architecture, security, UX states, a11y, performance, Next.js 16 runtime notes |
+| [`docs/DESIGN.md`](docs/DESIGN.md)                     | Design system: tokens, type scale, component conventions                                         |
+| [`docs/WORKFLOWS.md`](docs/WORKFLOWS.md)               | What each user flow does end to end, per persona                                                 |
+| [`docs/PERMISSIONS.md`](docs/PERMISSIONS.md)           | Who may do what, and when: principals, route/action gates, state tables                          |
+| [`.claude/docs/PIPELINE.md`](.claude/docs/PIPELINE.md) | Automated agent pipeline and GitHub label state machine                                          |

@@ -6,7 +6,7 @@ allowed-tools: Read, Grep, Glob, Edit, Write, Bash
 
 # New feature slice (end-to-end)
 
-Orchestrates the smaller skills into one vertical slice. Read `.claude/docs/ENGINEERING.md` and `.claude/docs/DESIGN.md` first; follow `CLAUDE.md` conventions throughout.
+Orchestrates the smaller skills into one vertical slice. Read `docs/ENGINEERING.md` and `docs/DESIGN.md` first; follow `CLAUDE.md` conventions throughout.
 
 ## Order of work
 
@@ -16,7 +16,7 @@ Orchestrates the smaller skills into one vertical slice. Read `.claude/docs/ENGI
 4. **Route & data** — a server component page under `app/`, fetching via the service layer; `'use client'` only on small interactive leaves (run `rsc-boundary-check`).
 5. **Form** — via the `scaffold-form` skill where the feature has input.
 6. **States** — loading/error/empty via the `build-route-states` skill for every async surface.
-7. **Polish** — `responsive-pass` and `a11y-audit` on the new UI; style only with `.claude/docs/DESIGN.md` tokens.
+7. **Polish** — `responsive-pass` and `a11y-audit` on the new UI; style only with `docs/DESIGN.md` tokens.
 8. **Verify** — `npm run prettier:check && npm run eslint:check && npm run tsc:check`; fix all failures (never `eslint-disable`).
 
-Keep the slice focused — don't refactor unrelated code (`.claude/docs/ENGINEERING.md` §7).
+Keep the slice focused — don't refactor unrelated code (`docs/ENGINEERING.md` §7).
