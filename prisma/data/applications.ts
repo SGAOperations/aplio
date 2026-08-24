@@ -228,10 +228,7 @@ export async function getApplicationStatusHistory(
   }));
 }
 
-// Deliberate cross-scope read (docs/PERMISSIONS.md#cross-scope-disclosure):
-// step 1 authorizes the caller against the anchor application with the
-// untouched listable scope; step 2 drops buildReviewablePositionWhere for the
-// applicant's other rows on purpose, keeping only base position visibility.
+// Cross-scope by design (docs/PERMISSIONS.md) — step 2 deliberately drops buildReviewablePositionWhere.
 export async function getApplicantOtherApplications(
   applicationId: string,
   user: Reviewer,
