@@ -6,7 +6,7 @@ allowed-tools: Read, Grep, Glob, Edit
 
 # RSC boundary check
 
-Enforce the server-first rules in `CLAUDE.md` and `.claude/docs/ENGINEERING.md` §1 and §6.
+Enforce the server-first rules in `CLAUDE.md` and `docs/ENGINEERING.md` §1 and §6.
 
 ## What to flag
 

@@ -7,7 +7,7 @@ allowed-tools: Read, Grep, Glob, Edit, Bash
 
 # Add / change a Prisma model
 
-Schema changes are high-risk; this runs only when you invoke it. Follow `.claude/docs/ENGINEERING.md` §2 (Data & Integrity).
+Schema changes are high-risk; this runs only when you invoke it. Follow `docs/ENGINEERING.md` §2 (Data & Integrity).
 
 ## Steps
 

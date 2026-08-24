@@ -2,7 +2,7 @@
 
 The canonical description of what Aplio does, end to end, for each of its four personas. Every user-facing flow has an entry here: where it starts, what happens on the happy path, every failure and edge branch, and where the user lands. It is the spec to check an implementation against — when the code and this document disagree, one of them is a bug, and the entry says which behaviour was intended.
 
-**Scope boundary.** Workflows say _what happens_. Authorization — _who may_ do a thing, and which guard enforces it — lives in **[`.claude/docs/PERMISSIONS.md`](PERMISSIONS.md)**, the single source for the capability matrix and the route/action/state tables. Entries here name the denial's user-visible shape, never restate the rule behind it.
+**Scope boundary.** Workflows say _what happens_. Authorization — _who may_ do a thing, and which guard enforces it — lives in **[`docs/PERMISSIONS.md`](PERMISSIONS.md)**, the single source for the capability matrix and the route/action/state tables. Entries here name the denial's user-visible shape, never restate the rule behind it.
 
 **Keep this current.** Any PR that changes a user-facing flow updates the affected entry in the same PR. Copy is quoted verbatim from source so drift is greppable: if a toast string here does not appear in the codebase, one of the two moved without the other.
 

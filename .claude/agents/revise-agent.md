@@ -21,7 +21,7 @@ Follow the shared **Operating rules (all stage agents)** in `.claude/docs/PIPELI
 
 - **Stay in your worktree.** You run in your own isolated git worktree (your cwd) — do all work in-place. **Never** `cd` out of it, use `git -C`, run `git worktree list/add/remove/prune`, `--ignore-other-worktrees`, or force anything. If a branch is locked to another worktree, **STOP + `BLOCKED:`**.
 - **Toolchain via `npm run`, never `npx`** (except shadcn): `npm run prettier:check` / `eslint:check` / `tsc:check` / `prisma:generate` / `prisma:migrate -- --name <name>`. Add shadcn with `npx shadcn@latest add <component> --yes` (bare). Manage deps with `npm install`/`uninstall`, not hand-edits to `package.json`/`package-lock.json`. Edit/create files with Write/Edit; delete tracked files with `git rm`.
-- **Sync first, clean code only** — `git fetch origin` and rebase onto the PR's base branch before anything (step 2); no dead scaffolding/shims, and don't reintroduce **Pre-PR self-check** issues from `.claude/docs/ENGINEERING.md`.
+- **Sync first, clean code only** — `git fetch origin` and rebase onto the PR's base branch before anything (step 2); no dead scaffolding/shims, and don't reintroduce **Pre-PR self-check** issues from `docs/ENGINEERING.md`.
 
 ## Pre-flight
 
@@ -50,7 +50,7 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "needs revision
    gh api repos/SGAOperations/aplio/pulls/<pr-number>/comments --jq '.[] | "\(.path):\(.line) — \(.body)"'
    ```
 
-   The latest review (titled `## Code Review — Cycle <n>`) is what you address — note its cycle `<n>`. Also read `.claude/docs/ENGINEERING.md`.
+   The latest review (titled `## Code Review — Cycle <n>`) is what you address — note its cycle `<n>`. Also read `docs/ENGINEERING.md`.
 
 2. **Check out the PR branch — detached, to avoid worktree branch-lock** (`<branch>` = `headRefName`, `<base>` = `baseRefName`). Do **not** `git checkout -B <branch>` (it fails with `already used by worktree …` when a stale worktree holds that branch). Use a detached checkout and push by refspec at the end:
 
@@ -66,7 +66,7 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "needs revision
 
    **Rebase conflict protocol** (the canonical classification matrix — what is auto-resolvable vs. what must escalate — lives in `.claude/docs/PIPELINE.md` → "Rebase conflict protocol"; read it before classifying):
 
-   - **a. Never-touch short-circuit (check first).** List conflicted files with `git diff --name-only --diff-filter=U`. If **any** conflicted file is a Prisma migration (`prisma/migrations/**/*.sql`), `CLAUDE.md` or any `.claude/docs/**` file, or env/config (`.env*`, `next.config.*`), **skip classification entirely and escalate** (step e) — these are correctness- or policy-critical and never safe to auto-merge, however trivial the diff looks.
+   - **a. Never-touch short-circuit (check first).** List conflicted files with `git diff --name-only --diff-filter=U`. If **any** conflicted file is a Prisma migration (`prisma/migrations/**/*.sql`), `CLAUDE.md` or any `.claude/**` file, or env/config (`.env*`, `next.config.*`), **skip classification entirely and escalate** (step e) — these are correctness- or policy-critical and never safe to auto-merge, however trivial the diff looks. The `docs/` content docs are **not** on this list — a conflict there classifies normally under steps b–d.
    - **b. Inspect.** Otherwise, for each conflicted file use **Grep** (`<<<<<<<`) to find the markers and **Read** to inspect both sides of every hunk. Never `cat`/`sed`/shell-redirect.
    - **c. Classify** every conflict against the matrix in `PIPELINE.md`. A conflict is **auto-resolvable** only when ours and theirs are in clearly separate, non-overlapping sections (e.g. each side added a different import/export), one side made a whitespace/formatting-only change in the other's area, one side deleted a block the other never touched, or it is a generated lockfile. It must **escalate** when both sides modified the same function body / expression / schema field / constant or the same lines, or when accepting one side would drop the other's logic. If **all** conflicts are auto-resolvable → step d; if **any** is ambiguous/semantic → step e (abort the entire rebase, do not partially resolve).
    - **d. Resolve (all auto-resolvable).** For each file, use **Edit/Write** to produce the merged content with **every conflict marker removed** (`<<<<<<<`, `=======`, `>>>>>>>`), then `git add "<path>"` (quote the path — `(group)`/`[id]` segments break an unquoted add). For `package-lock.json`, prefer taking the base's lockfile and re-running `npm ci` so it reflects the rebased tree, rather than hand-merging JSON. Then continue **non-interactively**: `git -c core.editor=true rebase --continue` (never a bare `git rebase --continue` that may open an editor, never an `ENV=val` prefix). A rebase can pause more than once — if a later step surfaces new conflicts, **re-run this protocol from step a** for them. Record each file's resolution strategy for the step 7 summary. When the rebase completes, proceed to `npm ci` / `npm run prisma:generate` and the rest of the steps as normal.

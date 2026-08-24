@@ -139,7 +139,7 @@ Rule: **every stage agent's first action is swapping its trigger label for its i
 | 3. Review    | `.claude/agents/review-agent.md` | sonnet                                    | Must catch real issues reliably                                      |
 | 4. Revise    | `.claude/agents/revise-agent.md` | sonnet                                    | Targeted fixes from a structured list                                |
 
-All four workers read `.claude/docs/ENGINEERING.md` before working; the review agent treats it as a review dimension.
+All four workers read `docs/ENGINEERING.md` before working; the review agent treats it as a review dimension.
 
 **Stages 2 and 4 have an operator variant.** Some tickets can't be implemented by a dispatched agent at all — today, any that touch `CLAUDE.md` or `.claude/**`, where the harness denies its `Edit`. Those two stages then run in the operator's own session via `/implement`, following these same agent files — see "Session-required tickets".
 
@@ -199,7 +199,7 @@ gh pr list --repo SGAOperations/aplio --assignee "@me" --label "needs revision" 
 2. **Skip dispatch.** The cockpit finds it in the trigger query's `body` and **announces the command instead of dispatching**. The item keeps its trigger label.
 3. **Run.** The operator opens a **named session** and runs `/implement <issue-or-pr-number>`. That skill resolves the stage from the item's labels, creates a worktree under `.claude/worktrees/impl-<n>`, follows the **unmodified** `impl-agent.md` / `revise-agent.md` plus a short list of subagent-only overrides, and repeats the marker in the PR description it writes. The override list lives in the skill and nowhere else — one place to drift, one place to check.
 
-**What moves and what doesn't.** Only stages **2** and **4**. `plan-agent` and `review-agent` are read-only and work through `gh`, so stages 1 and 3 run unchanged — a session-required ticket is **not** out of the pipeline. `refresh branch` is still dispatched to `revise-agent` too: a rebase and force-push edit no files, and a conflict inside `CLAUDE.md` / `.claude/docs/**` is already on the never-touch list and escalates.
+**What moves and what doesn't.** Only stages **2** and **4**. `plan-agent` and `review-agent` are read-only and work through `gh`, so stages 1 and 3 run unchanged — a session-required ticket is **not** out of the pipeline. `refresh branch` is still dispatched to `revise-agent` too: a rebase and force-push edit no files, and a conflict inside `CLAUDE.md` or `.claude/**` is already on the never-touch list and escalates.
 
 **The invariant this deviates from.** Everywhere else a trigger label means something is dispatching. A session-required item **keeps** its trigger label (`plan approved` / `needs revision`) and is **never** dispatched — the cockpit announces instead. Recovery is unchanged (re-apply the trigger), but the label alone no longer implies motion, which is why `status` has to call these out explicitly: nothing else distinguishes one from an item that is genuinely mid-flight.
 
@@ -305,8 +305,10 @@ This protocol applies **unchanged in refresh mode** (`refresh branch`), includin
 
 5. **Never** auto-resolve conflicts in (escalate regardless of apparent simplicity):
    - Prisma migration files (`prisma/migrations/**/*.sql`)
-   - `CLAUDE.md` or any `.claude/docs/` file
+   - `CLAUDE.md` or any `.claude/` file
    - Environment config (`.env*`, `next.config.*`)
+
+   The `docs/` content docs (`ENGINEERING.md`, `DESIGN.md`, `WORKFLOWS.md`, `PERMISSIONS.md`) are **deliberately not** on this list — agents may edit them, so they resolve conflicts there under the normal structurally-unambiguous rules in step 3. A wrong auto-resolution in a content doc is a documentation error caught in review, not a code defect.
 
 - **Plan questions** — `plan-agent` never guesses: it returns `QUESTIONS FOR HUMAN:` and the cockpit relays, then resumes it with answers.
 
