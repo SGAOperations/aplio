@@ -162,14 +162,28 @@ export async function getApplicationForReview(
       submittedAt: true,
       applicantName: true,
       user: { select: { name: true, email: true } },
-      position: { select: { id: true, title: true } },
+      position: {
+        select: {
+          id: true,
+          title: true,
+          _count: { select: { questions: { where: { deletedAt: null } } } },
+        },
+      },
       ...applicationAnswersSelect,
     },
   });
 
   if (!application) return null;
 
-  return { ...application, ...normalizeApplicationAnswers(application) };
+  const { position, ...rest } = application;
+  const { _count, ...positionRest } = position;
+
+  return {
+    ...rest,
+    position: positionRest,
+    hasPositionQuestions: _count.questions > 0,
+    ...normalizeApplicationAnswers(application),
+  };
 }
 
 // listable scope via the relation — a history row for another manager's

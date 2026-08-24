@@ -273,6 +273,7 @@ export type ApplicationForReview = Prisma.ApplicationGetPayload<{
 }> & {
   globalAnswers: ApplicationReviewAnswer[];
   positionAnswers: ApplicationReviewAnswer[];
+  hasPositionQuestions: boolean;
 };
 
 // Newest-first timeline row; changedByName is pre-resolved server-side (name

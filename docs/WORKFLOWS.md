@@ -437,7 +437,8 @@ A user who manages at least one non-deleted position. Manager status is **derive
 - **Failure / edge**
   - Outside the caller's scope, a draft, or missing → `notFound()`; unauthorized and missing are indistinguishable.
   - The applicant renamed themselves since submitting → the heading reads "<snapshotted name> (<current name>)".
-  - Empty answer groups → "No profile answers." / "No position-specific answers."
+  - Empty profile answers → "No profile answers."
+  - The position answers group is omitted entirely when the position has no live position-specific questions and the application has no position answers; otherwise it shows, with "No position-specific answers." if none were answered.
   - An individual answer with no stored value → "No answer".
   - `withdrawn` → the header shows the note "This application was withdrawn by the applicant and can no longer be updated." plus `⋯` (history-only) in place of a move control.
   - `accepted` / `rejected` → the note from `TERMINAL_DECISION_STATUS_NOTES`: "Accepted. The applicant can no longer withdraw this application." (and the `rejected` twin), plus `⋯`. Move-backs from either no longer render inline — they're reachable only through the status dialog's any-status Select ([PM-14](#pm-14-override-a-status-undo-or-review-its-history)).
