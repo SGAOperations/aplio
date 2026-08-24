@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
+import { parseOtpLinkParams } from '@/lib/auth/otp-link';
 import { safeRedirectTo, withRedirectTo } from '@/lib/auth/redirect';
 import { getDeactivatedSessionUser, getOptionalUser } from '@/lib/auth/server';
 import { PRIVACY_HREF, TERMS_HREF } from '@/lib/constants';
@@ -22,9 +23,10 @@ export default async function SignInPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  const { redirectTo } = await searchParams;
+  const { redirectTo, email, otp } = await searchParams;
   const safeTo = safeRedirectTo(redirectTo);
   const applyContext = isApplyRedirect(safeTo);
+  const otpLink = parseOtpLinkParams({ email, otp });
 
   const user = await getOptionalUser();
   // Authenticated user with a name set — send them into the app.
@@ -58,7 +60,7 @@ export default async function SignInPage({
       {user ? (
         <NameField defaultName={user.name ?? ''} redirectTo={safeTo} />
       ) : (
-        <LoginView copy={copy} />
+        <LoginView copy={copy} otpLink={otpLink} />
       )}
       {isDev && (
         <p className="text-muted-foreground text-center text-xs">

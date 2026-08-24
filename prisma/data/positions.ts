@@ -242,7 +242,7 @@ export const getPositionDetail = cache(async function getPositionDetail(
       closesAt: true,
       questions: {
         where: { deletedAt: null },
-        orderBy: { order: 'asc' },
+        orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
         select: {
           id: true,
           label: true,
@@ -283,7 +283,7 @@ export const getPositionForEdit = cache(async function getPositionForEdit(
       closesAt: true,
       questions: {
         where: { deletedAt: null },
-        orderBy: { order: 'asc' },
+        orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
         select: {
           id: true,
           positionId: true,

@@ -7,20 +7,14 @@ import { betterAuth } from 'better-auth';
 import { APIError } from 'better-auth/api';
 import { emailOTP } from 'better-auth/plugins';
 
+import { buildOtpSignInUrl } from '@/lib/auth/otp-link';
+import { getBaseUrl } from '@/lib/base-url';
 import { ACCOUNT_DEACTIVATED_ERROR_CODE } from '@/lib/constants';
 import { sendEmail } from '@/lib/email/resend';
 import { otpEmail } from '@/lib/email/templates';
 import { prisma } from '@/lib/prisma';
 
 const OTP_EXPIRY_SECONDS = 300;
-
-// Pinned in production because a wrong origin on the custom domain fails silently;
-// derived elsewhere since VERCEL_URL changes every deployment.
-function resolveBaseUrl(): string {
-  if (process.env.BETTER_AUTH_URL) return process.env.BETTER_AUTH_URL;
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  return 'http://localhost:3000';
-}
 
 function requireSecret(): string {
   const secret = process.env.BETTER_AUTH_SECRET;
@@ -41,7 +35,7 @@ function resolveTrustedOrigins(): string[] {
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: 'postgresql' }),
-  baseURL: resolveBaseUrl(),
+  baseURL: getBaseUrl(),
   secret: requireSecret(),
   trustedOrigins: resolveTrustedOrigins(),
   // Our ids are uuid(7) from Prisma defaults; letting Better Auth generate them
@@ -82,6 +76,7 @@ export const auth = betterAuth({
       async sendVerificationOTP({ email, otp }) {
         const template = otpEmail({
           code: otp,
+          signInUrl: buildOtpSignInUrl(getBaseUrl(), email, otp),
           expiresInMinutes: OTP_EXPIRY_SECONDS / 60,
         });
         await sendEmail({ to: email, ...template });

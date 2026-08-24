@@ -5,12 +5,17 @@ import type { AnswerQuestion, PositionActivity } from '@/lib/types';
 import {
   answerFieldIds,
   formatAlternatives,
+  formatPaginationSummary,
   formatTableCount,
+  getPaginationRange,
   getPositionAvailability,
+  getUserRoleRank,
+  getUserRoleTokens,
   isAnswered,
   isBypassAllowed,
   isError,
   isPositionActive,
+  isSameIdSet,
   partitionAnswerValue,
   splitOtherAnswer,
   summarizeBulkStatusChange,
@@ -213,17 +218,6 @@ describe('formatTableCount', () => {
     ).toBe('3 / 10 applications');
   });
 
-  it('shows "100+" when the shown count is capped', () => {
-    expect(
-      formatTableCount({
-        shown: 100,
-        total: 250,
-        noun: 'application',
-        shownCapped: true,
-      }),
-    ).toBe('100+ / 250 applications');
-  });
-
   it('supports an irregular plural noun', () => {
     expect(
       formatTableCount({
@@ -233,6 +227,96 @@ describe('formatTableCount', () => {
         pluralNoun: 'queries',
       }),
     ).toBe('2 queries');
+  });
+});
+
+describe('getPaginationRange', () => {
+  it('returns every page when there are 7 or fewer', () => {
+    expect(getPaginationRange(1, 5)).toEqual([1, 2, 3, 4, 5]);
+    expect(getPaginationRange(4, 7)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+  });
+
+  it('windows around the current page with ellipses at both ends', () => {
+    expect(getPaginationRange(5, 20)).toEqual([
+      1,
+      'ellipsis',
+      4,
+      5,
+      6,
+      'ellipsis',
+      20,
+    ]);
+  });
+
+  it('fills a gap of exactly one page instead of an ellipsis', () => {
+    expect(getPaginationRange(4, 20)).toEqual([1, 2, 3, 4, 5, 'ellipsis', 20]);
+  });
+
+  it('has no leading ellipsis near the first page', () => {
+    expect(getPaginationRange(1, 20)).toEqual([1, 2, 'ellipsis', 20]);
+  });
+
+  it('has no trailing ellipsis near the last page', () => {
+    expect(getPaginationRange(20, 20)).toEqual([1, 'ellipsis', 19, 20]);
+  });
+});
+
+describe('formatPaginationSummary', () => {
+  it('shows a bare count when everything fits on one page', () => {
+    expect(
+      formatPaginationSummary({
+        rangeStart: 1,
+        rangeEnd: 18,
+        total: 18,
+        noun: 'application',
+      }),
+    ).toBe('18 applications');
+  });
+
+  it('uses the singular noun for a total of one', () => {
+    expect(
+      formatPaginationSummary({
+        rangeStart: 1,
+        rangeEnd: 1,
+        total: 1,
+        noun: 'application',
+      }),
+    ).toBe('1 application');
+  });
+
+  it('marks a single-page result as matching when filtered', () => {
+    expect(
+      formatPaginationSummary({
+        rangeStart: 1,
+        rangeEnd: 18,
+        total: 18,
+        noun: 'application',
+        isFiltered: true,
+      }),
+    ).toBe('18 matching applications');
+  });
+
+  it('shows the range across multiple pages', () => {
+    expect(
+      formatPaginationSummary({
+        rangeStart: 51,
+        rangeEnd: 100,
+        total: 412,
+        noun: 'application',
+      }),
+    ).toBe('Showing 51–100 of 412 applications');
+  });
+
+  it('marks a multi-page range as matching when filtered', () => {
+    expect(
+      formatPaginationSummary({
+        rangeStart: 1,
+        rangeEnd: 50,
+        total: 137,
+        noun: 'application',
+        isFiltered: true,
+      }),
+    ).toBe('Showing 1–50 of 137 matching applications');
   });
 });
 
@@ -468,6 +552,54 @@ describe('formatAlternatives', () => {
   });
 });
 
+describe('getUserRoleTokens', () => {
+  it('returns admin for an admin who manages nothing', () => {
+    expect(getUserRoleTokens({ isAdmin: true, managedPositions: [] })).toEqual([
+      'admin',
+    ]);
+  });
+
+  it('returns manager for a non-admin who manages a position', () => {
+    expect(
+      getUserRoleTokens({ isAdmin: false, managedPositions: [{ id: 'p1' }] }),
+    ).toEqual(['manager']);
+  });
+
+  it('returns both, admin first, for an admin who also manages a position', () => {
+    expect(
+      getUserRoleTokens({ isAdmin: true, managedPositions: [{ id: 'p1' }] }),
+    ).toEqual(['admin', 'manager']);
+  });
+
+  it('returns no tokens for neither', () => {
+    expect(getUserRoleTokens({ isAdmin: false, managedPositions: [] })).toEqual(
+      [],
+    );
+  });
+});
+
+describe('getUserRoleRank', () => {
+  it('ranks admin 0', () => {
+    expect(getUserRoleRank({ isAdmin: true, managedPositions: [] })).toBe(0);
+  });
+
+  it('ranks manager 1', () => {
+    expect(
+      getUserRoleRank({ isAdmin: false, managedPositions: [{ id: 'p1' }] }),
+    ).toBe(1);
+  });
+
+  it('ranks an admin who also manages by the higher (admin) rank', () => {
+    expect(
+      getUserRoleRank({ isAdmin: true, managedPositions: [{ id: 'p1' }] }),
+    ).toBe(0);
+  });
+
+  it('ranks neither last', () => {
+    expect(getUserRoleRank({ isAdmin: false, managedPositions: [] })).toBe(2);
+  });
+});
+
 describe('isBypassAllowed', () => {
   afterEach(() => {
     delete process.env.VERCEL_ENV;
@@ -491,5 +623,28 @@ describe('isBypassAllowed', () => {
   it('denies production', () => {
     process.env.VERCEL_ENV = 'production';
     expect(isBypassAllowed()).toBe(false);
+  });
+});
+
+describe('isSameIdSet', () => {
+  it('is true for the same ids in a different order', () => {
+    expect(isSameIdSet(['a', 'b', 'c'], ['c', 'a', 'b'])).toBe(true);
+  });
+
+  it('is false for a different length', () => {
+    expect(isSameIdSet(['a', 'b'], ['a', 'b', 'c'])).toBe(false);
+  });
+
+  it('is false when an id is missing', () => {
+    expect(isSameIdSet(['a', 'b', 'c'], ['a', 'b', 'd'])).toBe(false);
+  });
+
+  it('is false when an extra id is injected', () => {
+    expect(isSameIdSet(['a', 'b'], ['a', 'c'])).toBe(false);
+  });
+
+  it('is false when either side has a duplicate', () => {
+    expect(isSameIdSet(['a', 'a', 'b'], ['a', 'b', 'c'])).toBe(false);
+    expect(isSameIdSet(['a', 'b', 'c'], ['a', 'a', 'b'])).toBe(false);
   });
 });

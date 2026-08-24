@@ -25,7 +25,6 @@ export interface SendEmailParams {
   text: string;
 }
 
-// Throws so the webhook returns 500 and Neon retries, rather than dropping the mail.
 export async function sendEmail({
   to,
   subject,

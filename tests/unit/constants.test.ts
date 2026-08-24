@@ -5,12 +5,15 @@ import {
   ANSWER_OTHER_MAX_LENGTH,
   ANSWER_SHORT_MAX_LENGTH,
   NON_TERMINAL_APPLICATION_STATUSES,
+  POSITION_CLOSES_AT_ORDER_ERROR,
+  POSITION_OPENS_AT_ORDER_ERROR,
   REVIEWER_APPLICATION_STATUSES,
   TERMINAL_DECISION_STATUSES,
   UNRESOLVED_APPLICATION_STATUSES,
   getAnswerBlurError,
   getAnswerValueError,
   matchesShortAnswerFormat,
+  positionFormSchema,
 } from '@/lib/constants';
 
 const choiceQuestion = { options: ['a', 'b'], allowOther: false };
@@ -267,5 +270,88 @@ describe('status-set invariants', () => {
   it('TERMINAL_DECISION_STATUSES is disjoint from UNRESOLVED_APPLICATION_STATUSES', () => {
     for (const status of TERMINAL_DECISION_STATUSES)
       expect(UNRESOLVED_APPLICATION_STATUSES).not.toContain(status);
+  });
+});
+
+describe('validatePositionDates (via positionFormSchema)', () => {
+  const base = { title: 'Title', description: '', status: 'draft' } as const;
+
+  it('accepts a valid pair', () => {
+    const result = positionFormSchema.safeParse({
+      ...base,
+      opensAt: '2026-01-01',
+      closesAt: '2026-01-31',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects an inverted pair, naming both fields', () => {
+    const result = positionFormSchema.safeParse({
+      ...base,
+      opensAt: '2026-01-31',
+      closesAt: '2026-01-01',
+    });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    const paths = result.error.issues.map((issue) => issue.path.join('.'));
+    expect(paths).toContain('opensAt');
+    expect(paths).toContain('closesAt');
+    const opensAtIssue = result.error.issues.find(
+      (issue) => issue.path.join('.') === 'opensAt',
+    );
+    const closesAtIssue = result.error.issues.find(
+      (issue) => issue.path.join('.') === 'closesAt',
+    );
+    expect(opensAtIssue?.message).toBe(POSITION_OPENS_AT_ORDER_ERROR);
+    expect(closesAtIssue?.message).toBe(POSITION_CLOSES_AT_ORDER_ERROR);
+  });
+
+  it('accepts the same day for both', () => {
+    const result = positionFormSchema.safeParse({
+      ...base,
+      opensAt: '2026-01-01',
+      closesAt: '2026-01-01',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts opensAt alone', () => {
+    const result = positionFormSchema.safeParse({
+      ...base,
+      opensAt: '2026-01-01',
+      closesAt: '',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts closesAt alone', () => {
+    const result = positionFormSchema.safeParse({
+      ...base,
+      opensAt: '',
+      closesAt: '2026-01-01',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts neither date', () => {
+    const result = positionFormSchema.safeParse({
+      ...base,
+      opensAt: '',
+      closesAt: '',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('reports a field-level error for a malformed date without crashing', () => {
+    const result = positionFormSchema.safeParse({
+      ...base,
+      opensAt: 'not-a-date',
+      closesAt: '2026-01-01',
+    });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(
+      result.error.issues.some((issue) => issue.path.join('.') === 'opensAt'),
+    ).toBe(true);
   });
 });

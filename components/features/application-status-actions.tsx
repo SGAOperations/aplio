@@ -204,62 +204,57 @@ export function ApplicationStatusActions({
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-wrap items-center justify-end gap-2">
       {isTerminalDecision && (
         <p className="text-muted-foreground text-xs">
           {TERMINAL_DECISION_STATUS_NOTES[currentStatus]}
         </p>
       )}
-      {!isTerminalDecision && (
-        <div className="flex flex-col gap-2">
-          {forward.map((target, i) => (
-            <Button
-              key={target}
-              variant={i === 0 ? 'default' : 'outline'}
-              className="w-full"
-              disabled={isPending}
-              onClick={() => handleForwardSelect(target)}
-            >
-              {isPending && pendingTarget === target && (
-                <Loader2 className="animate-spin" aria-hidden />
-              )}
-              {APPLICATION_STATUS_ACTION_LABELS[target]}
-            </Button>
-          ))}
-          {isRejectable && (
-            <Button
-              variant="outline"
-              className="text-destructive hover:text-destructive w-full"
-              disabled={isPending}
-              onClick={() => openConfirm('rejected')}
-            >
-              {isPending && pendingTarget === 'rejected' && (
-                <Loader2 className="animate-spin" aria-hidden />
-              )}
-              {APPLICATION_STATUS_ACTION_LABELS.rejected}
-            </Button>
+      {!isTerminalDecision &&
+        forward.map((target, i) => (
+          <Button
+            key={target}
+            variant={i === 0 ? 'default' : 'outline'}
+            size="sm"
+            className="min-h-11 sm:min-h-9"
+            disabled={isPending}
+            onClick={() => handleForwardSelect(target)}
+          >
+            {isPending && pendingTarget === target && (
+              <Loader2 className="animate-spin" aria-hidden />
+            )}
+            {APPLICATION_STATUS_ACTION_LABELS[target]}
+          </Button>
+        ))}
+      {!isTerminalDecision && isRejectable && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-destructive hover:text-destructive min-h-11 sm:min-h-9"
+          disabled={isPending}
+          onClick={() => openConfirm('rejected')}
+        >
+          {isPending && pendingTarget === 'rejected' && (
+            <Loader2 className="animate-spin" aria-hidden />
           )}
-        </div>
+          {APPLICATION_STATUS_ACTION_LABELS.rejected}
+        </Button>
       )}
-      {back.length > 0 && (
-        <div className="flex flex-col gap-1 border-t pt-3">
-          {back.map((target) => (
-            <Button
-              key={target}
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground w-full justify-start"
-              disabled={isPending}
-              onClick={() => performMove(target)}
-            >
-              {isPending && pendingTarget === target && (
-                <Loader2 className="animate-spin" aria-hidden />
-              )}
-              Move back to {APPLICATION_STATUS_LABELS[target]}
-            </Button>
-          ))}
-        </div>
-      )}
+      {back.map((target) => (
+        <Button
+          key={target}
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground min-h-11 sm:min-h-9"
+          disabled={isPending}
+          onClick={() => performMove(target)}
+        >
+          {isPending && pendingTarget === target && (
+            <Loader2 className="animate-spin" aria-hidden />
+          )}
+          Move back to {APPLICATION_STATUS_LABELS[target]}
+        </Button>
+      ))}
       {confirmDialog}
     </div>
   );

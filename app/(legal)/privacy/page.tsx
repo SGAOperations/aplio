@@ -6,7 +6,7 @@ import { PRIVACY_HREF, TERMS_HREF } from '@/lib/constants';
 export const metadata: Metadata = { title: 'Privacy Policy' };
 
 // Manually maintained — update when the policy content changes.
-const LAST_UPDATED = 'June 28, 2026';
+const LAST_UPDATED = 'August 23, 2026';
 
 export default function PrivacyPolicyPage() {
   return (
@@ -30,8 +30,9 @@ export default function PrivacyPolicyPage() {
           </li>
           <li>
             <strong className="text-foreground">Email address</strong> —
-            verified through Neon Auth, which maintains your authentication
-            identity and session on our behalf.
+            verified within Aplio by a one-time code we send to that address.
+            Your identity record and the sessions that keep you signed in are
+            stored in our own database.
           </li>
           <li>
             <strong className="text-foreground">Application responses</strong> —
@@ -184,33 +185,32 @@ export default function PrivacyPolicyPage() {
         </p>
         <ul className="text-muted-foreground mt-2 list-disc pl-6 text-sm leading-relaxed">
           <li>
-            <strong className="text-foreground">Neon Auth</strong> — manages
-            authentication directly on our behalf, including verifying your
-            email address via one-time code and maintaining your identity record
-            and session credentials. Neon is a US-based company whose
-            infrastructure runs on AWS. Neon&apos;s privacy policy and Data
-            Processing Agreement govern how they handle authentication data.
-          </li>
-          <li>
             <strong className="text-foreground">Neon (database)</strong> — hosts
             our application database directly. All application records,
-            responses, and user data are stored in a Neon-managed PostgreSQL
-            database. Neon operates as a direct data processor for Aplio under
-            its own Data Processing Agreement. Neon&apos;s infrastructure runs
-            on AWS.
+            responses, user data, and the identity and session records that keep
+            you signed in are stored in a Neon-managed PostgreSQL database. Neon
+            operates as a direct data processor for Aplio under its own Data
+            Processing Agreement. Neon&apos;s infrastructure runs on AWS.
           </li>
           <li>
             <strong className="text-foreground">Vercel</strong> — hosts and
-            serves the Aplio web application. Vercel processes request and log
-            data as part of normal platform operations. Vercel is a US-based
-            company and operates under its own privacy policy and Data
+            serves the Aplio web application, including the code that signs you
+            in. Vercel processes request and log data as part of normal platform
+            operations. Vercel is a US-based company and operates under its own
+            privacy policy and Data Processing Agreement.
+          </li>
+          <li>
+            <strong className="text-foreground">Resend</strong> — delivers email
+            on our behalf. Resend receives your email address in order to send
+            you one-time sign-in codes and notification email. Resend is a
+            US-based company and operates under its own privacy policy and Data
             Processing Agreement.
           </li>
         </ul>
         <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
           All data is stored and processed on servers located in the United
-          States. Neon and Vercel each operate as independent direct processors
-          for Aplio.
+          States. Neon, Vercel, and Resend each operate as independent direct
+          processors for Aplio.
         </p>
         <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
           No other third-party services receive your personal information.

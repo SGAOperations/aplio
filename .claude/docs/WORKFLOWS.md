@@ -27,9 +27,9 @@ Behaviour shared by many workflows is stated once under [Cross-cutting behaviour
 
 **[Applicant (AP)](#applicant-ap)** — [AP-1](#ap-1-see-your-dashboard) · [AP-2](#ap-2-answer-profile-questions) · [AP-3](#ap-3-change-your-name) · [AP-4](#ap-4-return-to-an-interrupted-flow) · [AP-5](#ap-5-start-an-application) · [AP-6](#ap-6-answer-application-questions) · [AP-7](#ap-7-customize-or-revert-profile-answers) · [AP-8](#ap-8-upload-or-remove-a-file-answer) · [AP-9](#ap-9-submit-an-application) · [AP-10](#ap-10-track-your-applications) · [AP-11](#ap-11-view-one-of-your-applications) · [AP-12](#ap-12-download-your-own-file-answer) · [AP-13](#ap-13-withdraw-an-application) · [AP-14](#ap-14-edit-and-resubmit-a-withdrawn-application) · [AP-15](#ap-15-delete-a-draft) · [AP-16](#ap-16-sign-out)
 
-**[Position manager (PM)](#position-manager-pm)** — [PM-1](#pm-1-see-your-dashboard) · [PM-2](#pm-2-see-the-positions-you-manage) · [PM-3](#pm-3-create-a-position) · [PM-4](#pm-4-edit-position-details) · [PM-5](#pm-5-manage-position-questions) · [PM-6](#pm-6-add-a-manager) · [PM-7](#pm-7-remove-a-manager) · [PM-8](#pm-8-work-the-application-queue) · [PM-9](#pm-9-open-an-application-for-review) · [PM-10](#pm-10-download-an-applicants-file-answer) · [PM-11](#pm-11-move-one-application-through-the-status-graph) · [PM-12](#pm-12-move-several-applications-at-once)
+**[Position manager (PM)](#position-manager-pm)** — [PM-1](#pm-1-see-your-dashboard) · [PM-2](#pm-2-see-the-positions-you-manage) · [PM-3](#pm-3-create-a-position) · [PM-4](#pm-4-edit-position-details) · [PM-5](#pm-5-manage-position-questions) · [PM-6](#pm-6-add-a-manager) · [PM-7](#pm-7-remove-a-manager) · [PM-8](#pm-8-work-the-application-queue) · [PM-9](#pm-9-open-an-application-for-review) · [PM-10](#pm-10-download-an-applicants-file-answer) · [PM-11](#pm-11-move-one-application-through-the-status-graph) · [PM-12](#pm-12-move-several-applications-at-once) · [PM-13](#pm-13-reorder-position-questions)
 
-**[Admin (AD)](#admin-ad)** — [AD-1](#ad-1-see-every-position) · [AD-2](#ad-2-edit-an-archived-position) · [AD-3](#ad-3-delete-a-position) · [AD-4](#ad-4-create-a-global-question) · [AD-5](#ad-5-edit-a-global-question) · [AD-6](#ad-6-delete-a-global-question) · [AD-7](#ad-7-create-a-user) · [AD-8](#ad-8-grant-or-revoke-admin) · [AD-9](#ad-9-deactivate-a-user)
+**[Admin (AD)](#admin-ad)** — [AD-1](#ad-1-see-every-position) · [AD-2](#ad-2-edit-an-archived-position) · [AD-3](#ad-3-delete-a-position) · [AD-4](#ad-4-create-a-global-question) · [AD-5](#ad-5-edit-a-global-question) · [AD-6](#ad-6-delete-a-global-question) · [AD-7](#ad-7-create-a-user) · [AD-8](#ad-8-grant-or-revoke-admin) · [AD-9](#ad-9-deactivate-a-user) · [AD-10](#ad-10-find-a-user) · [AD-11](#ad-11-reorder-global-questions)
 
 ---
 
@@ -107,8 +107,9 @@ Anyone not signed in. The only routes they can use are `/positions`, `/positions
 
 ### AN-4 Sign in with an email code
 
-- **Trigger** — the email step on `/login`, or any redirect from [XC-1](#xc-1-sign-in-gate-and-the-redirectto-round-trip).
+- **Trigger** — the email step on `/login`, any redirect from [XC-1](#xc-1-sign-in-gate-and-the-redirectto-round-trip), or the sign-in link/button in the OTP email (`/login?email=<address>&otp=<code>`).
 - **Happy path** — the email is validated against `signInEmailSchema`; `checkSignInAllowed` rejects deactivated accounts before any mail is sent; `isOtpResendAllowed` enforces the server-side cooldown; then `authClient.emailOtp.sendVerificationOtp`. Toast **"Code sent."** and the view switches to the 6-digit `InputOTP` step ("Check your inbox for a one-time code."). The code auto-submits at 6 digits via `authClient.signIn.emailOtp`, then `router.refresh()` hands the destination decision back to `/login`.
+- **Happy path — email link** — `/login` parses `email`/`otp` via `parseOtpLinkParams`; `LoginView` shows a "Signing you in…" panel, strips both params from the URL (`history.replaceState`) before calling `authClient.signIn.emailOtp` client-side with them, then `router.refresh()` — the same code path a typed code takes, so the rate limit, the 300s expiry and the 3-attempt cap all apply unchanged. Works on a device that never saw the email step, since the link carries the email itself. `redirectTo` is deliberately not carried in the link.
 - **Failure / edge**
   - Invalid email → inline field error "Please enter a valid email address"; nothing is sent.
   - Deactivated account → toast with `ACCOUNT_DEACTIVATED_MESSAGE`; stays on the email step ([XC-7](#xc-7-deactivated-account)).
@@ -116,6 +117,8 @@ Anyone not signed in. The only routes they can use are `/positions`, `/positions
   - Send fails or is rate-limited → the mapped message from `getOtpSendErrorMessage`; stays on the email step.
   - Wrong or expired code → inline error under the OTP field from `getOtpVerifyErrorMessage`; the account-deactivated error code maps to `ACCOUNT_DEACTIVATED_MESSAGE` instead. Fewer than 6 digits → "Please enter the 6-digit code".
   - **Use a different email** returns to the email step and clears the code.
+  - Invalid or expired code from the link → falls through to the ordinary OTP step with the email pre-captured and the inline error already set; **Send a new code** and **Use a different email** are both available.
+  - Malformed or partial link params (bad email, non-6-digit otp, missing param) → the ordinary email step, with the address prefilled if it was valid.
 - **End state** — a session exists. A user row is created on first sign-in if the email was not already invited ([AD-7](#ad-7-create-a-user)). The user goes to the name form if they have no name, otherwise to the sanitized `redirectTo`.
 
 ### AN-5 Request a new code
@@ -283,10 +286,11 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 ### AP-11 View one of your applications
 
 - **Trigger** — a position title link on `/my-applications`, or the redirect after submitting ([AP-9](#ap-9-submit-an-application)).
-- **Happy path** — `getMyApplication(id, user.id)` is scoped to the caller with the same visibility as the list. The page shows the position title, "Applied <date>" (or "Draft · last saved <date>"), a link to the position, both answer groups — "Your profile answers" and "Your answers for this position" — and a sticky status card.
+- **Happy path** — `getMyApplication(id, user.id)` is scoped to the caller with the same visibility as the list. The header shows the position title with the status badge directly beside it, the status sentence underneath, and the primary/row actions (Continue, Edit & resubmit, Withdraw, Delete draft — whichever applies) right-aligned on that same header row; below it, "Applied <date>" (or "Draft · last saved <date>") and a link to the position, then both answer groups — "Your profile answers" and "Your answers for this position" — full width. Answers render by shape (short/single/multiple choice in a label-value row, long answers full-width as prose, files as a Download row) from the snapshotted `questionLabel`/`value`/`type` — never a live question lookup, so a retyped or relabeled question still shows the original label and every stored value.
 - **Failure / edge**
   - Not the caller's, soft-deleted, or on an unpublished position → `notFound()`, so a bookmarked URL cannot outlive its list row.
   - No answers in a group → "No profile answers saved yet." / "No position answers saved yet."
+  - An individual answer with no stored value → "No answer".
 - **End state** — read-only. This is the answer of record for what was submitted.
 
 ### AP-12 Download your own file answer
@@ -429,12 +433,13 @@ A user who manages at least one non-deleted position. Manager status is **derive
 ### PM-9 Open an application for review
 
 - **Trigger** — a row on `/applications` (`/applications/[id]`).
-- **Happy path** — `getApplicationForReview(id, user)` uses the `listable` scope — withdrawn rows are kept, drafts are not. The page shows the applicant's snapshotted name, their email, the position, the applied date, the profile and position answer groups, and a sticky status card with the available transitions.
+- **Happy path** — `getApplicationForReview(id, user)` uses the `listable` scope — withdrawn rows are kept, drafts are not. The page shows a "Back to Applications" link, then a header row with the applicant's snapshotted name and status badge together, their email underneath, and the available status transitions right-aligned on that same row; below it, a linked position title and the applied date, then the profile and position answer groups full width. Answers render by shape (short/single/multiple choice in a label-value row, long answers full-width as prose, files as a Download row) from the snapshotted `questionLabel`/`value`/`type` — never a live question lookup, so a question retyped or relabeled after submission still shows the original label and every stored value.
 - **Failure / edge**
   - Outside the caller's scope, a draft, or missing → `notFound()`; unauthorized and missing are indistinguishable.
   - The applicant renamed themselves since submitting → the heading reads "<snapshotted name> (<current name>)".
   - Empty answer groups → "No profile answers." / "No position-specific answers."
-  - `withdrawn` → the status card shows the note "This application was withdrawn by the applicant and can no longer be updated." with no transition buttons.
+  - An individual answer with no stored value → "No answer".
+  - `withdrawn` → the header row shows the note "This application was withdrawn by the applicant and can no longer be updated." in place of transition buttons.
   - `accepted` / `rejected` → the note from `TERMINAL_DECISION_STATUS_NOTES`: "Accepted. The applicant can no longer withdraw this application." (and the `rejected` twin), plus the back-transitions the graph allows.
 - **End state** — read-only until a transition is made.
 
@@ -468,10 +473,22 @@ A user who manages at least one non-deleted position. Manager status is **derive
   - Unexpected throw → **"Something went wrong. Please try again."**
 - **End state** — the eligible rows move; the rest are untouched and counted as skipped.
 
+### PM-13 Reorder position questions
+
+- **Trigger** — the drag handle on a question card, Questions tab on `/positions/[id]/edit`.
+- **Happy path** — the list is wrapped in a shared `SortableProvider` (dnd-kit); dropping a card calls `reorderPositionQuestions` with the full ordered id list, which renumbers every live question `1..N` in one transaction. The new order shows immediately (`useOptimistic`) while the write is in flight. Toast **"Order saved"**.
+- **Failure / edge**
+  - The id set changed since the page loaded (a question added or deleted in another tab) → **"The question list changed since this page loaded. Refresh and try reordering again."**; the list reverts to the server's order.
+  - Archived position → `ARCHIVED_POSITION_EDIT_ERROR`, same gate as [PM-5](#pm-5-manage-position-questions); the read-only view draws no handles at all.
+  - No access to the position → the action throws.
+  - Unexpected throw → **"Something went wrong. Please try again."**
+  - A card in inline-edit mode has no handle and can't be picked up; every other card still reorders around it.
+  - Full keyboard support — Space/Enter picks up, arrows move, Space/Enter drops, Escape cancels — each step announced to screen readers ("Picked up …", "… moved to position N of M.").
+- **End state** — new and in-progress applications see the new order immediately ([AP-6](#ap-6-answer-application-questions)). Already-submitted applications are unaffected: answers render in the order they were answered, not question order, so a later reorder never re-sequences a reviewer's view of a submitted application.
+
 ### Known open
 
 - `/applications` truncates at 100 rows with no pagination or cursor — the toolbar reports the truncation but there is no way to reach row 101 except by filtering.
-- Position questions store an `order` but there is no reorder affordance; order is fixed at creation time.
 - No notification of any kind is sent on a status change — an applicant learns their outcome only by revisiting `/my-applications`.
 
 ---
@@ -564,6 +581,25 @@ An admin is a **manager on every position**: every [Position manager](#position-
   - Already deactivated → the action throws → generic toast.
   - Their email is deliberately left intact, which is why [AD-7](#ad-7-create-a-user) refuses to reuse it.
 - **End state** — the user is signed out everywhere. A new sign-in attempt is refused before the code is sent, and any surviving session lands on `/login/deactivated` ([XC-7](#xc-7-deactivated-account)). Their applications remain visible to reviewers.
+
+### AD-10 Find a user
+
+- **Trigger** — `/users`.
+- **Happy path** — rows default-sort by role: admins, then managers, then everyone else, alphabetical by name (email fallback) within each group. Roles is a sortable column; clicking it restores this order after another sort has replaced it. **Role** (All/Admin/Manager) and **Managed position** filters compose with the existing search box (name, email, or a managed position's title); the Managed position select is omitted entirely when no user manages anything. The count line shows the filtered total plus admin and manager counts — both always render, including zero — and updates live as filters change. Role is badge semantics: a user who is both admin and manager counts toward, and is matched by, both figures, even though they sort into the admin group.
+- **Failure / edge**
+  - No match → the table's "No users match your filters." row/card; **Clear filters** resets search, role and managed position together.
+- **End state** — read-only; promote/deactivate ([AD-8](#ad-8-grant-or-revoke-admin), [AD-9](#ad-9-deactivate-a-user)) work unchanged from either the desktop row or the mobile card.
+
+### AD-11 Reorder global questions
+
+- **Trigger** — the drag handle on a `/global-questions` row (desktop table) or mobile card.
+- **Happy path** — `reorderGlobalQuestions` renumbers every live question `1..N` in one transaction; the table holds the list in `useOptimistic` so the drop lands instantly. Dragging is only live while sorted by **Order** ascending — sorting by any other column disables the handles and shows the hint **"Sort by Order to drag questions into a new order."** above the table; clicking the Order header restores it. Toast **"Order saved"**.
+- **Failure / edge**
+  - The id set changed since the page loaded (a question added or deleted in another tab) → **"The question list changed since this page loaded. Refresh and try reordering again."**; the list reverts to the server's order.
+  - Non-admin → the action throws; the page is `requireAdminOr404`.
+  - Unexpected throw → **"Something went wrong. Please try again."**
+  - Full keyboard support, same as [PM-13](#pm-13-reorder-position-questions).
+- **End state** — `/profile` reflects the new order immediately ([AP-2](#ap-2-answer-profile-questions)); a gap left by a soft-deleted question closes on the next reorder.
 
 ### Known open
 

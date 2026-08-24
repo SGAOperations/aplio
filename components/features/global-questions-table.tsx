@@ -5,7 +5,10 @@ import { useMemo, useState } from 'react';
 import { ListChecks } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { deleteGlobalQuestion } from '@/prisma/actions/global-questions';
+import {
+  deleteGlobalQuestion,
+  reorderGlobalQuestions,
+} from '@/prisma/actions/global-questions';
 
 import {
   QUESTION_TYPE_BADGE_VARIANT,
@@ -29,6 +32,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
+import { useOptimisticReorder } from '@/components/ui/sortable-list';
 
 interface GlobalQuestionsTableProps {
   questions: GlobalQuestionListItem[];
@@ -37,13 +41,19 @@ interface GlobalQuestionsTableProps {
 export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const {
+    optimisticItems: optimisticQuestions,
+    isReordering,
+    handleReorder,
+  } = useOptimisticReorder(questions, (ids) => reorderGlobalQuestions({ ids }));
 
   const COLUMNS: DataTableColumn<GlobalQuestionListItem>[] = useMemo(
     () => [
       {
         key: 'order',
         header: 'Order',
-        headClassName: 'w-16',
+        headClassName: 'w-12 px-2',
+        cellClassName: 'px-2',
         sortAccessor: (q) => q.order,
         cell: (q) => q.order,
       },
@@ -147,7 +157,7 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
     }
   }
 
-  if (questions.length === 0)
+  if (optimisticQuestions.length === 0)
     return (
       <EmptyState
         icon={ListChecks}
@@ -164,11 +174,18 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
   return (
     <>
       <DataTable
-        rows={questions}
+        rows={optimisticQuestions}
         columns={COLUMNS}
         getRowKey={(q) => q.id}
         caption="Global questions"
         defaultSort={{ key: 'order', direction: 'asc' }}
+        reorder={{
+          orderKey: 'order',
+          getItemLabel: (q) => q.label,
+          onReorder: handleReorder,
+          sortHint: 'Sort by Order to drag questions into a new order.',
+          disabled: isReordering,
+        }}
         mobileCard={(question) => (
           <div className="flex flex-col gap-3 p-4">
             <div className="flex items-start justify-between gap-2">

@@ -7,7 +7,6 @@ import { X } from 'lucide-react';
 
 import { REVIEWER_APPLICATION_STATUS_OPTIONS } from '@/lib/constants';
 import type { ApplicationFilters } from '@/lib/types';
-import { formatTableCount } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,18 +22,12 @@ import {
 interface ApplicationsToolbarProps {
   positions: { id: string; title: string }[];
   filters: ApplicationFilters;
-  shown: number;
-  total: number;
-  shownCapped: boolean;
   hasActiveFilters: boolean;
 }
 
 export function ApplicationsToolbar({
   positions,
   filters,
-  shown,
-  total,
-  shownCapped,
   hasActiveFilters,
 }: ApplicationsToolbarProps) {
   const router = useRouter();
@@ -58,6 +51,8 @@ export function ApplicationsToolbar({
     } else {
       params.delete(key);
     }
+    // A filter change while on page 4 must land on page 1, not an empty page.
+    params.delete('page');
     // userId survives filter changes so the per-user deep link stays intact.
     router.push(`${pathname}?${params.toString()}`);
   }
@@ -72,6 +67,7 @@ export function ApplicationsToolbar({
       } else {
         params.delete('q');
       }
+      params.delete('page');
       // Use replace for search so typing doesn't spam history.
       router.replace(`${pathname}?${params.toString()}`);
     }, 300);
@@ -82,6 +78,7 @@ export function ApplicationsToolbar({
     clearTimeout(debounceTimer.current);
     const params = new URLSearchParams(searchParams.toString());
     params.delete('q');
+    params.delete('page');
     router.push(`${pathname}?${params.toString()}`);
   }
 
@@ -172,19 +169,6 @@ export function ApplicationsToolbar({
             Clear filters
           </Button>
         )}
-
-        <p
-          aria-live="polite"
-          className="text-muted-foreground self-end text-sm sm:ml-auto"
-        >
-          {formatTableCount({
-            shown,
-            total,
-            noun: 'application',
-            shownCapped,
-            isFiltered: hasActiveFilters,
-          })}
-        </p>
       </div>
     </div>
   );

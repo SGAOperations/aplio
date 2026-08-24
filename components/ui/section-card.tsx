@@ -22,6 +22,7 @@ interface SectionCardProps {
   subtitle?: string;
   link?: SectionCardLink;
   sectionLabel?: string;
+  titleAs?: 'h2' | 'h3';
   children: ReactNode;
 }
 
@@ -30,15 +31,24 @@ export function SectionCard({
   subtitle,
   link,
   sectionLabel,
+  titleAs: TitleTag,
   children,
 }: SectionCardProps) {
+  const titleContent = TitleTag ? (
+    <CardTitle asChild className="text-base font-semibold">
+      <TitleTag>{title}</TitleTag>
+    </CardTitle>
+  ) : (
+    <CardTitle className="text-base font-semibold">{title}</CardTitle>
+  );
+
   const card = (
     // overflow-hidden clips the header hover highlight to the card's rounded corners
     <Card className="gap-0 overflow-hidden p-0">
       <CardHeader className={HEADER_CLASS}>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-base font-semibold">{title}</CardTitle>
+            {titleContent}
             {subtitle && (
               <p className="text-muted-foreground mt-1 text-sm">{subtitle}</p>
             )}
