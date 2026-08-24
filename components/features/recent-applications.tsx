@@ -67,14 +67,16 @@ function ApplicationList({
             {/* order-* keeps one DOM order for both the stacked mobile layout and the single desktop line */}
             <Link
               href={`/applications/${app.id}`}
-              className="order-1 flex min-h-11 min-w-0 flex-1 items-center truncate text-sm font-medium hover:underline md:min-h-0"
+              className="order-1 flex min-h-11 min-w-0 flex-1 items-center hover:underline md:min-h-0"
             >
-              {applicantLabel}
-              {renamedTo && (
-                <span className="text-muted-foreground ml-1 text-xs">
-                  ({renamedTo})
-                </span>
-              )}
+              <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                {applicantLabel}
+                {renamedTo && (
+                  <span className="text-muted-foreground ml-1 text-xs">
+                    ({renamedTo})
+                  </span>
+                )}
+              </span>
             </Link>
             <span className="order-2 shrink-0 md:order-3">
               <ApplicationStatusBadge status={app.status} />
