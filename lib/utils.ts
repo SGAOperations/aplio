@@ -159,6 +159,26 @@ export function isAnswered(question: AnswerQuestion, value: string[]): boolean {
   return partitionAnswerValue(question, value).fitted.length > 0;
 }
 
+/** An application row wins even when empty (a deliberate clear); no row falls back to the profile. */
+export function resolveGlobalAnswerValues(
+  questionIds: string[],
+  applicationAnswers: { globalQuestionId: string; value: string[] }[],
+  profileAnswers: { globalQuestionId: string; value: string[] }[],
+): Map<string, string[]> {
+  const appValues = new Map(
+    applicationAnswers.map((a) => [a.globalQuestionId, a.value]),
+  );
+  const profileValues = new Map(
+    profileAnswers.map((a) => [a.globalQuestionId, a.value]),
+  );
+  return new Map(
+    questionIds.map((id) => [
+      id,
+      appValues.get(id) ?? profileValues.get(id) ?? [],
+    ]),
+  );
+}
+
 /** Ids shared by every answer surface, so a card's label/input/error/notice/status stay wired to each other. */
 export function answerFieldIds(questionId: string) {
   return {

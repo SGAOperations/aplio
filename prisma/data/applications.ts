@@ -52,8 +52,8 @@ const applicationAnswersSelect = {
       id: true,
       globalQuestionId: true,
       questionLabel: true,
+      questionType: true,
       value: true,
-      globalQuestion: { select: { type: true } },
     },
   },
   positionAnswers: {
@@ -63,8 +63,8 @@ const applicationAnswersSelect = {
       id: true,
       positionQuestionId: true,
       questionLabel: true,
+      questionType: true,
       value: true,
-      positionQuestion: { select: { type: true } },
     },
   },
 } as const;
@@ -83,7 +83,7 @@ function normalizeApplicationAnswers(application: ApplicationAnswersPayload): {
       questionId: a.globalQuestionId,
       questionLabel: a.questionLabel,
       value: a.value,
-      type: a.globalQuestion.type,
+      type: a.questionType,
       isGlobal: true,
     })),
     positionAnswers: application.positionAnswers.map((a) => ({
@@ -91,7 +91,7 @@ function normalizeApplicationAnswers(application: ApplicationAnswersPayload): {
       questionId: a.positionQuestionId,
       questionLabel: a.questionLabel,
       value: a.value,
-      type: a.positionQuestion.type,
+      type: a.questionType,
       isGlobal: false,
     })),
   };
