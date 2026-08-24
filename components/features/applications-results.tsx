@@ -58,6 +58,7 @@ export async function ApplicationsResults({
         total={total}
         rangeStart={rangeStart}
         rangeEnd={rangeEnd}
+        hasActiveFilters={hasActiveFilters}
       />
     </div>
   );

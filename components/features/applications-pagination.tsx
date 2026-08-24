@@ -18,6 +18,7 @@ interface ApplicationsPaginationProps {
   total: number;
   rangeStart: number;
   rangeEnd: number;
+  hasActiveFilters: boolean;
 }
 
 function buildHref(filters: ApplicationFilters, page: number): string {
@@ -41,23 +42,16 @@ export function ApplicationsPagination({
   total,
   rangeStart,
   rangeEnd,
+  hasActiveFilters,
 }: ApplicationsPaginationProps) {
   if (total === 0) return null;
-
-  const isFiltered = !!(
-    filters.positionId ||
-    filters.status ||
-    filters.userId ||
-    filters.q ||
-    filters.sort
-  );
 
   const summary = formatPaginationSummary({
     rangeStart,
     rangeEnd,
     total,
     noun: 'application',
-    isFiltered,
+    isFiltered: hasActiveFilters,
   });
 
   if (totalPages === 1)
