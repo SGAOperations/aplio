@@ -391,6 +391,9 @@ export const USER_ROLE_FILTER_OPTIONS: {
 export const APPLICATION_SORT_FIELDS = ['date', 'name', 'status'] as const;
 export const APPLICATION_SORT_DIRECTIONS = ['asc', 'desc'] as const;
 
+// Sized so the bulk bar's "select all" still covers a useful batch per page.
+export const APPLICATIONS_PAGE_SIZE = 50;
+
 // Single source of truth for the server guard and the rendered quick actions.
 // Array order is display order; `draft`/`withdrawn` have no reviewer moves.
 export const APPLICATION_STATUS_TRANSITIONS = {
