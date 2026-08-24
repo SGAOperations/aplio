@@ -19,6 +19,7 @@ import {
   withdrawApplication,
 } from '@/prisma/actions/applications';
 import type { $Enums, GlobalQuestion, Position, User } from '@/prisma/client';
+import { getApplicationStatusHistory } from '@/prisma/data/applications';
 
 import {
   APPLICANT_EDITABLE_APPLICATION_STATUSES,
@@ -163,10 +164,13 @@ describe('updateApplicationStatus', () => {
     ).includes(from);
 
     for (const to of REVIEWER_APPLICATION_STATUSES) {
+      const isSameStatus = from === to;
       const isLegal =
-        !isNonReviewable && isAllowedApplicationStatusTransition(from, to);
+        !isNonReviewable &&
+        !isSameStatus &&
+        isAllowedApplicationStatusTransition(from, to);
 
-      it(`${isNonReviewable ? 'throws' : isLegal ? 'allows' : 'blocks'} ${from} -> ${to}`, async () => {
+      it(`${isNonReviewable ? 'throws' : isSameStatus ? 'reports already-set' : isLegal ? 'allows' : 'blocks'} ${from} -> ${to}`, async () => {
         const applicant = await createTestUser();
         const application = await createTestApplication(
           applicant,
@@ -191,6 +195,13 @@ describe('updateApplicationStatus', () => {
           status: to,
         });
 
+        if (isSameStatus) {
+          expect(result).toEqual({
+            error: `This application is already ${APPLICATION_STATUS_LABELS[to]}.`,
+          });
+          return;
+        }
+
         if (isLegal) {
           expect(result).toBeUndefined();
           const updated = await prisma.application.findUniqueOrThrow({
@@ -198,6 +209,12 @@ describe('updateApplicationStatus', () => {
             select: { status: true },
           });
           expect(updated.status).toBe(to);
+          const event = await prisma.applicationStatusEvent.findFirstOrThrow({
+            where: { applicationId: application.id },
+            orderBy: { createdAt: 'desc' },
+          });
+          expect(event.from).toBe(from);
+          expect(event.to).toBe(to);
         } else {
           expect(result).toEqual({
             error: `This application is now ${APPLICATION_STATUS_LABELS[from]}, so that move is no longer available. Refresh to see the current options.`,
@@ -206,6 +223,54 @@ describe('updateApplicationStatus', () => {
       });
     }
   }
+
+  it('overrides the graph and still writes an event when override is true', async () => {
+    const applicant = await createTestUser();
+    // 'accepted' has no forward/back/decision path to 'applied' in
+    // APPLICATION_STATUS_TRANSITIONS — a genuinely off-graph move.
+    const application = await createTestApplication(applicant, openPosition, {
+      status: 'accepted',
+    });
+
+    actAs(admin);
+    expect(isAllowedApplicationStatusTransition('accepted', 'applied')).toBe(
+      false,
+    );
+
+    const result = await updateApplicationStatus({
+      applicationId: application.id,
+      status: 'applied',
+      override: true,
+    });
+
+    expect(result).toBeUndefined();
+    const updated = await prisma.application.findUniqueOrThrow({
+      where: { id: application.id },
+      select: { status: true },
+    });
+    expect(updated.status).toBe('applied');
+    const event = await prisma.applicationStatusEvent.findFirstOrThrow({
+      where: { applicationId: application.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(event.from).toBe('accepted');
+    expect(event.to).toBe('applied');
+  });
+
+  it('refuses draft and withdrawn even with override (zod rejects the target)', async () => {
+    const applicant = await createTestUser();
+    const application = await createTestApplication(applicant, openPosition, {
+      status: 'applied',
+    });
+
+    actAs(admin);
+    const result = await updateApplicationStatus({
+      applicationId: application.id,
+      status: 'withdrawn',
+      override: true,
+    });
+    expect(result).toEqual({ error: 'Invalid input' });
+  });
 
   it('returns a zod error when the target status is draft', async () => {
     const applicant = await createTestUser();
@@ -259,8 +324,10 @@ describe('updateApplicationStatuses bulk mixed selections', () => {
 
   it('returns an error naming the target when no selected row can legally move there', async () => {
     const applicant = await createTestUser();
+    // 'rejected' is excluded from getApplicationStatusForwardSources('accepted')
+    // post-§5 (only the four unresolved statuses are acceptable sources).
     const application = await createTestApplication(applicant, openPosition, {
-      status: 'applied',
+      status: 'rejected',
     });
 
     actAs(admin);
@@ -270,8 +337,39 @@ describe('updateApplicationStatuses bulk mixed selections', () => {
     });
     expect(result).toEqual({
       error:
-        "None of the selected applications can move to Accepted — that's only reachable from Interview scheduled or Reviewing.",
+        "None of the selected applications can move to Accepted — that's only reachable from Applied, Reached out, Interview scheduled, or Reviewing.",
     });
+  });
+
+  it('bulk-accepts from applied and reached_out now that Accept is symmetric with Reject', async () => {
+    const appliedApplicant = await createTestUser();
+    const appliedApp = await createTestApplication(
+      appliedApplicant,
+      openPosition,
+      { status: 'applied' },
+    );
+    const reachedOutApplicant = await createTestUser();
+    const reachedOutApp = await createTestApplication(
+      reachedOutApplicant,
+      openPosition,
+      { status: 'reached_out' },
+    );
+
+    actAs(admin);
+    const result = await updateApplicationStatuses({
+      applicationIds: [appliedApp.id, reachedOutApp.id],
+      status: 'accepted',
+    });
+    expect(result).toEqual({ updated: 2, skipped: 0 });
+
+    const events = await prisma.applicationStatusEvent.findMany({
+      where: { applicationId: { in: [appliedApp.id, reachedOutApp.id] } },
+    });
+    expect(events).toHaveLength(2);
+    for (const event of events) expect(event.to).toBe('accepted');
+    expect(new Set(events.map((e) => e.from))).toEqual(
+      new Set(['applied', 'reached_out']),
+    );
   });
 
   it('bulk-moves a back-only target (applied) since it has no forward source', async () => {
@@ -306,6 +404,110 @@ describe('updateApplicationStatuses bulk mixed selections', () => {
       select: { status: true },
     });
     expect(untouchedReviewing.status).toBe('reviewing');
+  });
+});
+
+describe('ApplicationStatusEvent', () => {
+  it('submitApplication writes an event from the draft/withdrawn status to applied', async () => {
+    const applicant = await createTestUser();
+    const application = await createTestApplication(applicant, openPosition, {
+      status: 'draft',
+    });
+    await answerAllRequiredGlobalQuestions(applicant);
+
+    actAs(applicant);
+    await submitApplication(application.id);
+
+    const event = await prisma.applicationStatusEvent.findFirstOrThrow({
+      where: { applicationId: application.id },
+    });
+    expect(event.from).toBe('draft');
+    expect(event.to).toBe('applied');
+    expect(event.changedById).toBe(applicant.id);
+  });
+
+  it('withdrawApplication writes an event to withdrawn', async () => {
+    const applicant = await createTestUser();
+    const application = await createTestApplication(applicant, openPosition, {
+      status: 'reviewing',
+    });
+
+    actAs(applicant);
+    await withdrawApplication(application.id);
+
+    const event = await prisma.applicationStatusEvent.findFirstOrThrow({
+      where: { applicationId: application.id },
+    });
+    expect(event.from).toBe('reviewing');
+    expect(event.to).toBe('withdrawn');
+    expect(event.changedById).toBe(applicant.id);
+  });
+
+  it('undo (override back to the prior status) leaves two events, not zero', async () => {
+    const applicant = await createTestUser();
+    const application = await createTestApplication(applicant, openPosition, {
+      status: 'applied',
+    });
+
+    actAs(admin);
+    await updateApplicationStatus({
+      applicationId: application.id,
+      status: 'reviewing',
+    });
+
+    const latest = await getApplicationStatusHistory(application.id, admin);
+    expect(latest[0]?.from).toBe('applied');
+
+    // The hook's undo path: override back to the event's captured `from`.
+    await updateApplicationStatus({
+      applicationId: application.id,
+      status: 'applied',
+      override: true,
+    });
+
+    const events = await prisma.applicationStatusEvent.findMany({
+      where: { applicationId: application.id },
+      orderBy: { createdAt: 'asc' },
+    });
+    expect(events).toHaveLength(2);
+    expect(events[0]).toMatchObject({ from: 'applied', to: 'reviewing' });
+    expect(events[1]).toMatchObject({ from: 'reviewing', to: 'applied' });
+
+    const updated = await prisma.application.findUniqueOrThrow({
+      where: { id: application.id },
+      select: { status: true },
+    });
+    expect(updated.status).toBe('applied');
+  });
+
+  it('getApplicationStatusHistory never returns another manager-scoped application', async () => {
+    const managerA = await createTestUser({ isAdmin: false });
+    const managerB = await createTestUser({ isAdmin: false });
+    const positionA = await createTestPosition(managerA, {
+      managers: [managerA],
+    });
+    const applicant = await createTestUser();
+    const application = await createTestApplication(applicant, positionA, {
+      status: 'applied',
+    });
+
+    actAs(admin);
+    await updateApplicationStatus({
+      applicationId: application.id,
+      status: 'reviewing',
+    });
+
+    const asOwningManager = await getApplicationStatusHistory(
+      application.id,
+      managerA,
+    );
+    expect(asOwningManager.length).toBeGreaterThan(0);
+
+    const asOtherManager = await getApplicationStatusHistory(
+      application.id,
+      managerB,
+    );
+    expect(asOtherManager).toEqual([]);
   });
 });
 

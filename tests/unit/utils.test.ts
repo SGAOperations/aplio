@@ -17,6 +17,7 @@ import {
   isPositionActive,
   isSameIdSet,
   partitionAnswerValue,
+  resolveGlobalAnswerValues,
   splitOtherAnswer,
   summarizeBulkStatusChange,
 } from '@/lib/utils';
@@ -646,5 +647,52 @@ describe('isSameIdSet', () => {
   it('is false when either side has a duplicate', () => {
     expect(isSameIdSet(['a', 'a', 'b'], ['a', 'b', 'c'])).toBe(false);
     expect(isSameIdSet(['a', 'b', 'c'], ['a', 'a', 'b'])).toBe(false);
+  });
+});
+
+describe('resolveGlobalAnswerValues', () => {
+  it('falls back to the profile value when no application row exists', () => {
+    const resolved = resolveGlobalAnswerValues(
+      ['q1'],
+      [],
+      [{ globalQuestionId: 'q1', value: ['profile'] }],
+    );
+    expect(resolved.get('q1')).toEqual(['profile']);
+  });
+
+  it('keeps a deliberately cleared application row empty, not the profile value', () => {
+    const resolved = resolveGlobalAnswerValues(
+      ['q1'],
+      [{ globalQuestionId: 'q1', value: [] }],
+      [{ globalQuestionId: 'q1', value: ['profile'] }],
+    );
+    expect(resolved.get('q1')).toEqual([]);
+  });
+
+  it('prefers a non-empty application row over the profile value', () => {
+    const resolved = resolveGlobalAnswerValues(
+      ['q1'],
+      [{ globalQuestionId: 'q1', value: ['application'] }],
+      [{ globalQuestionId: 'q1', value: ['profile'] }],
+    );
+    expect(resolved.get('q1')).toEqual(['application']);
+  });
+
+  it('resolves to an empty array when neither row exists', () => {
+    const resolved = resolveGlobalAnswerValues(['q1'], [], []);
+    expect(resolved.get('q1')).toEqual([]);
+  });
+
+  it('resolves every requested question id independently', () => {
+    const resolved = resolveGlobalAnswerValues(
+      ['q1', 'q2'],
+      [{ globalQuestionId: 'q1', value: [] }],
+      [
+        { globalQuestionId: 'q1', value: ['profile1'] },
+        { globalQuestionId: 'q2', value: ['profile2'] },
+      ],
+    );
+    expect(resolved.get('q1')).toEqual([]);
+    expect(resolved.get('q2')).toEqual(['profile2']);
   });
 });

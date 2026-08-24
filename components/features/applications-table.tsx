@@ -191,7 +191,6 @@ export function ApplicationsTable({
               applicationId={app.id}
               currentStatus={app.status}
               applicantName={displayName}
-              compact
             />
           </div>
         );
@@ -292,7 +291,6 @@ export function ApplicationsTable({
                       applicationId={app.id}
                       currentStatus={app.status}
                       applicantName={displayName}
-                      compact
                     />
                   </div>
                 </div>

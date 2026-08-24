@@ -164,6 +164,7 @@ async function main() {
                     return {
                       globalQuestionId: question.id,
                       questionLabel: label,
+                      questionType: question.type,
                       value,
                       createdById: user.id,
                       updatedById: user.id,
@@ -179,6 +180,7 @@ async function main() {
                   .map((q) => ({
                     positionQuestionId: q.id,
                     questionLabel: q.label,
+                    questionType: q.type,
                     value: positionAnswers[position.title]?.[q.label] ?? [],
                     createdById: user.id,
                     updatedById: user.id,

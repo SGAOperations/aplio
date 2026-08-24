@@ -1,0 +1,189 @@
+'use client';
+
+import { useState } from 'react';
+
+import { Loader2 } from 'lucide-react';
+
+import type { $Enums } from '@/prisma/client';
+
+import {
+  APPLICATION_STATUS_LABELS,
+  REVIEWER_APPLICATION_STATUS_OPTIONS,
+  getApplicationStatusUndoTarget,
+  isNonReviewableApplicationStatus,
+} from '@/lib/constants';
+import type { ApplicationStatusHistoryEntry } from '@/lib/types';
+import { getApplicationStatusHistoryRowLabel } from '@/lib/utils';
+
+import { useApplicationStatusMove } from '@/components/features/use-application-status-move';
+import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { LocalTime } from '@/components/ui/local-time';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+interface ApplicationStatusDialogProps {
+  applicationId: string;
+  applicantName: string;
+  currentStatus: $Enums.ApplicationStatus;
+  history: ApplicationStatusHistoryEntry[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function ApplicationStatusDialog({
+  applicationId,
+  applicantName,
+  currentStatus,
+  history,
+  open,
+  onOpenChange,
+}: ApplicationStatusDialogProps) {
+  const [selectedStatus, setSelectedStatus] = useState<
+    $Enums.ApplicationStatus | ''
+  >('');
+  const move = useApplicationStatusMove({ applicationId, applicantName });
+
+  const canOverride = !isNonReviewableApplicationStatus(currentStatus);
+  const undoTarget = getApplicationStatusUndoTarget(history[0] ?? null);
+
+  function handleApply() {
+    if (!selectedStatus) return;
+    move.selectTarget(selectedStatus, {
+      override: true,
+      onSettled: () => setSelectedStatus(''),
+    });
+  }
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>Application status</DialogTitle>
+            <DialogDescription>
+              Change the status, undo the last change, or review the history.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
+            {canOverride && (
+              <div className="flex flex-col gap-2">
+                <h3 className="text-sm font-medium">Change status</h3>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="status-dialog-select" className="sr-only">
+                    New status
+                  </Label>
+                  <Select
+                    value={selectedStatus}
+                    onValueChange={(v) =>
+                      setSelectedStatus(v as $Enums.ApplicationStatus)
+                    }
+                    disabled={move.isPending}
+                  >
+                    <SelectTrigger
+                      id="status-dialog-select"
+                      aria-describedby="status-dialog-select-hint"
+                      className="w-full"
+                    >
+                      <SelectValue placeholder="Choose a status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {REVIEWER_APPLICATION_STATUS_OPTIONS.filter(
+                        (o) => o.value !== currentStatus,
+                      ).map((o) => (
+                        <SelectItem key={o.value} value={o.value}>
+                          {o.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="sm"
+                    disabled={!selectedStatus || move.isPending}
+                    onClick={handleApply}
+                  >
+                    {move.isPending &&
+                      move.pendingTarget === selectedStatus && (
+                        <Loader2 className="animate-spin" aria-hidden />
+                      )}
+                    Apply
+                  </Button>
+                </div>
+                <p
+                  id="status-dialog-select-hint"
+                  className="text-muted-foreground text-xs"
+                >
+                  Any status, including moves the normal flow doesn&apos;t
+                  offer.
+                </p>
+              </div>
+            )}
+
+            {canOverride && undoTarget && (
+              <Button
+                variant="link"
+                size="sm"
+                className="h-auto w-fit p-0"
+                disabled={move.isPending}
+                onClick={() =>
+                  move.selectTarget(undoTarget, { override: true })
+                }
+              >
+                {move.isPending && move.pendingTarget === undoTarget && (
+                  <Loader2 className="animate-spin" aria-hidden />
+                )}
+                Undo — back to {APPLICATION_STATUS_LABELS[undoTarget]}
+              </Button>
+            )}
+
+            <div className="flex flex-col gap-2">
+              <h3 className="text-sm font-medium">History</h3>
+              {history.length === 0 ? (
+                <p className="text-muted-foreground text-sm">
+                  No status changes recorded yet.
+                </p>
+              ) : (
+                <ol className="flex flex-col gap-2">
+                  {history.map((entry) => (
+                    <li key={entry.id} className="text-sm">
+                      <span>{getApplicationStatusHistoryRowLabel(entry)}</span>
+                      <span className="text-muted-foreground">
+                        {' · '}
+                        {entry.changedByName}
+                        {' · '}
+                        <LocalTime
+                          date={entry.createdAt}
+                          precision="datetime"
+                        />
+                      </span>
+                      {entry.from === null && (
+                        <span className="text-muted-foreground">
+                          {' · before history tracking'}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <ConfirmDialog {...move.confirmDialogProps} />
+    </>
+  );
+}

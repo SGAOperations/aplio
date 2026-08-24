@@ -408,14 +408,8 @@ export const APPLICATION_STATUS_TRANSITIONS = {
     forward: ['interview_scheduled', 'reviewing'],
     back: ['applied'],
   },
-  interview_scheduled: {
-    forward: ['reviewing', 'accepted'],
-    back: ['reached_out'],
-  },
-  reviewing: {
-    forward: ['interview_scheduled', 'accepted'],
-    back: ['reached_out'],
-  },
+  interview_scheduled: { forward: ['reviewing'], back: ['reached_out'] },
+  reviewing: { forward: ['interview_scheduled'], back: ['reached_out'] },
   accepted: { forward: [], back: ['reviewing', 'interview_scheduled'] },
   rejected: { forward: [], back: ['reviewing', 'interview_scheduled'] },
   withdrawn: { forward: [], back: [] },
@@ -436,16 +430,39 @@ export const REJECTABLE_APPLICATION_STATUSES = [
   'reviewing',
 ] as const satisfies $Enums.ApplicationStatus[];
 
+// Same members as REJECTABLE_APPLICATION_STATUSES — Accept is offered from
+// every unresolved status, not just the two the `forward` graph reaches.
+export const ACCEPTABLE_APPLICATION_STATUSES = [
+  'applied',
+  'reached_out',
+  'interview_scheduled',
+  'reviewing',
+] as const satisfies $Enums.ApplicationStatus[];
+
+export function isRejectableApplicationStatus(
+  status: $Enums.ApplicationStatus,
+): boolean {
+  return (
+    REJECTABLE_APPLICATION_STATUSES as readonly $Enums.ApplicationStatus[]
+  ).includes(status);
+}
+
+export function isAcceptableApplicationStatus(
+  status: $Enums.ApplicationStatus,
+): boolean {
+  return (
+    ACCEPTABLE_APPLICATION_STATUSES as readonly $Enums.ApplicationStatus[]
+  ).includes(status);
+}
+
 export function getAllowedApplicationStatusTransitions(
   from: $Enums.ApplicationStatus,
 ): $Enums.ApplicationStatus[] {
   const { forward, back } = APPLICATION_STATUS_TRANSITIONS[from];
-  const isRejectable = (
-    REJECTABLE_APPLICATION_STATUSES as readonly $Enums.ApplicationStatus[]
-  ).includes(from);
   return [
     ...forward,
-    ...(isRejectable ? (['rejected'] as const) : []),
+    ...(isAcceptableApplicationStatus(from) ? (['accepted'] as const) : []),
+    ...(isRejectableApplicationStatus(from) ? (['rejected'] as const) : []),
     ...back,
   ];
 }
@@ -455,15 +472,6 @@ export function isAllowedApplicationStatusTransition(
   to: $Enums.ApplicationStatus,
 ): boolean {
   return getAllowedApplicationStatusTransitions(from).includes(to);
-}
-
-// Inverts the graph rather than hand-listing sources, so the two can't drift.
-export function getApplicationStatusSources(
-  to: $Enums.ApplicationStatus,
-): $Enums.ApplicationStatus[] {
-  return (
-    Object.keys(APPLICATION_STATUS_TRANSITIONS) as $Enums.ApplicationStatus[]
-  ).filter((from) => isAllowedApplicationStatusTransition(from, to));
 }
 
 // Bulk targets exclude move-back sources: a batch moving several applications
@@ -478,12 +486,10 @@ export function getApplicationStatusForwardSources(
     Object.keys(APPLICATION_STATUS_TRANSITIONS) as $Enums.ApplicationStatus[]
   ).filter((from) => {
     const { forward } = APPLICATION_STATUS_TRANSITIONS[from];
-    const isRejectable = (
-      REJECTABLE_APPLICATION_STATUSES as readonly $Enums.ApplicationStatus[]
-    ).includes(from);
     return (
       (forward as readonly $Enums.ApplicationStatus[]).includes(to) ||
-      (isRejectable && to === 'rejected')
+      (isAcceptableApplicationStatus(from) && to === 'accepted') ||
+      (isRejectableApplicationStatus(from) && to === 'rejected')
     );
   });
   if (forwardSources.length > 0) return forwardSources;
@@ -544,6 +550,35 @@ export const NON_REVIEWABLE_APPLICATION_STATUS_NOTES: Record<
   draft: 'This application has not been submitted yet.',
 };
 
+// Partitions a status's allowed moves for the header's caret menu: forward
+// steps above the separator, Accept/Reject below — never move-backs.
+export function getApplicationStatusMenuGroups(
+  from: $Enums.ApplicationStatus,
+): {
+  forward: (typeof REVIEWER_APPLICATION_STATUSES)[number][];
+  decisions: (typeof REVIEWER_APPLICATION_STATUSES)[number][];
+} {
+  const { forward } = APPLICATION_STATUS_TRANSITIONS[from];
+  return {
+    // Never draft/withdrawn — no status lists either as a forward target.
+    forward: [...forward] as (typeof REVIEWER_APPLICATION_STATUSES)[number][],
+    decisions: [
+      ...(isAcceptableApplicationStatus(from) ? (['accepted'] as const) : []),
+      ...(isRejectableApplicationStatus(from) ? (['rejected'] as const) : []),
+    ],
+  };
+}
+
+// Null when there's nothing to undo: no events yet, the latest is the
+// backfill row (`from` null), or `from` is draft/withdrawn.
+export function getApplicationStatusUndoTarget(
+  latest: { from: $Enums.ApplicationStatus | null } | null | undefined,
+): $Enums.ApplicationStatus | null {
+  if (!latest || latest.from === null) return null;
+  if (isNonReviewableApplicationStatus(latest.from)) return null;
+  return latest.from;
+}
+
 // Positive list: a future enum value stays excluded until added — safer for this metric.
 export const UNRESOLVED_APPLICATION_STATUSES = [
   'applied',
@@ -567,7 +602,8 @@ export const NON_TERMINAL_APPLICATION_STATUSES = [
   'reviewing',
 ] as const satisfies $Enums.ApplicationStatus[];
 
-// No status history, so a withdraw → resubmit round-trip would launder the decision.
+// Withdraw is an applicant action; reaching these would let a
+// withdraw -> resubmit round-trip launder a reviewer's decision.
 export const TERMINAL_DECISION_STATUSES: readonly $Enums.ApplicationStatus[] = [
   'accepted',
   'rejected',

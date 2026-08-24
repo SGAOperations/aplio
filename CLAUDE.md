@@ -2,24 +2,23 @@
 
 These are the always-true rules for this repo. Depth lives in dedicated docs — read the relevant one before working:
 
-- **`.claude/docs/ENGINEERING.md`** — the quality bar (architecture, data integrity, security, UX states, a11y, performance). Read it before any planning or code work.
-- **`.claude/docs/PERMISSIONS.md`** — who may do what, and when: principals, route and action gates, the position and application state tables. Read it before planning or changing anything that gates on role, ownership or record state.
+- **`docs/ENGINEERING.md`** — the quality bar (architecture, data integrity, security, UX states, a11y, performance, current Next.js 16 App Router behavior). Read it before any planning or code work.
+- **`docs/PERMISSIONS.md`** — who may do what, and when: principals, route and action gates, the position and application state tables. Read it before planning or changing anything that gates on role, ownership or record state.
 - **`.claude/docs/PIPELINE.md`** — the automated agent pipeline and its GitHub label state machine.
-- **`.claude/docs/DESIGN.md`** — the design system: tokens, type/spacing scale, component conventions. Read it before building or changing UI.
-- **`.claude/docs/WORKFLOWS.md`** — what each user flow does end to end, per persona. Read it before changing a user-facing flow, and update the affected entry in the same PR.
-- **`.claude/docs/nextjs-notes.md`** — current Next.js 16 App Router behavior (caching, RSC boundaries, server actions). Trust it over training data.
+- **`docs/DESIGN.md`** — the design system: tokens, type/spacing scale, component conventions. Read it before building or changing UI.
+- **`docs/WORKFLOWS.md`** — what each user flow does end to end, per persona. Read it before changing a user-facing flow, and update the affected entry in the same PR.
 
 ## Tech Stack
 
 Next.js 16 (App Router, React 19) · Prisma 7 · Tailwind CSS 4 · shadcn/ui (Radix) · TypeScript strict · zod 4 · react-hook-form · Neon/Stack Auth (`lib/auth/server.ts`).
 
-## Architecture (the load-bearing rules — `.claude/docs/ENGINEERING.md` has the full bar)
+## Architecture (the load-bearing rules — `docs/ENGINEERING.md` has the full bar)
 
 - **IMPORTANT: never create API routes** (`app/api/`). The only permitted route is `app/api/auth/[...path]/route.ts` (required by Neon Auth).
-- **Mutations are Server Actions** in `prisma/actions/`, each with `'use server'`, an auth check, and zod validation. They return **`void` / the relevant data on success, `{ error }` for a user-facing failure, and `throw` for unexpected ones — never `{ ok }`** (`.claude/docs/ENGINEERING.md` §4). Decision test: _would you show this exact sentence to the user, and can they act on it?_ **yes → `{ error }`, no → throw**.
+- **Mutations are Server Actions** in `prisma/actions/`, each with `'use server'`, an auth check, and zod validation. They return **`void` / the relevant data on success, `{ error }` for a user-facing failure, and `throw` for unexpected ones — never `{ ok }`** (`docs/ENGINEERING.md` §4). Decision test: _would you show this exact sentence to the user, and can they act on it?_ **yes → `{ error }`, no → throw**.
 - **Data fetching is server-side** — server components call data-fetching functions in `prisma/data/`; Prisma never runs in a client component. **Avoid `useEffect`** — almost every use is a mistake here, and an empty-deps `useEffect` is essentially never right.
 - **Default to server components**; add `'use client'` only for interactivity/hooks/browser APIs, on the smallest leaf possible.
-- **Every async surface ships loading + empty states**; errors use **one global boundary + toasts** (never per-page `error.tsx`); **every action gives a toast** (`sonner`) — see `.claude/docs/ENGINEERING.md` §4.
+- **Every async surface ships loading + empty states**; errors use **one global boundary + toasts** (never per-page `error.tsx`); **every action gives a toast** (`sonner`) — see `docs/ENGINEERING.md` §4.
 - Components live in `components/` (`ui/` shadcn, `forms/`, `layouts/`, `features/`); route-specific components co-locate with their route.
 - **Shared types/constants live in `lib/` (`lib/types.ts`, `lib/constants.ts`) — reuse them** (a little over-fetch to reuse a type is fine; never expose sensitive/internal fields to a client). Abstract repetition sensibly; avoid over-abstraction.
 
@@ -29,7 +28,7 @@ Next.js 16 (App Router, React 19) · Prisma 7 · Tailwind CSS 4 · shadcn/ui (Ra
 - Strict TypeScript, **no `any`** (`unknown` + narrowing); prefer Prisma-generated types.
 - Tailwind only — avoid custom CSS. **Mobile-first**: base styles target mobile, add `md:`/`lg:` upward; sidebars collapse to a Sheet/drawer on small screens; no fixed pixel widths that break narrow viewports.
 - `async`/`await` over promise chains. Single-line loops/conditionals: no curly braces.
-- **Comments are rare, one line by default, two only rarely** — default to none and let naming carry it. Terse fragments, not narrated sentences; no issue/PR/`ENGINEERING §` refs (`git blame` already links the line to its PR). JSDoc only where the signature doesn't already say it. Full rule: `.claude/docs/ENGINEERING.md` §7.
+- **Comments are rare, one line by default, two only rarely** — default to none and let naming carry it. Terse fragments, not narrated sentences; no issue/PR/`ENGINEERING §` refs (`git blame` already links the line to its PR). JSDoc only where the signature doesn't already say it. Full rule: `docs/ENGINEERING.md` §7.
 - `revalidatePath`/`revalidateTag` after every mutation; **toast feedback (`sonner`) on every action**.
 
 ## Commits, Branches, PRs

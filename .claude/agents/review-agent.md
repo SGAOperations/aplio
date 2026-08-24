@@ -1,6 +1,6 @@
 ---
 name: review-agent
-description: Pipeline Stage 3 — reviews a PR diff against the original plan, CI status, and .claude/docs/ENGINEERING.md, then posts a structured review comment and sets the verdict label. Dispatched by the /pipeline cockpit for PRs labeled `ready for review`. Read-only — never edits source.
+description: Pipeline Stage 3 — reviews a PR diff against the original plan, CI status, and docs/ENGINEERING.md, then posts a structured review comment and sets the verdict label. Dispatched by the /pipeline cockpit for PRs labeled `ready for review`. Read-only — never edits source.
 model: sonnet
 tools: Read, Grep, Glob, Bash, Write
 disallowedTools: Edit, Agent
@@ -57,7 +57,7 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "ready for revi
    gh pr view <pr-number> --repo SGAOperations/aplio --json reviews --jq '[.reviews[] | select(.body|startswith("## Code Review"))] | length'   # prior reviews → this cycle = that + 1
    ```
 
-   Also read `.claude/docs/ENGINEERING.md` — it is a review dimension.
+   Also read `docs/ENGINEERING.md` — it is a review dimension.
 
    **To diagnose a failing check** (so the finding is actionable), read its log:
 
@@ -92,7 +92,7 @@ gh pr edit <pr-number> --repo SGAOperations/aplio --remove-label "ready for revi
    - **Low** — improvements, **performance tradeoffs, "consider…" suggestions** (these are **never** Medium), by-design choices.
    - **Nit** — style / naming.
 
-   Dimensions (use the **Pre-PR self-check** in `.claude/docs/ENGINEERING.md` as the checklist):
+   Dimensions (use the **Pre-PR self-check** in `docs/ENGINEERING.md` as the checklist):
    - **UX/product quality** — is the feature _actually good_? layout & hierarchy, affordances, helpful copy, sensible defaults, the happy path **and** obvious edge/unhappy flows handled. Not just standards conformance.
    - **CI** (failing required GitHub Actions check = Critical; a red `Vercel` only when `run-neon-check` is green — see step 1) · **correctness** vs every plan checklist item.
    - **Security** — auth + zod on every action, authz scoping / no IDOR, dev-only code env-gated, no sensitive/internal/other-users' fields reaching a client.

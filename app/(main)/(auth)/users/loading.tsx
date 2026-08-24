@@ -12,17 +12,17 @@ export default function UsersLoading() {
 
       {/* Toolbar skeleton — role/position filters + search input + count line */}
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-        <div className="flex flex-col gap-1.5">
+        <div className="flex w-full flex-col gap-1.5 sm:w-48">
           <Skeleton className="h-3 w-10" />
-          <Skeleton className="h-9 w-full sm:w-48" />
+          <Skeleton className="h-11 w-full md:h-9" />
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex w-full flex-col gap-1.5 sm:w-48">
           <Skeleton className="h-3 w-28" />
-          <Skeleton className="h-9 w-full sm:w-48" />
+          <Skeleton className="h-11 w-full md:h-9" />
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex w-full flex-col gap-1.5 sm:w-64">
           <Skeleton className="h-3 w-14" />
-          <Skeleton className="h-9 w-64" />
+          <Skeleton className="h-11 w-full md:h-9" />
         </div>
         <Skeleton className="h-4 w-48 sm:ml-auto" />
       </div>
@@ -72,8 +72,8 @@ export default function UsersLoading() {
                 </div>
                 <Skeleton className="h-4 w-40" />
                 <div className="flex gap-2">
-                  <Skeleton className="h-8 w-24" />
-                  <Skeleton className="h-8 w-20" />
+                  <Skeleton className="h-11 w-24" />
+                  <Skeleton className="h-11 w-20" />
                 </div>
               </div>
             ))}

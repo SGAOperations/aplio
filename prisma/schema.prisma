@@ -110,6 +110,7 @@ model User {
   createdPositionAppAnswers PositionApplicationAnswer[] @relation("PositionApplicationAnswerCreatedBy")
   updatedPositionAppAnswers PositionApplicationAnswer[] @relation("PositionApplicationAnswerUpdatedBy")
   deletedPositionAppAnswers PositionApplicationAnswer[] @relation("PositionApplicationAnswerDeletedBy")
+  applicationStatusEvents   ApplicationStatusEvent[]    @relation("ApplicationStatusEventChangedBy")
 }
 
 model Position {
@@ -230,15 +231,31 @@ model Application {
   globalAnswers   GlobalApplicationAnswer[]
   positionAnswers PositionApplicationAnswer[]
   emailLogs       EmailLog[]
+  statusEvents    ApplicationStatusEvent[]
 
   @@unique([userId, positionId])
 }
 
+model ApplicationStatusEvent {
+  id            String             @id @default(uuid(7))
+  applicationId String
+  from          ApplicationStatus?
+  to            ApplicationStatus
+  changedById   String
+  createdAt     DateTime           @default(now())
+
+  application Application @relation(fields: [applicationId], references: [id])
+  changedBy   User        @relation("ApplicationStatusEventChangedBy", fields: [changedById], references: [id])
+
+  @@index([applicationId, createdAt])
+}
+
 model GlobalApplicationAnswer {
-  id               String    @id @default(uuid(7))
+  id               String       @id @default(uuid(7))
   applicationId    String
   globalQuestionId String
   questionLabel    String
+  questionType     QuestionType
   value            String[]
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
@@ -258,10 +275,11 @@ model GlobalApplicationAnswer {
 }
 
 model PositionApplicationAnswer {
-  id                 String    @id @default(uuid(7))
+  id                 String       @id @default(uuid(7))
   applicationId      String
   positionQuestionId String
   questionLabel      String
+  questionType       QuestionType
   value              String[]
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt

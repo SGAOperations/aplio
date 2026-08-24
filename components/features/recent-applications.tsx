@@ -64,22 +64,27 @@ function ApplicationList({
             key={app.id}
             className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3"
           >
+            {/* order-* keeps one DOM order for both the stacked mobile layout and the single desktop line */}
             <Link
               href={`/applications/${app.id}`}
-              className="min-w-0 flex-1 truncate text-sm font-medium hover:underline"
+              className="order-1 flex min-h-11 min-w-0 flex-1 items-center hover:underline md:min-h-0"
             >
-              {applicantLabel}
-              {renamedTo && (
-                <span className="text-muted-foreground ml-1 text-xs">
-                  ({renamedTo})
-                </span>
-              )}
+              <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                {applicantLabel}
+                {renamedTo && (
+                  <span className="text-muted-foreground ml-1 text-xs">
+                    ({renamedTo})
+                  </span>
+                )}
+              </span>
             </Link>
-            <span className="text-muted-foreground shrink-0 text-xs">
+            <span className="order-2 shrink-0 md:order-3">
+              <ApplicationStatusBadge status={app.status} />
+            </span>
+            <span className="text-muted-foreground order-3 w-full truncate text-xs md:order-2 md:w-auto md:shrink-0">
               {app.position.title}
             </span>
-            <ApplicationStatusBadge status={app.status} />
-            <span className="text-muted-foreground shrink-0 text-xs">
+            <span className="text-muted-foreground order-4 hidden shrink-0 text-xs md:inline">
               <LocalTime date={app.submittedAt} precision="date" />
             </span>
           </li>

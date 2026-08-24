@@ -14,7 +14,6 @@ import {
 } from '@/prisma/actions/applications';
 import type {
   GlobalAnswer,
-  GlobalApplicationAnswer,
   GlobalQuestion,
   PositionApplicationAnswer,
 } from '@/prisma/client';
@@ -33,6 +32,7 @@ import {
   isAnswered,
   isError,
   partitionAnswerValue,
+  resolveGlobalAnswerValues,
   toStringArray,
 } from '@/lib/utils';
 
@@ -209,36 +209,27 @@ export function ApplicationStepper({
   // Keyed by question id — see QuestionListProps.pendingSavesRef.
   const pendingSavesRef = useRef<Map<string, Promise<unknown>>>(new Map());
 
-  // Branches on row presence, not value length — an existing but empty
-  // row is a deliberate clear, must stay empty, unlike a missing row.
-  const initialGlobalValues = useMemo(
+  // An application row wins even when empty (a deliberate clear); no row
+  // falls back to the profile.
+  const resolvedGlobalValues = useMemo(
     () =>
-      Object.fromEntries(
-        globalQuestions.map((q) => {
-          const appAnswer = application.globalAnswers.find(
-            (a: GlobalApplicationAnswer) => a.globalQuestionId === q.id,
-          );
-          const profileAnswer = globalAnswers.find(
-            (a: GlobalAnswer) => a.globalQuestionId === q.id,
-          );
-          const value = appAnswer
-            ? toStringArray(appAnswer.value)
-            : toStringArray(profileAnswer?.value);
-          return [`g_${q.id}`, value];
-        }),
+      resolveGlobalAnswerValues(
+        globalQuestions.map((q) => q.id),
+        application.globalAnswers,
+        globalAnswers,
       ),
     [globalQuestions, globalAnswers, application.globalAnswers],
   );
 
-  // Row ids only, so presence (not value emptiness) drives hasNewRequiredGlobals.
-  const hasGlobalRow = useMemo(
+  const initialGlobalValues = useMemo(
     () =>
-      new Set(
-        application.globalAnswers.map(
-          (a: GlobalApplicationAnswer) => a.globalQuestionId,
-        ),
+      Object.fromEntries(
+        globalQuestions.map((q) => [
+          `g_${q.id}`,
+          resolvedGlobalValues.get(q.id) ?? [],
+        ]),
       ),
-    [application.globalAnswers],
+    [globalQuestions, resolvedGlobalValues],
   );
 
   const initialPositionValues = useMemo(
@@ -256,10 +247,15 @@ export function ApplicationStepper({
     [positionQuestions, application.positionAnswers],
   );
 
-  // True only for a question with no row at all — a cleared answer already has one.
+  // True only when a required question is genuinely unanswered after
+  // resolution — an already-answered profile value no longer counts as "new".
   const hasNewRequiredGlobals = useMemo(
-    () => globalQuestions.some((q) => q.required && !hasGlobalRow.has(q.id)),
-    [globalQuestions, hasGlobalRow],
+    () =>
+      globalQuestions.some(
+        (q) =>
+          q.required && !isAnswered(q, resolvedGlobalValues.get(q.id) ?? []),
+      ),
+    [globalQuestions, resolvedGlobalValues],
   );
 
   const [isCustomizing, setIsCustomizing] = useState(hasNewRequiredGlobals);

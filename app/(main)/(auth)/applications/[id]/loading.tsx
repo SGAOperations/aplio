@@ -16,8 +16,8 @@ export default function ApplicationDetailLoading() {
             <Skeleton className="h-4 w-56" />
           </div>
           <div className="flex flex-wrap gap-2">
-            <Skeleton className="h-9 w-24" />
-            <Skeleton className="h-9 w-24" />
+            <Skeleton className="h-9 w-40" />
+            <Skeleton className="h-9 w-9" />
           </div>
         </div>
         <Skeleton className="mt-3 h-4 w-56" />

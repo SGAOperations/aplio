@@ -43,6 +43,16 @@ export function getDisplayName(app: {
   return app.applicantName ?? app.user.name ?? app.user.email;
 }
 
+/** "<From> → <To>", or "Status recorded as <To>" for the null-`from` backfill row. */
+export function getApplicationStatusHistoryRowLabel(entry: {
+  from: $Enums.ApplicationStatus | null;
+  to: $Enums.ApplicationStatus;
+}): string {
+  if (entry.from === null)
+    return `Status recorded as ${APPLICATION_STATUS_LABELS[entry.to]}`;
+  return `${APPLICATION_STATUS_LABELS[entry.from]} → ${APPLICATION_STATUS_LABELS[entry.to]}`;
+}
+
 export type ErrorType = { error: string };
 
 export type ResponseType<T> = T | ErrorType;
@@ -157,6 +167,26 @@ export function partitionAnswerValue(
 /** True when the stored answer has any part that still fits the question's current shape. */
 export function isAnswered(question: AnswerQuestion, value: string[]): boolean {
   return partitionAnswerValue(question, value).fitted.length > 0;
+}
+
+/** An application row wins even when empty (a deliberate clear); no row falls back to the profile. */
+export function resolveGlobalAnswerValues(
+  questionIds: string[],
+  applicationAnswers: { globalQuestionId: string; value: string[] }[],
+  profileAnswers: { globalQuestionId: string; value: string[] }[],
+): Map<string, string[]> {
+  const appValues = new Map(
+    applicationAnswers.map((a) => [a.globalQuestionId, a.value]),
+  );
+  const profileValues = new Map(
+    profileAnswers.map((a) => [a.globalQuestionId, a.value]),
+  );
+  return new Map(
+    questionIds.map((id) => [
+      id,
+      appValues.get(id) ?? profileValues.get(id) ?? [],
+    ]),
+  );
 }
 
 /** Ids shared by every answer surface, so a card's label/input/error/notice/status stay wired to each other. */

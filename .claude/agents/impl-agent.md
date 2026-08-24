@@ -25,7 +25,7 @@ You are the Impl agent (Stage 2) of the pipeline in `.claude/docs/PIPELINE.md`. 
 - **Toolchain via `npm run` (never `npx`, except shadcn):** run prettier/eslint/tsc/Prisma/tsx through their scripts — `npm run prettier:check`, `npm run eslint:check`, `npm run tsc:check`, `npm run prisma:generate`, `npm run prisma:migrate -- --name <name>`. **Never** `npx prettier` / `npx prisma` / `npx tsx` (npx is allow-listed for shadcn only, so others auto-deny).
 - **JSON/data:** use `gh … --json … --jq '…'` — never pipe to `python3` / `node -e` / interpreters.
 - **Dependencies:** add/remove/upgrade with `npm install <pkg>` / `npm uninstall <pkg>`. Do **not** hand-edit `package.json` or `package-lock.json` to route around anything — edit them by hand only when npm genuinely cannot express the change.
-- **Clean code only:** no dead scaffolding, shims, or transitional re-exports. Build to the **Pre-PR self-check** in `.claude/docs/ENGINEERING.md`.
+- **Clean code only:** no dead scaffolding, shims, or transitional re-exports. Build to the **Pre-PR self-check** in `docs/ENGINEERING.md`.
 - **When blocked / auto-denied:** disallowed commands are **auto-denied silently** (no human prompt — you run in `dontAsk` mode), so a denied tool call just returns an error. Do **not** retry it or improvise a workaround: **STOP and emit `BLOCKED: <the exact denied command + what you needed>`** (see Blockers below) so the cockpit can surface it. **Never spawn subagents.**
 
 ## Pre-flight
@@ -46,7 +46,7 @@ gh issue edit N --repo SGAOperations/aplio --remove-label "plan approved" --add-
 
 ## Work
 
-1. **Read standards & plan.** Read `.claude/docs/ENGINEERING.md` and the root `CLAUDE.md`, then `gh issue view N --repo SGAOperations/aplio` for the plan and its checklist.
+1. **Read standards & plan.** Read `docs/ENGINEERING.md` and the root `CLAUDE.md`, then `gh issue view N --repo SGAOperations/aplio` for the plan and its checklist.
 2. **Bootstrap the worktree.** `node_modules` and the Prisma client are gitignored, so a fresh checkout lacks them. Also rebase onto `dev` so the worktree reflects the current integration branch (not just `main`):
 
    ```bash
@@ -56,7 +56,7 @@ gh issue edit N --repo SGAOperations/aplio --remove-label "plan approved" --add-
    git rebase origin/dev
    ```
 
-3. **Implement the checklist**, building to the **Pre-PR self-check** in `.claude/docs/ENGINEERING.md` §8. Key conventions: server actions in **`prisma/actions/`**, data queries in **`prisma/data/`**, shared types/constants in **`lib/`** (reuse existing); every action authenticates + zod-validates, returns **`void`/data or `{ error }`** (never `{ ok }`; `throw` for unexpected) and gives a **toast** (`sonner`); **one global error boundary** (no per-page `error.tsx`); **no `useEffect`** (empty-deps especially); server-first; named exports; no API routes except `/api/auth`; Tailwind + `DESIGN.md` tokens; mobile-first; strict TS (no `any`); loading + empty states on every async surface. Commit each logical unit with a **file-based** message (inline multi-line `-m` collapses on Windows, dropping the subject and co-authorship):
+3. **Implement the checklist**, building to the **Pre-PR self-check** in `docs/ENGINEERING.md` §8. Key conventions: server actions in **`prisma/actions/`**, data queries in **`prisma/data/`**, shared types/constants in **`lib/`** (reuse existing); every action authenticates + zod-validates, returns **`void`/data or `{ error }`** (never `{ ok }`; `throw` for unexpected) and gives a **toast** (`sonner`); **one global error boundary** (no per-page `error.tsx`); **no `useEffect`** (empty-deps especially); server-first; named exports; no API routes except `/api/auth`; Tailwind + `DESIGN.md` tokens; mobile-first; strict TS (no `any`); loading + empty states on every async surface. Commit each logical unit with a **file-based** message (inline multi-line `-m` collapses on Windows, dropping the subject and co-authorship):
 
    ```bash
    # Write .temp/commit-msg.txt (Write tool), then:
