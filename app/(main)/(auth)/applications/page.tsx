@@ -53,7 +53,7 @@ const searchParamsSchema = z.object({
 export default async function ApplicationsPage({
   searchParams,
 }: ApplicationsPageProps) {
-  // The (auth) layout only gates profile completeness, so this gates the role.
+  // The (auth) layout only gates the name, so this gates the role.
   const user = await requireManagerOrAdminOr404();
 
   const sp = await searchParams;
