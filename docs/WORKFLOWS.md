@@ -27,7 +27,7 @@ Behaviour shared by many workflows is stated once under [Cross-cutting behaviour
 
 **[Applicant (AP)](#applicant-ap)** — [AP-1](#ap-1-see-your-dashboard) · [AP-2](#ap-2-answer-profile-questions) · [AP-3](#ap-3-change-your-name) · [AP-4](#ap-4-return-to-an-interrupted-flow) · [AP-5](#ap-5-start-an-application) · [AP-6](#ap-6-answer-application-questions) · [AP-7](#ap-7-customize-or-revert-profile-answers) · [AP-8](#ap-8-upload-or-remove-a-file-answer) · [AP-9](#ap-9-submit-an-application) · [AP-10](#ap-10-track-your-applications) · [AP-11](#ap-11-view-one-of-your-applications) · [AP-12](#ap-12-download-your-own-file-answer) · [AP-13](#ap-13-withdraw-an-application) · [AP-14](#ap-14-edit-and-resubmit-a-withdrawn-application) · [AP-15](#ap-15-delete-a-draft) · [AP-16](#ap-16-sign-out)
 
-**[Position manager (PM)](#position-manager-pm)** — [PM-1](#pm-1-see-your-dashboard) · [PM-2](#pm-2-see-the-positions-you-manage) · [PM-3](#pm-3-create-a-position) · [PM-4](#pm-4-edit-position-details) · [PM-5](#pm-5-manage-position-questions) · [PM-6](#pm-6-add-a-manager) · [PM-7](#pm-7-remove-a-manager) · [PM-8](#pm-8-work-the-application-queue) · [PM-9](#pm-9-open-an-application-for-review) · [PM-10](#pm-10-download-an-applicants-file-answer) · [PM-11](#pm-11-move-one-application-through-the-status-graph) · [PM-12](#pm-12-move-several-applications-at-once) · [PM-13](#pm-13-reorder-position-questions)
+**[Position manager (PM)](#position-manager-pm)** — [PM-1](#pm-1-see-your-dashboard) · [PM-2](#pm-2-see-the-positions-you-manage) · [PM-3](#pm-3-create-a-position) · [PM-4](#pm-4-edit-position-details) · [PM-5](#pm-5-manage-position-questions) · [PM-6](#pm-6-add-a-manager) · [PM-7](#pm-7-remove-a-manager) · [PM-8](#pm-8-work-the-application-queue) · [PM-9](#pm-9-open-an-application-for-review) · [PM-10](#pm-10-download-an-applicants-file-answer) · [PM-11](#pm-11-move-one-application-through-the-status-graph) · [PM-12](#pm-12-move-several-applications-at-once) · [PM-13](#pm-13-reorder-position-questions) · [PM-14](#pm-14-override-a-status-undo-or-review-its-history)
 
 **[Admin (AD)](#admin-ad)** — [AD-1](#ad-1-see-every-position) · [AD-2](#ad-2-edit-an-archived-position) · [AD-3](#ad-3-delete-a-position) · [AD-4](#ad-4-create-a-global-question) · [AD-5](#ad-5-edit-a-global-question) · [AD-6](#ad-6-delete-a-global-question) · [AD-7](#ad-7-create-a-user) · [AD-8](#ad-8-grant-or-revoke-admin) · [AD-9](#ad-9-deactivate-a-user) · [AD-10](#ad-10-find-a-user) · [AD-11](#ad-11-reorder-global-questions)
 
@@ -309,7 +309,7 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 - **Failure / edge**
   - Already `draft`, already `withdrawn`, or in a terminal decision state (`accepted` / `rejected`) → **"This application can no longer be withdrawn."** The button is not rendered for those statuses, so this is the stale-tab path.
   - Unexpected throw → toast **"Something went wrong"**.
-- **End state** — status `withdrawn`. It drops out of the reviewable queue but stays visible to reviewers in the `listable` scope, including later edits ([AP-14](#ap-14-edit-and-resubmit-a-withdrawn-application)). Withdrawing does **not** reset a decision: `accepted` and `rejected` are excluded precisely because there is no status history, so a withdraw/resubmit round-trip must not launder a decision.
+- **End state** — status `withdrawn`, plus a new `ApplicationStatusEvent` recording it. It drops out of the reviewable queue but stays visible to reviewers in the `listable` scope, including later edits ([AP-14](#ap-14-edit-and-resubmit-a-withdrawn-application)). Withdrawing does **not** reset a decision: `accepted` and `rejected` stay excluded from the eligible source statuses — a withdraw/resubmit round-trip must never let an applicant action launder a reviewer's decision. That holds independent of the status history `ApplicationStatusEvent` now keeps ([PM-14](#pm-14-override-a-status-undo-or-review-its-history)); reviewing that history is not itself a way back out of a decision.
 
 ### AP-14 Edit and resubmit a withdrawn application
 
@@ -433,14 +433,14 @@ A user who manages at least one non-deleted position. Manager status is **derive
 ### PM-9 Open an application for review
 
 - **Trigger** — a row on `/applications` (`/applications/[id]`).
-- **Happy path** — `getApplicationForReview(id, user)` uses the `listable` scope — withdrawn rows are kept, drafts are not. The page shows a "Back to Applications" link, then a header row with the applicant's snapshotted name and status badge together, their email underneath, and the available status transitions right-aligned on that same row; below it, a linked position title and the applied date, then the profile and position answer groups full width. Answers render by shape (short/single/multiple choice in a label-value row, long answers full-width as prose, files as a Download row) from the snapshotted `questionLabel`/`value`/`type` — never a live question lookup, so a question retyped or relabeled after submission still shows the original label and every stored value.
+- **Happy path** — `getApplicationForReview(id, user)` uses the `listable` scope — withdrawn rows are kept, drafts are not — and `getApplicationStatusHistory(id, user)` fetches alongside it. The page shows a "Back to Applications" link, then a header row with the applicant's snapshotted name and status badge together, their email underneath, and a fixed two-control header action — a split button (or its degraded single-button form) plus a `⋯` that opens the status dialog — right-aligned on that same row; below it, a linked position title and the applied date, then the profile and position answer groups full width. Answers render by shape (short/single/multiple choice in a label-value row, long answers full-width as prose, files as a Download row) from the snapshotted `questionLabel`/`value`/`type` — never a live question lookup, so a question retyped or relabeled after submission still shows the original label and every stored value.
 - **Failure / edge**
   - Outside the caller's scope, a draft, or missing → `notFound()`; unauthorized and missing are indistinguishable.
   - The applicant renamed themselves since submitting → the heading reads "<snapshotted name> (<current name>)".
   - Empty answer groups → "No profile answers." / "No position-specific answers."
   - An individual answer with no stored value → "No answer".
-  - `withdrawn` → the header row shows the note "This application was withdrawn by the applicant and can no longer be updated." in place of transition buttons.
-  - `accepted` / `rejected` → the note from `TERMINAL_DECISION_STATUS_NOTES`: "Accepted. The applicant can no longer withdraw this application." (and the `rejected` twin), plus the back-transitions the graph allows.
+  - `withdrawn` → the header shows the note "This application was withdrawn by the applicant and can no longer be updated." plus `⋯` (history-only) in place of a move control.
+  - `accepted` / `rejected` → the note from `TERMINAL_DECISION_STATUS_NOTES`: "Accepted. The applicant can no longer withdraw this application." (and the `rejected` twin), plus `⋯`. Move-backs from either no longer render inline — they're reachable only through the status dialog's any-status Select ([PM-14](#pm-14-override-a-status-undo-or-review-its-history)).
 - **End state** — read-only until a transition is made.
 
 ### PM-10 Download an applicant's file answer
@@ -452,26 +452,27 @@ A user who manages at least one non-deleted position. Manager status is **derive
 
 ### PM-11 Move one application through the status graph
 
-- **Trigger** — a quick-action button in the status card on `/applications/[id]`.
-- **Happy path** — the rendered buttons come from `APPLICATION_STATUS_TRANSITIONS`, the single source shared by the UI and the server guard: `applied` → Reached out / Reviewing; `reached_out` → Interview scheduled / Reviewing (back to Applied); `interview_scheduled` → Reviewing / Accept (back to Reached out); `reviewing` → Interview scheduled / Accept (back to Reached out); `accepted` and `rejected` move back to Reviewing or Interview scheduled only. **Reject** is offered from every unresolved status. `updateApplicationStatus` folds authorization into its query, re-checks the transition, and writes with the source statuses in the `where`. Toast **"Moved to <label>"**.
+- **Trigger** — the split button (or, once there are no forward moves, the single "Change status" button) in the detail page header.
+- **Happy path** — `getApplicationStatusMenuGroups(from)` partitions `APPLICATION_STATUS_TRANSITIONS[from].forward` from the Accept/Reject decisions below the caret's separator, the same source the server guard reads: `applied` → **Mark reached out** main action, caret holds Move to reviewing above a separator, then Accept and Reject; `reached_out` → **Interview scheduled** main action, caret holds Move to reviewing, then Accept and Reject; `interview_scheduled` → **Move to reviewing** main action, caret holds Accept and Reject only; `reviewing` → **Interview scheduled** main action, caret holds Accept and Reject only. Accept and Reject are offered from every one of these four unresolved statuses — symmetric, unlike the pre-#399 graph where Accept was reachable only from `interview_scheduled`/`reviewing`. Move-backs never appear in this control; they're reachable only through the status dialog's any-status Select ([PM-14](#pm-14-override-a-status-undo-or-review-its-history)). `updateApplicationStatus` re-reads the row inside a transaction, compare-and-swaps on the exact status just read, and records an `ApplicationStatusEvent` in the same transaction. Toast **"Moved to <label>"**.
 - **Failure / edge**
+  - The target already matches the current status (a stale render) → **"This application is already <label>."**
   - The status changed since the page rendered → "This application is now <label>, so that move is no longer available. Refresh to see the current options."
   - The status changed between the check and the write → **"This application just changed. Refresh to see its current status."**
   - The application is outside the caller's reviewable scope → the action throws (IDOR-shaped, unreachable from the UI) → generic toast.
-  - `draft` and `withdrawn` have no moves in either direction.
-- **End state** — the new status; `/applications` and the detail page are revalidated. `accepted`/`rejected` also remove the applicant's ability to withdraw ([AP-13](#ap-13-withdraw-an-application)).
+  - `draft` and `withdrawn` render the header's note copy plus `⋯` instead of a move control.
+- **End state** — the new status, plus one `ApplicationStatusEvent` row recording it; `/applications` and the detail page are revalidated. `accepted`/`rejected` also remove the applicant's ability to withdraw ([AP-13](#ap-13-withdraw-an-application)).
 
 ### PM-12 Move several applications at once
 
 - **Trigger** — selecting rows on `/applications`, then a target status in the bulk bar, behind a confirmation.
-- **Happy path** — `updateApplicationStatuses` dedupes the ids, then does one `updateMany` whose `where` carries both the caller's scope and the **forward-only** source statuses, so the target set cannot drift mid-write. Toast **"Updated N application(s)"**.
+- **Happy path** — `updateApplicationStatuses` dedupes the ids, reads each eligible row's current status, then compare-and-swaps every row inside one transaction so the target set cannot drift mid-write, recording one `ApplicationStatusEvent` per row actually moved (skipped rows get none). Eligibility stays **forward-only** (`getApplicationStatusForwardSources`), which since the Accept/Reject symmetry in [PM-11](#pm-11-move-one-application-through-the-status-graph) also makes bulk **Accept** reachable from `applied` and `reached_out`, not only `interview_scheduled`/`reviewing`. Toast **"Updated N application(s)"**.
 - **Failure / edge**
   - Some ids ineligible → **"Updated N of M applications"** with the description "<Status> is only reachable from <sources>."
   - None eligible → "None of the selected applications can move to <label> — that's only reachable from <sources>."
   - Backward moves are deliberately unavailable in bulk: an already-decided row would otherwise be walked backward silently, so it is skipped like any other ineligible id.
   - More than 100 ids, or an empty selection → `{ error: 'Invalid input' }`.
   - Unexpected throw → **"Something went wrong. Please try again."**
-- **End state** — the eligible rows move; the rest are untouched and counted as skipped.
+- **End state** — the eligible rows move, each with its own new `ApplicationStatusEvent`; the rest are untouched and counted as skipped.
 
 ### PM-13 Reorder position questions
 
@@ -485,6 +486,18 @@ A user who manages at least one non-deleted position. Manager status is **derive
   - A card in inline-edit mode has no handle and can't be picked up; every other card still reorders around it.
   - Full keyboard support — Space/Enter picks up, arrows move, Space/Enter drops, Escape cancels — each step announced to screen readers ("Picked up …", "… moved to position N of M.").
 - **End state** — new and in-progress applications see the new order immediately ([AP-6](#ap-6-answer-application-questions)). Already-submitted applications are unaffected: answers render in the order they were answered, not question order, so a later reorder never re-sequences a reviewer's view of a submitted application.
+
+### PM-14 Override a status, undo, or review its history
+
+- **Trigger** — the `⋯` button in the detail page header ("Status history and override for <name>").
+- **Happy path** — the dialog shows three stacked regions. **Change status** — a `Select` over every reviewer status except the current one, plus **Apply**; this is the only route to a move-back and to an off-graph target, going through `updateApplicationStatus` with `override: true`, which bypasses `isAllowedApplicationStatusTransition` but still authenticates, scopes to the caller's reviewable positions, and CAS-writes the row plus its event in one transaction. **Undo last change** — shown only when `getApplicationStatusUndoTarget` resolves a status from the most recent event (hidden with no events, a backfill-only row, or a prior status of `draft`/`withdrawn`); labelled "Undo — back to <status>" and applies the same override path with that status as the target, so it writes its own event rather than deleting the one it reverses. **History** — every `ApplicationStatusEvent` for the application, newest first, each row showing `<From> → <To>`, the actor's name, and the time; a row with no `from` (the one-time migration backfill) reads "Status recorded as <To> · before history tracking" instead. Accept/Reject picked from the Select or reached via Undo still confirm through the same `ConfirmDialog` as the header's quick actions.
+- **Failure / edge**
+  - The target already matches the current status → **"This application is already <label>."**
+  - The row changed since the dialog opened → **"This application just changed. Refresh to see its current status."**
+  - `draft`/`withdrawn` → the dialog renders **history only**; Change status and Undo are hidden, since the override path is `reviewable`-scoped and would throw for either.
+  - No events at all (an application created outside the app's own write paths, e.g. a fixture or seed) → "No status changes recorded yet." instead of an empty list.
+  - Unexpected throw → generic toast.
+- **End state** — the dialog stays open after a successful change so the reviewer watches the new row land in the timeline; the header, `/applications`, and this page are all revalidated.
 
 ### Known open
 
