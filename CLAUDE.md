@@ -3,6 +3,7 @@
 These are the always-true rules for this repo. Depth lives in dedicated docs — read the relevant one before working:
 
 - **`.claude/docs/ENGINEERING.md`** — the quality bar (architecture, data integrity, security, UX states, a11y, performance). Read it before any planning or code work.
+- **`.claude/docs/PERMISSIONS.md`** — who may do what, and when: principals, route and action gates, the position and application state tables. Read it before planning or changing anything that gates on role, ownership or record state.
 - **`.claude/docs/PIPELINE.md`** — the automated agent pipeline and its GitHub label state machine.
 - **`.claude/docs/DESIGN.md`** — the design system: tokens, type/spacing scale, component conventions. Read it before building or changing UI.
 - **`.claude/docs/WORKFLOWS.md`** — what each user flow does end to end, per persona. Read it before changing a user-facing flow, and update the affected entry in the same PR.
