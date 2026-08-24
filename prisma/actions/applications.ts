@@ -29,7 +29,6 @@ import {
   TERMINAL_DECISION_STATUSES,
   getAnswerValueError,
   getApplicationStatusForwardSources,
-  getApplicationStatusSources,
   isAllowedApplicationStatusTransition,
   matchesShortAnswerFormat,
 } from '@/lib/constants';
@@ -439,14 +438,15 @@ export async function submitApplication(
       });
     }
 
-    // Status scoped again here, closing the check-then-write race between
-    // the read above and this write (e.g. a concurrent second tab).
+    // CAS on the exact status just read, closing the check-then-write race
+    // between the read above and this write (e.g. a concurrent second tab) —
+    // and giving the event below a provably correct `from`.
     const updateResult = await tx.application.updateMany({
       where: {
         id: parsed.data.applicationId,
         userId: currentUser.id,
         deletedAt: null,
-        status: { in: APPLICANT_EDITABLE_APPLICATION_STATUSES },
+        status: application.status,
       },
       data: {
         status: 'applied',
@@ -463,6 +463,15 @@ export async function submitApplication(
         error:
           'This application has already been submitted. Refresh to see its current status.',
       };
+
+    await tx.applicationStatusEvent.create({
+      data: {
+        applicationId: parsed.data.applicationId,
+        from: application.status,
+        to: 'applied',
+        changedById: currentUser.id,
+      },
+    });
   });
 
   if (isError(result)) return result;
@@ -477,6 +486,11 @@ export async function submitApplication(
 const updateApplicationStatusSchema = z.object({
   applicationId: z.string().min(1),
   status: z.enum(REVIEWER_APPLICATION_STATUSES),
+  // Bypasses isAllowedApplicationStatusTransition — the status dialog's
+  // any-status Select and undo both go through this flag. Target is still
+  // restricted to REVIEWER_APPLICATION_STATUSES above, which already
+  // excludes draft/withdrawn — that's the whole of the override restriction.
+  override: z.boolean().optional().default(false),
 });
 
 export async function updateApplicationStatus(
@@ -487,37 +501,60 @@ export async function updateApplicationStatus(
   const parsed = updateApplicationStatusSchema.safeParse(input);
   if (!parsed.success) return { error: 'Invalid input' };
 
-  const { applicationId, status } = parsed.data;
+  const { applicationId, status, override } = parsed.data;
 
-  // Authorization folded into the query, as in getApplicationForReview.
-  const application = await prisma.application.findFirst({
-    where: { id: applicationId, ...buildApplicationWhere(user, 'reviewable') },
-    select: { id: true, status: true },
+  const result = await prisma.$transaction(async (tx) => {
+    // Authorization folded into the query, as in getApplicationForReview.
+    const application = await tx.application.findFirst({
+      where: {
+        id: applicationId,
+        ...buildApplicationWhere(user, 'reviewable'),
+      },
+      select: { id: true, status: true },
+    });
+
+    // IDOR-style miss, unreachable from the UI — throw, don't return.
+    if (!application)
+      throw new Error('Application not found or not authorized');
+
+    if (status === application.status)
+      return {
+        error: `This application is already ${APPLICATION_STATUS_LABELS[status]}.`,
+      };
+
+    if (
+      !override &&
+      !isAllowedApplicationStatusTransition(application.status, status)
+    )
+      return {
+        error: `This application is now ${APPLICATION_STATUS_LABELS[application.status]}, so that move is no longer available. Refresh to see the current options.`,
+      };
+
+    // CAS on the exact status just read — tighter than the old `in:
+    // getApplicationStatusSources(status)` predicate, and the only way the
+    // event's `from` below is provably the status that was replaced.
+    const updateResult = await tx.application.updateMany({
+      where: { id: applicationId, status: application.status },
+      data: { status, updatedById: user.id },
+    });
+
+    if (updateResult.count === 0)
+      return {
+        error:
+          'This application just changed. Refresh to see its current status.',
+      };
+
+    await tx.applicationStatusEvent.create({
+      data: {
+        applicationId,
+        from: application.status,
+        to: status,
+        changedById: user.id,
+      },
+    });
   });
 
-  // IDOR-style miss, unreachable from the UI — throw, don't return.
-  if (!application) throw new Error('Application not found or not authorized');
-
-  if (!isAllowedApplicationStatusTransition(application.status, status))
-    return {
-      error: `This application is now ${APPLICATION_STATUS_LABELS[application.status]}, so that move is no longer available. Refresh to see the current options.`,
-    };
-
-  // Narrower than the `where` above: sources never include draft/withdrawn,
-  // which that `notIn` already excludes.
-  const updateResult = await prisma.application.updateMany({
-    where: {
-      id: applicationId,
-      status: { in: getApplicationStatusSources(status) },
-    },
-    data: { status, updatedById: user.id },
-  });
-
-  if (updateResult.count === 0)
-    return {
-      error:
-        'This application just changed. Refresh to see its current status.',
-    };
+  if (result && 'error' in result) return result;
 
   revalidatePath(`/applications/${applicationId}`);
   revalidatePath('/applications');
@@ -541,18 +578,53 @@ export async function updateApplicationStatuses(
   const applicationIds = Array.from(new Set(parsed.data.applicationIds));
   const { status } = parsed.data;
 
-  // Forward-only sources: a bulk move-back would silently walk an already-
-  // decided row backward, so it's skipped like any other ineligible id.
-  const result = await prisma.application.updateMany({
-    where: {
-      id: { in: applicationIds },
-      ...buildApplicationScopeWhere(user),
-      status: { in: getApplicationStatusForwardSources(status) },
-    },
-    data: { status, updatedById: user.id },
+  const { eligible, updatedIds } = await prisma.$transaction(async (tx) => {
+    // Forward-only sources: a bulk move-back would silently walk an already-
+    // decided row backward, so it's skipped like any other ineligible id.
+    // Captured with its current status so each row's event gets a correct `from`.
+    const eligible = await tx.application.findMany({
+      where: {
+        id: { in: applicationIds },
+        ...buildApplicationScopeWhere(user),
+        status: { in: getApplicationStatusForwardSources(status) },
+      },
+      select: { id: true, status: true },
+    });
+
+    if (eligible.length === 0) return { eligible, updatedIds: [] };
+
+    // Per-row (id, status) pairs keep the CAS on the bulk path too — a row a
+    // concurrent write moved between the read above and here is dropped
+    // rather than getting an event with a wrong `from`.
+    const updated = await tx.application.updateManyAndReturn({
+      where: {
+        AND: [
+          buildApplicationScopeWhere(user),
+          {
+            OR: eligible.map(({ id, status: from }) => ({ id, status: from })),
+          },
+        ],
+      },
+      data: { status, updatedById: user.id },
+      select: { id: true },
+    });
+
+    if (updated.length > 0) {
+      const priorStatusById = new Map(eligible.map((a) => [a.id, a.status]));
+      await tx.applicationStatusEvent.createMany({
+        data: updated.map((a) => ({
+          applicationId: a.id,
+          from: priorStatusById.get(a.id)!,
+          to: status,
+          changedById: user.id,
+        })),
+      });
+    }
+
+    return { eligible, updatedIds: updated.map((a) => a.id) };
   });
 
-  if (result.count === 0) {
+  if (eligible.length === 0) {
     const sourceLabels = getApplicationStatusForwardSources(status).map(
       (source) => APPLICATION_STATUS_LABELS[source],
     );
@@ -566,10 +638,13 @@ export async function updateApplicationStatuses(
   revalidatePath('/applications/[id]', 'layout');
 
   return {
-    updated: result.count,
-    skipped: applicationIds.length - result.count,
+    updated: updatedIds.length,
+    skipped: applicationIds.length - updatedIds.length,
   };
 }
+
+const WITHDRAW_NOT_ALLOWED_MESSAGE =
+  'This application can no longer be withdrawn.';
 
 export async function withdrawApplication(
   applicationId: string,
@@ -579,18 +654,45 @@ export async function withdrawApplication(
   const parsed = applicationIdSchema.safeParse({ applicationId });
   if (!parsed.success) throw new Error('Invalid input');
 
-  const result = await prisma.application.updateMany({
-    where: {
-      id: parsed.data.applicationId,
-      userId: currentUser.id,
-      deletedAt: null,
-      status: { notIn: ['draft', 'withdrawn', ...TERMINAL_DECISION_STATUSES] },
-    },
-    data: { status: 'withdrawn', updatedById: currentUser.id },
+  const result = await prisma.$transaction(async (tx) => {
+    const application = await tx.application.findFirst({
+      where: {
+        id: parsed.data.applicationId,
+        userId: currentUser.id,
+        deletedAt: null,
+        status: {
+          notIn: ['draft', 'withdrawn', ...TERMINAL_DECISION_STATUSES],
+        },
+      },
+      select: { status: true },
+    });
+
+    if (!application) return { error: WITHDRAW_NOT_ALLOWED_MESSAGE };
+
+    // CAS on the exact status just read, mirroring the other write paths.
+    const updateResult = await tx.application.updateMany({
+      where: {
+        id: parsed.data.applicationId,
+        userId: currentUser.id,
+        status: application.status,
+      },
+      data: { status: 'withdrawn', updatedById: currentUser.id },
+    });
+
+    if (updateResult.count === 0)
+      return { error: WITHDRAW_NOT_ALLOWED_MESSAGE };
+
+    await tx.applicationStatusEvent.create({
+      data: {
+        applicationId: parsed.data.applicationId,
+        from: application.status,
+        to: 'withdrawn',
+        changedById: currentUser.id,
+      },
+    });
   });
 
-  if (result.count === 0)
-    return { error: 'This application can no longer be withdrawn.' };
+  if (result && 'error' in result) return result;
 
   revalidatePath('/my-applications');
   revalidatePath(`/my-applications/${applicationId}`);
