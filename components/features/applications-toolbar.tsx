@@ -9,8 +9,11 @@ import { REVIEWER_APPLICATION_STATUS_OPTIONS } from '@/lib/constants';
 import type { ApplicationFilters, ReviewableApplicant } from '@/lib/types';
 
 import { Button } from '@/components/ui/button';
+import {
+  DataTableToolbar,
+  DataTableToolbarField,
+} from '@/components/ui/data-table-toolbar';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -114,122 +117,128 @@ export function ApplicationsToolbar({
   }
 
   return (
-    // p-1: overflow-x-auto forces overflow-y auto too, which would clip focus rings.
-    <div className="w-full min-w-0 overflow-x-auto p-1">
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="filter-position" className="text-xs">
-            Position
-          </Label>
-          <Select
-            value={filters.positionId ?? ''}
-            onValueChange={(v) => updateParam('positionId', v || undefined)}
-          >
-            <SelectTrigger id="filter-position" className="w-48">
-              <SelectValue placeholder="All positions" />
-            </SelectTrigger>
-            <SelectContent>
-              {/* "All positions" clears the filter */}
-              <SelectItem value="">All positions</SelectItem>
-              {positions.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+    <DataTableToolbar>
+      <DataTableToolbarField
+        label="Position"
+        htmlFor="filter-position"
+        className="w-full sm:w-48"
+      >
+        <Select
+          value={filters.positionId ?? ''}
+          onValueChange={(v) => updateParam('positionId', v || undefined)}
+        >
+          <SelectTrigger id="filter-position" className="w-full">
+            <SelectValue placeholder="All positions" />
+          </SelectTrigger>
+          <SelectContent>
+            {/* "All positions" clears the filter */}
+            <SelectItem value="">All positions</SelectItem>
+            {positions.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </DataTableToolbarField>
 
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="filter-applicant" className="text-xs">
-            Applicant
-          </Label>
-          <Select
-            value={filters.userId ?? ''}
-            onValueChange={(v) => updateParam('userId', v || undefined)}
-            disabled={applicants.length === 0}
-          >
-            <SelectTrigger id="filter-applicant" className="w-56">
-              <SelectValue
-                placeholder={
-                  applicants.length === 0
-                    ? 'No applicants yet'
-                    : 'All applicants'
-                }
-              />
-            </SelectTrigger>
-            <SelectContent>
-              {/* "All applicants" clears the filter */}
-              <SelectItem value="">All applicants</SelectItem>
-              {unknownApplicantId && (
-                <SelectItem value={unknownApplicantId}>
-                  Unknown applicant
-                </SelectItem>
-              )}
-              {applicants.map((a) => (
-                <SelectItem key={a.id} value={a.id}>
-                  {applicantLabels.get(a.id)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="filter-status" className="text-xs">
-            Status
-          </Label>
-          <Select
-            value={filters.status ?? ''}
-            onValueChange={(v) => updateParam('status', v || undefined)}
-          >
-            <SelectTrigger id="filter-status" className="w-44">
-              <SelectValue placeholder="All statuses" />
-            </SelectTrigger>
-            <SelectContent>
-              {/* "All statuses" clears the filter */}
-              <SelectItem value="">All statuses</SelectItem>
-              {REVIEWER_APPLICATION_STATUS_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="filter-search" className="text-xs">
-            Search
-          </Label>
-          <div className="relative">
-            <Input
-              id="filter-search"
-              aria-label="Search applications"
-              placeholder="Name, email, position, or date"
-              value={searchValue}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="w-64 pr-8"
+      <DataTableToolbarField
+        label="Applicant"
+        htmlFor="filter-applicant"
+        className="w-full sm:w-56"
+      >
+        <Select
+          value={filters.userId ?? ''}
+          onValueChange={(v) => updateParam('userId', v || undefined)}
+          disabled={applicants.length === 0}
+        >
+          <SelectTrigger id="filter-applicant" className="w-full">
+            <SelectValue
+              placeholder={
+                applicants.length === 0 ? 'No applicants yet' : 'All applicants'
+              }
             />
-            {searchValue && (
-              <button
-                type="button"
-                aria-label="Clear search"
-                onClick={clearSearch}
-                className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2"
-              >
-                <X className="h-3.5 w-3.5" aria-hidden="true" />
-              </button>
+          </SelectTrigger>
+          <SelectContent>
+            {/* "All applicants" clears the filter */}
+            <SelectItem value="">All applicants</SelectItem>
+            {unknownApplicantId && (
+              <SelectItem value={unknownApplicantId}>
+                Unknown applicant
+              </SelectItem>
             )}
-          </div>
-        </div>
+            {applicants.map((a) => (
+              <SelectItem key={a.id} value={a.id}>
+                {applicantLabels.get(a.id)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </DataTableToolbarField>
 
-        {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters}>
-            Clear filters
-          </Button>
-        )}
-      </div>
-    </div>
+      <DataTableToolbarField
+        label="Status"
+        htmlFor="filter-status"
+        className="w-full sm:w-44"
+      >
+        <Select
+          value={filters.status ?? ''}
+          onValueChange={(v) => updateParam('status', v || undefined)}
+        >
+          <SelectTrigger id="filter-status" className="w-full">
+            <SelectValue placeholder="All statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            {/* "All statuses" clears the filter */}
+            <SelectItem value="">All statuses</SelectItem>
+            {REVIEWER_APPLICATION_STATUS_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </DataTableToolbarField>
+
+      <DataTableToolbarField
+        label="Search"
+        htmlFor="filter-search"
+        className="w-full sm:w-64"
+      >
+        <div className="relative">
+          <Input
+            id="filter-search"
+            aria-label="Search applications"
+            placeholder="Name, email, position, or date"
+            value={searchValue}
+            onChange={(e) => handleSearch(e.target.value)}
+            className="w-full pr-12 md:pr-9"
+          />
+          {searchValue && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label="Clear search"
+              onClick={clearSearch}
+              className="absolute top-1/2 right-1 -translate-y-1/2 md:size-7"
+            >
+              <X aria-hidden="true" />
+            </Button>
+          )}
+        </div>
+      </DataTableToolbarField>
+
+      {hasActiveFilters && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={clearFilters}
+          className="w-full sm:w-auto"
+        >
+          Clear filters
+        </Button>
+      )}
+    </DataTableToolbar>
   );
 }
