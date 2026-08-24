@@ -577,6 +577,33 @@ export const MANAGED_POSITIONS_WINDOW_DAYS = 30;
 export const ARCHIVED_POSITION_EDIT_ERROR =
   'This position is archived. Ask an admin if it still needs changes.';
 
+// Shared by positionFormSchema and createPositionSchema/updatePositionSchema.
+export const POSITION_OPENS_AT_ORDER_ERROR =
+  'The open date must be on or before the close date.';
+export const POSITION_CLOSES_AT_ORDER_ERROR =
+  'The close date must be on or after the open date.';
+
+// YYYY-MM-DD strings sort lexically the same as calendar order, so a plain
+// comparison is exact without parsing into org-day boundaries.
+export function validatePositionDates(
+  data: { opensAt?: string; closesAt?: string },
+  ctx: z.RefinementCtx,
+) {
+  if (!data.opensAt || !data.closesAt) return;
+  if (data.opensAt > data.closesAt) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['opensAt'],
+      message: POSITION_OPENS_AT_ORDER_ERROR,
+    });
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['closesAt'],
+      message: POSITION_CLOSES_AT_ORDER_ERROR,
+    });
+  }
+}
+
 // Returned by deletePosition when it has non-draft applications.
 export const POSITION_DELETE_BLOCKED_ERROR =
   "This position has applications, so it can't be deleted. Close it instead.";
@@ -604,18 +631,20 @@ const orgDayInputSchema = z.union([z.iso.date(), z.literal('')], {
   error: 'Enter a valid date',
 });
 
-export const positionFormSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
-  description: z
-    .string()
-    .max(
-      POSITION_DESCRIPTION_MAX_LENGTH,
-      `Description must be ${POSITION_DESCRIPTION_MAX_LENGTH.toLocaleString()} characters or fewer.`,
-    ),
-  status: z.enum(STATUS_VALUES),
-  opensAt: orgDayInputSchema.optional(),
-  closesAt: orgDayInputSchema.optional(),
-});
+export const positionFormSchema = z
+  .object({
+    title: z.string().min(1, 'Title is required'),
+    description: z
+      .string()
+      .max(
+        POSITION_DESCRIPTION_MAX_LENGTH,
+        `Description must be ${POSITION_DESCRIPTION_MAX_LENGTH.toLocaleString()} characters or fewer.`,
+      ),
+    status: z.enum(STATUS_VALUES),
+    opensAt: orgDayInputSchema.optional(),
+    closesAt: orgDayInputSchema.optional(),
+  })
+  .superRefine(validatePositionDates);
 
 export const STATUS_VARIANTS: Record<PositionStatus, BadgeVariant> = {
   draft: 'secondary',
