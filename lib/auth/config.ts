@@ -74,12 +74,12 @@ export const auth = betterAuth({
       expiresIn: OTP_EXPIRY_SECONDS,
       allowedAttempts: 3,
       async sendVerificationOTP({ email, otp }) {
-        const template = otpEmail({
+        const emailContent = otpEmail({
           code: otp,
           signInUrl: buildOtpSignInUrl(getBaseUrl(), email, otp),
           expiresInMinutes: OTP_EXPIRY_SECONDS / 60,
         });
-        await sendEmail({ to: email, ...template });
+        await sendEmail({ to: email, ...emailContent, template: 'otp' });
       },
     }),
     // Must stay last: it writes cookies for the handlers registered before it.

@@ -188,5 +188,9 @@ export async function cleanupFixtures(): Promise<void> {
 
   await prisma.position.deleteMany({ where: testPosition });
 
+  await prisma.emailLog.deleteMany({
+    where: { to: { startsWith: TEST_PREFIX } },
+  });
+
   await prisma.user.deleteMany({ where: testUser });
 }

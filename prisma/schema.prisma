@@ -39,6 +39,17 @@ enum ShortAnswerFormat {
   zip_code
 }
 
+enum EmailStatus {
+  sent
+  failed
+  scheduled
+  cancelled
+}
+
+enum EmailTemplateKey {
+  otp
+}
+
 model User {
   id            String    @id @default(uuid(7))
   // Nullable during the Neon Auth cutover; dropped once no row depends on it.
@@ -68,6 +79,7 @@ model User {
   managedPositions Position[]     @relation("PositionManagers")
   applications     Application[]
   globalAnswers    GlobalAnswer[]
+  emailLogs        EmailLog[]
 
   createdPositions          Position[]                 @relation("PositionCreatedBy")
   updatedPositions          Position[]                 @relation("PositionUpdatedBy")
@@ -306,4 +318,25 @@ model Verification {
   updatedAt  DateTime @updatedAt
 
   @@index([identifier])
+}
+
+// Append-only like ApplicationStatusEvent, except status/sentAt/error move a
+// row from scheduled to sent/cancelled — no updatedAt/deletedAt audit columns.
+model EmailLog {
+  id                String           @id @default(uuid(7))
+  to                String
+  userId            String?
+  template          EmailTemplateKey
+  subject           String
+  status            EmailStatus
+  providerMessageId String?
+  scheduledAt       DateTime?
+  sentAt            DateTime?
+  error             String?
+  createdAt         DateTime         @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([status])
 }
