@@ -1,12 +1,12 @@
 ---
 name: a11y-audit
-description: Run an accessibility pass on changed UI — semantic HTML, labels, focus management, keyboard operability, contrast, and touch targets — and report or fix issues. Use after building or changing components, per .claude/docs/ENGINEERING.md §5.
+description: Run an accessibility pass on changed UI — semantic HTML, labels, focus management, keyboard operability, contrast, and touch targets — and report or fix issues. Use after building or changing components, per docs/ENGINEERING.md §5.
 allowed-tools: Read, Grep, Glob, Edit
 ---
 
 # Accessibility audit
 
-Check changed components against `.claude/docs/ENGINEERING.md` §5.
+Check changed components against `docs/ENGINEERING.md` §5.
 
 ## Checklist
 

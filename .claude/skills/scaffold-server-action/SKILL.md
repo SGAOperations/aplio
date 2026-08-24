@@ -6,11 +6,11 @@ allowed-tools: Read, Grep, Glob, Edit, Write
 
 # Scaffold a Server Action
 
-Generate a mutation as a Server Action in `prisma/actions/`, meeting `.claude/docs/ENGINEERING.md` §2–4. Never put mutations in API routes or client components.
+Generate a mutation as a Server Action in `prisma/actions/`, meeting `docs/ENGINEERING.md` §2–4. Never put mutations in API routes or client components.
 
 ## Steps
 
-1. **Read context.** Skim `.claude/docs/ENGINEERING.md` §2 (Data & Integrity), §3 (Security), §4 (action returns + toasts), and an existing file in `prisma/actions/` to match the neighborhood's naming and style. Confirm the auth helper (`@/lib/auth/server`) and Prisma client import paths. **Reuse shared types/constants from `lib/types.ts` / `lib/constants.ts`** — don't create per-service ones.
+1. **Read context.** Skim `docs/ENGINEERING.md` §2 (Data & Integrity), §3 (Security), §4 (action returns + toasts), and an existing file in `prisma/actions/` to match the neighborhood's naming and style. Confirm the auth helper (`@/lib/auth/server`) and Prisma client import paths. **Reuse shared types/constants from `lib/types.ts` / `lib/constants.ts`** — don't create per-service ones.
 2. **Place it by domain.** Add to the matching domain file in **`prisma/actions/`** (e.g. `prisma/actions/applications.ts`), or create one named by domain — never a catch-all `actions.ts`. (Data-fetching queries live in `prisma/data/`, not here.)
 3. **Follow this shape** (adapt names/fields; build `data` explicitly from parsed fields — no mass assignment; scope every write to the caller to prevent IDOR):
 
