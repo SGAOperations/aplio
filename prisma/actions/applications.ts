@@ -371,6 +371,7 @@ export async function submitApplication(
     const [globalQuestions, profileAnswers] = await Promise.all([
       tx.globalQuestion.findMany({
         where: { deletedAt: null },
+        orderBy: { order: 'asc' },
         select: {
           id: true,
           label: true,
@@ -429,7 +430,7 @@ export async function submitApplication(
           globalQuestionId: q.id,
           questionLabel: q.label,
           questionType: q.type,
-          value: resolvedValues.get(q.id) as string[],
+          value: resolvedValues.get(q.id)!,
           createdById: currentUser.id,
           updatedById: currentUser.id,
         })),
