@@ -315,6 +315,11 @@ export const questionFormSchema = baseQuestionSchema
   .superRefine(validateOptions)
   .superRefine(validateShortAnswerFormat);
 
+export const reorderIdsSchema = z.array(z.string().min(1)).min(1);
+
+export const QUESTION_ORDER_STALE_ERROR =
+  'The question list changed since this page loaded. Refresh and try reordering again.';
+
 export const APPLICATION_STATUS_LABELS: Record<
   $Enums.ApplicationStatus,
   string

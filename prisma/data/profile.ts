@@ -11,7 +11,7 @@ export async function getProfileData(
 ): Promise<{ question: GlobalQuestion; answer: GlobalAnswer | null }[]> {
   const questions = await prisma.globalQuestion.findMany({
     where: { deletedAt: null },
-    orderBy: { order: 'asc' },
+    orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
     include: { answers: { where: { userId } } },
   });
 

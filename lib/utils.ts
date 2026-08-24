@@ -77,6 +77,19 @@ export function toStringArray(v: unknown): string[] {
   return [];
 }
 
+/** True when `a` and `b` contain exactly the same ids, no duplicates in either. */
+export function isSameIdSet(
+  a: readonly string[],
+  b: readonly string[],
+): boolean {
+  if (a.length !== b.length) return false;
+  const setA = new Set(a);
+  const setB = new Set(b);
+  if (setA.size !== a.length || setB.size !== b.length) return false;
+  for (const id of setA) if (!setB.has(id)) return false;
+  return true;
+}
+
 /** Alternatives ("reachable from X or Y"), not a conjunction — "or" throughout. */
 export function formatAlternatives(labels: string[]): string {
   if (labels.length <= 1) return labels.join('');

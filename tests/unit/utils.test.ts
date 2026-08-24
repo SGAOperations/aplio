@@ -15,6 +15,7 @@ import {
   isBypassAllowed,
   isError,
   isPositionActive,
+  isSameIdSet,
   partitionAnswerValue,
   splitOtherAnswer,
   summarizeBulkStatusChange,
@@ -622,5 +623,28 @@ describe('isBypassAllowed', () => {
   it('denies production', () => {
     process.env.VERCEL_ENV = 'production';
     expect(isBypassAllowed()).toBe(false);
+  });
+});
+
+describe('isSameIdSet', () => {
+  it('is true for the same ids in a different order', () => {
+    expect(isSameIdSet(['a', 'b', 'c'], ['c', 'a', 'b'])).toBe(true);
+  });
+
+  it('is false for a different length', () => {
+    expect(isSameIdSet(['a', 'b'], ['a', 'b', 'c'])).toBe(false);
+  });
+
+  it('is false when an id is missing', () => {
+    expect(isSameIdSet(['a', 'b', 'c'], ['a', 'b', 'd'])).toBe(false);
+  });
+
+  it('is false when an extra id is injected', () => {
+    expect(isSameIdSet(['a', 'b'], ['a', 'c'])).toBe(false);
+  });
+
+  it('is false when either side has a duplicate', () => {
+    expect(isSameIdSet(['a', 'a', 'b'], ['a', 'b', 'c'])).toBe(false);
+    expect(isSameIdSet(['a', 'b', 'c'], ['a', 'a', 'b'])).toBe(false);
   });
 });

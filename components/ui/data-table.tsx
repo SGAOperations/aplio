@@ -16,6 +16,11 @@ import { cn } from '@/lib/utils';
 
 import { Card } from '@/components/ui/card';
 import {
+  SortableHandle,
+  SortableProvider,
+  useSortableItem,
+} from '@/components/ui/sortable-list';
+import {
   Table,
   TableBody,
   TableCaption,
@@ -24,6 +29,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+
+export interface DataTableReorder<T> {
+  orderKey: string;
+  getItemLabel: (row: T) => string;
+  onReorder: (ids: string[]) => void;
+  sortHint: string;
+  disabled?: boolean;
+}
 
 interface DataTableProps<T> {
   rows: T[];
@@ -39,6 +52,8 @@ interface DataTableProps<T> {
   // Controlled sort mode: pass both to opt the caller's own state/URL contract in.
   sort?: SortState;
   onSortToggle?: (key: string) => void;
+  // Drag-to-reorder, gated to sorting by `orderKey` ascending.
+  reorder?: DataTableReorder<T>;
 }
 
 function sortLabel(header: ReactNode, key: string): string {
@@ -97,6 +112,114 @@ function SortableColumnHead({
   );
 }
 
+function SortableTableRow<T>({
+  id,
+  row,
+  columns,
+  isSelected,
+  handleLabel,
+  handleDisabled,
+}: {
+  id: string;
+  row: T;
+  columns: DataTableColumn<T>[];
+  isSelected: boolean;
+  handleLabel: string;
+  handleDisabled: boolean;
+}) {
+  const { setNodeRef, style, handleProps, isDragging } = useSortableItem(id);
+
+  return (
+    <TableRow
+      ref={setNodeRef}
+      style={style}
+      data-state={isSelected ? 'selected' : undefined}
+      className={cn(
+        'motion-reduce:transition-none',
+        isDragging && 'relative z-10',
+      )}
+    >
+      <TableCell className="px-2">
+        <SortableHandle
+          label={handleLabel}
+          handleProps={handleProps}
+          disabled={handleDisabled}
+        />
+      </TableCell>
+      {columns.map((column) => (
+        <TableCell key={column.key} className={column.cellClassName}>
+          {column.cell(row)}
+        </TableCell>
+      ))}
+    </TableRow>
+  );
+}
+
+function SortableMobileRow({
+  id,
+  handleLabel,
+  handleDisabled,
+  children,
+}: {
+  id: string;
+  handleLabel: string;
+  handleDisabled: boolean;
+  children: ReactNode;
+}) {
+  const { setNodeRef, style, handleProps, isDragging } = useSortableItem(id);
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'flex items-start motion-reduce:transition-none',
+        isDragging && 'relative z-10',
+      )}
+    >
+      <SortableHandle
+        label={handleLabel}
+        handleProps={handleProps}
+        disabled={handleDisabled}
+        className="ml-2 shrink-0"
+      />
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
+  );
+}
+
+interface ReorderSectionProps<T> {
+  reorderActive: boolean;
+  reorder: DataTableReorder<T> | undefined;
+  rows: T[];
+  getRowKey: (row: T) => string;
+  className: string;
+  children: ReactNode;
+}
+
+// One DndContext per responsive branch — see the comment at its call sites.
+function ReorderSection<T>({
+  reorderActive,
+  reorder,
+  rows,
+  getRowKey,
+  className,
+  children,
+}: ReorderSectionProps<T>) {
+  if (!reorderActive || !reorder)
+    return <div className={className}>{children}</div>;
+  return (
+    <SortableProvider
+      items={rows}
+      getId={getRowKey}
+      getLabel={reorder.getItemLabel}
+      onReorder={reorder.onReorder}
+    >
+      <div className={className}>{children}</div>
+    </SortableProvider>
+  );
+}
+
 export function DataTable<T>({
   rows,
   columns,
@@ -109,6 +232,7 @@ export function DataTable<T>({
   caption,
   sort: controlledSort,
   onSortToggle,
+  reorder,
 }: DataTableProps<T>) {
   const controlled = onSortToggle !== undefined;
 
@@ -175,78 +299,135 @@ export function DataTable<T>({
 
   if (rows.length === 0 && emptyState) return <>{emptyState}</>;
 
-  return (
-    // overflow-hidden clips the header hover highlight to the card's rounded corners
-    <Card className="gap-0 overflow-hidden p-0">
-      <div className="hidden md:block">
-        <Table>
-          <TableCaption className="sr-only">{caption}</TableCaption>
-          <TableHeader>
-            <TableRow>
-              {columns.map((column) =>
-                column.sortAccessor ? (
-                  <SortableColumnHead
-                    key={column.key}
-                    header={column.header}
-                    columnKey={column.key}
-                    active={sort.key === column.key}
-                    direction={sort.direction}
-                    ariaSort={ariaSort(column.key)}
-                    onToggle={() => toggle(column.key)}
-                    className={column.headClassName}
-                  />
-                ) : (
-                  <TableHead key={column.key} className={column.headClassName}>
-                    {column.header}
-                  </TableHead>
-                ),
-              )}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sortedRows.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="text-muted-foreground text-center"
-                >
-                  {noMatchMessage}
-                </TableCell>
-              </TableRow>
-            ) : (
-              sortedRows.map((row) => (
-                <TableRow
-                  key={getRowKey(row)}
-                  data-state={isRowSelected?.(row) ? 'selected' : undefined}
-                >
-                  {columns.map((column) => (
-                    <TableCell
-                      key={column.key}
-                      className={column.cellClassName}
-                    >
-                      {column.cell(row)}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+  const showReorderColumn = !!reorder && rows.length > 1;
+  const sortedByOrder =
+    showReorderColumn &&
+    sort.key === reorder.orderKey &&
+    sort.direction === 'asc';
+  const dragLive = sortedByOrder && !reorder.disabled;
+  const columnCount = columns.length + (showReorderColumn ? 1 : 0);
 
-      {/* Mobile stacked cards — sort order from sortedRows reflects active sort */}
-      <div className="flex flex-col divide-y md:hidden">
-        {sortedRows.length === 0 ? (
-          <p className="text-muted-foreground p-4 text-center text-sm">
-            {noMatchMessage}
-          </p>
-        ) : (
-          sortedRows.map((row) => (
-            <div key={getRowKey(row)}>{mobileCard(row)}</div>
-          ))
-        )}
-      </div>
-    </Card>
+  return (
+    <div className="flex flex-col gap-2">
+      {showReorderColumn && !sortedByOrder && (
+        <p className="text-muted-foreground text-sm">{reorder.sortHint}</p>
+      )}
+      {/* overflow-hidden clips the header hover highlight to the card's rounded corners */}
+      <Card className="gap-0 overflow-hidden p-0">
+        {/* DndContext must wrap this div, not nest inside <tbody> (a11y live region renders as a sibling). */}
+        <ReorderSection
+          className="hidden md:block"
+          reorderActive={showReorderColumn}
+          reorder={reorder}
+          rows={sortedRows}
+          getRowKey={getRowKey}
+        >
+          <Table>
+            <TableCaption className="sr-only">{caption}</TableCaption>
+            <TableHeader>
+              <TableRow>
+                {showReorderColumn && (
+                  <TableHead className="w-8 px-2">
+                    <span className="sr-only">Reorder</span>
+                  </TableHead>
+                )}
+                {columns.map((column) =>
+                  column.sortAccessor ? (
+                    <SortableColumnHead
+                      key={column.key}
+                      header={column.header}
+                      columnKey={column.key}
+                      active={sort.key === column.key}
+                      direction={sort.direction}
+                      ariaSort={ariaSort(column.key)}
+                      onToggle={() => toggle(column.key)}
+                      className={column.headClassName}
+                    />
+                  ) : (
+                    <TableHead
+                      key={column.key}
+                      className={column.headClassName}
+                    >
+                      {column.header}
+                    </TableHead>
+                  ),
+                )}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sortedRows.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={columnCount}
+                    className="text-muted-foreground text-center"
+                  >
+                    {noMatchMessage}
+                  </TableCell>
+                </TableRow>
+              ) : showReorderColumn ? (
+                sortedRows.map((row) => (
+                  <SortableTableRow
+                    key={getRowKey(row)}
+                    id={getRowKey(row)}
+                    row={row}
+                    columns={columns}
+                    isSelected={!!isRowSelected?.(row)}
+                    handleLabel={reorder.getItemLabel(row)}
+                    handleDisabled={!dragLive}
+                  />
+                ))
+              ) : (
+                sortedRows.map((row) => (
+                  <TableRow
+                    key={getRowKey(row)}
+                    data-state={isRowSelected?.(row) ? 'selected' : undefined}
+                  >
+                    {columns.map((column) => (
+                      <TableCell
+                        key={column.key}
+                        className={column.cellClassName}
+                      >
+                        {column.cell(row)}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </ReorderSection>
+
+        {/* Mobile stacked cards — sort order from sortedRows reflects active sort */}
+        <ReorderSection
+          className="flex flex-col divide-y md:hidden"
+          reorderActive={showReorderColumn}
+          reorder={reorder}
+          rows={sortedRows}
+          getRowKey={getRowKey}
+        >
+          {sortedRows.length === 0 ? (
+            <p className="text-muted-foreground p-4 text-center text-sm">
+              {noMatchMessage}
+            </p>
+          ) : showReorderColumn ? (
+            sortedRows.map((row) => (
+              <SortableMobileRow
+                key={getRowKey(row)}
+                id={getRowKey(row)}
+                handleLabel={reorder.getItemLabel(row)}
+                handleDisabled={!dragLive}
+              >
+                {mobileCard(row)}
+              </SortableMobileRow>
+            ))
+          ) : (
+            sortedRows.map((row) => (
+              <div key={getRowKey(row)}>{mobileCard(row)}</div>
+            ))
+          )}
+        </ReorderSection>
+      </Card>
+    </div>
   );
 }
 
