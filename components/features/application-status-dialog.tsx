@@ -94,7 +94,11 @@ export function ApplicationStatusDialog({
                     }
                     disabled={move.isPending}
                   >
-                    <SelectTrigger id="status-dialog-select" className="w-full">
+                    <SelectTrigger
+                      id="status-dialog-select"
+                      aria-describedby="status-dialog-select-hint"
+                      className="w-full"
+                    >
                       <SelectValue placeholder="Choose a status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -119,6 +123,13 @@ export function ApplicationStatusDialog({
                     Apply
                   </Button>
                 </div>
+                <p
+                  id="status-dialog-select-hint"
+                  className="text-muted-foreground text-xs"
+                >
+                  Any status, including moves the normal flow doesn&apos;t
+                  offer.
+                </p>
               </div>
             )}
 
