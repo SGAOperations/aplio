@@ -14,9 +14,10 @@ import {
 import { getCurrentUser } from '@/lib/auth/server';
 import {
   ARCHIVED_POSITION_EDIT_ERROR,
-  POSITION_DATE_ORDER_ERROR,
+  POSITION_CLOSES_AT_ORDER_ERROR,
   POSITION_DELETE_BLOCKED_ERROR,
   POSITION_DESCRIPTION_MAX_LENGTH,
+  POSITION_OPENS_AT_ORDER_ERROR,
   validatePositionDates,
 } from '@/lib/constants';
 import { orgDayEnd, orgDayStart } from '@/lib/dates';
@@ -56,9 +57,11 @@ const updatePositionSchema = z
 
 // The refinement's messages are the only user-actionable parse failures.
 const parseError = (error: z.ZodError) =>
-  error.issues.some((issue) => issue.message === POSITION_DATE_ORDER_ERROR)
-    ? POSITION_DATE_ORDER_ERROR
-    : 'Invalid input';
+  error.issues.find(
+    (issue) =>
+      issue.message === POSITION_OPENS_AT_ORDER_ERROR ||
+      issue.message === POSITION_CLOSES_AT_ORDER_ERROR,
+  )?.message ?? 'Invalid input';
 
 const deletePositionSchema = z.object({ id: z.string().min(1) });
 

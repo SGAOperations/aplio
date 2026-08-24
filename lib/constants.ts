@@ -575,7 +575,9 @@ export const ARCHIVED_POSITION_EDIT_ERROR =
   'This position is archived. Ask an admin if it still needs changes.';
 
 // Shared by positionFormSchema and createPositionSchema/updatePositionSchema.
-export const POSITION_DATE_ORDER_ERROR =
+export const POSITION_OPENS_AT_ORDER_ERROR =
+  'The open date must be on or before the close date.';
+export const POSITION_CLOSES_AT_ORDER_ERROR =
   'The close date must be on or after the open date.';
 
 // YYYY-MM-DD strings sort lexically the same as calendar order, so a plain
@@ -589,12 +591,12 @@ export function validatePositionDates(
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['opensAt'],
-      message: POSITION_DATE_ORDER_ERROR,
+      message: POSITION_OPENS_AT_ORDER_ERROR,
     });
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['closesAt'],
-      message: POSITION_DATE_ORDER_ERROR,
+      message: POSITION_CLOSES_AT_ORDER_ERROR,
     });
   }
 }

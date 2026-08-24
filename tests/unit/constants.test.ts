@@ -5,7 +5,8 @@ import {
   ANSWER_OTHER_MAX_LENGTH,
   ANSWER_SHORT_MAX_LENGTH,
   NON_TERMINAL_APPLICATION_STATUSES,
-  POSITION_DATE_ORDER_ERROR,
+  POSITION_CLOSES_AT_ORDER_ERROR,
+  POSITION_OPENS_AT_ORDER_ERROR,
   REVIEWER_APPLICATION_STATUSES,
   TERMINAL_DECISION_STATUSES,
   UNRESOLVED_APPLICATION_STATUSES,
@@ -295,8 +296,14 @@ describe('validatePositionDates (via positionFormSchema)', () => {
     const paths = result.error.issues.map((issue) => issue.path.join('.'));
     expect(paths).toContain('opensAt');
     expect(paths).toContain('closesAt');
-    for (const issue of result.error.issues)
-      expect(issue.message).toBe(POSITION_DATE_ORDER_ERROR);
+    const opensAtIssue = result.error.issues.find(
+      (issue) => issue.path.join('.') === 'opensAt',
+    );
+    const closesAtIssue = result.error.issues.find(
+      (issue) => issue.path.join('.') === 'closesAt',
+    );
+    expect(opensAtIssue?.message).toBe(POSITION_OPENS_AT_ORDER_ERROR);
+    expect(closesAtIssue?.message).toBe(POSITION_CLOSES_AT_ORDER_ERROR);
   });
 
   it('accepts the same day for both', () => {
