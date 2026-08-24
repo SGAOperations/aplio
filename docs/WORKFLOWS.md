@@ -21,7 +21,7 @@ Behaviour shared by many workflows is stated once under [Cross-cutting behaviour
 
 ## Table of contents
 
-**[Cross-cutting behaviours](#cross-cutting-behaviours)** — [XC-1](#xc-1-sign-in-gate-and-the-redirectto-round-trip) · [XC-2](#xc-2-name-gate) · [XC-3](#xc-3-profile-completeness-gate) · [XC-4](#xc-4-denial-shape) · [XC-5](#xc-5-errors-and-feedback) · [XC-6](#xc-6-rate-limiting) · [XC-7](#xc-7-deactivated-account)
+**[Cross-cutting behaviours](#cross-cutting-behaviours)** — [XC-1](#xc-1-sign-in-gate-and-the-redirectto-round-trip) · [XC-2](#xc-2-name-gate) · [XC-3](#xc-3-profile-completeness) · [XC-4](#xc-4-denial-shape) · [XC-5](#xc-5-errors-and-feedback) · [XC-6](#xc-6-rate-limiting) · [XC-7](#xc-7-deactivated-account)
 
 **[Anonymous (AN)](#anonymous-an)** — [AN-1](#an-1-browse-positions) · [AN-2](#an-2-view-a-position) · [AN-3](#an-3-start-applying-from-a-position) · [AN-4](#an-4-sign-in-with-an-email-code) · [AN-5](#an-5-request-a-new-code) · [AN-6](#an-6-set-your-name-on-first-sign-in) · [AN-7](#an-7-read-the-legal-pages) · [AN-8](#an-8-dev-bypass-sign-in)
 
@@ -45,9 +45,15 @@ When `isBypassAllowed()` is true (dev only) the base is `/login/bypass` instead 
 
 A user with no `name` cannot use the app: `requireName(user)` redirects to `/login?redirectTo=<current path>`, where `/login` renders the name form instead of the email step. It is applied by `app/(main)/(auth)/layout.tsx` for everything under that group, and called directly by the pages that sit outside it — `/` , `/positions`, `/positions/[id]`, `/profile`. Public pages guard with `if (user) await requireName(user)` so anonymous visitors are unaffected.
 
-### XC-3 Profile completeness gate
+### XC-3 Profile completeness
 
-`app/(main)/(auth)/layout.tsx` redirects a signed-in **non-manager, non-admin** with unanswered required global questions to `/profile?redirectTo=<current path>`. It is onboarding routing, not a denial. Managers and admins pass through — which is why the "Complete your profile first" card on the apply page ([AP-5](#ap-5-start-an-application)) is reachable for them but normally pre-empted by this gate for a plain applicant.
+Profile completeness is surfaced **in place, never as a redirect** — no layout or page redirects an incomplete profile to `/profile`; `app/(main)/(auth)/layout.tsx` does `getCurrentUser()` + `requireName()` only. Completeness itself is computed by `prisma/data/profile.ts` and surfaced on three fronts:
+
+- **Dashboard banner** — `ProfileCompletenessBanner`, mounted only by `UserDashboard`: "Complete your profile" · "You have N required question(s) left to answer." (singular at 1) · **Complete profile** → `/profile`. Renders `null` once complete. Managers and admins get `ManagerDashboard`/`AdminDashboard`, so they never see it ([AP-1](#ap-1-see-your-dashboard)).
+- **Apply-page card** — `/positions/[id]/apply` blocks _starting_ a new application while a required global question is unanswered: "Complete your profile first" with **Go to Profile** → `/profile?redirectTo=/positions/[id]/apply`. This is the only hard block, and it applies to **everyone including managers and admins**. An application that already exists bypasses it entirely — the stepper owns its own missing-required flow ([AP-6](#ap-6-answer-application-questions), [AP-7](#ap-7-customize-or-revert-profile-answers)).
+- **Return bar** — `/profile` renders `ProfileReturnBar` only when it arrives with a sanitized `redirectTo`; the apply-page card is the only surface that produces one ([AP-4](#ap-4-return-to-an-interrupted-flow)).
+
+Zero non-deleted required global questions ⇒ complete by definition (`requiredCount === 0`; the apply page's `profileData.length === 0`), and none of this is a denial ([XC-4](#xc-4-denial-shape)) — every route stays reachable with an empty profile.
 
 ### XC-4 Denial shape
 
@@ -179,7 +185,7 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 
 ### AP-2 Answer profile questions
 
-- **Trigger** — the Profile item in the user menu, the completeness banner, or the [XC-3](#xc-3-profile-completeness-gate) redirect to `/profile`.
+- **Trigger** — the Profile item in the user menu, the completeness banner, or the apply page's **Go to Profile** button.
 - **Happy path** — `getProfileData(user.id)` returns every non-deleted global question with the caller's answer. Each field autosaves on blur through `updateGlobalAnswer`, which validates format and option membership and upserts scoped to the caller. Answers are shared across every application: "Your answers are shared across every application."
 - **Failure / edge**
   - Format mismatch on a `short_answer` with a `format` → the format's message from `SHORT_ANSWER_FORMAT_ERROR_MESSAGES`, inline; the autosave is skipped so the error isn't also toasted.
@@ -201,7 +207,7 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 
 ### AP-4 Return to an interrupted flow
 
-- **Trigger** — arriving at `/profile?redirectTo=<path>` from [XC-3](#xc-3-profile-completeness-gate).
+- **Trigger** — arriving at `/profile?redirectTo=<path>` from the "Complete your profile first" card on `/positions/[id]/apply` ([AP-5](#ap-5-start-an-application)); the round trip is the shared behaviour described in [XC-3](#xc-3-profile-completeness).
 - **Happy path** — a sticky `ProfileReturnBar` shows "Profile complete" once every required question is answered, with a **Continue** button back to the destination.
 - **Failure / edge**
   - Still incomplete → the status reads "N required questions left" (singular "question" at 1) and **Continue** is `aria-disabled` and non-interactive, described by that status.
@@ -215,7 +221,7 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 - **Failure / edge**
   - Position soft-deleted or still a draft → `redirect('/positions')` before anything renders — resource state, not denial.
   - Position no longer accepting → the "Applications are closed" card ("This position is no longer accepting applications."), with **Browse positions** and **Back to position**.
-  - Required profile questions unanswered → the "Complete your profile first" card with a **Go to Profile** button. In practice [XC-3](#xc-3-profile-completeness-gate) pre-empts this for plain applicants, so it is the manager/admin path.
+  - Required profile questions unanswered → the "Complete your profile first" card with a **Go to Profile** button. This is the path for every caller, including managers and admins, and it gates only the _first_ application — a draft or withdrawn application already in hand bypasses it entirely.
   - An application already exists and is not `draft`/`withdrawn` → the "You've already applied" card with the status badge, the submitted date, and links to **View my applications**, **View my answers** and **Back to position**. For an unresolved status the copy is "To change your answers, withdraw this application from My Applications, then edit and resubmit it."; once decided it reads "This application has been Accepted/Rejected and can no longer be edited."
   - Window closed between the page render and the click → `{ error: 'This position is no longer accepting applications.' }` → error toast.
   - Position soft-deleted between render and click → **"This position is no longer available."**
@@ -344,7 +350,7 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 
 ## Position manager (PM)
 
-A user who manages at least one non-deleted position. Manager status is **derived**, not stored — there is no role column; `isManager` counts `Position.managers` rows. A manager who manages nothing cannot create their first position; only an admin can bootstrap them ([PM-6](#pm-6-add-a-manager)). Managers run every [Applicant](#applicant-ap) workflow as well, and are exempt from the profile-completeness gate ([XC-3](#xc-3-profile-completeness-gate)). The sidebar gains a **Manage** group with Positions and Applications.
+A user who manages at least one non-deleted position. Manager status is **derived**, not stored — there is no role column; `isManager` counts `Position.managers` rows. A manager who manages nothing cannot create their first position; only an admin can bootstrap them ([PM-6](#pm-6-add-a-manager)). Managers run every [Applicant](#applicant-ap) workflow as well; they get no dashboard completeness banner, but the apply-page block applies to them like anyone else ([XC-3](#xc-3-profile-completeness)). The sidebar gains a **Manage** group with Positions and Applications.
 
 ### PM-1 See your dashboard
 
