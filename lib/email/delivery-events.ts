@@ -7,8 +7,7 @@ import { EmailStatus } from '@/prisma/client';
 import { getResend } from '@/lib/email/client';
 import { prisma } from '@/lib/prisma';
 
-// Rank is what makes replays and out-of-order events no-ops: an incoming
-// event is applied only where it strictly outranks the row's current status.
+// Applied only when it strictly outranks the current status — makes replays/reorders no-ops.
 export const EMAIL_STATUS_RANK: Record<EmailStatus, number> = {
   scheduled: 0,
   sent: 1,
@@ -147,8 +146,7 @@ interface ResendWebhookHeaders {
   signature: string;
 }
 
-// Resend sends the standard-webhooks svix-* names; fall back to webhook-*
-// in case that ever changes, since the SDK maps these onto webhook-* itself.
+// Resend sends svix-*; webhook-* fallback since the SDK maps these itself.
 function extractWebhookHeaders(headers: Headers): ResendWebhookHeaders | null {
   const id = headers.get('svix-id') ?? headers.get('webhook-id');
   const timestamp =

@@ -227,6 +227,23 @@ describe('POST /api/webhooks/resend', () => {
     expect(untouched.status).toBe('sent');
   });
 
+  it('returns 400 and writes nothing for a handled type with an invalid payload', async () => {
+    const row = await seedSentRow();
+
+    const res = await postEvent({
+      type: 'email.bounced',
+      created_at: '2026-01-01T00:00:00.000Z',
+      data: { email_id: row.providerMessageId },
+    });
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'Invalid payload' });
+    const untouched = await prisma.emailLog.findUniqueOrThrow({
+      where: { id: row.id },
+    });
+    expect(untouched.status).toBe('sent');
+  });
+
   it('ignores an unhandled event type and writes nothing', async () => {
     const row = await seedSentRow();
 
