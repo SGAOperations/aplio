@@ -187,7 +187,7 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
   - Unexpected throw → toast **"Failed to save answer"**; the field keeps its unsaved value so a retry works.
   - `file_upload` questions do not go through this action — see [AP-8](#ap-8-upload-or-remove-a-file-answer).
   - A question deleted between render and save → the action throws (not user-actionable) → generic toast.
-- **End state** — `GlobalAnswer` rows upserted. These are copied into a new application's answers at creation ([AP-5](#ap-5-start-an-application)) and backfilled at submit ([AP-9](#ap-9-submit-an-application)).
+- **End state** — `GlobalAnswer` rows upserted. These are copied into a new application's answers at creation ([AP-5](#ap-5-start-an-application)) and, for any question still missing a snapshot row, resolved and materialized at submit ([AP-9](#ap-9-submit-an-application)).
 
 ### AP-3 Change your name
 
@@ -232,12 +232,12 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
   - Application no longer applicant-editable → **"This application has already been submitted. Withdraw it to make changes."**
   - The question id matches neither a global question nor one of this position's questions → the action throws (IDOR-shaped) → generic toast.
   - **Next** with an unanswered required global question → the fields are highlighted, the stepper jumps back to step 1, and the root error reads "Answer the highlighted required questions before continuing."
-  - A global question added after the draft was created has no answer row; the stepper opens in customize mode so the new required question is answered before proceeding.
-- **End state** — `GlobalApplicationAnswer` / `PositionApplicationAnswer` rows for this application, each carrying its own `questionLabel` snapshot so a later question edit can't rewrite what a reviewer sees.
+  - A required global question added after the draft was created is still unanswered once resolved against the profile ([AP-7](#ap-7-customize-or-revert-profile-answers)); the stepper opens in customize mode so it can be answered before proceeding.
+- **End state** — `GlobalApplicationAnswer` / `PositionApplicationAnswer` rows for this application, each carrying its own `questionLabel`/`questionType` snapshot so a later question edit can't rewrite what a reviewer sees.
 
 ### AP-7 Customize or revert profile answers
 
-- **Trigger** — the customize toggle above the profile questions in the stepper.
+- **Trigger** — the customize toggle above the profile questions in the stepper, which auto-opens with the "New required profile questions were added…" callout when a required global question resolves (via `resolveGlobalAnswerValues`, `lib/utils.ts`) to no answer at all — neither an application row nor a profile value. A required question the applicant already answered on their profile does not trigger it, even with no application row yet.
 - **Happy path** — toggling on unlocks the profile answers for this application only. Toggling off writes each changed field back to the profile value via `createOrUpdateApplicationAnswer`, waiting on any in-flight autosave first so the revert lands last. Toast **"Reverted to profile answers"**.
 - **Failure / edge**
   - Any single field's revert returns `{ error }` → that message is toasted verbatim and the field keeps its last saved value; the others still revert.
@@ -260,12 +260,12 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 ### AP-9 Submit an application
 
 - **Trigger** — **Submit** at the end of the stepper on `/positions/[id]/apply`.
-- **Happy path** — the client validates the position fields and re-checks required globals, then waits for every pending autosave so the server reads a complete snapshot. `submitApplication` runs one transaction: it re-checks ownership, status, soft-deletion and the application window, backfills any global answer row that is missing but answered on the profile, verifies every required question, then flips the status to `applied` with `submittedAt` and an `applicantName` snapshot. Toast **"Application submitted"** and the browser replaces the URL with `/my-applications/[id]`.
+- **Happy path** — the client validates the position fields and re-checks required globals, then waits for every pending autosave so the server reads a complete snapshot. `submitApplication` runs one transaction, read → validate → write: it re-checks ownership, status, soft-deletion and the application window, resolves every global question's value via `resolveGlobalAnswerValues` (an application row wins even when empty; no row falls back to the profile), verifies every required question with no write yet, then — only once validation passes — materializes a snapshot row for each question still missing one with a non-empty resolved value, and flips the status to `applied` with `submittedAt` and an `applicantName` snapshot. Toast **"Application submitted"** and the browser replaces the URL with `/my-applications/[id]`.
 - **Failure / edge**
   - Not applicant-editable (checked first, ahead of the window and answer checks) → **"This application has already been submitted. Withdraw it to make changes."**
   - Position soft-deleted since the draft was created → **"This position is no longer available."**
   - Window closed while the draft sat open → **"This position is no longer accepting applications."**
-  - Required **profile** questions still unanswered after the backfill → "Answer these required profile questions before submitting: <labels>." — up to three labels, then "and N more".
+  - Required **profile** questions still unanswered after resolution → "Answer these required profile questions before submitting: <labels>." — up to three labels, then "and N more". Nothing is written when this fires — validation reads only.
   - Required **position** questions unanswered → **"Please answer all required questions before submitting."**
   - A second tab submitting concurrently → the status-scoped `updateMany` matches nothing → **"This application has already been submitted. Refresh to see its current status."**
   - Any of these also sets the stepper's root error, so the message is visible after the toast dismisses. An unexpected throw → **"Something went wrong. Please try again."**
@@ -531,7 +531,7 @@ An admin is a **manager on every position**: every [Position manager](#position-
 - **Failure / edge**
   - Validation failures return the first zod issue verbatim — same rules as [PM-5](#pm-5-manage-position-questions).
   - Non-admin → the action throws; the page itself is `requireAdminOr404`.
-- **End state** — every applicant now sees the question on `/profile`. **In-progress drafts are not stranded:** a draft has no answer row for the new question, so the stepper opens in customize mode with it highlighted ([AP-6](#ap-6-answer-application-questions)), and `submitApplication` backfills from the profile or blocks with "Answer these required profile questions before submitting: …" ([AP-9](#ap-9-submit-an-application)). Already-submitted applications are untouched.
+- **End state** — every applicant now sees the question on `/profile`. **In-progress drafts are not stranded:** a required new question with no application row and no profile answer opens the stepper in customize mode with it highlighted ([AP-6](#ap-6-answer-application-questions)), and `submitApplication` resolves it from the profile at submit or blocks with "Answer these required profile questions before submitting: …" ([AP-9](#ap-9-submit-an-application)). Already-submitted applications are untouched.
 
 ### AD-5 Edit a global question
 
@@ -540,7 +540,7 @@ An admin is a **manager on every position**: every [Position manager](#position-
 - **Failure / edge**
   - Deleted in another tab → **"This question no longer exists."**
   - Validation → the first zod issue.
-  - Existing answers are **not** re-validated against the new shape; each answer keeps the `questionLabel` it snapshotted, so reviewers still see the question as it was asked.
+  - Existing answers are **not** re-validated against the new shape; each answer keeps the `questionLabel`/`questionType` it snapshotted, so reviewers still see the question as it was asked and rendered under the shape it was saved as, even after a type change.
 - **End state** — the question changes for `/profile` and for every in-progress application.
 
 ### AD-6 Delete a global question
