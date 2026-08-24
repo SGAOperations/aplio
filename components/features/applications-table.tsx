@@ -97,7 +97,8 @@ export function ApplicationsTable({
   ) {
     const params = new URLSearchParams(searchParams.toString());
     params.set('sort', `${field}:${direction}`);
-    // Re-fetches server-side: a 100-row cap can't be sorted correctly on the client.
+    // A sort change while on page 4 must land on page 1, not an empty page.
+    params.delete('page');
     router.push(`${pathname}?${params.toString()}`);
   }
 

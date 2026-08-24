@@ -5,7 +5,9 @@ import type { AnswerQuestion, PositionActivity } from '@/lib/types';
 import {
   answerFieldIds,
   formatAlternatives,
+  formatPaginationSummary,
   formatTableCount,
+  getPaginationRange,
   getPositionAvailability,
   getUserRoleRank,
   getUserRoleTokens,
@@ -215,17 +217,6 @@ describe('formatTableCount', () => {
     ).toBe('3 / 10 applications');
   });
 
-  it('shows "100+" when the shown count is capped', () => {
-    expect(
-      formatTableCount({
-        shown: 100,
-        total: 250,
-        noun: 'application',
-        shownCapped: true,
-      }),
-    ).toBe('100+ / 250 applications');
-  });
-
   it('supports an irregular plural noun', () => {
     expect(
       formatTableCount({
@@ -235,6 +226,96 @@ describe('formatTableCount', () => {
         pluralNoun: 'queries',
       }),
     ).toBe('2 queries');
+  });
+});
+
+describe('getPaginationRange', () => {
+  it('returns every page when there are 7 or fewer', () => {
+    expect(getPaginationRange(1, 5)).toEqual([1, 2, 3, 4, 5]);
+    expect(getPaginationRange(4, 7)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+  });
+
+  it('windows around the current page with ellipses at both ends', () => {
+    expect(getPaginationRange(5, 20)).toEqual([
+      1,
+      'ellipsis',
+      4,
+      5,
+      6,
+      'ellipsis',
+      20,
+    ]);
+  });
+
+  it('fills a gap of exactly one page instead of an ellipsis', () => {
+    expect(getPaginationRange(4, 20)).toEqual([1, 2, 3, 4, 5, 'ellipsis', 20]);
+  });
+
+  it('has no leading ellipsis near the first page', () => {
+    expect(getPaginationRange(1, 20)).toEqual([1, 2, 'ellipsis', 20]);
+  });
+
+  it('has no trailing ellipsis near the last page', () => {
+    expect(getPaginationRange(20, 20)).toEqual([1, 'ellipsis', 19, 20]);
+  });
+});
+
+describe('formatPaginationSummary', () => {
+  it('shows a bare count when everything fits on one page', () => {
+    expect(
+      formatPaginationSummary({
+        rangeStart: 1,
+        rangeEnd: 18,
+        total: 18,
+        noun: 'application',
+      }),
+    ).toBe('18 applications');
+  });
+
+  it('uses the singular noun for a total of one', () => {
+    expect(
+      formatPaginationSummary({
+        rangeStart: 1,
+        rangeEnd: 1,
+        total: 1,
+        noun: 'application',
+      }),
+    ).toBe('1 application');
+  });
+
+  it('marks a single-page result as matching when filtered', () => {
+    expect(
+      formatPaginationSummary({
+        rangeStart: 1,
+        rangeEnd: 18,
+        total: 18,
+        noun: 'application',
+        isFiltered: true,
+      }),
+    ).toBe('18 matching applications');
+  });
+
+  it('shows the range across multiple pages', () => {
+    expect(
+      formatPaginationSummary({
+        rangeStart: 51,
+        rangeEnd: 100,
+        total: 412,
+        noun: 'application',
+      }),
+    ).toBe('Showing 51–100 of 412 applications');
+  });
+
+  it('marks a multi-page range as matching when filtered', () => {
+    expect(
+      formatPaginationSummary({
+        rangeStart: 1,
+        rangeEnd: 50,
+        total: 137,
+        noun: 'application',
+        isFiltered: true,
+      }),
+    ).toBe('Showing 1–50 of 137 matching applications');
   });
 });
 

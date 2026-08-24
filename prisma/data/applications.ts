@@ -7,6 +7,7 @@ import {
   buildReviewablePositionWhere,
 } from '@/lib/auth/scopes';
 import {
+  APPLICATIONS_PAGE_SIZE,
   PUBLISHED_POSITION_WHERE,
   VISIBLE_POSITION_WHERE,
 } from '@/lib/constants';
@@ -214,28 +215,30 @@ export async function getRecentApplications(
   });
 }
 
-// Applicant identity — reviewer-gated callers only. Capped at 100 rows.
-export async function getApplications(
+// Prisma DateTime filters are range-based, so a date query becomes a range.
+const MONTH_NAMES = [
+  'jan',
+  'feb',
+  'mar',
+  'apr',
+  'may',
+  'jun',
+  'jul',
+  'aug',
+  'sep',
+  'oct',
+  'nov',
+  'dec',
+];
+
+// Shared by getApplications and getApplicationsCount so the total can never
+// disagree with the rows.
+function buildApplicationListWhere(
   user: Reviewer,
   filters: ApplicationFilters,
-): Promise<AdminApplicationListItem[]> {
+): Prisma.ApplicationWhereInput {
   const baseWhere = buildApplicationWhere(user, 'listable');
 
-  // Prisma DateTime filters are range-based, so a date query becomes a range.
-  const MONTH_NAMES = [
-    'jan',
-    'feb',
-    'mar',
-    'apr',
-    'may',
-    'jun',
-    'jul',
-    'aug',
-    'sep',
-    'oct',
-    'nov',
-    'dec',
-  ];
   let dateWhere: { submittedAt?: { gte: Date; lt: Date } } = {};
   if (filters.q) {
     const q = filters.q.trim();
@@ -292,26 +295,41 @@ export async function getApplications(
       }
     : {};
 
-  const sort = filters.sort;
-  const orderBy = sort
-    ? sort.field === 'date'
-      ? { submittedAt: sort.direction }
-      : sort.field === 'name'
-        ? [
-            { user: { name: sort.direction } },
-            { user: { email: sort.direction } },
-          ]
-        : { status: sort.direction }
-    : ({ submittedAt: 'desc' } as const);
+  return {
+    ...baseWhere,
+    ...(filters.positionId ? { positionId: filters.positionId } : {}),
+    ...(filters.status ? { status: filters.status } : {}),
+    ...(filters.userId ? { userId: filters.userId } : {}),
+    ...textWhere,
+  };
+}
 
+// { id: 'desc' } tiebreaker: uuid(7) ids are time-ordered, so ties on the
+// primary sort key can't be reordered by Postgres between pages.
+function buildApplicationListOrderBy(
+  sort: ApplicationFilters['sort'],
+): Prisma.ApplicationOrderByWithRelationInput[] {
+  if (!sort) return [{ submittedAt: 'desc' }, { id: 'desc' }];
+
+  if (sort.field === 'date')
+    return [{ submittedAt: sort.direction }, { id: 'desc' }];
+  if (sort.field === 'name')
+    return [
+      { user: { name: sort.direction } },
+      { user: { email: sort.direction } },
+      { id: 'desc' },
+    ];
+  return [{ status: sort.direction }, { id: 'desc' }];
+}
+
+// Applicant identity — reviewer-gated callers only.
+export async function getApplications(
+  user: Reviewer,
+  filters: ApplicationFilters,
+  page = 1,
+): Promise<AdminApplicationListItem[]> {
   return prisma.application.findMany({
-    where: {
-      ...baseWhere,
-      ...(filters.positionId ? { positionId: filters.positionId } : {}),
-      ...(filters.status ? { status: filters.status } : {}),
-      ...(filters.userId ? { userId: filters.userId } : {}),
-      ...textWhere,
-    },
+    where: buildApplicationListWhere(user, filters),
     select: {
       id: true,
       status: true,
@@ -320,9 +338,21 @@ export async function getApplications(
       position: { select: { id: true, title: true } },
       user: { select: { id: true, name: true, email: true } },
     },
-    orderBy,
-    // One past the cap, so the caller can tell truncated from exactly-100.
-    take: 101,
+    orderBy: buildApplicationListOrderBy(filters.sort),
+    take: APPLICATIONS_PAGE_SIZE,
+    skip: (page - 1) * APPLICATIONS_PAGE_SIZE,
+  });
+}
+
+// Must share buildApplicationListWhere with getApplications — a count built
+// from a different where would leak the existence of applications on
+// positions the caller doesn't manage.
+export async function getApplicationsCount(
+  user: Reviewer,
+  filters: ApplicationFilters,
+): Promise<number> {
+  return prisma.application.count({
+    where: buildApplicationListWhere(user, filters),
   });
 }
 
@@ -352,12 +382,6 @@ export async function getMyRecentActivity(
     select: applicationSelect,
     orderBy: { updatedAt: 'desc' },
     take,
-  });
-}
-
-export async function getApplicationsTotal(user: Reviewer): Promise<number> {
-  return prisma.application.count({
-    where: buildApplicationWhere(user, 'listable'),
   });
 }
 

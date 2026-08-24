@@ -37,7 +37,7 @@ import {
   getApplicationForReview,
   getApplicationStatusCounts,
   getApplications,
-  getApplicationsTotal,
+  getApplicationsCount,
   getMyApplications,
   getMySubmittedCount,
   getRecentApplications,
@@ -203,7 +203,7 @@ describe('searchUsers (#357)', () => {
   });
 });
 
-describe('getApplications / getApplicationsTotal / getApplicationForReview / getReviewablePositions', () => {
+describe('getApplications / getApplicationsCount / getApplicationForReview / getReviewablePositions', () => {
   it('scopes getApplications to the managing manager, admin sees both, draft/deleted excluded, withdrawn included', async () => {
     const asManagerA = await getApplications(managerA, {});
     const idsA = asManagerA.map((a) => a.id);
@@ -248,22 +248,22 @@ describe('getApplications / getApplicationsTotal / getApplicationForReview / get
   });
 
   it('never counts an out-of-scope application towards the total', async () => {
-    const before = await getApplicationsTotal(managerA);
+    const before = await getApplicationsCount(managerA, {});
     const extraApplicant = await createTestUser();
     await createTestApplication(extraApplicant, positionB, {
       status: 'applied',
     });
-    const after = await getApplicationsTotal(managerA);
+    const after = await getApplicationsCount(managerA, {});
     expect(after).toBe(before);
   });
 
   it('counts an in-scope application towards the total', async () => {
-    const before = await getApplicationsTotal(managerA);
+    const before = await getApplicationsCount(managerA, {});
     const extraApplicant = await createTestUser();
     await createTestApplication(extraApplicant, positionA, {
       status: 'applied',
     });
-    const after = await getApplicationsTotal(managerA);
+    const after = await getApplicationsCount(managerA, {});
     expect(after).toBe(before + 1);
   });
 

@@ -243,29 +243,90 @@ interface FormatTableCountOptions {
   /** Singular noun; pluralized by appending "s" unless `pluralNoun` is given. */
   noun: string;
   pluralNoun?: string;
-  /** Displays the shown count as "100+" when the query capped it. */
-  shownCapped?: boolean;
   /** When false, collapses to "{total} {noun}" even if shown and total differ. */
   isFiltered?: boolean;
 }
 
 /**
- * Bare count when nothing is hidden, "{shown} / {total}" when the table is truncated.
+ * Bare count when nothing is hidden, "{shown} / {total}" when filtered.
  */
 export function formatTableCount({
   shown,
   total,
   noun,
   pluralNoun,
-  shownCapped = false,
   isFiltered = false,
 }: FormatTableCountOptions): string {
   const plural = pluralNoun ?? `${noun}s`;
   const nounLabel = total === 1 ? noun : plural;
-  const shownLabel = shownCapped ? '100+' : String(shown);
 
-  if (!isFiltered && !shownCapped) return `${total} ${nounLabel}`;
-  return `${shownLabel} / ${total} ${nounLabel}`;
+  if (!isFiltered) return `${total} ${nounLabel}`;
+  return `${shown} / ${total} ${nounLabel}`;
+}
+
+/**
+ * Page-number window for pagination nav: always first + last, current ±1,
+ * `'ellipsis'` for gaps. Caps at 7 slots.
+ */
+export function getPaginationRange(
+  currentPage: number,
+  totalPages: number,
+): (number | 'ellipsis')[] {
+  if (totalPages <= 7)
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+
+  const pages = new Set<number>([
+    1,
+    totalPages,
+    currentPage,
+    currentPage - 1,
+    currentPage + 1,
+  ]);
+  const sorted = [...pages]
+    .filter((p) => p >= 1 && p <= totalPages)
+    .sort((a, b) => a - b);
+
+  const result: (number | 'ellipsis')[] = [];
+  sorted.forEach((page, i) => {
+    if (i > 0) {
+      const prev = sorted[i - 1] as number;
+      if (page - prev === 2) result.push(prev + 1);
+      else if (page - prev > 2) result.push('ellipsis');
+    }
+    result.push(page);
+  });
+
+  return result;
+}
+
+interface FormatPaginationSummaryOptions {
+  rangeStart: number;
+  rangeEnd: number;
+  total: number;
+  noun: string;
+  pluralNoun?: string;
+  isFiltered?: boolean;
+}
+
+/**
+ * "Showing {start}–{end} of {total} [matching] {noun}" for multi-page results;
+ * a bare count when everything fits on one page.
+ */
+export function formatPaginationSummary({
+  rangeStart,
+  rangeEnd,
+  total,
+  noun,
+  pluralNoun,
+  isFiltered = false,
+}: FormatPaginationSummaryOptions): string {
+  const plural = pluralNoun ?? `${noun}s`;
+  const nounLabel = total === 1 ? noun : plural;
+  const matching = isFiltered ? 'matching ' : '';
+
+  if (rangeStart === 1 && rangeEnd === total)
+    return `${total} ${matching}${nounLabel}`;
+  return `Showing ${rangeStart}–${rangeEnd} of ${total} ${matching}${nounLabel}`;
 }
 
 interface RoleTokenInput {

@@ -1,0 +1,165 @@
+import Link from 'next/link';
+import * as React from 'react';
+
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  MoreHorizontalIcon,
+} from 'lucide-react';
+
+import { cn } from '@/lib/utils';
+
+import { type Button, buttonVariants } from '@/components/ui/button';
+
+function Pagination({ className, ...props }: React.ComponentProps<'nav'>) {
+  return (
+    <nav
+      role="navigation"
+      aria-label="Pagination"
+      data-slot="pagination"
+      className={cn('mx-auto flex w-full justify-center', className)}
+      {...props}
+    />
+  );
+}
+
+function PaginationContent({
+  className,
+  ...props
+}: React.ComponentProps<'ul'>) {
+  return (
+    <ul
+      data-slot="pagination-content"
+      className={cn('flex flex-row items-center gap-1', className)}
+      {...props}
+    />
+  );
+}
+
+function PaginationItem({ ...props }: React.ComponentProps<'li'>) {
+  return <li data-slot="pagination-item" {...props} />;
+}
+
+type PaginationLinkProps = { isActive?: boolean } & Pick<
+  React.ComponentProps<typeof Button>,
+  'size'
+> &
+  React.ComponentProps<typeof Link>;
+
+function PaginationLink({
+  className,
+  isActive,
+  size = 'icon',
+  ...props
+}: PaginationLinkProps) {
+  return (
+    <Link
+      aria-current={isActive ? 'page' : undefined}
+      data-slot="pagination-link"
+      data-active={isActive}
+      className={cn(
+        buttonVariants({ variant: isActive ? 'outline' : 'ghost', size }),
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+interface PaginationBoundaryLinkProps {
+  href?: string;
+  disabled?: boolean;
+  className?: string;
+}
+
+// Renders a non-focusable span at the bounds instead of a dead, focusable link.
+function PaginationPrevious({
+  href,
+  disabled,
+  className,
+}: PaginationBoundaryLinkProps) {
+  const classes = cn(
+    buttonVariants({ variant: 'ghost', size: 'default' }),
+    'h-11 gap-1 px-2.5 sm:h-9 sm:pl-2.5',
+    disabled && 'pointer-events-none opacity-50',
+    className,
+  );
+  const content = (
+    <>
+      <ChevronLeftIcon />
+      <span className="hidden sm:block">Previous</span>
+    </>
+  );
+
+  if (disabled || !href)
+    return (
+      <span aria-disabled="true" className={classes}>
+        {content}
+      </span>
+    );
+
+  return (
+    <Link href={href} aria-label="Go to previous page" className={classes}>
+      {content}
+    </Link>
+  );
+}
+
+function PaginationNext({
+  href,
+  disabled,
+  className,
+}: PaginationBoundaryLinkProps) {
+  const classes = cn(
+    buttonVariants({ variant: 'ghost', size: 'default' }),
+    'h-11 gap-1 px-2.5 sm:h-9 sm:pr-2.5',
+    disabled && 'pointer-events-none opacity-50',
+    className,
+  );
+  const content = (
+    <>
+      <span className="hidden sm:block">Next</span>
+      <ChevronRightIcon />
+    </>
+  );
+
+  if (disabled || !href)
+    return (
+      <span aria-disabled="true" className={classes}>
+        {content}
+      </span>
+    );
+
+  return (
+    <Link href={href} aria-label="Go to next page" className={classes}>
+      {content}
+    </Link>
+  );
+}
+
+function PaginationEllipsis({
+  className,
+  ...props
+}: React.ComponentProps<'span'>) {
+  return (
+    <span
+      aria-hidden
+      data-slot="pagination-ellipsis"
+      className={cn('flex size-9 items-center justify-center', className)}
+      {...props}
+    >
+      <MoreHorizontalIcon className="size-4" />
+      <span className="sr-only">More pages</span>
+    </span>
+  );
+}
+
+export {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+};
