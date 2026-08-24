@@ -1,12 +1,12 @@
 'use client';
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { X } from 'lucide-react';
 
 import { REVIEWER_APPLICATION_STATUS_OPTIONS } from '@/lib/constants';
-import type { ApplicationFilters } from '@/lib/types';
+import type { ApplicationFilters, ReviewableApplicant } from '@/lib/types';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,18 +21,43 @@ import {
 
 interface ApplicationsToolbarProps {
   positions: { id: string; title: string }[];
+  applicants: ReviewableApplicant[];
   filters: ApplicationFilters;
   hasActiveFilters: boolean;
 }
 
 export function ApplicationsToolbar({
   positions,
+  applicants,
   filters,
   hasActiveFilters,
 }: ApplicationsToolbarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  // Only ambiguous names get the disambiguating email suffix.
+  const applicantLabels = useMemo(() => {
+    const nameCounts = new Map<string, number>();
+    for (const a of applicants) {
+      const key = a.name ?? a.email;
+      nameCounts.set(key, (nameCounts.get(key) ?? 0) + 1);
+    }
+    return new Map(
+      applicants.map((a) => {
+        const key = a.name ?? a.email;
+        const label =
+          (nameCounts.get(key) ?? 0) > 1 ? `${key} · ${a.email}` : key;
+        return [a.id, label] as const;
+      }),
+    );
+  }, [applicants]);
+
+  // A stale or foreign deep link — keep it selected rather than falling back to the placeholder.
+  const unknownApplicantId =
+    filters.userId && !applicants.some((a) => a.id === filters.userId)
+      ? filters.userId
+      : undefined;
 
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
@@ -109,6 +134,41 @@ export function ApplicationsToolbar({
               {positions.map((p) => (
                 <SelectItem key={p.id} value={p.id}>
                   {p.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="filter-applicant" className="text-xs">
+            Applicant
+          </Label>
+          <Select
+            value={filters.userId ?? ''}
+            onValueChange={(v) => updateParam('userId', v || undefined)}
+            disabled={applicants.length === 0}
+          >
+            <SelectTrigger id="filter-applicant" className="w-56">
+              <SelectValue
+                placeholder={
+                  applicants.length === 0
+                    ? 'No applicants yet'
+                    : 'All applicants'
+                }
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {/* "All applicants" clears the filter */}
+              <SelectItem value="">All applicants</SelectItem>
+              {unknownApplicantId && (
+                <SelectItem value={unknownApplicantId}>
+                  Unknown applicant
+                </SelectItem>
+              )}
+              {applicants.map((a) => (
+                <SelectItem key={a.id} value={a.id}>
+                  {applicantLabels.get(a.id)}
                 </SelectItem>
               ))}
             </SelectContent>

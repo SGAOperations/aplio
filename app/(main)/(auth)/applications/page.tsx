@@ -3,7 +3,10 @@ import { Suspense } from 'react';
 
 import { z } from 'zod/v4';
 
-import { getReviewablePositions } from '@/prisma/data/applications';
+import {
+  getReviewableApplicants,
+  getReviewablePositions,
+} from '@/prisma/data/applications';
 
 import { requireManagerOrAdminOr404 } from '@/lib/auth/guards';
 import {
@@ -73,7 +76,10 @@ export default async function ApplicationsPage({
     filters.sort
   );
 
-  const positions = await getReviewablePositions(user);
+  const [positions, applicants] = await Promise.all([
+    getReviewablePositions(user),
+    getReviewableApplicants(user),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -84,6 +90,7 @@ export default async function ApplicationsPage({
 
       <ApplicationsToolbar
         positions={positions}
+        applicants={applicants}
         filters={filters}
         hasActiveFilters={hasActiveFilters}
       />

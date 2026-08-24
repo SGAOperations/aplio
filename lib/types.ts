@@ -234,6 +234,13 @@ export type ApplicationFilters = {
   sort?: ApplicationSort;
 };
 
+// Cross-user identity — reviewer-gated callers only, scoped like getApplications.
+export type ReviewableApplicant = {
+  id: string;
+  name: string | null;
+  email: string;
+};
+
 export type ApplicationListRow = AdminApplicationListItem;
 
 export type ProfileCompleteness = {

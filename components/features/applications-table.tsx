@@ -169,7 +169,14 @@ export function ApplicationsTable({
       key: 'position',
       header: 'Position',
       cellClassName: 'text-muted-foreground',
-      cell: (app) => app.position.title,
+      cell: (app) => (
+        <Link
+          href={`/positions/${app.position.id}`}
+          className="hover:underline"
+        >
+          {app.position.title}
+        </Link>
+      ),
     },
     {
       key: 'status',
@@ -294,9 +301,12 @@ export function ApplicationsTable({
                     {app.user.email}
                   </span>
                 )}
-                <span className="text-muted-foreground text-sm">
+                <Link
+                  href={`/positions/${app.position.id}`}
+                  className="text-muted-foreground w-fit text-sm hover:underline"
+                >
                   {app.position.title}
-                </span>
+                </Link>
                 <span className="text-muted-foreground text-xs">
                   <LocalTime date={app.submittedAt} precision="date" />
                 </span>
