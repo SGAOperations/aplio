@@ -1,6 +1,4 @@
-// Alias target for @vercel/blob (db project only) — no test may reach real
-// blob storage. onPut is the seam question-file-answers.test.ts uses to race
-// a status change between the pre-check and the write transaction.
+// @vercel/blob alias for the db project; onPut is the seam for racing a status change mid-write.
 let onPutHook: (() => Promise<void> | void) | null = null;
 
 export const deletedUrls: string[] = [];
