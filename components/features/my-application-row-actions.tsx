@@ -14,6 +14,7 @@ import type { $Enums } from '@/prisma/client';
 import { TERMINAL_DECISION_STATUSES } from '@/lib/constants';
 import { isError } from '@/lib/utils';
 
+import { RestoreDraftButton } from '@/components/features/restore-draft-button';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,15 +32,25 @@ interface MyApplicationRowActionsProps {
   applicationId: string;
   status: $Enums.ApplicationStatus;
   positionTitle: string;
+  deletedAt: Date | null;
 }
 
 export function MyApplicationRowActions({
   applicationId,
   status,
   positionTitle,
+  deletedAt,
 }: MyApplicationRowActionsProps) {
   const [isPending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
+
+  if (deletedAt)
+    return (
+      <RestoreDraftButton
+        applicationId={applicationId}
+        positionTitle={positionTitle}
+      />
+    );
 
   if (status === 'draft') {
     return (
@@ -58,9 +69,9 @@ export function MyApplicationRowActions({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this draft?</AlertDialogTitle>
             <AlertDialogDescription>
-              Your draft application to &ldquo;{positionTitle}&rdquo; and all
-              its answers will be permanently deleted. This can&apos;t be
-              undone.
+              Your draft application to &ldquo;{positionTitle}&rdquo; will be
+              marked deleted. Your answers are kept, so you can restore it from
+              My Applications later.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -77,7 +88,9 @@ export function MyApplicationRowActions({
                       toast.error(result.error);
                       return;
                     }
-                    toast.success('Draft deleted');
+                    toast.success('Draft deleted', {
+                      description: 'Restore it from My Applications any time.',
+                    });
                     setOpen(false);
                   } catch {
                     toast.error('Something went wrong');

@@ -348,6 +348,9 @@ export const APPLICATION_STATUS_BADGE_VARIANT: Record<
   withdrawn: 'outline',
 };
 
+// Outranks status on a soft-deleted draft — see ApplicationStatusBadge.
+export const DELETED_APPLICATION_LABEL = 'Deleted';
+
 // Excludes 'withdrawn': no consumer needs the unfiltered status list.
 export const APPLICATION_STATUS_VALUES = [
   'draft',

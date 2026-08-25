@@ -74,6 +74,7 @@ export default async function MyApplicationDetailPage({
                   applicationId={application.id}
                   status={application.status}
                   positionTitle={application.position.title}
+                  deletedAt={application.deletedAt}
                 />
               </>
             )
