@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { updateApplicationStatus } from '@/prisma/actions/applications';
 import type { $Enums } from '@/prisma/client';
 
+import { fireConfetti } from '@/lib/confetti';
 import { APPLICATION_STATUS_LABELS } from '@/lib/constants';
 
 interface UseApplicationStatusMoveOptions {
@@ -71,6 +72,7 @@ export function useApplicationStatusMove({
           return;
         }
         toast.success(`Moved to ${APPLICATION_STATUS_LABELS[target]}`);
+        if (target === 'accepted') void fireConfetti();
       } catch {
         toast.error('Something went wrong. Please try again.');
       } finally {
