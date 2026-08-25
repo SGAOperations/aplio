@@ -18,14 +18,14 @@ const SHARED_OPTIONS = {
 
 let isFiring = false;
 
-// Sentinel round-trip: an unparsable oklch() token still equals '#000000'
-// after assignment, so it's distinguishable from a real parsed color.
+// Sentinel round-trip: an unparsable oklch() token leaves fillStyle
+// unchanged, so it's distinguishable from a real parsed color.
 function resolveChartPalette(): string[] | undefined {
   const root = getComputedStyle(document.documentElement);
   const ctx = document.createElement('canvas').getContext('2d');
   if (!ctx) return undefined;
 
-  const sentinel = '#000000';
+  const sentinel = '#010203';
   const colors = CHART_TOKENS.map((token) => {
     const value = root.getPropertyValue(token).trim();
     ctx.fillStyle = sentinel;
@@ -43,15 +43,16 @@ export async function fireConfetti(): Promise<void> {
     if (typeof window === 'undefined') return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     if (isFiring) return;
-    isFiring = true;
 
-    const canvas = document.createElement('canvas');
-    canvas.setAttribute('aria-hidden', 'true');
-    canvas.style.cssText =
-      'position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100';
-    document.body.appendChild(canvas);
-
+    let canvas: HTMLCanvasElement | undefined;
     try {
+      isFiring = true;
+      canvas = document.createElement('canvas');
+      canvas.setAttribute('aria-hidden', 'true');
+      canvas.className =
+        'fixed inset-0 h-full w-full pointer-events-none z-[100]';
+      document.body.appendChild(canvas);
+
       const confetti = (await import('canvas-confetti')).default;
       const cannon = confetti.create(canvas, {
         resize: true,
@@ -74,7 +75,7 @@ export async function fireConfetti(): Promise<void> {
         }),
       ]);
     } finally {
-      canvas.remove();
+      canvas?.remove();
       isFiring = false;
     }
   } catch {
