@@ -133,7 +133,7 @@ async function readAndWriteAnswerValue(
   }
 
   const application = await tx.application.findFirst({
-    where: { id: target.applicationId, status: 'draft' },
+    where: { id: target.applicationId, status: 'draft', deletedAt: null },
     select: { id: true },
   });
   if (!application) throw new ApplicationSubmittedError();

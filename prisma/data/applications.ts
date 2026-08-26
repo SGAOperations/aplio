@@ -32,6 +32,7 @@ const applicationSelect = {
   submittedAt: true,
   updatedAt: true,
   positionId: true,
+  deletedAt: true,
   position: {
     select: {
       id: true,
@@ -99,7 +100,7 @@ function normalizeApplicationAnswers(application: ApplicationAnswersPayload): {
 }
 
 // Scoped to the caller (no IDOR); returns the caller's application at any status
-// (draft, withdrawn, or otherwise) so the apply route decides what to render.
+// or deletion state so the apply route decides what to render.
 // Predicate must match createDraftApplication's pre-create lookup, or the page
 // loops between the entry state and "already exists".
 export async function getApplicationForApply(
@@ -107,16 +108,22 @@ export async function getApplicationForApply(
   positionId: string,
 ): Promise<DraftApplication | null> {
   return prisma.application.findFirst({
-    where: { userId, positionId, deletedAt: null },
+    where: { userId, positionId },
     include: { globalAnswers: true, positionAnswers: true },
   });
 }
 
+// Deleted drafts stay visible so the applicant can restore them; every other
+// deleted status is excluded, since only drafts are ever soft-deleted here.
 export async function getMyApplications(
   userId: string,
 ): Promise<MyApplicationListItem[]> {
   return prisma.application.findMany({
-    where: { userId, deletedAt: null, position: PUBLISHED_POSITION_WHERE },
+    where: {
+      userId,
+      position: PUBLISHED_POSITION_WHERE,
+      OR: [{ deletedAt: null }, { status: 'draft' }],
+    },
     select: applicationSelect,
     orderBy: { updatedAt: 'desc' },
   });
