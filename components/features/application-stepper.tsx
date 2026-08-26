@@ -18,6 +18,7 @@ import type {
   PositionApplicationAnswer,
 } from '@/prisma/client';
 
+import { fireConfetti } from '@/lib/confetti';
 import { getAnswerBlurError } from '@/lib/constants';
 import {
   type AnswerQuestion,
@@ -380,6 +381,7 @@ export function ApplicationStepper({
         toast.success(
           isResubmit ? 'Application resubmitted' : 'Application submitted',
         );
+        void fireConfetti();
         setIsRedirecting(true);
         router.replace(`/my-applications/${application.id}`);
       }
