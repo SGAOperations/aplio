@@ -90,6 +90,21 @@ export default async function ApplicationDetailPage({
       </div>
 
       <div className="flex flex-col gap-4">
+        <Suspense
+          fallback={
+            <SectionCardSkeleton
+              rowShape="badge-meta"
+              hasSubtitle
+              hasLink={false}
+            />
+          }
+        >
+          <ApplicantOtherApplications
+            applicationId={application.id}
+            user={user}
+          />
+        </Suspense>
+
         <SectionCard title="Profile answers" titleAs="h2">
           <ApplicationAnswersList
             answers={application.globalAnswers}
@@ -108,21 +123,6 @@ export default async function ApplicationDetailPage({
             />
           </SectionCard>
         )}
-
-        <Suspense
-          fallback={
-            <SectionCardSkeleton
-              rowShape="badge-meta"
-              hasSubtitle
-              hasLink={false}
-            />
-          }
-        >
-          <ApplicantOtherApplications
-            applicationId={application.id}
-            user={user}
-          />
-        </Suspense>
       </div>
     </div>
   );
