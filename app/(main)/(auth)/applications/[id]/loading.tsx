@@ -25,13 +25,13 @@ export default function ApplicationDetailLoading() {
       </div>
 
       <div className="flex flex-col gap-4">
-        <AnswersCardSkeleton titleWidth="w-32" />
-        <AnswersCardSkeleton titleWidth="w-36" />
         <SectionCardSkeleton
           rowShape="badge-meta"
           hasSubtitle
           hasLink={false}
         />
+        <AnswersCardSkeleton titleWidth="w-32" />
+        <AnswersCardSkeleton titleWidth="w-36" />
       </div>
     </div>
   );
