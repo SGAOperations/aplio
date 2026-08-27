@@ -24,6 +24,27 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/** Trimmed name, or `null` if blank — Better Auth can write `''` on first sign-in. */
+export function getUserName(user: { name: string | null }): string | null {
+  return user.name?.trim() || null;
+}
+
+/** Name if set, else the email — never renders a blank identity. */
+export function displayUserName(user: {
+  name: string | null;
+  email: string;
+}): string {
+  return getUserName(user) ?? user.email;
+}
+
+/** Frozen `applicantName` if set, else the live user's name; `null` if neither. */
+export function getApplicantName(app: {
+  applicantName: string | null;
+  user: { name: string | null };
+}): string | null {
+  return app.applicantName?.trim() || getUserName(app.user);
+}
+
 /** The live name, when it differs from the frozen `applicantName` on the application. */
 export function getRenamedTo(app: {
   applicantName: string | null;
@@ -41,7 +62,7 @@ export function getDisplayName(app: {
   applicantName: string | null;
   user: { name: string | null; email: string };
 }): string {
-  return app.applicantName ?? app.user.name ?? app.user.email;
+  return getApplicantName(app) ?? app.user.email;
 }
 
 /** "<From> → <To>", or "Status recorded as <To>" for the null-`from` backfill row. */

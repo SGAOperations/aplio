@@ -13,7 +13,7 @@ import { logoutBypassUser } from '@/prisma/services/dev-bypass';
 
 import { ACTION_ICONS, CONCEPT_ICONS } from '@/lib/icons';
 import type { NavIdentity } from '@/lib/types';
-import { isError } from '@/lib/utils';
+import { displayUserName, getUserName, isError } from '@/lib/utils';
 
 import { EditNameDialog } from '@/components/features/edit-name-dialog';
 import {
@@ -42,8 +42,8 @@ const THEME_OPTIONS = [
 ] as const;
 
 export function UserMenu({ identity, onNavigate }: UserMenuProps) {
-  const { name, email, roleLabel, isBypass } = identity;
-  const displayName = name ?? email;
+  const { email, roleLabel, isBypass } = identity;
+  const displayName = displayUserName(identity);
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   // Matches defaultTheme: theme is undefined pre-hydration under { ssr: false }.
@@ -116,7 +116,7 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <EditNameDialog
-          currentName={name}
+          currentName={getUserName(identity)}
           trigger={
             <DropdownMenuItem
               onSelect={(e) => e.preventDefault()}

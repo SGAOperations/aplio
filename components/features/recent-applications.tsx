@@ -4,7 +4,7 @@ import { getRecentApplications } from '@/prisma/data/applications';
 
 import { CONCEPT_ICONS } from '@/lib/icons';
 import { type AdminApplicationListItem, type Reviewer } from '@/lib/types';
-import { getRenamedTo } from '@/lib/utils';
+import { getDisplayName, getRenamedTo } from '@/lib/utils';
 
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
 import { LocalTime } from '@/components/ui/local-time';
@@ -56,8 +56,7 @@ function ApplicationList({
   return (
     <ul className="divide-y">
       {applications.map((app) => {
-        const applicantLabel =
-          app.applicantName ?? app.user.name ?? app.user.email;
+        const applicantLabel = getDisplayName(app);
         const renamedTo = getRenamedTo(app);
         return (
           <li
