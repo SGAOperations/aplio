@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { Suspense } from 'react';
 
 import {
   getApplicationForReview,
@@ -10,12 +11,13 @@ import {
 import { getCurrentUser } from '@/lib/auth/server';
 import { getRenamedTo } from '@/lib/utils';
 
+import { ApplicantOtherApplications } from '@/components/features/applicant-other-applications';
 import { ApplicationAnswersList } from '@/components/features/application-answers-list';
 import { ApplicationStatusHeaderActions } from '@/components/features/application-status-header-actions';
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
 import { PageHeader } from '@/components/layouts/page-header';
 import { LocalTime } from '@/components/ui/local-time';
-import { SectionCard } from '@/components/ui/section-card';
+import { SectionCard, SectionCardSkeleton } from '@/components/ui/section-card';
 
 interface ApplicationDetailPageProps {
   params: Promise<{ id: string }>;
@@ -88,6 +90,21 @@ export default async function ApplicationDetailPage({
       </div>
 
       <div className="flex flex-col gap-4">
+        <Suspense
+          fallback={
+            <SectionCardSkeleton
+              rowShape="badge-meta"
+              hasSubtitle
+              hasLink={false}
+            />
+          }
+        >
+          <ApplicantOtherApplications
+            applicationId={application.id}
+            user={user}
+          />
+        </Suspense>
+
         <SectionCard title="Profile answers" titleAs="h2">
           <ApplicationAnswersList
             answers={application.globalAnswers}

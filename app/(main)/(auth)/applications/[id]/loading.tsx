@@ -1,4 +1,5 @@
 import { AnswersCardSkeleton } from '@/components/features/application-answers-skeleton';
+import { SectionCardSkeleton } from '@/components/ui/section-card';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function ApplicationDetailLoading() {
@@ -24,6 +25,11 @@ export default function ApplicationDetailLoading() {
       </div>
 
       <div className="flex flex-col gap-4">
+        <SectionCardSkeleton
+          rowShape="badge-meta"
+          hasSubtitle
+          hasLink={false}
+        />
         <AnswersCardSkeleton titleWidth="w-32" />
         <AnswersCardSkeleton titleWidth="w-36" />
       </div>

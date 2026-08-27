@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { $Enums, type Prisma } from '@/prisma/client';
+import { positionActivitySelect } from '@/prisma/data/positions';
 
 import {
   buildApplicationWhere,
@@ -14,6 +15,7 @@ import {
 import { prisma } from '@/lib/prisma';
 import {
   type AdminApplicationListItem,
+  type ApplicantOtherApplication,
   type ApplicationFilters,
   type ApplicationForReview,
   type ApplicationReviewAnswer,
@@ -25,6 +27,7 @@ import {
   type ReviewableApplicant,
   type Reviewer,
 } from '@/lib/types';
+import { canReviewPosition, isPositionActive } from '@/lib/utils';
 
 const applicationSelect = {
   id: true,
@@ -223,6 +226,61 @@ export async function getApplicationStatusHistory(
     createdAt: event.createdAt,
     changedByName: event.changedBy.name ?? event.changedBy.email,
   }));
+}
+
+// Cross-scope by design (docs/PERMISSIONS.md) — step 2 deliberately drops buildReviewablePositionWhere.
+export async function getApplicantOtherApplications(
+  applicationId: string,
+  user: Reviewer,
+): Promise<ApplicantOtherApplication[]> {
+  const anchor = await prisma.application.findFirst({
+    where: { id: applicationId, ...buildApplicationWhere(user, 'listable') },
+    select: { userId: true },
+  });
+  if (!anchor) return [];
+
+  const applications = await prisma.application.findMany({
+    where: {
+      userId: anchor.userId,
+      id: { not: applicationId },
+      deletedAt: null,
+      status: { not: 'draft' },
+      position: PUBLISHED_POSITION_WHERE,
+    },
+    select: {
+      id: true,
+      status: true,
+      submittedAt: true,
+      position: {
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          opensAt: true,
+          closesAt: true,
+          ...positionActivitySelect,
+          managers: { where: { id: user.id }, select: { id: true } },
+        },
+      },
+    },
+    orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
+  });
+
+  return applications
+    .filter((application) => isPositionActive(application.position))
+    .map((application) => ({
+      id: application.id,
+      status: application.status,
+      submittedAt: application.submittedAt,
+      position: {
+        id: application.position.id,
+        title: application.position.title,
+      },
+      canOpen: canReviewPosition(
+        user,
+        application.position.managers.map((manager) => manager.id),
+      ),
+    }));
 }
 
 export async function getMyApplicationStatusCounts(
