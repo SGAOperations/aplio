@@ -62,7 +62,7 @@ function OtherApplicationList({
           <span className="text-muted-foreground shrink-0 text-xs">
             <LocalTime date={app.submittedAt} precision="date" />
           </span>
-          {app.canOpen ? (
+          {app.canOpen && (
             <Link
               href={`/applications/${app.id}`}
               aria-label={`View ${app.position.title} application`}
@@ -70,10 +70,6 @@ function OtherApplicationList({
             >
               View
             </Link>
-          ) : (
-            <span className="text-muted-foreground shrink-0 text-xs">
-              Not managed by you
-            </span>
           )}
         </li>
       ))}
