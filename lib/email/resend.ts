@@ -1,20 +1,9 @@
 import 'server-only';
 
-import { Resend } from 'resend';
-
 import { EmailStatus, type EmailTemplateKey } from '@/prisma/client';
 
+import { getResend } from '@/lib/email/client';
 import { prisma } from '@/lib/prisma';
-
-// Lazy, so a missing env var doesn't break builds or non-email paths.
-let _resend: Resend | null = null;
-
-function getResend(): Resend {
-  if (!process.env.RESEND_API_KEY)
-    throw new Error('RESEND_API_KEY is not configured');
-  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY);
-  return _resend;
-}
 
 function getSenderAddress(): string {
   if (!process.env.RESEND_FROM_EMAIL)

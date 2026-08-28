@@ -14,7 +14,9 @@ Next.js 16 (App Router, React 19) · Prisma 7 · Tailwind CSS 4 · shadcn/ui (Ra
 
 ## Architecture (the load-bearing rules — `docs/ENGINEERING.md` has the full bar)
 
-- **IMPORTANT: never create API routes** (`app/api/`). The only permitted route is `app/api/auth/[...path]/route.ts` (required by Neon Auth).
+- **IMPORTANT: routes under `app/api/` are forbidden except for the ones allowlisted here.** Mutations are Server Actions; a route earns a line below only when it needs something an action cannot have, and a new route is a rule change that appends to this list.
+  - `app/api/auth/[...path]/route.ts` — Better Auth needs a reachable HTTP endpoint.
+  - `app/api/webhooks/resend/route.ts` — Resend signs the **raw** request body, which a server action never sees.
 - **Mutations are Server Actions** in `prisma/actions/`, each with `'use server'`, an auth check, and zod validation. They return **`void` / the relevant data on success, `{ error }` for a user-facing failure, and `throw` for unexpected ones — never `{ ok }`** (`docs/ENGINEERING.md` §4). Decision test: _would you show this exact sentence to the user, and can they act on it?_ **yes → `{ error }`, no → throw**.
 - **Data fetching is server-side** — server components call data-fetching functions in `prisma/data/`; Prisma never runs in a client component. **Avoid `useEffect`** — almost every use is a mistake here, and an empty-deps `useEffect` is essentially never right.
 - **Default to server components**; add `'use client'` only for interactivity/hooks/browser APIs, on the smallest leaf possible.
