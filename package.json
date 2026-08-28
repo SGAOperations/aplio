@@ -27,7 +27,8 @@
     "test:unit": "vitest run --project unit",
     "test:watch": "vitest",
     "prepare": "husky && npm run hooks:check",
-    "hooks:check": "node scripts/check-hooks.mjs"
+    "hooks:check": "node scripts/check-hooks.mjs",
+    "contrast:check": "node scripts/contrast-check.mjs"
   },
   "prisma": {
     "seed": "npx tsx --env-file=.env prisma/seed.ts"
