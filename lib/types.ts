@@ -129,6 +129,7 @@ export type MyApplicationListItem = Prisma.ApplicationGetPayload<{
 export type MyApplicationDetail = MyApplicationListItem & {
   globalAnswers: ApplicationReviewAnswer[];
   positionAnswers: ApplicationReviewAnswer[];
+  hasPositionQuestions: boolean;
 };
 
 // Exposes applicant identity — admin-gated contexts only, never a non-admin client.

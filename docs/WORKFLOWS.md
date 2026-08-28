@@ -300,7 +300,8 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 - **Happy path** — `getMyApplication(id, user.id)` is scoped to the caller with the same visibility as the list. The header shows the position title with the status badge directly beside it, the status sentence underneath, and the primary/row actions (Continue, Edit & resubmit, Withdraw, Delete draft — whichever applies) right-aligned on that same header row; below it, "Applied <date>" (or "Draft · last saved <date>") and a link to the position, then both answer groups — "Your profile answers" and "Your answers for this position" — full width. Answers render by shape (short/single/multiple choice in a label-value row, long answers full-width as prose, files as a Download row) from the snapshotted `questionLabel`/`value`/`type` — never a live question lookup, so a retyped or relabeled question still shows the original label and every stored value.
 - **Failure / edge**
   - Not the caller's, soft-deleted, or on an unpublished position → `notFound()`, so a bookmarked URL cannot outlive its list row.
-  - No answers in a group → "No profile answers saved yet." / "No position answers saved yet."
+  - Empty profile answers → "No profile answers saved yet."
+  - The position answers group is omitted entirely when the position has no live position-specific questions and the application has no position answers; otherwise it shows, with "No position-specific answers." if none were answered.
   - An individual answer with no stored value → "No answer".
 - **End state** — read-only. This is the answer of record for what was submitted.
 
