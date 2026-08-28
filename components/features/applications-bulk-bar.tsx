@@ -58,6 +58,7 @@ export function ApplicationsBulkBar({
   const isRejecting = status === 'rejected';
   const isDecision = status === 'accepted' || status === 'rejected';
   const statusLabel = status ? APPLICATION_STATUS_LABELS[status] : '';
+  const finalDecisionCount = summary?.finalDecisionCount ?? 0;
 
   function handleConfirm() {
     if (!status) return;
@@ -172,17 +173,16 @@ export function ApplicationsBulkBar({
             {summary && summary.backwardCount > 0 && (
               <p>{summary.backwardCount} will move backward.</p>
             )}
-            {summary && summary.finalDecisionCount > 0 && (
-              <p>
-                {summary.finalDecisionCount} will change a final decision —
-                it&apos;s currently Accepted or Rejected.
-              </p>
+            {finalDecisionCount > 0 && (
+              <p>{`${finalDecisionCount} will change a final decision — it's currently Accepted or Rejected.`}</p>
             )}
             {skippedLabel && <p>{skippedLabel}</p>}
             <p>
               {isDecision
                 ? 'Applicants will see this decision on their application.'
-                : "Applicants won't see this change — every in-review application shows as Applied to them."}
+                : summary?.applicantVisible
+                  ? 'Applicants whose decision is reversed will see this change; the rest still show as Applied.'
+                  : "Applicants won't see this change — every in-review application shows as Applied to them."}
             </p>
           </div>
         }

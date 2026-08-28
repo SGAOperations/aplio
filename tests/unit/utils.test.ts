@@ -683,6 +683,7 @@ describe('summarizeBulkStatusChange', () => {
       skippedCount: 0,
       eligibleCount: 2,
       skippedLabel: null,
+      applicantVisible: true,
     });
   });
 
@@ -703,6 +704,7 @@ describe('summarizeBulkStatusChange', () => {
       skippedCount: 3,
       eligibleCount: 0,
       skippedLabel: '3 skipped — drafts, withdrawn, or already Reached out.',
+      applicantVisible: false,
     });
   });
 
@@ -716,6 +718,7 @@ describe('summarizeBulkStatusChange', () => {
       skippedCount: 0,
       eligibleCount: 1,
       skippedLabel: null,
+      applicantVisible: true,
     });
   });
 
@@ -737,7 +740,29 @@ describe('summarizeBulkStatusChange', () => {
       skippedCount: 1,
       eligibleCount: 3,
       skippedLabel: '1 skipped — drafts, withdrawn, or already Reached out.',
+      applicantVisible: true,
     });
+  });
+
+  it('is applicant-visible when the target is a decision, even with nothing to reverse', () => {
+    expect(
+      summarizeBulkStatusChange([{ status: 'applied' }], 'rejected')
+        .applicantVisible,
+    ).toBe(true);
+  });
+
+  it('is not applicant-visible for an unresolved target with no decisions in the batch', () => {
+    expect(
+      summarizeBulkStatusChange([{ status: 'applied' }], 'reviewing')
+        .applicantVisible,
+    ).toBe(false);
+  });
+
+  it('is applicant-visible for an unresolved target that reverses a decision', () => {
+    expect(
+      summarizeBulkStatusChange([{ status: 'rejected' }], 'reviewing')
+        .applicantVisible,
+    ).toBe(true);
   });
 });
 

@@ -48,6 +48,9 @@ export function ApplicationStatusActions({
 
   if (isNonReviewableApplicationStatus(currentStatus)) return null;
 
+  const isTerminalDecision =
+    currentStatus === 'accepted' || currentStatus === 'rejected';
+
   // Opens immediately and fetches in the same handler — no table pre-fetch
   // of history for every visible row; re-fetches on every open.
   function openDialog() {
@@ -74,27 +77,35 @@ export function ApplicationStatusActions({
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={`Change status for ${displayName}`}
-            disabled={isPending}
-          >
-            <ACTION_ICONS.more />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <ApplicationStatusMenu
-            status={currentStatus}
-            hoistNext={false}
-            isPending={isPending}
-            onSelect={selectTarget}
-            onSeeMore={openDialog}
-          />
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {isTerminalDecision ? (
+        // A decision is already made — a plain, non-primary button straight
+        // to the override dialog, no dropdown to hold just one item.
+        <Button variant="outline" size="sm" onClick={openDialog}>
+          Change decision
+        </Button>
+      ) : (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={`Change status for ${displayName}`}
+              disabled={isPending}
+            >
+              <ACTION_ICONS.more />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <ApplicationStatusMenu
+              status={currentStatus}
+              hoistNext={false}
+              isPending={isPending}
+              onSelect={selectTarget}
+              onSeeMore={openDialog}
+            />
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
       <ConfirmDialog {...confirmDialogProps} />
       <ApplicationStatusDialog
         applicationId={applicationId}

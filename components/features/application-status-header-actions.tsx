@@ -33,8 +33,9 @@ interface ApplicationStatusHeaderActionsProps {
 }
 
 // Fixed two-control budget in PageHeader's actions slot: a split button plus
-// the `⋯` that opens the status dialog. Move-backs never appear here — only
-// in the dialog's any-status Select.
+// the `⋯` that opens the status dialog. Once a decision is made, both
+// collapse into a single "Change decision" button. Move-backs never appear
+// here — only in the dialog's any-status Select.
 export function ApplicationStatusHeaderActions({
   applicationId,
   currentStatus,
@@ -53,6 +54,19 @@ export function ApplicationStatusHeaderActions({
       onClick={() => setDialogOpen(true)}
     >
       <ACTION_ICONS.more />
+    </Button>
+  );
+
+  // Non-primary — a decision is already made, this only reopens the
+  // override dialog, it doesn't push the application further forward.
+  const changeDecisionButton = (
+    <Button
+      variant="outline"
+      size="sm"
+      className="min-h-11 sm:min-h-9"
+      onClick={() => setDialogOpen(true)}
+    >
+      Change decision
     </Button>
   );
 
@@ -88,7 +102,7 @@ export function ApplicationStatusHeaderActions({
         <p className="text-muted-foreground text-xs">
           {TERMINAL_DECISION_STATUS_NOTES[currentStatus]}
         </p>
-        {moreButton}
+        {changeDecisionButton}
         <ConfirmDialog {...move.confirmDialogProps} />
         {dialog}
       </>

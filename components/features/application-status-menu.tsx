@@ -31,6 +31,9 @@ export function ApplicationStatusMenu({
 }: ApplicationStatusMenuProps) {
   const { next, decisions } = getApplicationStatusMenu(status);
   const showNext = !hoistNext && next !== null;
+  // reviewing's next step is accepted, already a decision — no separator
+  // needed between it and reject, they're one group.
+  const nextIsDecision = next === 'accepted' || next === 'rejected';
 
   return (
     <>
@@ -42,7 +45,7 @@ export function ApplicationStatusMenu({
           >
             {APPLICATION_STATUS_ACTION_LABELS[next]}
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
+          {!nextIsDecision && <DropdownMenuSeparator />}
         </>
       )}
       {decisions.map((target) => (

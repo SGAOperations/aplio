@@ -488,6 +488,9 @@ export type BulkStatusChangeSummary = {
   eligibleCount: number;
   /** e.g. "1 skipped — drafts, withdrawn, or already Reviewing."; null when nothing is skipped. */
   skippedLabel: string | null;
+  // True when the target is a decision, or the batch reverses one — either
+  // way an applicant sees something other than the "Applied" collapse.
+  applicantVisible: boolean;
 };
 
 /**
@@ -532,5 +535,7 @@ export function summarizeBulkStatusChange(
       skippedCount > 0
         ? `${skippedCount} skipped — drafts, withdrawn, or already ${APPLICATION_STATUS_LABELS[target]}.`
         : null,
+    applicantVisible:
+      target === 'accepted' || target === 'rejected' || finalDecisionCount > 0,
   };
 }
