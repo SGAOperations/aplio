@@ -1,7 +1,10 @@
 import 'server-only';
 
 import { $Enums, type Prisma } from '@/prisma/client';
-import { positionActivitySelect } from '@/prisma/data/positions';
+import {
+  positionActivitySelect,
+  withPositionActivity,
+} from '@/prisma/data/positions';
 
 import {
   buildApplicationWhere,
@@ -280,7 +283,9 @@ export async function getApplicantOtherApplications(
   });
 
   return applications
-    .filter((application) => isPositionActive(application.position))
+    .filter((application) =>
+      isPositionActive(withPositionActivity(application.position)),
+    )
     .map((application) => ({
       id: application.id,
       status: application.status,
