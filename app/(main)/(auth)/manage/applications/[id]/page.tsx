@@ -6,6 +6,7 @@ import { Suspense } from 'react';
 import {
   getApplicationForReview,
   getApplicationStatusHistory,
+  getDecisionEmailNotice,
 } from '@/prisma/data/applications';
 
 import { getCurrentUser } from '@/lib/auth/server';
@@ -48,6 +49,12 @@ export default async function ApplicationDetailPage({
 
   if (!application) notFound();
 
+  const decisionEmailState = await getDecisionEmailNotice(
+    id,
+    application.status,
+    user,
+  );
+
   const applicantName = getDisplayName(application);
   const renamedTo = getRenamedTo(application);
 
@@ -68,6 +75,7 @@ export default async function ApplicationDetailPage({
               currentStatus={application.status}
               applicantName={applicantName}
               history={history}
+              decisionEmailState={decisionEmailState}
             />
           }
         />

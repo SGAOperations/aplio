@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { emailLayout, escapeHtml, otpEmail } from '@/lib/email/templates';
+import {
+  APPLICANT_EMAIL_FOOTER,
+  applicationAcceptedEmail,
+  applicationReceivedEmail,
+  applicationRejectedEmail,
+  emailLayout,
+  escapeHtml,
+  otpEmail,
+} from '@/lib/email/templates';
 
 describe('escapeHtml', () => {
   it('escapes &, <, >, ", and \'', () => {
@@ -53,5 +61,114 @@ describe('otpEmail', () => {
     expect(result.html).toContain(
       'Didn&#39;t request this? You can safely ignore it.',
     );
+  });
+});
+
+const DANGEROUS_TITLE = 'R&D <Lead>';
+
+describe('applicationReceivedEmail', () => {
+  it('renders the exact subject with the raw position title', () => {
+    const result = applicationReceivedEmail({
+      firstName: 'Jane',
+      positionTitle: DANGEROUS_TITLE,
+      applicationId: 'app-1',
+    });
+    expect(result.subject).toBe(
+      `We received your application for ${DANGEROUS_TITLE}`,
+    );
+  });
+
+  it('escapes the position title in the html but leaves it raw in the text body', () => {
+    const result = applicationReceivedEmail({
+      firstName: 'Jane',
+      positionTitle: DANGEROUS_TITLE,
+      applicationId: 'app-1',
+    });
+    expect(result.html).toContain(escapeHtml(DANGEROUS_TITLE));
+    expect(result.html).not.toContain(DANGEROUS_TITLE);
+    expect(result.text).toContain(DANGEROUS_TITLE);
+  });
+
+  it('greets by first name, falling back to "Hi there," with none', () => {
+    expect(
+      applicationReceivedEmail({
+        positionTitle: 'Treasurer',
+        applicationId: 'app-1',
+      }).text,
+    ).toContain('Hi there,');
+    expect(
+      applicationReceivedEmail({
+        firstName: 'Jane',
+        positionTitle: 'Treasurer',
+        applicationId: 'app-1',
+      }).text,
+    ).toContain('Hi Jane,');
+  });
+
+  it('includes the applicant footer', () => {
+    const result = applicationReceivedEmail({
+      positionTitle: 'Treasurer',
+      applicationId: 'app-1',
+    });
+    expect(result.html).toContain(APPLICANT_EMAIL_FOOTER);
+  });
+});
+
+describe('applicationAcceptedEmail', () => {
+  it('renders the exact subject with the raw position title', () => {
+    const result = applicationAcceptedEmail({
+      firstName: 'Jane',
+      positionTitle: DANGEROUS_TITLE,
+      applicationId: 'app-1',
+    });
+    expect(result.subject).toBe(
+      `Your application for ${DANGEROUS_TITLE} was accepted`,
+    );
+  });
+
+  it('escapes the position title in the html', () => {
+    const result = applicationAcceptedEmail({
+      firstName: 'Jane',
+      positionTitle: DANGEROUS_TITLE,
+      applicationId: 'app-1',
+    });
+    expect(result.html).toContain(escapeHtml(DANGEROUS_TITLE));
+    expect(result.html).not.toContain(DANGEROUS_TITLE);
+  });
+
+  it('includes the applicant footer', () => {
+    const result = applicationAcceptedEmail({
+      positionTitle: 'Treasurer',
+      applicationId: 'app-1',
+    });
+    expect(result.html).toContain(APPLICANT_EMAIL_FOOTER);
+  });
+});
+
+describe('applicationRejectedEmail', () => {
+  it('never reveals the outcome in the subject', () => {
+    const result = applicationRejectedEmail({
+      firstName: 'Jane',
+      positionTitle: 'Treasurer',
+    });
+    expect(result.subject).toBe('Update on your application for Treasurer');
+    expect(result.subject.toLowerCase()).not.toContain('reject');
+  });
+
+  it('escapes the position title in the html but leaves it raw in the subject', () => {
+    const result = applicationRejectedEmail({
+      firstName: 'Jane',
+      positionTitle: DANGEROUS_TITLE,
+    });
+    expect(result.subject).toBe(
+      `Update on your application for ${DANGEROUS_TITLE}`,
+    );
+    expect(result.html).toContain(escapeHtml(DANGEROUS_TITLE));
+    expect(result.html).not.toContain(DANGEROUS_TITLE);
+  });
+
+  it('includes the applicant footer', () => {
+    const result = applicationRejectedEmail({ positionTitle: 'Treasurer' });
+    expect(result.html).toContain(APPLICANT_EMAIL_FOOTER);
   });
 });

@@ -13,7 +13,10 @@ import {
   isTerminalDecisionApplicationStatus,
 } from '@/lib/constants';
 import { ACTION_ICONS } from '@/lib/icons';
-import type { ApplicationStatusHistoryEntry } from '@/lib/types';
+import type {
+  ApplicationStatusHistoryEntry,
+  DecisionEmailNoticeState,
+} from '@/lib/types';
 
 import { ApplicationStatusDialog } from '@/components/features/application-status-dialog';
 import { ApplicationStatusMenu } from '@/components/features/application-status-menu';
@@ -31,6 +34,7 @@ interface ApplicationStatusHeaderActionsProps {
   currentStatus: $Enums.ApplicationStatus;
   applicantName: string;
   history: ApplicationStatusHistoryEntry[];
+  decisionEmailState: DecisionEmailNoticeState;
 }
 
 // PageHeader's actions slot: an unresolved status gets a split button whose
@@ -43,6 +47,7 @@ export function ApplicationStatusHeaderActions({
   currentStatus,
   applicantName,
   history,
+  decisionEmailState,
 }: ApplicationStatusHeaderActionsProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const move = useApplicationStatusMove({ applicationId, applicantName });
@@ -77,6 +82,7 @@ export function ApplicationStatusHeaderActions({
       applicantName={applicantName}
       currentStatus={currentStatus}
       history={history}
+      decisionEmailState={decisionEmailState}
       open={dialogOpen}
       onOpenChange={setDialogOpen}
     />
