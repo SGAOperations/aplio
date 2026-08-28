@@ -155,7 +155,7 @@ export function PositionCard({
               <CardTitle className="text-lg leading-snug">
                 {position.title}
               </CardTitle>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2">
                 <PositionStatusBadge position={position} />
                 {myApplication && !isDraft && (
                   <ApplicationStatusBadge status={myApplication.status} />
