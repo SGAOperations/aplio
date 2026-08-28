@@ -190,6 +190,29 @@ export function resolveGlobalAnswerValues(
   );
 }
 
+/** Questions whose current value differs from the profile value a revert would write; order- and whitespace-sensitive, matching what the server actually stores. */
+export function findDivergingGlobalAnswers(
+  questionIds: string[],
+  currentValues: Map<string, string[]>,
+  profileAnswers: { globalQuestionId: string; value: string[] }[],
+): { questionId: string; profileValue: string[] }[] {
+  const profileValues = new Map(
+    profileAnswers.map((a) => [a.globalQuestionId, a.value]),
+  );
+  return questionIds
+    .map((questionId) => {
+      const current = currentValues.get(questionId) ?? [];
+      const profileValue = profileValues.get(questionId) ?? [];
+      return { questionId, profileValue, current };
+    })
+    .filter(
+      ({ current, profileValue }) =>
+        current.length !== profileValue.length ||
+        !current.every((v, i) => v === profileValue[i]),
+    )
+    .map(({ questionId, profileValue }) => ({ questionId, profileValue }));
+}
+
 /** Ids shared by every answer surface, so a card's label/input/error/notice/status stay wired to each other. */
 export function answerFieldIds(questionId: string) {
   return {
