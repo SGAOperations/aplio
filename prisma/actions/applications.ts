@@ -217,6 +217,7 @@ export async function restoreDraftApplication(
   revalidatePath('/my-applications');
   revalidatePath(`/my-applications/${id}`);
   revalidatePath('/');
+  revalidatePath('/positions');
 }
 
 export async function createOrUpdateApplicationAnswer(params: {
