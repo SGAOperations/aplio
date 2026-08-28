@@ -101,6 +101,7 @@ export async function createPosition(
   });
 
   revalidatePath('/positions');
+  revalidatePath('/my-positions');
   return { id: position.id };
 }
 
@@ -140,6 +141,7 @@ export async function updatePosition(
   });
 
   revalidatePath('/positions');
+  revalidatePath('/my-positions');
   revalidatePath(`/positions/${id}`);
   revalidatePath(`/positions/${id}/edit`);
   // status can flip open <-> draft, changing what every surface shows.
@@ -182,6 +184,7 @@ export async function deletePosition(
   }
 
   revalidatePath('/positions');
+  revalidatePath('/my-positions');
   revalidatePath(`/positions/${id}`);
   revalidatePath(`/positions/${id}/edit`);
   // Soft-deleting hides this position's applications everywhere.
@@ -224,6 +227,7 @@ export async function addPositionManager(
   // Membership also drives the manager's positions list and the /users columns.
   revalidatePath(`/positions/${positionId}/edit`);
   revalidatePath('/positions');
+  revalidatePath('/my-positions');
   revalidatePath('/users');
 
   return target;
@@ -262,6 +266,7 @@ export async function removePositionManager(
   // Membership also drives the manager's positions list and the /users columns.
   revalidatePath(`/positions/${positionId}/edit`);
   revalidatePath('/positions');
+  revalidatePath('/my-positions');
   revalidatePath('/users');
 }
 

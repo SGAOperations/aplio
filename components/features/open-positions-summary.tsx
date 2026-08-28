@@ -21,7 +21,7 @@ export async function OpenPositionsSummary({
     <SectionCard
       title="Open Positions"
       link={{
-        href: '/positions',
+        href: '/my-positions',
         label: 'See all',
         ariaLabel: 'See all positions',
       }}
@@ -33,7 +33,7 @@ export async function OpenPositionsSummary({
           description="Create a position to start accepting applications."
           action={
             <Link
-              href="/positions"
+              href="/my-positions"
               className="text-primary text-sm font-medium hover:underline"
             >
               Manage positions
@@ -57,7 +57,10 @@ function PositionRow({ position }: { position: OpenPositionSummaryItem }) {
 
   return (
     <li className="flex items-center justify-between gap-4 px-4 py-3">
-      <Link href="/positions" className="text-sm font-medium hover:underline">
+      <Link
+        href={`/positions/${position.id}`}
+        className="text-sm font-medium hover:underline"
+      >
         {position.title}
       </Link>
       <span className="text-muted-foreground shrink-0 text-sm">

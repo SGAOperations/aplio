@@ -2,6 +2,7 @@ import {
   BriefcaseBusiness,
   ClipboardList,
   FileText,
+  FolderKanban,
   Home,
   Inbox,
   Users,
@@ -22,10 +23,15 @@ export const applyNavItems: NavItem[] = [
   { href: '/my-applications', label: 'My Applications', icon: Inbox },
 ];
 
+export const myPositionsNavItem: NavItem = {
+  href: '/my-positions',
+  label: 'My Positions',
+  icon: FolderKanban,
+};
+
 // Shown to admins AND managers — anyone who can review applications.
-// Positions moves here for managers/admins instead of sitting under Apply.
 export const manageReviewerNavItems: NavItem[] = [
-  positionsNavItem,
+  myPositionsNavItem,
   { href: '/applications', label: 'Applications', icon: FileText },
 ];
 

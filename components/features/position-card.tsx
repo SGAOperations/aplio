@@ -4,18 +4,23 @@ import type { ReactNode } from 'react';
 import { Inbox, Pencil } from 'lucide-react';
 
 import {
+  APPLICANT_EDITABLE_APPLICATION_STATUSES,
   APPLICATION_STATUS_BADGE_VARIANT,
   APPLICATION_STATUS_LABELS,
   POSITION_CARD_STAT_STATUSES,
   STATUS_BADGE_VARIANT_TO_DOT,
 } from '@/lib/constants';
 import type {
+  MyPositionApplication,
   PositionApplicationStats,
   PositionWithQuestions,
 } from '@/lib/types';
 import { cn, getPositionAvailability, markdownToPlainText } from '@/lib/utils';
 
-import { PositionStatusBadge } from '@/components/features/status-badge';
+import {
+  ApplicationStatusBadge,
+  PositionStatusBadge,
+} from '@/components/features/status-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LocalTime } from '@/components/ui/local-time';
@@ -26,6 +31,7 @@ interface PositionCardProps {
   canManage?: boolean;
   isAuthenticated?: boolean;
   applicationStats?: PositionApplicationStats;
+  myApplication?: MyPositionApplication;
 }
 
 interface PositionStatClusterProps {
@@ -91,9 +97,16 @@ export function PositionCard({
   canManage = false,
   isAuthenticated = false,
   applicationStats,
+  myApplication,
 }: PositionCardProps) {
   const availability = getPositionAvailability(position);
   const isAccepting = availability === 'accepting';
+  const canContinueOrResubmit =
+    myApplication &&
+    APPLICANT_EDITABLE_APPLICATION_STATUSES.includes(
+      myApplication.status as (typeof APPLICANT_EDITABLE_APPLICATION_STATUSES)[number],
+    ) &&
+    (myApplication.status === 'draft' || isAccepting);
 
   let dateLabel: ReactNode = null;
   if (availability === 'accepting' && position.closesAt)
@@ -135,7 +148,7 @@ export function PositionCard({
           <CardHeader className="p-4 pb-2">
             <div
               className={cn(
-                'flex items-center gap-2',
+                'flex flex-wrap items-center gap-2',
                 !applicationStats && 'justify-between',
               )}
             >
@@ -143,6 +156,9 @@ export function PositionCard({
                 {position.title}
               </CardTitle>
               <PositionStatusBadge position={position} />
+              {myApplication && (
+                <ApplicationStatusBadge status={myApplication.status} />
+              )}
             </div>
           </CardHeader>
 
@@ -187,20 +203,41 @@ export function PositionCard({
                 </>
               ) : (
                 <>
-                  {isAccepting && (
-                    <Button asChild size="sm">
-                      {isAuthenticated ? (
+                  {myApplication ? (
+                    canContinueOrResubmit ? (
+                      <Button asChild size="sm">
                         <Link href={`/positions/${position.id}/apply`}>
-                          Apply
+                          {myApplication.status === 'draft'
+                            ? 'Continue application'
+                            : 'Edit & resubmit'}
                         </Link>
-                      ) : (
+                      </Button>
+                    ) : (
+                      <Button asChild variant="outline" size="sm">
                         <Link
-                          href={`/login?redirectTo=/positions/${position.id}/apply`}
+                          href={`/my-applications/${myApplication.id}`}
+                          aria-label={`View your application for ${position.title}`}
                         >
-                          Apply
+                          View application
                         </Link>
-                      )}
-                    </Button>
+                      </Button>
+                    )
+                  ) : (
+                    isAccepting && (
+                      <Button asChild size="sm">
+                        {isAuthenticated ? (
+                          <Link href={`/positions/${position.id}/apply`}>
+                            Apply
+                          </Link>
+                        ) : (
+                          <Link
+                            href={`/login?redirectTo=/positions/${position.id}/apply`}
+                          >
+                            Apply
+                          </Link>
+                        )}
+                      </Button>
+                    )
                   )}
                   <Button asChild variant="outline" size="sm">
                     <Link href={`/positions/${position.id}`}>View Details</Link>

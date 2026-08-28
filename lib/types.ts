@@ -353,6 +353,12 @@ export type PositionApplicationStats = {
   total: number;
 };
 
+// Feeds the browse page's applied marker on PositionCard. No applicant
+// identity, no answers — safe for a client leaf.
+export type MyPositionApplication = Prisma.ApplicationGetPayload<{
+  select: { id: true; positionId: true; status: true };
+}>;
+
 export interface NavIdentity {
   name: string | null;
   email: string;

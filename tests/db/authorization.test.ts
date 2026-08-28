@@ -39,6 +39,7 @@ import {
   getApplications,
   getApplicationsCount,
   getMyApplications,
+  getMyApplicationsByPosition,
   getMySubmittedCount,
   getRecentApplications,
   getReviewableApplicants,
@@ -377,6 +378,37 @@ describe('getMyApplications / getApplicationForApply / getMySubmittedCount', () 
       status: 'applied',
     });
     expect(await getMySubmittedCount(freshApplicant2.id)).toBe(1);
+  });
+
+  it('getMyApplicationsByPosition scopes to the caller and excludes soft-deleted rows', async () => {
+    const userA = await createTestUser();
+    const userB = await createTestUser();
+    const sharedPosition = await createTestPosition(admin, {
+      managers: [managerA],
+    });
+
+    const appA = await createTestApplication(userA, sharedPosition, {
+      status: 'applied',
+    });
+    const appB = await createTestApplication(userB, sharedPosition, {
+      status: 'draft',
+    });
+
+    const otherPosition = await createTestPosition(admin, {
+      managers: [managerA],
+    });
+    await createTestApplication(userA, otherPosition, {
+      status: 'draft',
+      deletedAt: new Date(),
+    });
+
+    const mapA = await getMyApplicationsByPosition(userA.id);
+    expect(mapA.get(sharedPosition.id)?.id).toBe(appA.id);
+    expect(mapA.has(otherPosition.id)).toBe(false);
+
+    const mapB = await getMyApplicationsByPosition(userB.id);
+    expect(mapB.get(sharedPosition.id)?.id).toBe(appB.id);
+    expect(mapB.get(sharedPosition.id)?.id).not.toBe(appA.id);
   });
 });
 
