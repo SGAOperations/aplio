@@ -2,12 +2,12 @@
 
 import { useState } from 'react';
 
-import { Download, FileText, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { downloadQuestionFileAnswer } from '@/prisma/actions/question-files';
 
 import { getFileDisplayName } from '@/lib/files';
+import { ACTION_ICONS, FILE_TYPE_ICONS } from '@/lib/icons';
 import type { QuestionFileTarget } from '@/lib/types';
 import { isError } from '@/lib/utils';
 
@@ -29,7 +29,9 @@ function base64ToBlob(base64: string, contentType: string): Blob {
 export function AnswerFileLink({ target, url }: AnswerFileLinkProps) {
   const [isPending, setIsPending] = useState(false);
   const filename = getFileDisplayName(url);
-  const Icon = filename.toLowerCase().endsWith('.pdf') ? FileText : ImageIcon;
+  const Icon = filename.toLowerCase().endsWith('.pdf')
+    ? FILE_TYPE_ICONS.pdf
+    : FILE_TYPE_ICONS.image;
 
   async function handleDownload() {
     setIsPending(true);
@@ -59,10 +61,7 @@ export function AnswerFileLink({ target, url }: AnswerFileLinkProps) {
   return (
     // Fills the container so a long filename still pushes Download right.
     <div className="flex w-full min-w-0 items-center gap-2">
-      <Icon
-        className="text-muted-foreground size-4 shrink-0"
-        aria-hidden="true"
-      />
+      <Icon className="text-muted-foreground size-4 shrink-0" />
       <span className="min-w-0 flex-1 truncate text-sm" title={filename}>
         {filename}
       </span>
@@ -77,12 +76,12 @@ export function AnswerFileLink({ target, url }: AnswerFileLinkProps) {
       >
         {isPending ? (
           <>
-            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            <ACTION_ICONS.pending className="animate-spin" />
             Preparing…
           </>
         ) : (
           <>
-            <Download className="size-4" aria-hidden="true" />
+            <ACTION_ICONS.download />
             Download
           </>
         )}

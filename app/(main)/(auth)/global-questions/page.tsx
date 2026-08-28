@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { getGlobalQuestions } from '@/prisma/data/global-questions';
 
 import { requireAdminOr404 } from '@/lib/auth/guards';
+import { ACTION_ICONS } from '@/lib/icons';
 
 import { GlobalQuestionDialog } from '@/components/features/global-question-dialog';
 import { GlobalQuestionsTable } from '@/components/features/global-questions-table';
@@ -23,7 +24,12 @@ export default async function GlobalQuestionsPage() {
         description="Questions every applicant answers once; shared across all applications."
         actions={
           <GlobalQuestionDialog
-            trigger={<Button size="sm">New Question</Button>}
+            trigger={
+              <Button size="sm">
+                <ACTION_ICONS.create />
+                New Question
+              </Button>
+            }
           />
         }
       />

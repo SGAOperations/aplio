@@ -3,8 +3,12 @@
 How Aplio's UI should look and behave. Read this before building or changing any UI. The single most important rule:
 
 > **IMPORTANT: never hardcode colors, radii, or font families.** Always use the semantic Tailwind tokens / CSS variables defined in `app/globals.css`. A literal hex, `rgb()`, or raw `oklch()` in a component is a bug. If you need a value that doesn't exist as a token, add a token to `globals.css` first.
+>
+> **Exception: `app/manifest.ts`.** A web app manifest is static JSON and can't read CSS custom properties, so `theme_color`/`background_color` are the one sanctioned place for a literal hex.
 
 Stack: shadcn/ui **new-york** style, **zinc** base color, **OKLCH** colors with light + `.dark` themes, **lucide** icons, RSC enabled. Config in `components.json`; tokens in `app/globals.css`.
+
+Platform icons (`app/apple-icon.png`, `public/icon-*.png`) are committed PNG rasters exported by hand from `public/logo-dark.svg` — re-export them if the logo changes.
 
 ## 1. Theme & atmosphere
 
@@ -29,7 +33,6 @@ Use the Tailwind utility that maps to each variable (e.g. `bg-background`, `text
 | `sidebar*`                                       | Sidebar surface, text, primary, accent, border, ring                                  |
 | `nav-hover`                                      | Hover fill for nav items                                                              |
 | `header-bg` / `header-border`                    | App header surface and divider                                                        |
-| `icon-secondary` / `icon-tertiary`               | Secondary/tertiary icon tints (lucide)                                                |
 | `chart-1`…`chart-5`                              | Data-viz series (in order)                                                            |
 
 Status mapping: success = positive/complete, warning = needs attention, info = neutral notice, destructive = error/danger. Don't invent new status colors.
@@ -63,18 +66,32 @@ Any change to a brand/status token must keep ≥4.5:1 contrast against its paire
 - **State surfaces:** all three required (`ENGINEERING.md` §4) — `<Suspense>` + skeleton for loading, `error.tsx`/inline error for failure, a designed empty state (icon + one line + primary action) for zero items.
 - **Focus & overlays:** never `outline-none` without a visible replacement; rely on Radix focus trapping in dialogs/sheets — don't break it with custom wrappers.
 
-## 6. Do / Don't
+## 6. Iconography
+
+The vocabulary lives in `lib/icons.ts` as five separately-exported `Record<Enum, LucideIcon>` maps — `CONCEPT_ICONS`, `APPLICATION_STATUS_ICONS`, `POSITION_AVAILABILITY_ICONS` / `POSITION_STATUS_ICONS`, `ACTION_ICONS`, `STATE_ICONS`, `FILE_TYPE_ICONS`. Five exports, not one object, so a consumer importing `ACTION_ICONS` doesn't pull the status icons into its bundle.
+
+- **The vocabulary is the allow-list.** Import icons from `@/lib/icons`, never `lucide-react`, outside `lib/icons.ts` and shadcn-generated `components/ui/*`. No meaning in a map → no icon.
+- **One concept, one icon, everywhere.** A concept's icon is identical in nav, empty state, section heading and button.
+- **Look the icon up inside the component that renders it.** A `LucideIcon` is a function and is **not serializable**, so it must never be a prop crossing a server → client boundary; derive it from the enum value or the concept key locally. (`EmptyState` / `SectionCardEmpty` / `WarningCallout`'s `icon` props are safe only because both sides sit in the same environment — keep it that way.)
+- **Never set a size class on an icon inside a shadcn primitive.** `components/ui/button.tsx` and `DropdownMenuItem` already carry `[&_svg:not([class*='size-'])]:size-4`; a `className="size-4"` there is dead weight. Elsewhere: `size-4` inline with text, `size-5` for a banner/trigger, `size-10` in a card-section empty state, `size-12` in a full `EmptyState`, `size-3` in a badge, `size-3.5` for a table-header sort affordance. Always `size-N`, never `h-N w-N`.
+- **Never write `aria-hidden` on a lucide icon.** lucide-react emits `aria-hidden="true"` itself unless an a11y prop is present. An icon-only control gets `aria-label` **on the control**, not on the icon, and never both an `aria-label` and an `sr-only` span.
+- **Tint:** `text-muted-foreground` by default; `text-destructive` / `text-warning` / `text-success` / `text-info` only where the icon carries that semantic. Never a hardcoded colour. Inside a coloured `Badge` the icon inherits the paired `-foreground` — set no tint.
+- **Icons never carry meaning alone.** Every icon sits beside a text label or an `aria-label`; colour + shape is a redundancy for WCAG 1.4.1, never the only channel.
+- **Icon-free by rule:** page titles (`PageHeader` h1), form labels and `FormMessage`, table body cells, data/value chips, role badges (`Admin` / `Manager`), and the `(legal)` prose pages plus `markdown.tsx` (user-authored content).
+- **shadcn CLI output is exempt.** `checkbox` `dialog` `dropdown-menu` `input-otp` `pagination` `radio-group` `select` `sheet` keep the CLI's emitted names (`XIcon`, `CheckIcon`, `MoreHorizontalIcon`, …) so re-running `shadcn add` produces no diff. Every other `components/ui/*` file is hand-written and bound by these rules.
+
+## 7. Do / Don't
 
 - ✅ `className="bg-card text-card-foreground border-border rounded-lg"` ❌ `style={{ background: '#fff' }}` / `bg-[#fff]` / `rounded-[12px]`
 - ✅ `text-muted-foreground` for secondary text ❌ `text-gray-500`
 - ✅ `text-success` / `bg-warning` ❌ `text-green-600` / `bg-amber-500`
-- ✅ icons via `lucide-react` ❌ inline SVG paths for standard icons
+- ✅ icons via `@/lib/icons` ❌ importing `lucide-react` directly outside `lib/icons.ts` / shadcn output
 - ✅ verify both themes ❌ values that only work in light mode
 
-## 7. Responsive
+## 8. Responsive
 
 Mobile-first (per `CLAUDE.md`): base styles target mobile, layer `md:`/`lg:` upward. Sidebars collapse to a Sheet/drawer with a hamburger trigger below `md`. Touch targets ≥ ~44px. No fixed pixel widths that break narrow viewports. Test at 375px, 768px, 1280px.
 
-## 8. Agent quick reference
+## 9. Agent quick reference
 
-Surfaces → `bg-background` (page), `bg-card` (panels), `bg-popover` (menus). Text → `text-foreground` (primary), `text-muted-foreground` (secondary). Brand → `primary`. Status → `success`/`warning`/`info`/`destructive`. Lines → `border-border`, focus → `ring-ring`. Radius → `rounded-lg`. Never hardcode any of these.
+Surfaces → `bg-background` (page), `bg-card` (panels), `bg-popover` (menus). Text → `text-foreground` (primary), `text-muted-foreground` (secondary). Brand → `primary`. Status → `success`/`warning`/`info`/`destructive`. Lines → `border-border`, focus → `ring-ring`. Radius → `rounded-lg`. Icons → `@/lib/icons`, never `lucide-react` directly. Never hardcode any of these.

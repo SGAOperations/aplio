@@ -1,9 +1,8 @@
 import Link from 'next/link';
 
-import { Briefcase } from 'lucide-react';
-
 import { getOpenPositionsSummary } from '@/prisma/data/positions';
 
+import { CONCEPT_ICONS } from '@/lib/icons';
 import { type OpenPositionSummaryItem } from '@/lib/types';
 
 import { SectionCard, SectionCardEmpty } from '@/components/ui/section-card';
@@ -20,6 +19,7 @@ export async function OpenPositionsSummary({
   return (
     <SectionCard
       title="Open Positions"
+      icon={CONCEPT_ICONS.position}
       link={{
         href: '/my-positions',
         label: 'See all',
@@ -28,7 +28,7 @@ export async function OpenPositionsSummary({
     >
       {positions.length === 0 ? (
         <SectionCardEmpty
-          icon={Briefcase}
+          icon={CONCEPT_ICONS.position}
           title="No open positions"
           description="Create a position to start accepting applications."
           action={

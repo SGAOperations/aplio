@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useMemo, useState, useTransition } from 'react';
 
-import { Users } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { deactivateUser, toggleUserAdmin } from '@/prisma/actions/users';
@@ -14,6 +13,7 @@ import {
   type DataTableFilter,
   filterRows,
 } from '@/lib/data-table';
+import { ACTION_ICONS, CONCEPT_ICONS } from '@/lib/icons';
 import type { AdminUserListItem } from '@/lib/types';
 import {
   formatTableCount,
@@ -191,6 +191,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
                 aria-disabled={isSelf}
                 onClick={() => openAdminDialog(u)}
               >
+                {u.isAdmin ? <ACTION_ICONS.demote /> : <ACTION_ICONS.promote />}
                 {u.isAdmin ? 'Remove admin' : 'Make admin'}
               </Button>
               <Button
@@ -203,6 +204,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
                 aria-disabled={isSelf}
                 onClick={() => openDeactivateDialog(u)}
               >
+                <ACTION_ICONS.deactivate />
                 Deactivate
               </Button>
             </DataTableRowActions>
@@ -285,7 +287,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
   if (users.length === 0)
     return (
       <EmptyState
-        icon={Users}
+        icon={CONCEPT_ICONS.user}
         title="No users found"
         description="Active users will appear here."
       />
@@ -352,6 +354,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
               onClick={clearFilters}
               className="w-full sm:w-auto"
             >
+              <ACTION_ICONS.clearFilters />
               Clear filters
             </Button>
           )}
@@ -448,6 +451,11 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
                     aria-disabled={isSelf}
                     onClick={() => openAdminDialog(user)}
                   >
+                    {user.isAdmin ? (
+                      <ACTION_ICONS.demote />
+                    ) : (
+                      <ACTION_ICONS.promote />
+                    )}
                     {user.isAdmin ? 'Remove admin' : 'Make admin'}
                   </Button>
                   <Button
@@ -462,6 +470,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
                     aria-disabled={isSelf}
                     onClick={() => openDeactivateDialog(user)}
                   >
+                    <ACTION_ICONS.deactivate />
                     Deactivate
                   </Button>
                 </DataTableRowActions>

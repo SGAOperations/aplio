@@ -2,13 +2,12 @@
 
 import Link from 'next/link';
 
-import { FileText } from 'lucide-react';
-
 import {
   APPLICATION_STATUS_LABELS,
   DELETED_APPLICATION_LABEL,
 } from '@/lib/constants';
 import { type DataTableColumn } from '@/lib/data-table';
+import { CONCEPT_ICONS } from '@/lib/icons';
 import { type MyApplicationListItem } from '@/lib/types';
 
 import { MyApplicationPrimaryAction } from '@/components/features/my-application-primary-action';
@@ -90,7 +89,7 @@ export function MyApplicationsTable({
   if (applications.length === 0)
     return (
       <EmptyState
-        icon={FileText}
+        icon={CONCEPT_ICONS.myApplication}
         title="No applications yet"
         description="Browse open positions to start your first application."
         action={

@@ -2,9 +2,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
-import { UserRoundX } from 'lucide-react';
-
 import { getDeactivatedSessionUser, getOptionalUser } from '@/lib/auth/server';
+import { ACTION_ICONS } from '@/lib/icons';
 
 import { DeactivatedSignOut } from '@/components/features/deactivated-sign-out';
 import { Button } from '@/components/ui/button';
@@ -23,7 +22,7 @@ export default async function AccountDeactivatedPage() {
 
   return (
     <div className="flex w-full max-w-sm flex-col items-center gap-4 text-center">
-      <UserRoundX className="text-muted-foreground size-10" aria-hidden />
+      <ACTION_ICONS.deactivate className="text-muted-foreground size-10" />
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold">Account deactivated</h1>
         <p className="text-sm">
@@ -41,7 +40,10 @@ export default async function AccountDeactivatedPage() {
       <div className="flex w-full flex-col gap-2">
         <DeactivatedSignOut />
         <Button variant="ghost" asChild className="w-full">
-          <Link href="/positions">Browse open positions</Link>
+          <Link href="/positions">
+            <ACTION_ICONS.goTo />
+            Browse open positions
+          </Link>
         </Button>
       </div>
     </div>

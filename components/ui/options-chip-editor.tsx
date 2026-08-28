@@ -2,12 +2,13 @@
 
 import { useId } from 'react';
 
-import { CornerDownLeft, X } from 'lucide-react';
+import { CornerDownLeft } from 'lucide-react';
 
 import {
   QUESTION_MAX_OPTIONS,
   QUESTION_OPTION_MAX_LENGTH,
 } from '@/lib/constants';
+import { ACTION_ICONS } from '@/lib/icons';
 
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -57,7 +58,7 @@ export function OptionsChipEditor({
                 className="hover:text-destructive focus-visible:ring-ring/50 -m-1 rounded-sm p-1 outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed"
                 aria-label={`Remove ${option}`}
               >
-                <X className="size-3" />
+                <ACTION_ICONS.dismiss className="size-3" />
               </button>
             </Badge>
           ))}
@@ -79,10 +80,7 @@ export function OptionsChipEditor({
             }
           }}
         />
-        <CornerDownLeft
-          aria-hidden="true"
-          className="text-muted-foreground pointer-events-none absolute top-1/2 right-2.5 h-3.5 w-3.5 -translate-y-1/2"
-        />
+        <CornerDownLeft className="text-muted-foreground pointer-events-none absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2" />
       </div>
       <span id={hintId} className="sr-only">
         Press Enter to add an option

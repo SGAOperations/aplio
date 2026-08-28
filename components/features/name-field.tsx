@@ -5,13 +5,13 @@ import { useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { z } from 'zod/v4';
 
 import { setUserName } from '@/prisma/actions/profile';
 
 import { nameSchema } from '@/lib/constants';
+import { ACTION_ICONS } from '@/lib/icons';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -86,9 +86,7 @@ export function NameField({ defaultName, redirectTo }: NameFieldProps) {
             )}
           />
           <Button type="submit" disabled={isPending} className="w-full">
-            {isPending && (
-              <Loader2 className="animate-spin" aria-hidden="true" />
-            )}
+            {isPending && <ACTION_ICONS.pending className="animate-spin" />}
             Continue
           </Button>
         </form>

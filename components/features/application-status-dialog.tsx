@@ -2,8 +2,6 @@
 
 import { useState } from 'react';
 
-import { Loader2 } from 'lucide-react';
-
 import type { $Enums } from '@/prisma/client';
 
 import {
@@ -12,6 +10,7 @@ import {
   getApplicationStatusUndoTarget,
   isNonReviewableApplicationStatus,
 } from '@/lib/constants';
+import { ACTION_ICONS } from '@/lib/icons';
 import type { ApplicationStatusHistoryEntry } from '@/lib/types';
 import { getApplicationStatusHistoryRowLabel } from '@/lib/utils';
 
@@ -118,7 +117,7 @@ export function ApplicationStatusDialog({
                   >
                     {move.isPending &&
                       move.pendingTarget === selectedStatus && (
-                        <Loader2 className="animate-spin" aria-hidden />
+                        <ACTION_ICONS.pending className="animate-spin" />
                       )}
                     Apply
                   </Button>
@@ -144,7 +143,7 @@ export function ApplicationStatusDialog({
                 }
               >
                 {move.isPending && move.pendingTarget === undoTarget && (
-                  <Loader2 className="animate-spin" aria-hidden />
+                  <ACTION_ICONS.pending className="animate-spin" />
                 )}
                 Undo — back to {APPLICATION_STATUS_LABELS[undoTarget]}
               </Button>

@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { getUsersForAdmin } from '@/prisma/data/users';
 
 import { requireAdminOr404 } from '@/lib/auth/guards';
+import { ACTION_ICONS } from '@/lib/icons';
 
 import { CreateUserDialog } from '@/components/features/create-user-dialog';
 import { UsersTable } from '@/components/features/users-table';
@@ -21,7 +22,16 @@ export default async function UsersPage() {
       <PageHeader
         title="Users"
         description="Manage platform accounts and admin access."
-        actions={<CreateUserDialog trigger={<Button>Create user</Button>} />}
+        actions={
+          <CreateUserDialog
+            trigger={
+              <Button>
+                <ACTION_ICONS.create />
+                Create user
+              </Button>
+            }
+          />
+        }
       />
 
       <UsersTable users={users} currentUserId={user.id} />

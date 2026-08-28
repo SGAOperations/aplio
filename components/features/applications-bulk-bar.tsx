@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from 'react';
 
-import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { updateApplicationStatuses } from '@/prisma/actions/applications';
@@ -14,6 +13,7 @@ import {
   getApplicationStatusForwardSources,
   isNonReviewableApplicationStatus,
 } from '@/lib/constants';
+import { ACTION_ICONS } from '@/lib/icons';
 import type { ApplicationListRow } from '@/lib/types';
 import { formatAlternatives, summarizeBulkStatusChange } from '@/lib/utils';
 
@@ -146,10 +146,7 @@ export function ApplicationsBulkBar({
         >
           {isPending ? (
             <>
-              <Loader2
-                className="mr-1.5 h-3.5 w-3.5 animate-spin"
-                aria-hidden
-              />
+              <ACTION_ICONS.pending className="animate-spin" />
               Applying...
             </>
           ) : (

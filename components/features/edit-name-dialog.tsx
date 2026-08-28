@@ -2,7 +2,6 @@
 
 import type { ReactNode } from 'react';
 
-import { TriangleAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import type { z } from 'zod/v4';
 
@@ -66,7 +65,7 @@ export function EditNameDialog({ currentName, trigger }: EditNameDialogProps) {
           </FormItem>
         )}
       />
-      <WarningCallout icon={TriangleAlert}>
+      <WarningCallout>
         This updates your name going forward. Applications you&apos;ve already
         submitted keep the name you used at the time.
       </WarningCallout>

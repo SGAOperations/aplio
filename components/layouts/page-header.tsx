@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
-import { ArrowLeft } from 'lucide-react';
+import { ACTION_ICONS } from '@/lib/icons';
 
 import { Button } from '@/components/ui/button';
 
@@ -27,7 +27,7 @@ export function PageHeader({
       {backHref && (
         <Button variant="ghost" size="sm" asChild className="mb-2 -ml-2 w-fit">
           <Link href={backHref}>
-            <ArrowLeft className="size-4" />
+            <ACTION_ICONS.back />
             {backLabel}
           </Link>
         </Button>

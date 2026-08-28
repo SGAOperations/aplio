@@ -3,7 +3,6 @@
 import { useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { z } from 'zod/v4';
 
@@ -11,6 +10,7 @@ import { updatePosition } from '@/prisma/actions/position-actions';
 import type { PositionStatus } from '@/prisma/client';
 
 import { STATUS_OPTIONS, positionFormSchema } from '@/lib/constants';
+import { ACTION_ICONS } from '@/lib/icons';
 
 import { MarkdownField } from '@/components/features/markdown-field';
 import { Button } from '@/components/ui/button';
@@ -168,7 +168,11 @@ export function PositionDetailsForm({ position }: PositionDetailsFormProps) {
 
         <div>
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="animate-spin" />}
+            {isSubmitting ? (
+              <ACTION_ICONS.pending className="animate-spin" />
+            ) : (
+              <ACTION_ICONS.save />
+            )}
             Save Changes
           </Button>
         </div>

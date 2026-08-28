@@ -3,7 +3,6 @@
 import type { ReactNode } from 'react';
 import { useCallback, useMemo } from 'react';
 
-import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { parseAsStringEnum, parseAsStringLiteral, useQueryStates } from 'nuqs';
 
 import {
@@ -12,6 +11,7 @@ import {
   type SortState,
   compareValues,
 } from '@/lib/data-table';
+import { ACTION_ICONS } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 
 import { Card } from '@/components/ui/card';
@@ -91,21 +91,12 @@ function SortableColumnHead({
         {header}
         {active ? (
           isAsc ? (
-            <ArrowUp
-              className="text-foreground h-3.5 w-3.5"
-              aria-hidden="true"
-            />
+            <ACTION_ICONS.sortAsc className="text-foreground size-3.5" />
           ) : (
-            <ArrowDown
-              className="text-foreground h-3.5 w-3.5"
-              aria-hidden="true"
-            />
+            <ACTION_ICONS.sortDesc className="text-foreground size-3.5" />
           )
         ) : (
-          <ArrowUpDown
-            className="text-muted-foreground h-3.5 w-3.5"
-            aria-hidden="true"
-          />
+          <ACTION_ICONS.sortNone className="text-muted-foreground size-3.5" />
         )}
       </button>
     </TableHead>

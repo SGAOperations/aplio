@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 
-import { ListChecks } from 'lucide-react';
-
 import type { GlobalAnswer, GlobalQuestion } from '@/prisma/client';
+
+import { CONCEPT_ICONS } from '@/lib/icons';
 
 import { ProfileQuestion } from '@/components/features/profile-question';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,7 @@ export function ProfileForm({ profileData }: ProfileFormProps) {
   if (profileData.length === 0)
     return (
       <EmptyState
-        icon={ListChecks}
+        icon={CONCEPT_ICONS.question}
         title="No profile questions yet"
         description="Questions added by an admin will appear here for you to answer."
       />

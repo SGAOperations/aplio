@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react';
 
-import { Loader2, UserMinus, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 
 import {
@@ -11,6 +10,7 @@ import {
   searchUsers,
 } from '@/prisma/actions/position-actions';
 
+import { ACTION_ICONS } from '@/lib/icons';
 import type { PositionManager, UserSearchResult } from '@/lib/types';
 import { isError } from '@/lib/utils';
 
@@ -179,9 +179,9 @@ export function PositionManagersSection({
                   }
                 >
                   {removingId === manager.id ? (
-                    <Loader2 className="size-4 animate-spin" />
+                    <ACTION_ICONS.pending className="animate-spin" />
                   ) : (
-                    <UserMinus className="size-4" />
+                    <ACTION_ICONS.removeManager />
                   )}
                   <span className="sr-only">
                     {blockSelfRemoval
@@ -207,7 +207,7 @@ export function PositionManagersSection({
             maxLength={200}
           />
           {isSearching && (
-            <Loader2 className="text-muted-foreground absolute top-2 right-2.5 size-4 animate-spin" />
+            <ACTION_ICONS.pending className="text-muted-foreground absolute top-2 right-2.5 size-4 animate-spin" />
           )}
         </div>
         {results.length > 0 && (
@@ -227,9 +227,9 @@ export function PositionManagersSection({
                     </span>
                   </div>
                   {addingEmail === user.primaryEmail ? (
-                    <Loader2 className="size-4 animate-spin" />
+                    <ACTION_ICONS.pending className="size-4 animate-spin" />
                   ) : (
-                    <UserPlus className="size-4" />
+                    <ACTION_ICONS.addManager className="size-4" />
                   )}
                 </button>
               </li>

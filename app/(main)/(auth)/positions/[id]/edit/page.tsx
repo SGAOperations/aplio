@@ -1,8 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
-import { Archive } from 'lucide-react';
-
 import {
   getPositionDeletionSummary,
   getPositionForEdit,
@@ -10,6 +8,7 @@ import {
 
 import { requireListedManagerOr404 } from '@/lib/auth/guards';
 import { toOrgDayString } from '@/lib/dates';
+import { STATE_ICONS } from '@/lib/icons';
 import { isPositionActive } from '@/lib/utils';
 
 import { PositionDangerZone } from '@/components/features/position-danger-zone';
@@ -63,7 +62,7 @@ export default async function EditPositionPage({
       />
 
       {!canEdit && (
-        <WarningCallout icon={Archive}>
+        <WarningCallout icon={STATE_ICONS.archived}>
           <div className="flex flex-col gap-1">
             <p className="font-medium">This position is archived.</p>
             <p>

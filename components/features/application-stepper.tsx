@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { type RefObject, useMemo, useRef, useState } from 'react';
 import { type Control, Controller, useForm, useWatch } from 'react-hook-form';
 
-import { CheckIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
 import {
@@ -20,6 +19,7 @@ import type {
 
 import { fireConfetti } from '@/lib/confetti';
 import { getAnswerBlurError } from '@/lib/constants';
+import { ACTION_ICONS, CONCEPT_ICONS } from '@/lib/icons';
 import {
   type AnswerQuestion,
   type DraftApplication,
@@ -402,7 +402,7 @@ export function ApplicationStepper({
             aria-current={step === 1 ? 'step' : undefined}
             className="bg-primary text-primary-foreground flex size-7 items-center justify-center rounded-full text-sm font-medium"
           >
-            {step === 2 ? <CheckIcon className="size-4" /> : '1'}
+            {step === 2 ? <ACTION_ICONS.save className="size-4" /> : '1'}
           </div>
           <div className="bg-border h-px flex-1" />
           <div
@@ -424,7 +424,8 @@ export function ApplicationStepper({
         <div className="flex flex-col gap-6">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-lg font-semibold tracking-tight">
+              <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+                <CONCEPT_ICONS.profile className="text-muted-foreground size-4" />
                 Your Profile
               </h2>
               <p className="text-muted-foreground mt-1 text-sm">
@@ -506,7 +507,8 @@ export function ApplicationStepper({
       {step === 2 && hasPositionQuestions && (
         <div className="flex flex-col gap-6">
           <div>
-            <h2 className="text-lg font-semibold tracking-tight">
+            <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+              <CONCEPT_ICONS.question className="text-muted-foreground size-4" />
               Position-Specific Questions
             </h2>
             <p className="text-muted-foreground mt-1 text-sm">

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 
 import type { LucideIcon } from 'lucide-react';
 
+import { STATE_ICONS } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 
 interface WarningCalloutProps {
@@ -13,7 +14,7 @@ interface WarningCalloutProps {
 
 export function WarningCallout({
   id,
-  icon: Icon,
+  icon: Icon = STATE_ICONS.warning,
   className,
   children,
 }: WarningCalloutProps) {
@@ -25,12 +26,7 @@ export function WarningCallout({
         className,
       )}
     >
-      {Icon && (
-        <Icon
-          className="text-warning mt-0.5 size-4 shrink-0"
-          aria-hidden="true"
-        />
-      )}
+      <Icon className="text-warning mt-0.5 size-4 shrink-0" />
       <div className="min-w-0 flex-1">{children}</div>
     </div>
   );
