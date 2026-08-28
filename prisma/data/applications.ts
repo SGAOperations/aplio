@@ -37,6 +37,7 @@ import {
 } from '@/lib/types';
 import {
   canReviewPosition,
+  classifyDecisionEmailStatus,
   displayUserName,
   isPositionActive,
 } from '@/lib/utils';
@@ -309,28 +310,20 @@ export async function getDecisionEmailNotice(
       application: buildApplicationWhere(user, 'listable'),
     },
     orderBy: { createdAt: 'desc' },
-    select: { status: true },
+    select: { status: true, scheduledAt: true },
   });
 
   if (!log) return null;
 
-  switch (log.status) {
-    case 'scheduled':
-      return 'scheduled';
-    case 'sent':
-    case 'delivered':
-    case 'bounced':
-    case 'complained':
-    case 'suppressed':
-      return 'sent';
-    case 'cancelled':
-    case 'failed':
-      return null;
-    default: {
-      const exhaustive: never = log.status;
-      throw new Error(`Unhandled email status: ${JSON.stringify(exhaustive)}`);
-    }
-  }
+  const bucket = classifyDecisionEmailStatus(log.status);
+  if (bucket === null) return null;
+  if (bucket === 'sent') return { status: 'sent' };
+
+  // Every scheduled decision email is created with scheduledAt set — a
+  // missing one here means the row was never a real decision send.
+  if (!log.scheduledAt)
+    throw new Error('Scheduled decision email is missing scheduledAt');
+  return { status: 'scheduled', scheduledAt: log.scheduledAt };
 }
 
 // Cross-scope by design (docs/PERMISSIONS.md) — step 2 deliberately drops buildReviewablePositionWhere.

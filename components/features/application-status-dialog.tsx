@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import type { $Enums } from '@/prisma/client';
 
@@ -44,6 +44,24 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 const UNDO_NOTICE_ID = 'status-dialog-undo-notice';
 
+// Synchronizes with the wall clock (a genuinely external system, not app
+// state) so Undo disables itself the moment the window closes, even if the
+// dialog has been open the whole time.
+function useDecisionEmailWindowExpired(scheduledAt?: Date): boolean {
+  const time = scheduledAt?.getTime();
+  const [expired, setExpired] = useState(false);
+
+  useEffect(() => {
+    const tick = () => setExpired(time !== undefined && Date.now() >= time);
+    tick();
+    if (time === undefined) return;
+    const timeout = setTimeout(tick, Math.max(time - Date.now(), 0));
+    return () => clearTimeout(timeout);
+  }, [time]);
+
+  return expired;
+}
+
 interface ApplicationStatusDialogProps {
   applicationId: string;
   applicantName: string;
@@ -78,10 +96,24 @@ export function ApplicationStatusDialog({
   const undoTarget = getApplicationStatusUndoTarget(history[0] ?? null);
   const selectingDecision =
     selectedStatus === 'accepted' || selectedStatus === 'rejected';
+  const scheduledAt =
+    decisionEmailState?.status === 'scheduled'
+      ? decisionEmailState.scheduledAt
+      : undefined;
+  const windowExpired = useDecisionEmailWindowExpired(scheduledAt);
   const undoNotice =
     (currentStatus === 'accepted' || currentStatus === 'rejected') && undoTarget
-      ? getUndoDecisionEmailNotice(decisionEmailState, currentStatus)
+      ? getUndoDecisionEmailNotice(
+          decisionEmailState,
+          currentStatus,
+          windowExpired,
+        )
       : null;
+  // The window closing or the email actually sending must stop the click
+  // itself, not just change the copy next to it.
+  const undoLocked =
+    decisionEmailState?.status === 'sent' ||
+    (decisionEmailState?.status === 'scheduled' && windowExpired);
 
   function handleApply() {
     if (!selectedStatus) return;
@@ -167,7 +199,7 @@ export function ApplicationStatusDialog({
                   variant="link"
                   size="sm"
                   className="h-auto w-fit p-0"
-                  disabled={move.isPending}
+                  disabled={move.isPending || undoLocked}
                   aria-describedby={undoNotice ? UNDO_NOTICE_ID : undefined}
                   onClick={() =>
                     move.selectTarget(undoTarget, { override: true })
@@ -184,7 +216,17 @@ export function ApplicationStatusDialog({
                     role="status"
                     className="text-muted-foreground text-xs"
                   >
-                    {undoNotice}
+                    {undoNotice.lead}
+                    {undoNotice.scheduledAt && (
+                      <>
+                        {' '}
+                        <LocalTime
+                          date={undoNotice.scheduledAt}
+                          precision="datetime"
+                        />
+                        {' — undo before then to cancel it.'}
+                      </>
+                    )}
                   </p>
                 )}
               </div>
