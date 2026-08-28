@@ -48,16 +48,7 @@ const positionWithQuestionsSelect = {
   },
 } as const;
 
-// Shared fragment for the isPositionActive predicate (lib/utils.ts). Always spread
-// alongside positionWithQuestionsSelect, which supplies the status/opensAt/closesAt
-// fields isPositionActive also needs (via getPositionAvailability) — this fragment
-// only adds the fields select doesn't already cover. One row per non-deleted
-// application, each carrying at most its latest counted status event —
-// withPositionActivity below flattens that to a single lastStatusChangeAt and
-// must change together with this fragment (it's the one joint Prisma can't
-// type-check). Excludes NON_REVIEWABLE_APPLICATION_STATUSES targets (draft,
-// withdrawn) so a withdrawal — or a draft, which can't exist on an already-closed
-// position anyway — can't re-pin an otherwise-idle position active (#340, #581).
+// Fragment for isPositionActive; must change together with withPositionActivity below.
 export const positionActivitySelect = {
   updatedAt: true,
   applications: {
