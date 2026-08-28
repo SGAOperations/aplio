@@ -2,11 +2,13 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import type { $Enums } from '@/prisma/client';
 import { getMyApplication } from '@/prisma/data/applications';
 
 import { getCurrentUser } from '@/lib/auth/server';
-import { TERMINAL_DECISION_STATUSES } from '@/lib/constants';
+import {
+  type PublicApplicationStatus,
+  TERMINAL_DECISION_STATUSES,
+} from '@/lib/constants';
 import { CONCEPT_ICONS } from '@/lib/icons';
 
 import { ApplicationAnswersList } from '@/components/features/application-answers-list';
@@ -21,13 +23,10 @@ interface MyApplicationDetailPageProps {
   params: Promise<{ id: string }>;
 }
 
-// Exhaustive on the generated enum, so a new status breaks the build here too.
-const STATUS_COPY: Record<$Enums.ApplicationStatus, string> = {
+// Exhaustive on the public status, so a new status breaks the build here too.
+const STATUS_COPY: Record<PublicApplicationStatus, string> = {
   draft: "You haven't submitted this application yet.",
   applied: "Submitted. We'll update you here as it moves through review.",
-  reached_out: 'The team has reached out to you about this application.',
-  interview_scheduled: 'An interview has been scheduled for this application.',
-  reviewing: 'Your application is being reviewed.',
   accepted: "You've been accepted for this position!",
   rejected: "This application wasn't selected.",
   withdrawn:
@@ -83,7 +82,7 @@ export default async function MyApplicationDetailPage({
         <p className="text-muted-foreground mt-1 text-sm">
           {isDraft ? 'Draft · last saved ' : 'Applied '}
           <LocalTime
-            date={isDraft ? application.updatedAt : application.submittedAt}
+            date={application.lastSavedAt ?? application.submittedAt}
             precision="date"
           />{' '}
           ·{' '}
