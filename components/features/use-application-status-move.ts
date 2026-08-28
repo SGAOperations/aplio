@@ -9,6 +9,7 @@ import type { $Enums } from '@/prisma/client';
 
 import { fireConfetti } from '@/lib/confetti';
 import { APPLICATION_STATUS_LABELS } from '@/lib/constants';
+import { getDecisionEmailWarning } from '@/lib/utils';
 
 interface UseApplicationStatusMoveOptions {
   applicationId: string;
@@ -23,15 +24,15 @@ interface PerformMoveOptions {
 const CONFIRM_COPY = {
   accepted: {
     title: (name: string) => `Accept ${name}?`,
-    description:
-      "They'll see Accepted on their application and can no longer withdraw it. You can move this back later.",
+    description: (name?: string) =>
+      `They'll see Accepted on their application and can no longer withdraw it. ${getDecisionEmailWarning(name)}`,
     confirmLabel: 'Accept',
     pendingLabel: 'Accepting…',
   },
   rejected: {
     title: (name: string) => `Reject ${name}?`,
-    description:
-      "They'll see Rejected on their application and can no longer withdraw it. You can move this back later.",
+    description: (name?: string) =>
+      `They'll see Rejected on their application and can no longer withdraw it. ${getDecisionEmailWarning(name)}`,
     confirmLabel: 'Reject',
     pendingLabel: 'Rejecting…',
   },
@@ -111,7 +112,7 @@ export function useApplicationStatusMove({
     open: confirmOpen,
     onOpenChange: setConfirmOpen,
     title: confirmCopy.title(displayName),
-    description: confirmCopy.description,
+    description: confirmCopy.description(applicantName),
     confirmLabel: confirmCopy.confirmLabel,
     pendingLabel: confirmCopy.pendingLabel,
     destructive: confirmTarget === 'rejected',

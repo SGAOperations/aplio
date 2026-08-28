@@ -1,5 +1,7 @@
 import { Suspense } from 'react';
 
+import { getFirstName } from '@/lib/utils';
+
 import { ApplicantActivityFeed } from '@/components/features/activity-feed';
 import {
   ApplicantSummary,
@@ -16,7 +18,7 @@ interface UserDashboardProps {
 }
 
 export function UserDashboard({ userId, userName }: UserDashboardProps) {
-  const firstName = userName?.split(' ')[0];
+  const firstName = getFirstName(userName);
   const heading = firstName ? `Welcome back, ${firstName}` : 'Welcome to Aplio';
 
   return (

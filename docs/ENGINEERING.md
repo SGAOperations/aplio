@@ -132,6 +132,7 @@ if (applications.length === 0)
 
 - **Forms:** pending state on submit (disabled button + spinner via `useFormStatus` or react-hook-form `isSubmitting`), inline field errors from zod, preserved input on failure, success feedback (toast or redirect). Progressive enhancement where practical.
 - **Mutations feel instant.** After a successful action: `revalidatePath`/`revalidateTag` always; optimistic UI where the interaction is high-frequency (toggles, votes).
+- **A domain email is a side effect, dispatched in `after()`.** The mutation it follows (a status write, a submission) has already committed by the time the email is attempted, so a failed send must never fail that mutation and must never surface to the actor — `lib/email/application-emails.ts` is the swallow site, with the `EmailLog` row as the record that makes swallowing correct (`docs/WORKFLOWS.md` XC-9).
 
 ### Logging
 
@@ -146,7 +147,7 @@ A thrown error reaches Vercel's runtime logs with a stack and request context; a
   - **Fail-open paths** where degrading beats throwing (`lib/rate-limit.ts` — a limiter that's down must not take the app down). The comment states why it cannot throw.
   - **A client `catch` that also toasts** — the §3-mandated wrapper around a server action, where the log keeps a real bug distinguishable from a stale-permission denial. Logging with **no** toast is not exempt.
   - **A server-side cause the browser can't see** (`prisma/actions/auth.ts`) — log the upstream error, return `{ error }` with safe copy.
-  - **Best-effort side effects get no automatic exemption.** Where the caller can retry (a webhook whose 500 is retried), **throw** — `lib/email/resend.ts`. Log-and-continue only where the side effect is genuinely non-retryable _and_ non-critical, with the invariant comment.
+  - **Best-effort side effects get no automatic exemption.** Where the caller can retry (a webhook whose 500 is retried), **throw** — `lib/email/resend.ts` still does, for both the single send and the batch send. The one exemption is a domain email already dispatched from `after()`: `lib/email/application-emails.ts` is the named swallow site, since the mutation it follows has already committed and the `EmailLog` row is the record that makes swallowing correct.
 
 ## 5. Accessibility
 

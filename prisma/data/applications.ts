@@ -12,6 +12,7 @@ import {
 } from '@/lib/auth/scopes';
 import {
   APPLICATIONS_PAGE_SIZE,
+  DECISION_EMAIL_TEMPLATES,
   PUBLIC_APPLICATION_STATUS,
   PUBLISHED_POSITION_WHERE,
   type PublicApplicationStatus,
@@ -25,6 +26,7 @@ import {
   type ApplicationForReview,
   type ApplicationReviewAnswer,
   type ApplicationStatusHistoryEntry,
+  type DecisionEmailNoticeState,
   type DraftApplication,
   type MyApplicationDetail,
   type MyApplicationListItem,
@@ -289,6 +291,39 @@ export async function getApplicationStatusHistory(
     createdAt: event.createdAt,
     changedByName: displayUserName(event.changedBy),
   }));
+}
+
+// Read only, never the recipient address/provider id — the nested `application`
+// scope keeps this authorized on its own terms rather than trusting the caller.
+export async function getDecisionEmailNotice(
+  applicationId: string,
+  currentStatus: $Enums.ApplicationStatus,
+  user: Reviewer,
+): Promise<DecisionEmailNoticeState> {
+  if (currentStatus !== 'accepted' && currentStatus !== 'rejected') return null;
+
+  const log = await prisma.emailLog.findFirst({
+    where: {
+      applicationId,
+      template: DECISION_EMAIL_TEMPLATES[currentStatus],
+      application: buildApplicationWhere(user, 'listable'),
+    },
+    orderBy: { createdAt: 'desc' },
+    select: { status: true },
+  });
+
+  if (!log) return null;
+  if (log.status === 'scheduled') return 'scheduled';
+  if (
+    log.status === 'sent' ||
+    log.status === 'delivered' ||
+    log.status === 'bounced' ||
+    log.status === 'complained' ||
+    log.status === 'suppressed'
+  )
+    return 'sent';
+  // 'cancelled' or 'failed'
+  return null;
 }
 
 // Cross-scope by design (docs/PERMISSIONS.md) — step 2 deliberately drops buildReviewablePositionWhere.

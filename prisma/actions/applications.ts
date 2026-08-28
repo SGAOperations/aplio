@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 
 import { z } from 'zod/v4';
 
@@ -11,7 +12,10 @@ import type {
   GlobalQuestion,
   PositionApplicationAnswer,
 } from '@/prisma/client';
-import { getApplicationStatusHistory } from '@/prisma/data/applications';
+import {
+  getApplicationStatusHistory,
+  getDecisionEmailNotice,
+} from '@/prisma/data/applications';
 
 import { requireManagerOrAdmin, requireOwnership } from '@/lib/auth/guards';
 import {
@@ -33,10 +37,17 @@ import {
   isApplicantEditableApplicationStatus,
   matchesShortAnswerFormat,
 } from '@/lib/constants';
+import {
+  type DecisionEmailRecipient,
+  dispatchBulkDecisionEmails,
+  dispatchDecisionEmail,
+  sendApplicationReceipt,
+} from '@/lib/email/application-emails';
 import { prisma } from '@/lib/prisma';
 import {
   type AnswerQuestion,
   type ApplicationStatusHistoryEntry,
+  type DecisionEmailNoticeState,
 } from '@/lib/types';
 import {
   type ResponseType,
@@ -342,6 +353,10 @@ export async function submitApplication(
   const parsed = submitApplicationSchema.safeParse({ applicationId });
   if (!parsed.success) return { error: 'Invalid input' };
 
+  // Set inside the transaction once ownership is confirmed; read again after
+  // it commits, for the receipt email — after() runs outside the tx.
+  let positionTitle: string | undefined;
+
   // Snapshot materialization and the status update must land atomically, or
   // two tabs could race the write.
   const result = await prisma.$transaction(async (tx) => {
@@ -352,6 +367,7 @@ export async function submitApplication(
         positionAnswers: true,
         position: {
           select: {
+            title: true,
             deletedAt: true,
             status: true,
             opensAt: true,
@@ -363,6 +379,7 @@ export async function submitApplication(
     });
 
     requireOwnership(application, currentUser.id);
+    positionTitle = application.position.title;
 
     // Status check first — wins over the window/required-answer checks below.
     if (!isApplicantEditableApplicationStatus(application.status))
@@ -488,6 +505,17 @@ export async function submitApplication(
 
   if (isError(result)) return result;
 
+  // Fires on withdrawn -> applied too, since resubmission runs this same path.
+  after(() =>
+    sendApplicationReceipt({
+      applicationId: parsed.data.applicationId,
+      userId: currentUser.id,
+      to: currentUser.email,
+      name: currentUser.name ?? undefined,
+      positionTitle: positionTitle!,
+    }),
+  );
+
   revalidatePath('/manage/applications');
   revalidatePath('/positions', 'layout');
   revalidatePath('/manage/positions', 'layout');
@@ -514,6 +542,10 @@ export async function updateApplicationStatus(
 
   const { applicationId, status, override } = parsed.data;
 
+  // Set inside the transaction on a successful write; read again after it
+  // commits, for the decision email dispatch — after() runs outside the tx.
+  let recipient: DecisionEmailRecipient | undefined;
+
   const result = await prisma.$transaction(async (tx) => {
     // Authorization folded into the query, as in getApplicationForReview.
     const application = await tx.application.findFirst({
@@ -521,7 +553,14 @@ export async function updateApplicationStatus(
         id: applicationId,
         ...buildApplicationWhere(user, 'reviewable'),
       },
-      select: { id: true, status: true },
+      select: {
+        id: true,
+        status: true,
+        userId: true,
+        applicantName: true,
+        user: { select: { email: true } },
+        position: { select: { title: true } },
+      },
     });
 
     // IDOR-style miss, unreachable from the UI — throw, don't return.
@@ -562,9 +601,20 @@ export async function updateApplicationStatus(
         changedById: user.id,
       },
     });
+
+    recipient = {
+      applicationId,
+      userId: application.userId,
+      to: application.user.email,
+      name: application.applicantName ?? undefined,
+      positionTitle: application.position.title,
+    };
   });
 
   if (result && 'error' in result) return result;
+
+  // Covers the quick actions, the override Select, and undo alike.
+  after(() => dispatchDecisionEmail({ recipient: recipient!, status }));
 
   revalidatePath(`/manage/applications/${applicationId}`);
   revalidatePath('/manage/applications');
@@ -597,7 +647,14 @@ export async function updateApplicationStatuses(
         ...buildApplicationScopeWhere(user),
         status: { notIn: [...NON_REVIEWABLE_APPLICATION_STATUSES, status] },
       },
-      select: { id: true, status: true },
+      select: {
+        id: true,
+        status: true,
+        userId: true,
+        applicantName: true,
+        user: { select: { email: true } },
+        position: { select: { title: true } },
+      },
     });
 
     if (eligible.length === 0) return { eligible, updatedIds: [] };
@@ -637,6 +694,24 @@ export async function updateApplicationStatuses(
       error: `None of the selected applications can move to ${APPLICATION_STATUS_LABELS[status]} — they're already there, or they're drafts or withdrawn.`,
     };
 
+  // No role check: the caller already passed buildApplicationScopeWhere(user)
+  // for every row above. Same set for everyone, admin or manager.
+  const updatedSet = new Set(updatedIds);
+  after(() =>
+    dispatchBulkDecisionEmails({
+      recipients: eligible
+        .filter((a) => updatedSet.has(a.id))
+        .map((a) => ({
+          applicationId: a.id,
+          userId: a.userId,
+          to: a.user.email,
+          name: a.applicantName ?? undefined,
+          positionTitle: a.position.title,
+        })),
+      status,
+    }),
+  );
+
   revalidatePath('/manage/applications');
   // Wildcard segment: a bulk update has no individual positionIds to hand.
   revalidatePath('/manage/applications/[id]', 'layout');
@@ -658,6 +733,28 @@ export async function loadApplicationStatusHistory(
   if (!parsed.success) return { error: 'Invalid input' };
 
   return getApplicationStatusHistory(parsed.data.applicationId, user);
+}
+
+const decisionEmailNoticeSchema = z.object({
+  applicationId: z.string().min(1),
+  currentStatus: z.enum(REVIEWER_APPLICATION_STATUSES),
+});
+
+// Read-only, same shape as loadApplicationStatusHistory — the table row's
+// dialog fetches this alongside history rather than the page pre-fetching it per row.
+export async function loadDecisionEmailNotice(
+  input: unknown,
+): Promise<ResponseType<DecisionEmailNoticeState>> {
+  const user = await requireManagerOrAdmin();
+
+  const parsed = decisionEmailNoticeSchema.safeParse(input);
+  if (!parsed.success) return { error: 'Invalid input' };
+
+  return getDecisionEmailNotice(
+    parsed.data.applicationId,
+    parsed.data.currentStatus,
+    user,
+  );
 }
 
 const WITHDRAW_NOT_ALLOWED_MESSAGE =

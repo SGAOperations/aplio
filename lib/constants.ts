@@ -506,6 +506,22 @@ export const TERMINAL_DECISION_STATUS_NOTES: Record<
   rejected: 'Rejected. The applicant can no longer withdraw this application.',
 };
 
+// Single source for the single-decision scheduled-send window.
+export const DECISION_EMAIL_DELAY_MINUTES = 15;
+
+export const DECISION_EMAIL_NOUNS: Record<'accepted' | 'rejected', string> = {
+  accepted: 'acceptance',
+  rejected: 'rejection',
+};
+
+export const DECISION_EMAIL_TEMPLATES: Record<
+  'accepted' | 'rejected',
+  $Enums.EmailTemplateKey
+> = { accepted: 'application_accepted', rejected: 'application_rejected' };
+
+// Resend's batch cap — chunk sendEmailBatch at this size regardless of the caller's own cap.
+export const RESEND_BATCH_MAX_EMAILS = 100;
+
 // States a reviewer may not act *on* — distinct from REVIEWER_APPLICATION_STATUSES (may set *to*).
 export const NON_REVIEWABLE_APPLICATION_STATUSES = [
   'draft',

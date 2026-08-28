@@ -14,7 +14,11 @@ import {
 } from '@/lib/constants';
 import { ACTION_ICONS } from '@/lib/icons';
 import type { ApplicationListRow } from '@/lib/types';
-import { summarizeBulkStatusChange } from '@/lib/utils';
+import {
+  countBulkEmailRecipients,
+  getBulkImmediateEmailWarning,
+  summarizeBulkStatusChange,
+} from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -26,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { WarningCallout } from '@/components/ui/warning-callout';
 
 interface ApplicationsBulkBarProps {
   selected: ApplicationListRow[];
@@ -59,6 +64,12 @@ export function ApplicationsBulkBar({
   const isDecision = status === 'accepted' || status === 'rejected';
   const statusLabel = status ? APPLICATION_STATUS_LABELS[status] : '';
   const finalDecisionCount = summary?.finalDecisionCount ?? 0;
+  const emailRecipientCount = isDecision
+    ? countBulkEmailRecipients(selected, status)
+    : 0;
+  const emailWarning = isDecision
+    ? getBulkImmediateEmailWarning(emailRecipientCount)
+    : null;
 
   function handleConfirm() {
     if (!status) return;
@@ -167,6 +178,13 @@ export function ApplicationsBulkBar({
         }
         description={
           <div className="flex flex-col gap-2">
+            {emailWarning && (
+              <WarningCallout>
+                <p>
+                  <strong>{emailWarning.lead}</strong> {emailWarning.detail}
+                </p>
+              </WarningCallout>
+            )}
             {summary && summary.forwardCount > 0 && (
               <p>{summary.forwardCount} will move forward.</p>
             )}
@@ -187,8 +205,8 @@ export function ApplicationsBulkBar({
           </div>
         }
         confirmLabel={
-          isRejecting
-            ? `Reject ${eligibleCount} ${applicationNoun(eligibleCount)}`
+          isDecision
+            ? `${isRejecting ? 'Reject' : 'Accept'} ${emailRecipientCount} and email now`
             : `Set to ${statusLabel}`
         }
         pendingLabel={isRejecting ? 'Rejecting…' : 'Updating…'}
