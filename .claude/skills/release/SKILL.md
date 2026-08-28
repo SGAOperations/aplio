@@ -248,3 +248,4 @@ Runs once `main` is at `<version>` / the release PR is merged — by then §0.5 
 - The wait is driven by `ScheduleWakeup` re-entering `/release`; you invoke the command only once.
 - File-based bodies/notes only (`gh ... --body-file` / `--notes-file`) — never inline `--body`/`--notes` for multi-line markdown (escaping breaks cross-platform).
 - If anything is ambiguous (dirty tree, missing branch, nothing to release, PR closed unmerged, two bump branches, an unparseable custom version), **stop and report** rather than guessing.
+- Run `/full-review` before cutting a release — it's the mechanism that makes "runs each release" true for the whole-platform audit rather than a one-off.
