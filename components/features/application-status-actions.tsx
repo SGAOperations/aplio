@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
 
 import { toast } from 'sonner';
 
@@ -44,17 +44,20 @@ export function ApplicationStatusActions({
   const [history, setHistory] = useState<ApplicationStatusHistoryEntry[]>([]);
   const [isHistoryLoading, startHistoryTransition] = useTransition();
   const [historyFailed, setHistoryFailed] = useState(false);
+  const requestIdRef = useRef(0);
 
   if (isNonReviewableApplicationStatus(currentStatus)) return null;
 
   // Opens immediately and fetches in the same handler — no table pre-fetch
   // of history for every visible row; re-fetches on every open.
   function openDialog() {
+    const requestId = ++requestIdRef.current;
     setDialogOpen(true);
     setHistoryFailed(false);
     startHistoryTransition(async () => {
       try {
         const result = await loadApplicationStatusHistory({ applicationId });
+        if (requestId !== requestIdRef.current) return;
         if (isError(result)) {
           setHistoryFailed(true);
           toast.error(result.error);
@@ -62,6 +65,7 @@ export function ApplicationStatusActions({
         }
         setHistory(result);
       } catch {
+        if (requestId !== requestIdRef.current) return;
         setHistoryFailed(true);
         toast.error('Something went wrong. Please try again.');
       }

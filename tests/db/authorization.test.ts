@@ -542,7 +542,7 @@ describe('updateApplicationStatuses', () => {
     });
     expect(result).toEqual({
       error:
-        "None of the selected applications can move to Reviewing — that's only reachable from Applied, Reached out, or Interview scheduled.",
+        "None of the selected applications can move to Reviewing — they're already there, or they're drafts or withdrawn.",
     });
   });
 
@@ -595,7 +595,7 @@ describe('updateApplicationStatuses', () => {
     });
     expect(result).toEqual({
       error:
-        "None of the selected applications can move to Reviewing — that's only reachable from Applied, Reached out, or Interview scheduled.",
+        "None of the selected applications can move to Reviewing — they're already there, or they're drafts or withdrawn.",
     });
 
     const stillDraftPosition = await prisma.application.findUniqueOrThrow({

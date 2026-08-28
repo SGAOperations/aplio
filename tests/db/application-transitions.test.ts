@@ -327,7 +327,7 @@ describe('updateApplicationStatuses bulk mixed selections', () => {
     expect(events[0]).toMatchObject({ from: 'accepted', to: 'reviewing' });
   });
 
-  it('skips draft, withdrawn, and rows already at the target', async () => {
+  it('errors when every selected row is draft, withdrawn, or already at the target', async () => {
     const draftApplicant = await createTestUser();
     const draftApp = await createTestApplication(draftApplicant, openPosition, {
       status: 'draft',
@@ -350,7 +350,10 @@ describe('updateApplicationStatuses bulk mixed selections', () => {
       applicationIds: [draftApp.id, withdrawnApp.id, alreadyThereApp.id],
       status: 'reviewing',
     });
-    expect(result).toEqual({ updated: 0, skipped: 3 });
+    expect(result).toEqual({
+      error:
+        "None of the selected applications can move to Reviewing — they're already there, or they're drafts or withdrawn.",
+    });
   });
 
   it('returns an error naming the target when no selected row can legally move there', async () => {
@@ -482,6 +485,7 @@ describe('ApplicationStatusEvent', () => {
     await updateApplicationStatus({
       applicationId: application.id,
       status: 'reviewing',
+      override: true,
     });
 
     const latest = await getApplicationStatusHistory(application.id, admin);
@@ -524,6 +528,7 @@ describe('ApplicationStatusEvent', () => {
     await updateApplicationStatus({
       applicationId: application.id,
       status: 'reviewing',
+      override: true,
     });
 
     const asOwningManager = await getApplicationStatusHistory(

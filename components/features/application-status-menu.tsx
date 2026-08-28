@@ -14,9 +14,7 @@ import {
 
 interface ApplicationStatusMenuProps {
   status: $Enums.ApplicationStatus;
-  // Detail page hoists the next step out as the split button's main action,
-  // so the menu starts at the decisions group; the table row has no
-  // top-level button, so the next step is the first item instead.
+  // Detail page hoists next-step into the split button; table row doesn't.
   hoistNext: boolean;
   isPending?: boolean;
   onSelect: (target: $Enums.ApplicationStatus) => void;
