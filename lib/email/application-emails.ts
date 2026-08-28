@@ -76,10 +76,9 @@ export async function sendApplicationReceipt(recipient: {
   }
 }
 
-// No scheduledAt time filter — attempt the cancel regardless and let the
-// provider be the judge. Returns the applicationIds whose pending send
-// couldn't be verified cancelled, so a caller never schedules a competing
-// send on top of one that may still be live in Resend.
+// Returns the applicationIds whose pending send couldn't be verified
+// cancelled, so a caller never schedules a competing send on top of one
+// still live in Resend.
 export async function cancelPendingDecisionEmails(
   applicationIds: string[],
 ): Promise<Set<string>> {

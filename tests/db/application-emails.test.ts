@@ -281,7 +281,7 @@ describe('single decision dispatch', () => {
       data: { id: 'resend-scheduled-5' },
       error: null,
     });
-    mockCancel.mockRejectedValueOnce(new Error('already delivered'));
+    mockCancel.mockRejectedValue(new Error('already delivered'));
     const applicant = await createTestUser();
     const application = await createTestApplication(applicant, position, {
       status: 'applied',
