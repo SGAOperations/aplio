@@ -11,9 +11,9 @@ import { getProfileData } from '@/prisma/data/profile';
 import { withRedirectTo } from '@/lib/auth/redirect';
 import { getCurrentUser } from '@/lib/auth/server';
 import {
-  APPLICANT_EDITABLE_APPLICATION_STATUSES,
   APPLICATION_STATUS_LABELS,
   UNRESOLVED_APPLICATION_STATUSES,
+  isApplicantEditableApplicationStatus,
 } from '@/lib/constants';
 import {
   isAcceptingApplications,
@@ -73,10 +73,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
       .every((d) => isAnswered(d.question, toStringArray(d.answer?.value)));
 
   const isEditable =
-    application &&
-    APPLICANT_EDITABLE_APPLICATION_STATUSES.includes(
-      application.status as (typeof APPLICANT_EDITABLE_APPLICATION_STATUSES)[number],
-    );
+    application && isApplicantEditableApplicationStatus(application.status);
 
   const isResubmit = application?.status === 'withdrawn';
 

@@ -21,7 +21,7 @@ import { getCurrentUser } from '@/lib/auth/server';
 import {
   ANSWER_LONG_MAX_LENGTH,
   ANSWER_MAX_VALUES,
-  APPLICANT_EDITABLE_APPLICATION_STATUSES,
+  APPLICATION_NOT_EDITABLE_MESSAGE,
   APPLICATION_STATUS_LABELS,
   REVIEWER_APPLICATION_STATUSES,
   SHORT_ANSWER_FORMAT_ERROR_MESSAGES,
@@ -29,6 +29,7 @@ import {
   getAnswerValueError,
   getApplicationStatusForwardSources,
   isAllowedApplicationStatusTransition,
+  isApplicantEditableApplicationStatus,
   matchesShortAnswerFormat,
 } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
@@ -84,9 +85,6 @@ const createOrUpdateApplicationAnswerSchema = z.object({
 
 const submitApplicationSchema = z.object({ applicationId: z.string().min(1) });
 
-// Shared so callers don't distinguish which action rejected the write.
-const APPLICATION_NOT_EDITABLE_MESSAGE =
-  'This application has already been submitted. Withdraw it to make changes.';
 const DRAFT_DELETED_MESSAGE =
   'You deleted this draft. Restore it from My Applications to keep working on it.';
 
@@ -241,11 +239,7 @@ export async function createOrUpdateApplicationAnswer(params: {
 
   if (application.deletedAt) return { error: DRAFT_DELETED_MESSAGE };
 
-  if (
-    !APPLICANT_EDITABLE_APPLICATION_STATUSES.includes(
-      application.status as (typeof APPLICANT_EDITABLE_APPLICATION_STATUSES)[number],
-    )
-  )
+  if (!isApplicantEditableApplicationStatus(application.status))
     return { error: APPLICATION_NOT_EDITABLE_MESSAGE };
 
   // Label and scope must come from the DB, not the client — the label is the
@@ -394,11 +388,7 @@ export async function submitApplication(
     requireOwnership(application, currentUser.id);
 
     // Status check first — wins over the window/required-answer checks below.
-    if (
-      !APPLICANT_EDITABLE_APPLICATION_STATUSES.includes(
-        application.status as (typeof APPLICANT_EDITABLE_APPLICATION_STATUSES)[number],
-      )
-    )
+    if (!isApplicantEditableApplicationStatus(application.status))
       return { error: APPLICATION_NOT_EDITABLE_MESSAGE };
 
     if (application.deletedAt !== null) return { error: DRAFT_DELETED_MESSAGE };

@@ -261,7 +261,7 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 - **Failure / edge**
   - Not PDF/PNG/JPG, or the sniffed type disagrees with the extension → **"Only PDF, PNG and JPG files are allowed."**
   - Over `FILE_UPLOAD_MAX_BYTES` (4 MB) → **"File must be 4MB or smaller."**; empty file → **"Select a file to upload."** The helper text reads "PDF, PNG or JPG · up to 4MB".
-  - The application was submitted in another tab → **"This application has already been submitted."** and the freshly uploaded blob is deleted rather than orphaned.
+  - The application left an applicant-editable status in another tab, or was decided → **"This application has already been submitted. Withdraw it to make changes."** and the freshly uploaded blob is deleted rather than orphaned.
   - Ownership miss on the application, or a question that isn't a `file_upload` on this position → the action throws → generic toast.
   - Blob storage failure → throws → generic toast; nothing is written.
 - **End state** — the answer's `value` holds exactly one blob URL (or none after a remove). Orphaned blobs are swept by `cleanupOrphanedBlob`, which is best-effort and never surfaces an error.
@@ -325,7 +325,7 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 ### AP-14 Edit and resubmit a withdrawn application
 
 - **Trigger** — **Edit & resubmit** on a withdrawn row in `/my-applications`, which returns to `/positions/[id]/apply`.
-- **Happy path** — `withdrawn` is applicant-editable, so the stepper reopens with every answer intact, above an info callout: "This application is withdrawn — It's out of the review queue, but reviewers can still see your answers — including edits you make here. Resubmit to put it back in the queue." Submitting runs [AP-9](#ap-9-submit-an-application) and toasts **"Application resubmitted"**.
+- **Happy path** — `withdrawn` is applicant-editable, so the stepper reopens with every answer intact and editable, files included, above an info callout: "This application is withdrawn — It's out of the review queue, but reviewers can still see your answers — including edits you make here. Resubmit to put it back in the queue." Submitting runs [AP-9](#ap-9-submit-an-application) and toasts **"Application resubmitted"**.
 - **Failure / edge**
   - The window closed while it was withdrawn → the row shows "Position closed" instead of the button, and the apply page renders "Applications are closed" ("This position stopped accepting applications, so this application can no longer be edited or submitted.").
   - Every [AP-9](#ap-9-submit-an-application) failure branch applies unchanged.
