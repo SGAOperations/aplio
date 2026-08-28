@@ -29,7 +29,7 @@ const eslintConfig = tseslint.config(
       'components/**/*.{ts,tsx}',
       'lib/**/*.{ts,tsx}',
     ],
-    ignores: ['lib/prisma.ts', 'lib/auth/**', 'lib/email/**'],
+    ignores: ['lib/prisma.ts', 'lib/auth/**', 'lib/email/**', 'lib/blobs.ts'],
     rules: {
       'no-restricted-imports': [
         'error',

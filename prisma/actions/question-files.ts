@@ -8,6 +8,7 @@ import { z } from 'zod/v4';
 import type { Prisma } from '@/prisma/client';
 
 import { getCurrentUser } from '@/lib/auth/server';
+import { cleanupOrphanedBlob } from '@/lib/blobs';
 import {
   FILE_UPLOAD_MAX_BYTES,
   FILE_UPLOAD_MIME_EXTENSIONS,
@@ -197,22 +198,6 @@ async function readAndWriteAnswerValue(
     },
   });
   return existing?.value[0] ?? null;
-}
-
-// Several rows can share one blob, so it goes only with the last reference.
-export async function cleanupOrphanedBlob(url: string): Promise<void> {
-  try {
-    const [profileCount, globalAppCount, positionAppCount] = await Promise.all([
-      prisma.globalAnswer.count({ where: { value: { has: url } } }),
-      prisma.globalApplicationAnswer.count({ where: { value: { has: url } } }),
-      prisma.positionApplicationAnswer.count({
-        where: { value: { has: url } },
-      }),
-    ]);
-    if (profileCount + globalAppCount + positionAppCount === 0) await del(url);
-  } catch {
-    // Swallowed: an orphaned blob is never user-actionable.
-  }
 }
 
 export async function uploadQuestionFileAnswer(
