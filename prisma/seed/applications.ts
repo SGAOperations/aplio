@@ -126,4 +126,12 @@ export const applicationDefs: ApplicationDef[] = [
     submittedInDays: 9,
     answers: 'full',
   },
+  // Closed 90 days ago, still 'applied', no status change since — #581.
+  {
+    applicantEmail: 'carol@example.com',
+    positionTitle: 'Historian',
+    status: 'applied',
+    submittedInDays: 91,
+    answers: 'full',
+  },
 ];

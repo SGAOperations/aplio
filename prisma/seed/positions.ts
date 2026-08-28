@@ -191,6 +191,24 @@ export const positionDefs: PositionDef[] = [
       },
     ],
   },
+  // Closed 90 days ago and still holds one unresolved 'applied' application
+  // with no status change since — demonstrates #581: this now archives.
+  {
+    title: 'Historian',
+    description:
+      'Maintain SGA institutional memory: meeting minutes, records, and the yearly recap.',
+    status: 'closed',
+    opensInDays: -120,
+    closesInDays: -90,
+    managerEmails: [BYPASS_USERS['position-manager'].email],
+    questions: [
+      {
+        order: 1,
+        label: 'Why does institutional memory matter to student government?',
+        type: 'long_answer',
+      },
+    ],
+  },
   {
     title: 'Elections Commissioner',
     description:
@@ -280,5 +298,10 @@ export const positionAnswers: Record<string, Record<string, string[]>> = {
   },
   'Elections Commissioner': {
     'Have you previously served on an election oversight committee?': ['No'],
+  },
+  Historian: {
+    'Why does institutional memory matter to student government?': [
+      'Every new session re-litigates decisions the last one already made — good records stop that.',
+    ],
   },
 };
