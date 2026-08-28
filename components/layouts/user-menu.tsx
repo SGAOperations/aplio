@@ -5,14 +5,7 @@ import Link from 'next/link';
 import { unstable_rethrow, useRouter } from 'next/navigation';
 import { useTransition } from 'react';
 
-import {
-  ChevronUp,
-  CircleUser,
-  Monitor,
-  Moon,
-  Sun,
-  SunMoon,
-} from 'lucide-react';
+import { ChevronUp, Monitor, Moon, Sun, SunMoon } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { signOutUser } from '@/prisma/actions/auth';
@@ -117,7 +110,7 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
             className="flex items-center gap-2"
             onClick={onNavigate}
           >
-            <CircleUser />
+            <CONCEPT_ICONS.profile />
             Profile
           </Link>
         </DropdownMenuItem>
