@@ -390,7 +390,7 @@ A user who manages at least one non-deleted position. Manager status is **derive
 - **Failure / edge**
   - Not a manager or admin → `notFound()` ([XC-4](#xc-4-denial-shape)); the nav item is not rendered for them either.
   - The active list is empty while some positions are archived → "No active positions" · "Every position you manage is archived — expand Archived below to see them."
-  - Managing nothing at all (defensive; `isManager` would already have 404'd) → "No active positions" · "Positions you manage appear here. Closed positions drop off 30 days after they close once no applications are pending."
+  - Managing nothing at all (defensive; `isManager` would already have 404'd) → "No active positions" · "Positions you manage appear here. A closed position drops off once it has been closed for 30 days with no application status changes."
 - **End state** — read-only.
 
 ### PM-3 Create a position
@@ -410,7 +410,7 @@ A user who manages at least one non-deleted position. Manager status is **derive
 - **Failure / edge**
   - Position missing or soft-deleted → `notFound()`, checked **before** the access guard so both paths 404 identically.
   - Not a listed manager and not an admin → `notFound()`.
-  - Archived (closed >30 days with nothing in progress) and the caller is not an admin → the form is replaced by `PositionDetailsReadonly` under a warning callout ("This position is archived. It closed more than 30 days ago and no applications are still in progress…"). A stale tab that posts anyway gets `ARCHIVED_POSITION_EDIT_ERROR`: **"This position is archived. Ask an admin if it still needs changes."** ([AD-2](#ad-2-edit-an-archived-position))
+  - Archived (closed >30 days with no application status change since) and the caller is not an admin → the form is replaced by `PositionDetailsReadonly` under a warning callout ("This position is archived. It closed more than 30 days ago and no application status has changed since…"), plus a stalled-applications line and a **Review applications** link when the position still holds unresolved applications. A stale tab that posts anyway gets `ARCHIVED_POSITION_EDIT_ERROR`: **"This position is archived. Ask an admin if it still needs changes."** ([AD-2](#ad-2-edit-an-archived-position))
   - Deleted between render and submit → **"This position no longer exists."**
   - Unexpected throw → **"Something went wrong. Please try again."**
 - **End state** — the position's details, status and window are updated; a draft→open flip publishes it.
@@ -553,7 +553,7 @@ An admin is a **manager on every position**: every [Position manager](#position-
 
 ### AD-2 Edit an archived position
 
-- **Trigger** — `/positions/[id]/edit` for a position closed more than 30 days ago with nothing in progress.
+- **Trigger** — `/positions/[id]/edit` for a position closed more than 30 days ago with no application status change since.
 - **Happy path** — `checkPositionEditable` returns true for an admin, so the editable form and the question actions render normally where a manager would see the read-only view and the warning callout ([PM-4](#pm-4-edit-position-details), [PM-5](#pm-5-manage-position-questions)).
 - **Failure / edge** — as [PM-4](#pm-4-edit-position-details); the archived branch simply does not fire.
 - **End state** — as [PM-4](#pm-4-edit-position-details).

@@ -82,7 +82,7 @@ Four principals, each derived rather than stored as a single role field:
 | soft-deleted                               | ✗                                                              | ✗ (404)                                   | ✗                                                         | ✗ (404)                                                  | ✗                                                                                                                               |
 
 - **`status` alone never answers "can someone apply."** `getPositionAvailability` (`lib/utils.ts`) derives `'unavailable' | 'upcoming' | 'accepting' | 'closed_by_date'` from `status` plus `opensAt`/`closesAt`; `isAcceptingApplications` is just `getPositionAvailability(...) === 'accepting'`. It is checked at `createDraftApplication` **and again** at `submitApplication`, because the window can close while a draft sits open.
-- **Archived is derived, never stored** (`isPositionActive`, `lib/utils.ts`) — a position is archived once it's closed (`status: 'closed'`, or `open` past `closesAt`), has no unresolved applications, and last closed more than `MANAGED_POSITIONS_WINDOW_DAYS` (30) days ago. A second implementation of this check is an authorization bug, not a display bug.
+- **Archived is derived, never stored** (`isPositionActive`, `lib/utils.ts`) — a position is archived once it's closed (`status: 'closed'`, or `open` past `closesAt`) for more than `MANAGED_POSITIONS_WINDOW_DAYS` (30) days **and** no application status has changed in that same window. An unresolved application no longer grants permanent immunity — it only keeps a position active while it's still being worked. A second implementation of this check is an authorization bug, not a display bug.
 - **The two `where` constants that decide visibility** (`lib/constants.ts`): `VISIBLE_POSITION_WHERE` (`{ deletedAt: null }`) is for **position-scoped surfaces** — a draft still shows its own applications to its managers. `PUBLISHED_POSITION_WHERE` (`{ deletedAt: null, status: { not: 'draft' } }`) is for **cross-position surfaces** (the public `/positions` list) and `getPositionForApply`.
 
 ## Position status lifecycle
@@ -129,9 +129,9 @@ Confirmations carry the risk the freezes don't.
 
 ## Archive
 
-- **Archived is derived, never stored.** `isPositionActive` (`lib/utils.ts`) is the single source of truth, fed by `positionActivitySelect` (`prisma/data/positions.ts`). A second implementation is an authorization bug, not a display bug.
-- A position is archived once it is closed (`status: 'closed'`, or `open` past `closesAt`), has no unresolved applications, and last closed more than `MANAGED_POSITIONS_WINDOW_DAYS` ago.
-- **There is no manual archive or unarchive.** A position leaves archive only when an admin reopens it with a future close date.
+- **Archived is derived, never stored.** `isPositionActive` (`lib/utils.ts`) is the single source of truth, fed by `positionActivitySelect` / `withPositionActivity` (`prisma/data/positions.ts`). A second implementation is an authorization bug, not a display bug.
+- A position is archived once it is closed (`status: 'closed'`, or `open` past `closesAt`) for more than `MANAGED_POSITIONS_WINDOW_DAYS` **and** no application status has changed in that same window. Unresolved applications no longer pin a position active indefinitely — only recent activity does.
+- **There is no manual archive or unarchive.** A position leaves archive when an admin reopens it with a future close date, or — since a status change is itself activity — the moment a reviewer moves one of its applications, admin or not.
 - Managers are denied with `ARCHIVED_POSITION_EDIT_ERROR` (`lib/constants.ts`), returned by `updatePosition` and the three position-question actions. Admins short-circuit the check inside `checkPositionEditable` (`prisma/data/positions.ts`).
 - **The edit page does not 404.** It renders `PositionDetailsReadonly` / `PositionQuestionsReadonly` behind an explanatory callout, so a manager can still read what they can no longer change.
 
