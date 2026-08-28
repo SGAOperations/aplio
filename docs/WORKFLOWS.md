@@ -25,7 +25,7 @@ Behaviour shared by many workflows is stated once under [Cross-cutting behaviour
 
 **[Anonymous (AN)](#anonymous-an)** — [AN-1](#an-1-browse-positions) · [AN-2](#an-2-view-a-position) · [AN-3](#an-3-start-applying-from-a-position) · [AN-4](#an-4-sign-in-with-an-email-code) · [AN-5](#an-5-request-a-new-code) · [AN-6](#an-6-set-your-name-on-first-sign-in) · [AN-7](#an-7-read-the-legal-pages) · [AN-8](#an-8-dev-bypass-sign-in)
 
-**[Applicant (AP)](#applicant-ap)** — [AP-1](#ap-1-see-your-dashboard) · [AP-2](#ap-2-answer-profile-questions) · [AP-3](#ap-3-change-your-name) · [AP-4](#ap-4-return-to-an-interrupted-flow) · [AP-5](#ap-5-start-an-application) · [AP-6](#ap-6-answer-application-questions) · [AP-7](#ap-7-customize-or-revert-profile-answers) · [AP-8](#ap-8-upload-or-remove-a-file-answer) · [AP-9](#ap-9-submit-an-application) · [AP-10](#ap-10-track-your-applications) · [AP-11](#ap-11-view-one-of-your-applications) · [AP-12](#ap-12-download-your-own-file-answer) · [AP-13](#ap-13-withdraw-an-application) · [AP-14](#ap-14-edit-and-resubmit-a-withdrawn-application) · [AP-15](#ap-15-delete-a-draft) · [AP-16](#ap-16-sign-out) · [AP-17](#ap-17-see-which-positions-youve-already-applied-to) · [AP-18](#ap-18-restore-a-deleted-draft)
+**[Applicant (AP)](#applicant-ap)** — [AP-1](#ap-1-see-your-dashboard) · [AP-2](#ap-2-answer-profile-questions) · [AP-3](#ap-3-change-your-name) · [AP-4](#ap-4-return-to-an-interrupted-flow) · [AP-5](#ap-5-start-an-application) · [AP-6](#ap-6-answer-application-questions) · [AP-7](#ap-7-customize-or-revert-profile-answers) · [AP-8](#ap-8-upload-or-remove-a-file-answer) · [AP-9](#ap-9-submit-an-application) · [AP-10](#ap-10-track-your-applications) · [AP-11](#ap-11-view-one-of-your-applications) · [AP-12](#ap-12-download-your-own-file-answer) · [AP-13](#ap-13-withdraw-an-application) · [AP-14](#ap-14-edit-and-resubmit-a-withdrawn-application) · [AP-15](#ap-15-delete-a-draft) · [AP-16](#ap-16-sign-out) · [AP-17](#ap-17-see-which-positions-youve-already-applied-to)
 
 **[Position manager (PM)](#position-manager-pm)** — [PM-1](#pm-1-see-your-dashboard) · [PM-2](#pm-2-see-the-positions-you-manage) · [PM-3](#pm-3-create-a-position) · [PM-4](#pm-4-edit-position-details) · [PM-5](#pm-5-manage-position-questions) · [PM-6](#pm-6-add-a-manager) · [PM-7](#pm-7-remove-a-manager) · [PM-8](#pm-8-work-the-application-queue) · [PM-9](#pm-9-open-an-application-for-review) · [PM-10](#pm-10-download-an-applicants-file-answer) · [PM-11](#pm-11-move-one-application-through-the-status-graph) · [PM-12](#pm-12-move-several-applications-at-once) · [PM-13](#pm-13-reorder-position-questions) · [PM-14](#pm-14-override-a-status-undo-or-review-its-history)
 
@@ -223,13 +223,13 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
   - Position no longer accepting → the "Applications are closed" card ("This position is no longer accepting applications."), with **Browse positions** and **Back to position**.
   - Required profile questions unanswered → the "Complete your profile first" card with a **Go to Profile** button. This is the path for every caller, including managers and admins, and it gates only the _first_ application — a draft or withdrawn application already in hand bypasses it entirely.
   - An application already exists and is not `draft`/`withdrawn` → the "You've already applied" card with the status badge, the submitted date, and links to **View my applications**, **View my answers** and **Back to position**. For an unresolved status the copy is "To change your answers, withdraw this application from My Applications, then edit and resubmit it."; once decided it reads "This application has been Accepted/Rejected and can no longer be edited."
-  - A deleted draft for this position exists → the "You deleted this draft" card ([AP-18](#ap-18-restore-a-deleted-draft)) instead of the entry card, ahead of the profile-completeness gate.
+  - A deleted draft for this position exists → treated as no application: the entry card renders with the revival copy "You deleted a draft for this position. Starting again brings your saved answers back — you can change them before you submit."; **Start application** calls `createDraftApplication`, which clears `deletedAt`/`deletedById` on the same row instead of creating a new one. Toast **"Your saved answers are back"**.
   - Window closed between the page render and the click → `{ error: 'This position is no longer accepting applications.' }` → error toast.
   - Position soft-deleted between render and click → **"This position is no longer available."**
   - Two tabs racing the create → the loser gets **"You already have an application for this position."** and both paths revalidate, so the losing tab refreshes onto the stepper rather than sticking on the entry card.
-  - Two tabs, one deleting the draft while the other tries to start it → **"You deleted this draft. Restore it from My Applications to keep working on it."**, and the stale tab's apply page revalidates onto the restore card.
+  - Two tabs, one deleting the draft while the other clicks Start on the entry card → the second tab succeeds and revives the row (no error) — reviving is the intended outcome, not a race to guard against.
   - An existing draft short-circuits the window check — a draft that already exists survives a closed window, and submit is what blocks ([AP-9](#ap-9-submit-an-application)).
-- **End state** — one `Application` at `draft` with the profile answers pre-filled, unique per (user, position).
+- **End state** — one `Application` at `draft` with the profile answers pre-filled, unique per (user, position). Deleting and re-applying reuses this same row rather than creating a second one.
 
 ### AP-6 Answer application questions
 
@@ -238,7 +238,7 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 - **Failure / edge**
   - Format mismatch, bad option, too many values, or over-length → the specific message inline and as a toast; the value is not persisted.
   - Application no longer applicant-editable → **"This application has already been submitted. Withdraw it to make changes."**
-  - A stale tab autosaves into a draft deleted in another tab → **"You deleted this draft. Restore it from My Applications to keep working on it."**
+  - A stale tab autosaves into a draft deleted in another tab → **"You deleted this draft. Refresh the page to apply again with your answers."**
   - The question id matches neither a global question nor one of this position's questions → the action throws (IDOR-shaped) → generic toast.
   - **Next** with an unanswered required global question → the fields are highlighted, the stepper jumps back to step 1, and the root error reads "Answer the highlighted required questions before continuing."
   - A required global question added after the draft was created is still unanswered once resolved against the profile ([AP-7](#ap-7-customize-or-revert-profile-answers)); the stepper opens in customize mode so it can be answered before proceeding.
@@ -246,12 +246,13 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 
 ### AP-7 Customize or revert profile answers
 
-- **Trigger** — the customize toggle above the profile questions in the stepper, which auto-opens with the "New required profile questions were added…" callout when a required global question resolves (via `resolveGlobalAnswerValues`, `lib/utils.ts`) to no answer at all — neither an application row nor a profile value. A required question the applicant already answered on their profile does not trigger it, even with no application row yet.
-- **Happy path** — toggling on unlocks the profile answers for this application only. Toggling off writes each changed field back to the profile value via `createOrUpdateApplicationAnswer`, waiting on any in-flight autosave first so the revert lands last. Toast **"Reverted to profile answers"**.
+- **Trigger** — the customize toggle above the profile questions in the stepper, which auto-opens with the "New required profile questions were added…" callout when a required global question resolves (via `resolveGlobalAnswerValues`, `lib/utils.ts`) to no answer at all — neither an application row nor a profile value. A required question the applicant already answered on their profile does not trigger it, even with no application row yet. The toggle is always the outline button — it is never the step's filled primary, which stays reserved for Next/Submit.
+- **Happy path** — toggling on unlocks the profile answers for this application only. Toggling off (**Revert to profile answers**) compares each field to its profile value (`findDivergingGlobalAnswers`, `lib/utils.ts`, order- and whitespace-sensitive); with at least one differing answer, a confirmation dialog names the count ("N customized answers will be replaced with your profile answers. This can't be undone.") before anything is written. Confirming writes each changed field back to the profile value via `createOrUpdateApplicationAnswer`, waiting on any in-flight autosave first so the revert lands last. Toast **"Reverted to profile answers"**.
 - **Failure / edge**
+  - No fields differ from the profile → no dialog; reverting is a no-op with the same **"Reverted to profile answers"** toast.
+  - Cancelling the dialog writes nothing and leaves customize mode on.
   - Any single field's revert returns `{ error }` → that message is toasted verbatim and the field keeps its last saved value; the others still revert.
   - The batch throws → **"Failed to revert some answers"**.
-  - Fields already equal to the profile value are skipped.
 - **End state** — this application's answers match the profile again. `/profile` is untouched either way — customizing never writes back to the profile.
 
 ### AP-8 Upload or remove a file answer
@@ -272,7 +273,7 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 - **Happy path** — the client validates the position fields and re-checks required globals, then waits for every pending autosave so the server reads a complete snapshot. `submitApplication` runs one transaction, read → validate → write: it re-checks ownership, status, soft-deletion and the application window, resolves every global question's value via `resolveGlobalAnswerValues` (an application row wins even when empty; no row falls back to the profile), verifies every required question with no write yet, then — only once validation passes — materializes a snapshot row for each question still missing one with a non-empty resolved value, and flips the status to `applied` with `submittedAt` and an `applicantName` snapshot. Toast **"Application submitted"**, a reduced-motion-aware confetti burst fires alongside it, and the browser replaces the URL with `/my-applications/[id]`.
 - **Failure / edge**
   - Not applicant-editable (checked first, ahead of the window and answer checks) → **"This application has already been submitted. Withdraw it to make changes."**
-  - Deleted in another tab since the draft was opened → **"You deleted this draft. Restore it from My Applications to keep working on it."**
+  - Deleted in another tab since the draft was opened → **"You deleted this draft. Refresh the page to apply again with your answers."**
   - Position soft-deleted since the draft was created → **"This position is no longer available."**
   - Window closed while the draft sat open → **"This position is no longer accepting applications."**
   - Required **profile** questions still unanswered after resolution → "Answer these required profile questions before submitting: <labels>." — up to three labels, then "and N more". Nothing is written when this fires — validation reads only.
@@ -284,11 +285,11 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 ### AP-10 Track your applications
 
 - **Trigger** — the My Applications nav item (`/my-applications`).
-- **Happy path** — `getMyApplications(user.id)` returns the caller's applications on published positions, newest-updated first, plus any of the caller's **deleted drafts** (every other deleted status stays excluded — only drafts are ever soft-deleted). The table sorts client-side by position, status or applied date, and collapses to stacked cards below `md`. Each row links to the detail page and carries its primary action and row action.
+- **Happy path** — `getMyApplications(user.id)` returns the caller's non-deleted applications on published positions, newest-updated first. The table sorts client-side by position, status or applied date, and collapses to stacked cards below `md`. Each row links to the detail page and carries its primary action and row action.
 - **Failure / edge**
   - Nothing yet → `EmptyState` "No applications yet" · "Browse open positions to start your first application." with a **Browse positions** button.
   - A draft shows "—" for the applied date, **Continue** as its primary action and **Delete** as its row action.
-  - A deleted draft shows a **Deleted** badge outranking the status, "—" for the applied date, a muted unlinked position title (the detail route still 404s for it), no primary action, and **Restore** as its only row action ([AP-18](#ap-18-restore-a-deleted-draft)). Sorting by Status groups these rows together.
+  - A deleted draft is never in this list — deleting one ([AP-15](#ap-15-delete-a-draft)) removes its row entirely; applying to the position again ([AP-5](#ap-5-start-an-application)) is the only way it reappears.
   - A withdrawn row shows **Edit & resubmit**, or the plain text "Position closed" when the window has since closed; it has no row action.
   - `accepted` / `rejected` rows show "—" instead of a withdraw button.
   - Applications on soft-deleted or unpublished positions are excluded entirely.
@@ -300,7 +301,8 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 - **Happy path** — `getMyApplication(id, user.id)` is scoped to the caller with the same visibility as the list. The header shows the position title with the status badge directly beside it, the status sentence underneath, and the primary/row actions (Continue, Edit & resubmit, Withdraw, Delete draft — whichever applies) right-aligned on that same header row; below it, "Applied <date>" (or "Draft · last saved <date>") and a link to the position, then both answer groups — "Your profile answers" and "Your answers for this position" — full width. Answers render by shape (short/single/multiple choice in a label-value row, long answers full-width as prose, files as a Download row) from the snapshotted `questionLabel`/`value`/`type` — never a live question lookup, so a retyped or relabeled question still shows the original label and every stored value.
 - **Failure / edge**
   - Not the caller's, soft-deleted, or on an unpublished position → `notFound()`, so a bookmarked URL cannot outlive its list row.
-  - No answers in a group → "No profile answers saved yet." / "No position answers saved yet."
+  - Empty profile answers → "No profile answers saved yet."
+  - The position answers group is omitted entirely when the position has no live position-specific questions and the application has no position answers; otherwise it shows, with "No position-specific answers." if none were answered.
   - An individual answer with no stored value → "No answer".
 - **End state** — read-only. This is the answer of record for what was submitted.
 
@@ -333,12 +335,12 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 
 ### AP-15 Delete a draft
 
-- **Trigger** — **Delete** on a draft row in `/my-applications`, behind a confirmation dialog ("Your draft application to '<title>' will be marked deleted. Your answers are kept, so you can restore it from My Applications later.").
-- **Happy path** — `deleteDraftApplication` sets `deletedAt`/`deletedById` on the `Application` row in one scoped `updateMany`; neither answer table nor any uploaded file is touched. Toast **"Draft deleted"** with description "Restore it from My Applications any time."
+- **Trigger** — **Delete** on a draft row in `/my-applications`, behind a confirmation dialog ("Your draft application to '<title>' will be removed from My Applications. If you apply to this position again, your answers come back.").
+- **Happy path** — `deleteDraftApplication` sets `deletedAt`/`deletedById` on the `Application` row in one scoped `updateMany`; neither answer table nor any uploaded file is touched. Toast **"Draft deleted"** with description "Apply to this position again to bring your answers back."
 - **Failure / edge**
   - Not the caller's, not `draft`, or already deleted → **"This draft can no longer be deleted."**
   - Unexpected throw → toast **"Something went wrong"**.
-- **End state** — the application is soft-deleted with every answer intact; it stays in `/my-applications` in a recoverable state ([AP-18](#ap-18-restore-a-deleted-draft)) and disappears from every reviewer query and count. There is no permanent-delete path — restoring is the only way back.
+- **End state** — the application is soft-deleted with every answer intact and disappears from `/my-applications`, every reviewer query, and every count. There is no permanent-delete path and no restore control — applying to the same position again ([AP-5](#ap-5-start-an-application)) is the only way back, and it brings the historical answers with it.
 
 ### AP-16 Sign out
 
@@ -353,22 +355,12 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 ### AP-17 See which positions you've already applied to
 
 - **Trigger** — landing on `/positions` while signed in.
-- **Happy path** — `getMyApplicationsByPosition(user.id)` returns the caller's applications keyed by position id; the browse page passes each card its matching entry via `myApplication`. A matched card shows the application's status badge beside the position's availability badge, and swaps the applicant CTA: `draft` → **Continue application**, or `withdrawn` while the position still accepts → **Edit & resubmit** — both to the apply stepper; every other status, including a `withdrawn` application on a since-closed position, → **View application** to `/my-applications/[id]`, with no Apply button.
+- **Happy path** — `getMyApplicationsByPosition(user.id)` returns the caller's applications keyed by position id; the browse page passes each card its matching entry via `myApplication`. A matched card shows the application's status badge — including `draft` — directly beside the title, left-aligned, while the position's availability badge stays on the right where it always sits; and swaps the applicant CTA: `draft` → **Continue application**, or `withdrawn` while the position still accepts → **Edit & resubmit** — both to the apply stepper; every other status, including a `withdrawn` application on a since-closed position, → **View application** to `/my-applications/[id]`, with no Apply button.
 - **Failure / edge**
   - Anonymous viewer → no badge, no CTA change; the ordinary Apply/View Details pair renders.
   - A manager or admin browsing a position they manage still gets their own applicant card and marker here — the manage affordances live on [PM-2](#pm-2-see-the-positions-you-manage) and the detail page instead.
   - The marker lands on the list only — the detail page's Apply CTA stays unconditional; the apply page's existing "You've already applied" card ([AP-5](#ap-5-start-an-application)) remains the guard there.
 - **End state** — read-only.
-
-### AP-18 Restore a deleted draft
-
-- **Trigger** — **Restore** on a deleted draft row in `/my-applications`, or on the "You deleted this draft" card on `/positions/[id]/apply`. No confirmation dialog — restoring is non-destructive.
-- **Happy path** — `restoreDraftApplication` clears `deletedAt`/`deletedById` on the same row in one scoped `updateMany`; no new `Application` is created, so `@@unique([userId, positionId])` never comes into play. Toast **"Draft restored"**, and the row/page re-renders as an ordinary draft with every historical answer intact. Reopening the stepper shows exactly what a draft whose questions changed underneath it always shows: a required global question added while deleted renders empty with the "New required profile questions were added…" callout and Customize mode auto-opened ([AP-7](#ap-7-customize-or-revert-profile-answers)); a required position question added while deleted renders empty on the live question list; a question whose type or options changed surfaces the stored value through `AnswerMismatchNotice`; a question deleted while the draft was deleted leaves an orphaned answer that `submitApplication` ignores.
-- **Failure / edge**
-  - Not the caller's, not a soft-deleted `draft`, or already restored (a second tab) → **"This draft can no longer be restored."**
-  - Unexpected throw → toast **"Something went wrong. Please try again."**
-  - Not window-gated — a restored draft can outlive a closed application window exactly like any other draft ([AP-5](#ap-5-start-an-application)); submit is still what blocks, and the apply page shows "Applications are closed" if the window has since closed.
-- **End state** — an ordinary `draft` application, indistinguishable from one that was never deleted.
 
 ---
 
@@ -390,7 +382,7 @@ A user who manages at least one non-deleted position. Manager status is **derive
 - **Failure / edge**
   - Not a manager or admin → `notFound()` ([XC-4](#xc-4-denial-shape)); the nav item is not rendered for them either.
   - The active list is empty while some positions are archived → "No active positions" · "Every position you manage is archived — expand Archived below to see them."
-  - Managing nothing at all (defensive; `isManager` would already have 404'd) → "No active positions" · "Positions you manage appear here. Closed positions drop off 30 days after they close once no applications are pending."
+  - Managing nothing at all (defensive; `isManager` would already have 404'd) → "No active positions" · "Positions you manage appear here. A closed position drops off once it has been closed for 30 days with no application status changes."
 - **End state** — read-only.
 
 ### PM-3 Create a position
@@ -410,7 +402,7 @@ A user who manages at least one non-deleted position. Manager status is **derive
 - **Failure / edge**
   - Position missing or soft-deleted → `notFound()`, checked **before** the access guard so both paths 404 identically.
   - Not a listed manager and not an admin → `notFound()`.
-  - Archived (closed >30 days with nothing in progress) and the caller is not an admin → the form is replaced by `PositionDetailsReadonly` under a warning callout ("This position is archived. It closed more than 30 days ago and no applications are still in progress…"). A stale tab that posts anyway gets `ARCHIVED_POSITION_EDIT_ERROR`: **"This position is archived. Ask an admin if it still needs changes."** ([AD-2](#ad-2-edit-an-archived-position))
+  - Archived (closed >30 days with no application status change since) and the caller is not an admin → the form is replaced by `PositionDetailsReadonly` under a warning callout ("This position is archived. It closed more than 30 days ago and no application status has changed since…"), plus a stalled-applications line and a **Review applications** link when the position still holds unresolved applications. A stale tab that posts anyway gets `ARCHIVED_POSITION_EDIT_ERROR`: **"This position is archived. Ask an admin if it still needs changes."** ([AD-2](#ad-2-edit-an-archived-position))
   - Deleted between render and submit → **"This position no longer exists."**
   - Unexpected throw → **"Something went wrong. Please try again."**
 - **End state** — the position's details, status and window are updated; a draft→open flip publishes it.
@@ -553,7 +545,7 @@ An admin is a **manager on every position**: every [Position manager](#position-
 
 ### AD-2 Edit an archived position
 
-- **Trigger** — `/positions/[id]/edit` for a position closed more than 30 days ago with nothing in progress.
+- **Trigger** — `/positions/[id]/edit` for a position closed more than 30 days ago with no application status change since.
 - **Happy path** — `checkPositionEditable` returns true for an admin, so the editable form and the question actions render normally where a manager would see the read-only view and the warning callout ([PM-4](#pm-4-edit-position-details), [PM-5](#pm-5-manage-position-questions)).
 - **Failure / edge** — as [PM-4](#pm-4-edit-position-details); the archived branch simply does not fire.
 - **End state** — as [PM-4](#pm-4-edit-position-details).

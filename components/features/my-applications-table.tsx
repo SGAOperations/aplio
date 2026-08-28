@@ -2,10 +2,7 @@
 
 import Link from 'next/link';
 
-import {
-  APPLICATION_STATUS_LABELS,
-  DELETED_APPLICATION_LABEL,
-} from '@/lib/constants';
+import { APPLICATION_STATUS_LABELS } from '@/lib/constants';
 import { type DataTableColumn } from '@/lib/data-table';
 import { CONCEPT_ICONS } from '@/lib/icons';
 import { type MyApplicationListItem } from '@/lib/types';
@@ -27,31 +24,21 @@ const COLUMNS: DataTableColumn<MyApplicationListItem>[] = [
     key: 'position',
     header: 'Position',
     sortAccessor: (a) => a.position.title,
-    cell: (a) =>
-      a.deletedAt ? (
-        <span className="text-muted-foreground font-medium">
-          {a.position.title}
-        </span>
-      ) : (
-        <Link
-          href={`/my-applications/${a.id}`}
-          className="font-medium hover:underline"
-        >
-          {a.position.title}
-        </Link>
-      ),
+    cell: (a) => (
+      <Link
+        href={`/my-applications/${a.id}`}
+        className="font-medium hover:underline"
+      >
+        {a.position.title}
+      </Link>
+    ),
   },
   {
     key: 'status',
     header: 'Status',
     // Sort by human label A-Z so order matches what the user reads in the badge.
-    sortAccessor: (a) =>
-      a.deletedAt
-        ? DELETED_APPLICATION_LABEL
-        : APPLICATION_STATUS_LABELS[a.status],
-    cell: (a) => (
-      <ApplicationStatusBadge status={a.status} deletedAt={a.deletedAt} />
-    ),
+    sortAccessor: (a) => APPLICATION_STATUS_LABELS[a.status],
+    cell: (a) => <ApplicationStatusBadge status={a.status} />,
   },
   {
     key: 'applied',
@@ -76,7 +63,6 @@ const COLUMNS: DataTableColumn<MyApplicationListItem>[] = [
           applicationId={a.id}
           status={a.status}
           positionTitle={a.position.title}
-          deletedAt={a.deletedAt}
         />
       </div>
     ),
@@ -109,22 +95,13 @@ export function MyApplicationsTable({
       mobileCard={(app) => (
         <div className="flex flex-col gap-2 p-4">
           <div className="flex items-center justify-between gap-2">
-            {app.deletedAt ? (
-              <span className="text-muted-foreground font-medium">
-                {app.position.title}
-              </span>
-            ) : (
-              <Link
-                href={`/my-applications/${app.id}`}
-                className="font-medium hover:underline"
-              >
-                {app.position.title}
-              </Link>
-            )}
-            <ApplicationStatusBadge
-              status={app.status}
-              deletedAt={app.deletedAt}
-            />
+            <Link
+              href={`/my-applications/${app.id}`}
+              className="font-medium hover:underline"
+            >
+              {app.position.title}
+            </Link>
+            <ApplicationStatusBadge status={app.status} />
           </div>
           <div className="flex items-center justify-between gap-2">
             <span className="text-muted-foreground text-sm">
@@ -140,7 +117,6 @@ export function MyApplicationsTable({
                 applicationId={app.id}
                 status={app.status}
                 positionTitle={app.position.title}
-                deletedAt={app.deletedAt}
               />
             </div>
           </div>

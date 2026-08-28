@@ -1,12 +1,15 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+import { getPositionApplicationStats } from '@/prisma/data/applications';
 import {
   getPositionDeletionSummary,
   getPositionForEdit,
 } from '@/prisma/data/positions';
 
 import { requireListedManagerOr404 } from '@/lib/auth/guards';
+import { UNRESOLVED_APPLICATION_STATUSES } from '@/lib/constants';
 import { toOrgDayString } from '@/lib/dates';
 import { STATE_ICONS } from '@/lib/icons';
 import { isPositionActive } from '@/lib/utils';
@@ -52,6 +55,17 @@ export default async function EditPositionPage({
     ? await getPositionDeletionSummary(position.id)
     : null;
 
+  // Only the archived branch needs this — a single groupBy, not run on the happy path.
+  let unresolvedTotal = 0;
+  if (!canEdit) {
+    const stats = await getPositionApplicationStats([position.id]);
+    const counts = stats.get(position.id)?.counts ?? {};
+    unresolvedTotal = UNRESOLVED_APPLICATION_STATUSES.reduce(
+      (sum, status) => sum + (counts[status] ?? 0),
+      0,
+    );
+  }
+
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
       <PageHeader
@@ -66,10 +80,23 @@ export default async function EditPositionPage({
           <div className="flex flex-col gap-1">
             <p className="font-medium">This position is archived.</p>
             <p>
-              It closed more than 30 days ago and no applications are still in
-              progress, so its details and questions can no longer be changed.
-              Ask an admin if something still needs updating.
+              It closed more than 30 days ago and no application status has
+              changed since, so its details and questions can no longer be
+              edited. Ask an admin if something still needs updating.
             </p>
+            {unresolvedTotal > 0 && (
+              <p>
+                {unresolvedTotal}{' '}
+                {unresolvedTotal === 1 ? 'application is' : 'applications are'}{' '}
+                still awaiting a decision — reviewing is not blocked.{' '}
+                <Link
+                  href={`/applications?positionId=${position.id}`}
+                  className="underline underline-offset-2"
+                >
+                  Review applications
+                </Link>
+              </p>
+            )}
           </div>
         </WarningCallout>
       )}

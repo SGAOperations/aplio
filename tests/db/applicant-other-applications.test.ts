@@ -11,7 +11,9 @@ import { getApplicantOtherApplications } from '@/prisma/data/applications';
 
 const now = new Date();
 const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 const thirtyFiveDaysAgo = new Date(now.getTime() - 35 * 24 * 60 * 60 * 1000);
+const fortyDaysAgo = new Date(now.getTime() - 40 * 24 * 60 * 60 * 1000);
 
 let admin: User;
 let managerA: User;
@@ -22,6 +24,7 @@ let positionB: Position;
 let positionC: Position;
 let archivedPosition: Position;
 let stillActivePosition: Position;
+let staleUnresolvedPosition: Position;
 let anchorApp: Application;
 let otherOpenApp: Application;
 let stillActiveApp: Application;
@@ -45,6 +48,11 @@ beforeAll(async () => {
     status: 'closed',
     closesAt: thirtyFiveDaysAgo,
   });
+  staleUnresolvedPosition = await createTestPosition(admin, {
+    managers: [managerA],
+    status: 'closed',
+    closesAt: fortyDaysAgo,
+  });
 
   anchorApp = await createTestApplication(applicant, positionA, {
     status: 'applied',
@@ -61,10 +69,23 @@ beforeAll(async () => {
     status: 'rejected',
     submittedAt: thirtyFiveDaysAgo,
   });
-  // Closed months ago but still holds an unresolved application — stays active.
+  // Closed months ago, unresolved, but a status event moved recently — stays active.
   stillActiveApp = await createTestApplication(applicant, stillActivePosition, {
-    status: 'applied',
+    status: 'reviewing',
     submittedAt: thirtyFiveDaysAgo,
+    statusEvents: {
+      create: {
+        from: 'applied',
+        to: 'reviewing',
+        changedById: managerA.id,
+        createdAt: sevenDaysAgo,
+      },
+    },
+  });
+  // Closed months ago, unresolved, and nothing has moved in over 30 days — archives.
+  await createTestApplication(applicant, staleUnresolvedPosition, {
+    status: 'applied',
+    submittedAt: fortyDaysAgo,
   });
 });
 
@@ -115,11 +136,18 @@ describe('getApplicantOtherApplications', () => {
     expect(rows.some((r) => r.position.id === archivedPosition.id)).toBe(false);
   });
 
-  it('includes a long-closed position that still holds an unresolved application', async () => {
+  it('includes a long-closed position with a recent status change, despite an unresolved application', async () => {
     const rows = await getApplicantOtherApplications(anchorApp.id, managerA);
     const row = rows.find((r) => r.position.id === stillActivePosition.id);
     expect(row).toBeDefined();
     expect(row?.id).toBe(stillActiveApp.id);
+  });
+
+  it('excludes a long-closed position whose unresolved application has stale activity', async () => {
+    const rows = await getApplicantOtherApplications(anchorApp.id, managerA);
+    expect(rows.some((r) => r.position.id === staleUnresolvedPosition.id)).toBe(
+      false,
+    );
   });
 
   it('orders newest first', async () => {

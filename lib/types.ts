@@ -66,8 +66,9 @@ export type PositionQuestionForEdit = Prisma.PositionQuestionGetPayload<{
   };
 }> & { answerCount: number };
 
-// Server-only — updatedAt/_count feed isPositionActive and never cross to a client.
-// `questions` is the mapped PositionQuestionForEdit shape, not a raw select.
+// Server-only — updatedAt/lastStatusChangeAt feed isPositionActive and never
+// cross to a client. `questions` is the mapped PositionQuestionForEdit shape,
+// not a raw select; lastStatusChangeAt comes from withPositionActivity, not a select.
 export type PositionForEdit = Prisma.PositionGetPayload<{
   select: {
     id: true;
@@ -78,9 +79,8 @@ export type PositionForEdit = Prisma.PositionGetPayload<{
     closesAt: true;
     updatedAt: true;
     managers: { select: { id: true; name: true; email: true } };
-    _count: { select: { applications: true } };
   };
-}> & { questions: PositionQuestionForEdit[] };
+}> & { questions: PositionQuestionForEdit[]; lastStatusChangeAt: Date | null };
 
 // Matches getApplicationForApply's query in prisma/data/applications.ts.
 export type DraftApplication = Prisma.ApplicationGetPayload<{
@@ -110,7 +110,6 @@ export type MyApplicationListItem = Prisma.ApplicationGetPayload<{
     submittedAt: true;
     updatedAt: true;
     positionId: true;
-    deletedAt: true;
     position: {
       select: {
         id: true;
@@ -129,6 +128,7 @@ export type MyApplicationListItem = Prisma.ApplicationGetPayload<{
 export type MyApplicationDetail = MyApplicationListItem & {
   globalAnswers: ApplicationReviewAnswer[];
   positionAnswers: ApplicationReviewAnswer[];
+  hasPositionQuestions: boolean;
 };
 
 // Exposes applicant identity — admin-gated contexts only, never a non-admin client.
@@ -154,20 +154,17 @@ export type PositionWindow = {
 // (not just status/closesAt) because isPositionActive delegates its "is this position
 // actually closed" check to getPositionAvailability, which also needs opensAt — a
 // status:'open' position past its closesAt is closed_by_date even though the status
-// column never flips to 'closed'. _count.applications must be the count of non-deleted
-// applications in UNRESOLVED_APPLICATION_STATUSES (excludes 'draft' — a draft can never
-// be submitted to a closed position, so counting it here only permanently pins an
-// otherwise-resolved closed position as active, #340) — populated only via
-// prisma/data/positions.ts's positionActivitySelect fragment; any other _count select
-// silently produces a wrong active/archived answer.
+// column never flips to 'closed'. lastStatusChangeAt is produced only by
+// withPositionActivity decoding prisma/data/positions.ts's positionActivitySelect
+// fragment; any other source silently produces a wrong active/archived answer.
 export type PositionActivity = PositionWindow & {
   updatedAt: Date;
-  _count: { applications: number };
+  lastStatusChangeAt: Date | null;
 };
 
 // Manager-facing position row: adds the fields isPositionActive needs to partition
-// active vs archived. Server-only shape — updatedAt/_count are internal and must
-// never be passed across a client boundary.
+// active vs archived. Server-only shape — updatedAt/lastStatusChangeAt are
+// internal and must never be passed across a client boundary.
 export type ManagedPosition = PositionWithQuestions & PositionActivity;
 
 // Lean per-position row for the manager dashboard's "My Positions" widget.

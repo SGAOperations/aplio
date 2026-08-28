@@ -190,6 +190,29 @@ export function resolveGlobalAnswerValues(
   );
 }
 
+/** Questions whose current value differs from the profile value a revert would write; order- and whitespace-sensitive, matching what the server actually stores. */
+export function findDivergingGlobalAnswers(
+  questionIds: string[],
+  currentValues: Map<string, string[]>,
+  profileAnswers: { globalQuestionId: string; value: string[] }[],
+): { questionId: string; profileValue: string[] }[] {
+  const profileValues = new Map(
+    profileAnswers.map((a) => [a.globalQuestionId, a.value]),
+  );
+  return questionIds
+    .map((questionId) => {
+      const current = currentValues.get(questionId) ?? [];
+      const profileValue = profileValues.get(questionId) ?? [];
+      return { questionId, profileValue, current };
+    })
+    .filter(
+      ({ current, profileValue }) =>
+        current.length !== profileValue.length ||
+        !current.every((v, i) => v === profileValue[i]),
+    )
+    .map(({ questionId, profileValue }) => ({ questionId, profileValue }));
+}
+
 /** Ids shared by every answer surface, so a card's label/input/error/notice/status stay wired to each other. */
 export function answerFieldIds(questionId: string) {
   return {
@@ -260,10 +283,10 @@ export function isAcceptingApplications(
  * Single source of truth for active vs archived — a second implementation is
  * an authorization bug, not just a display bug.
  *
- * Active unless closed (status 'closed', or 'open' past closesAt) AND has no
- * unresolved applications AND is outside the recency window. A lingering
- * 'draft' never counts — it can't be submitted to an already-closed position,
- * so counting it would pin the position active forever.
+ * Active unless closed (status 'closed', or 'open' past closesAt) AND it's
+ * been closed for at least MANAGED_POSITIONS_WINDOW_DAYS AND no application
+ * status has changed in that same window — an unresolved application only
+ * keeps a position active while it's still being worked.
  */
 export function isPositionActive(
   position: PositionActivity,
@@ -273,12 +296,17 @@ export function isPositionActive(
     position.status === 'closed' ||
     getPositionAvailability(position, now) === 'closed_by_date';
   if (!isClosed) return true;
-  if (position._count.applications > 0) return true;
 
   const cutoff = new Date(now);
   cutoff.setDate(cutoff.getDate() - MANAGED_POSITIONS_WINDOW_DAYS);
-  const recency = position.closesAt ?? position.updatedAt;
-  return recency >= cutoff;
+
+  const closedSince = position.closesAt ?? position.updatedAt;
+  if (closedSince >= cutoff) return true;
+
+  return (
+    position.lastStatusChangeAt !== null &&
+    position.lastStatusChangeAt >= cutoff
+  );
 }
 
 // Pure mirror of checkPositionAccess for rows already fetched. Compares ids

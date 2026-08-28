@@ -21,7 +21,6 @@ import {
 } from '@/lib/utils';
 
 import { ApplicationStepper } from '@/components/features/application-stepper';
-import { RestoreDraftButton } from '@/components/features/restore-draft-button';
 import { StartApplicationCard } from '@/components/features/start-application-card';
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
 import { PageHeader } from '@/components/layouts/page-header';
@@ -55,6 +54,9 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
   // Resource-state redirect, not an authorization denial: soft-deleted or still-draft.
   if (!position) redirect('/positions');
 
+  // A deleted draft reads as "no application" everywhere below; Start revives it.
+  const activeApplication = application?.deletedAt ? null : application;
+
   const isAccepting = isAcceptingApplications(position);
 
   const globalQuestions = profileData.map((d) => d.question);
@@ -72,9 +74,10 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
       .every((d) => isAnswered(d.question, toStringArray(d.answer?.value)));
 
   const isEditable =
-    application && isApplicantEditableApplicationStatus(application.status);
+    activeApplication &&
+    isApplicantEditableApplicationStatus(activeApplication.status);
 
-  const isResubmit = application?.status === 'withdrawn';
+  const isResubmit = activeApplication?.status === 'withdrawn';
 
   const description =
     isEditable && isAccepting
@@ -92,7 +95,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
         />
       </div>
 
-      {application && !isEditable ? (
+      {activeApplication && !isEditable ? (
         <Card className="gap-0 p-0">
           <CardContent className="flex flex-col gap-4 p-4">
             <div>
@@ -101,18 +104,21 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
                 You&apos;ve already applied
               </h2>
               <div className="mt-2 flex items-center gap-2">
-                <ApplicationStatusBadge status={application.status} />
+                <ApplicationStatusBadge status={activeApplication.status} />
                 <span className="text-muted-foreground text-sm">
                   Submitted{' '}
-                  <LocalTime date={application.submittedAt} precision="date" />
+                  <LocalTime
+                    date={activeApplication.submittedAt}
+                    precision="date"
+                  />
                 </span>
               </div>
               <p className="text-muted-foreground mt-3 text-sm">
                 {UNRESOLVED_APPLICATION_STATUSES.includes(
-                  application.status as (typeof UNRESOLVED_APPLICATION_STATUSES)[number],
+                  activeApplication.status as (typeof UNRESOLVED_APPLICATION_STATUSES)[number],
                 )
                   ? 'To change your answers, withdraw this application from My Applications, then edit and resubmit it.'
-                  : `This application has been ${APPLICATION_STATUS_LABELS[application.status]} and can no longer be edited.`}
+                  : `This application has been ${APPLICATION_STATUS_LABELS[activeApplication.status]} and can no longer be edited.`}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -120,7 +126,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
                 <Link href="/my-applications">View my applications</Link>
               </Button>
               <Button asChild variant="ghost" className="w-fit">
-                <Link href={`/my-applications/${application.id}`}>
+                <Link href={`/my-applications/${activeApplication.id}`}>
                   View my answers
                 </Link>
               </Button>
@@ -139,15 +145,19 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
                 Applications are closed
               </h2>
               <p className="text-muted-foreground mt-2 text-sm">
-                {application
+                {activeApplication
                   ? 'This position stopped accepting applications, so this application can no longer be edited or submitted.'
                   : 'This position is no longer accepting applications.'}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button asChild className="w-fit">
-                <Link href={application ? '/my-applications' : '/positions'}>
-                  {application ? 'View my applications' : 'Browse positions'}
+                <Link
+                  href={activeApplication ? '/my-applications' : '/positions'}
+                >
+                  {activeApplication
+                    ? 'View my applications'
+                    : 'Browse positions'}
                 </Link>
               </Button>
               <Button asChild variant="ghost" className="w-fit">
@@ -156,36 +166,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
             </div>
           </CardContent>
         </Card>
-      ) : application?.deletedAt ? (
-        <Card className="gap-0 p-0">
-          <CardContent className="flex flex-col gap-4 p-4">
-            <div>
-              <h2 className="text-lg font-semibold tracking-tight">
-                You deleted this draft
-              </h2>
-              <p className="text-muted-foreground mt-2 text-sm">
-                Your answers are still saved. Restore the draft to pick up where
-                you left off.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <RestoreDraftButton
-                applicationId={application.id}
-                positionTitle={position.title}
-                variant="default"
-                size="default"
-                className="w-fit"
-              />
-              <Button asChild variant="ghost" className="w-fit">
-                <Link href="/my-applications">View my applications</Link>
-              </Button>
-              <Button asChild variant="ghost" className="w-fit">
-                <Link href={`/positions/${id}`}>Back to position</Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ) : !application && !profileComplete ? (
+      ) : !activeApplication && !profileComplete ? (
         <Card className="gap-0 p-0">
           <CardContent className="flex flex-col gap-4 p-4">
             <div>
@@ -203,8 +184,11 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
             </Button>
           </CardContent>
         </Card>
-      ) : !application ? (
-        <StartApplicationCard positionId={id} />
+      ) : !activeApplication ? (
+        <StartApplicationCard
+          positionId={id}
+          hasDeletedDraft={Boolean(application?.deletedAt)}
+        />
       ) : (
         <div className="flex flex-col gap-6">
           {isResubmit && (
@@ -221,7 +205,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
             </div>
           )}
           <ApplicationStepper
-            application={application}
+            application={activeApplication}
             globalQuestions={globalQuestions}
             globalAnswers={globalAnswers}
             positionQuestions={position.questions}

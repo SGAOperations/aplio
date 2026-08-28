@@ -36,7 +36,8 @@ export function ArchivedPositionsCollapsible({
       </CollapsibleTrigger>
       <CollapsibleContent className="flex flex-col gap-4">
         <p className="text-muted-foreground text-xs">
-          Closed more than 30 days ago, with no applications in progress.
+          Closed more than 30 days ago, with no application status changes
+          since.
         </p>
         {children}
       </CollapsibleContent>

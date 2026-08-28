@@ -75,7 +75,6 @@ export default async function MyApplicationDetailPage({
                   applicationId={application.id}
                   status={application.status}
                   positionTitle={application.position.title}
-                  deletedAt={application.deletedAt}
                 />
               </>
             )
@@ -110,17 +109,20 @@ export default async function MyApplicationDetailPage({
           />
         </SectionCard>
 
-        <SectionCard
-          title="Your answers for this position"
-          icon={CONCEPT_ICONS.position}
-          titleAs="h2"
-        >
-          <ApplicationAnswersList
-            answers={application.positionAnswers}
-            emptyMessage="No position answers saved yet."
-            applicationId={application.id}
-          />
-        </SectionCard>
+        {(application.hasPositionQuestions ||
+          application.positionAnswers.length > 0) && (
+          <SectionCard
+            title="Your answers for this position"
+            icon={CONCEPT_ICONS.position}
+            titleAs="h2"
+          >
+            <ApplicationAnswersList
+              answers={application.positionAnswers}
+              emptyMessage="No position-specific answers."
+              applicationId={application.id}
+            />
+          </SectionCard>
+        )}
       </div>
     </div>
   );

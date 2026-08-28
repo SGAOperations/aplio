@@ -5,6 +5,7 @@ import type { AnswerQuestion, PositionActivity } from '@/lib/types';
 import {
   answerFieldIds,
   canReviewPosition,
+  findDivergingGlobalAnswers,
   formatAlternatives,
   formatPaginationSummary,
   formatTableCount,
@@ -78,18 +79,18 @@ describe('getPositionAvailability', () => {
 });
 
 describe('isPositionActive', () => {
-  it('is active when open', () => {
+  it('is active when open, regardless of activity', () => {
     const position: PositionActivity = {
       status: 'open',
       opensAt: null,
       closesAt: null,
       updatedAt: NOW,
-      _count: { applications: 0 },
+      lastStatusChangeAt: null,
     };
     expect(isPositionActive(position, NOW)).toBe(true);
   });
 
-  it('is active when closed with unresolved applications', () => {
+  it('is active when closed 10 days ago, regardless of activity', () => {
     const closesAt = new Date(NOW);
     closesAt.setDate(closesAt.getDate() - 10);
     const position: PositionActivity = {
@@ -97,25 +98,46 @@ describe('isPositionActive', () => {
       opensAt: null,
       closesAt,
       updatedAt: closesAt,
-      _count: { applications: 3 },
+      lastStatusChangeAt: null,
     };
     expect(isPositionActive(position, NOW)).toBe(true);
   });
 
-  it('is active when closed, zero applications, inside the recency window', () => {
+  it('is active when closed long ago with a recent status change', () => {
     const closesAt = new Date(NOW);
-    closesAt.setDate(closesAt.getDate() - 10);
+    closesAt.setDate(closesAt.getDate() - (MANAGED_POSITIONS_WINDOW_DAYS + 10));
+    const lastStatusChangeAt = new Date(NOW);
+    lastStatusChangeAt.setDate(lastStatusChangeAt.getDate() - 7);
     const position: PositionActivity = {
       status: 'closed',
       opensAt: null,
       closesAt,
       updatedAt: closesAt,
-      _count: { applications: 0 },
+      lastStatusChangeAt,
     };
     expect(isPositionActive(position, NOW)).toBe(true);
   });
 
-  it('is archived when closed, zero applications, outside the recency window', () => {
+  it('is archived when closed long ago with stale activity and an unresolved application', () => {
+    // The forgotten-applicant case (#581): an application sitting unresolved
+    // no longer grants immunity once nothing has changed in over 30 days.
+    const closesAt = new Date(NOW);
+    closesAt.setDate(closesAt.getDate() - (MANAGED_POSITIONS_WINDOW_DAYS + 10));
+    const lastStatusChangeAt = new Date(NOW);
+    lastStatusChangeAt.setDate(
+      lastStatusChangeAt.getDate() - (MANAGED_POSITIONS_WINDOW_DAYS + 5),
+    );
+    const position: PositionActivity = {
+      status: 'closed',
+      opensAt: null,
+      closesAt,
+      updatedAt: closesAt,
+      lastStatusChangeAt,
+    };
+    expect(isPositionActive(position, NOW)).toBe(false);
+  });
+
+  it('is archived when closed long ago and fully resolved', () => {
     const closesAt = new Date(NOW);
     closesAt.setDate(closesAt.getDate() - (MANAGED_POSITIONS_WINDOW_DAYS + 10));
     const position: PositionActivity = {
@@ -123,12 +145,12 @@ describe('isPositionActive', () => {
       opensAt: null,
       closesAt,
       updatedAt: closesAt,
-      _count: { applications: 0 },
+      lastStatusChangeAt: null,
     };
     expect(isPositionActive(position, NOW)).toBe(false);
   });
 
-  it('is active exactly at the recency window boundary (inclusive)', () => {
+  it('is active exactly at the closed-for window boundary (inclusive)', () => {
     const cutoff = new Date(NOW);
     cutoff.setDate(cutoff.getDate() - MANAGED_POSITIONS_WINDOW_DAYS);
     const position: PositionActivity = {
@@ -136,7 +158,22 @@ describe('isPositionActive', () => {
       opensAt: null,
       closesAt: cutoff,
       updatedAt: cutoff,
-      _count: { applications: 0 },
+      lastStatusChangeAt: null,
+    };
+    expect(isPositionActive(position, NOW)).toBe(true);
+  });
+
+  it('is active exactly at the idle-for window boundary (inclusive)', () => {
+    const closesAt = new Date(NOW);
+    closesAt.setDate(closesAt.getDate() - (MANAGED_POSITIONS_WINDOW_DAYS + 10));
+    const cutoff = new Date(NOW);
+    cutoff.setDate(cutoff.getDate() - MANAGED_POSITIONS_WINDOW_DAYS);
+    const position: PositionActivity = {
+      status: 'closed',
+      opensAt: null,
+      closesAt,
+      updatedAt: closesAt,
+      lastStatusChangeAt: cutoff,
     };
     expect(isPositionActive(position, NOW)).toBe(true);
   });
@@ -149,7 +186,7 @@ describe('isPositionActive', () => {
       opensAt: null,
       closesAt: null,
       updatedAt: recentUpdatedAt,
-      _count: { applications: 0 },
+      lastStatusChangeAt: null,
     };
     expect(isPositionActive(activePosition, NOW)).toBe(true);
 
@@ -162,7 +199,7 @@ describe('isPositionActive', () => {
       opensAt: null,
       closesAt: null,
       updatedAt: staleUpdatedAt,
-      _count: { applications: 0 },
+      lastStatusChangeAt: null,
     };
     expect(isPositionActive(archivedPosition, NOW)).toBe(false);
   });
@@ -175,14 +212,15 @@ describe('isPositionActive', () => {
       opensAt: null,
       closesAt,
       updatedAt: closesAt,
-      _count: { applications: 0 },
+      lastStatusChangeAt: null,
     };
     expect(isPositionActive(position, NOW)).toBe(false);
   });
 
-  it('never counts a draft-only application as unresolved (#340)', () => {
-    // _count.applications must already exclude 'draft' — a draft-only
-    // position closed outside the window still archives.
+  it('a lingering draft never counts as activity', () => {
+    // lastStatusChangeAt is only ever populated from a counted status event
+    // (never a draft's absence of one), so a draft-only position closed
+    // outside the window still archives.
     const closesAt = new Date(NOW);
     closesAt.setDate(closesAt.getDate() - (MANAGED_POSITIONS_WINDOW_DAYS + 10));
     const position: PositionActivity = {
@@ -190,7 +228,7 @@ describe('isPositionActive', () => {
       opensAt: null,
       closesAt,
       updatedAt: closesAt,
-      _count: { applications: 0 },
+      lastStatusChangeAt: null,
     };
     expect(isPositionActive(position, NOW)).toBe(false);
   });
@@ -713,5 +751,75 @@ describe('resolveGlobalAnswerValues', () => {
     );
     expect(resolved.get('q1')).toEqual([]);
     expect(resolved.get('q2')).toEqual(['profile2']);
+  });
+});
+
+describe('findDivergingGlobalAnswers', () => {
+  it('returns nothing when every current value equals its profile value', () => {
+    const result = findDivergingGlobalAnswers(
+      ['q1'],
+      new Map([['q1', ['same']]]),
+      [{ globalQuestionId: 'q1', value: ['same'] }],
+    );
+    expect(result).toEqual([]);
+  });
+
+  it('is not diverging when both sides are empty, including no profile row at all', () => {
+    const result = findDivergingGlobalAnswers(
+      ['q1', 'q2'],
+      new Map([
+        ['q1', []],
+        ['q2', []],
+      ]),
+      [{ globalQuestionId: 'q1', value: [] }],
+    );
+    expect(result).toEqual([]);
+  });
+
+  it('returns only the diverging ids, in questionIds order, with the profile value a revert would write', () => {
+    const result = findDivergingGlobalAnswers(
+      ['q1', 'q2', 'q3'],
+      new Map([
+        ['q1', ['changed']],
+        ['q2', ['same']],
+        ['q3', ['also changed']],
+      ]),
+      [
+        { globalQuestionId: 'q1', value: ['profile1'] },
+        { globalQuestionId: 'q2', value: ['same'] },
+        { globalQuestionId: 'q3', value: ['profile3'] },
+      ],
+    );
+    expect(result).toEqual([
+      { questionId: 'q1', profileValue: ['profile1'] },
+      { questionId: 'q3', profileValue: ['profile3'] },
+    ]);
+  });
+
+  it('treats a different array order as diverging', () => {
+    const result = findDivergingGlobalAnswers(
+      ['q1'],
+      new Map([['q1', ['b', 'a']]]),
+      [{ globalQuestionId: 'q1', value: ['a', 'b'] }],
+    );
+    expect(result).toEqual([{ questionId: 'q1', profileValue: ['a', 'b'] }]);
+  });
+
+  it('treats a whitespace-only difference as diverging', () => {
+    const result = findDivergingGlobalAnswers(
+      ['q1'],
+      new Map([['q1', ['Yes ']]]),
+      [{ globalQuestionId: 'q1', value: ['Yes'] }],
+    );
+    expect(result).toEqual([{ questionId: 'q1', profileValue: ['Yes'] }]);
+  });
+
+  it('diverges with an empty profileValue when no profile row exists but the current value is non-empty', () => {
+    const result = findDivergingGlobalAnswers(
+      ['q1'],
+      new Map([['q1', ['answered']]]),
+      [],
+    );
+    expect(result).toEqual([{ questionId: 'q1', profileValue: [] }]);
   });
 });

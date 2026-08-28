@@ -1,7 +1,10 @@
 import 'server-only';
 
 import { $Enums, type Prisma } from '@/prisma/client';
-import { positionActivitySelect } from '@/prisma/data/positions';
+import {
+  positionActivitySelect,
+  withPositionActivity,
+} from '@/prisma/data/positions';
 
 import {
   buildApplicationWhere,
@@ -36,7 +39,6 @@ const applicationSelect = {
   submittedAt: true,
   updatedAt: true,
   positionId: true,
-  deletedAt: true,
   position: {
     select: {
       id: true,
@@ -103,10 +105,8 @@ function normalizeApplicationAnswers(application: ApplicationAnswersPayload): {
   };
 }
 
-// Scoped to the caller (no IDOR); returns the caller's application at any status
-// or deletion state so the apply route decides what to render.
-// Predicate must match createDraftApplication's pre-create lookup, or the page
-// loops between the entry state and "already exists".
+// Includes a deleted draft, in lockstep with createDraftApplication's
+// pre-create lookup — the page maps a deleted row to "absent" and Start revives it.
 export async function getApplicationForApply(
   userId: string,
   positionId: string,
@@ -117,17 +117,11 @@ export async function getApplicationForApply(
   });
 }
 
-// Deleted drafts stay visible so the applicant can restore them; every other
-// deleted status is excluded, since only drafts are ever soft-deleted here.
 export async function getMyApplications(
   userId: string,
 ): Promise<MyApplicationListItem[]> {
   return prisma.application.findMany({
-    where: {
-      userId,
-      position: PUBLISHED_POSITION_WHERE,
-      OR: [{ deletedAt: null }, { status: 'draft' }],
-    },
+    where: { userId, deletedAt: null, position: PUBLISHED_POSITION_WHERE },
     select: applicationSelect,
     orderBy: { updatedAt: 'desc' },
   });
@@ -164,12 +158,29 @@ export async function getMyApplication(
 ): Promise<MyApplicationDetail | null> {
   const application = await prisma.application.findFirst({
     where: { id, userId, deletedAt: null, position: PUBLISHED_POSITION_WHERE },
-    select: { ...applicationSelect, ...applicationAnswersSelect },
+    select: {
+      ...applicationSelect,
+      position: {
+        select: {
+          ...applicationSelect.position.select,
+          _count: { select: { questions: { where: { deletedAt: null } } } },
+        },
+      },
+      ...applicationAnswersSelect,
+    },
   });
 
   if (!application) return null;
 
-  return { ...application, ...normalizeApplicationAnswers(application) };
+  const { position, ...rest } = application;
+  const { _count, ...positionRest } = position;
+
+  return {
+    ...rest,
+    position: positionRest,
+    hasPositionQuestions: _count.questions > 0,
+    ...normalizeApplicationAnswers(application),
+  };
 }
 
 // Unauthorized and missing both return null; the page maps either to notFound().
@@ -280,7 +291,9 @@ export async function getApplicantOtherApplications(
   });
 
   return applications
-    .filter((application) => isPositionActive(application.position))
+    .filter((application) =>
+      isPositionActive(withPositionActivity(application.position)),
+    )
     .map((application) => ({
       id: application.id,
       status: application.status,

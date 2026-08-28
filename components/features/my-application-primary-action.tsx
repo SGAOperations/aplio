@@ -15,8 +15,6 @@ interface MyApplicationPrimaryActionProps {
 export function MyApplicationPrimaryAction({
   application,
 }: MyApplicationPrimaryActionProps) {
-  if (application.deletedAt) return null;
-
   if (application.status === 'draft')
     return (
       <Button variant="outline" size="sm" asChild>
