@@ -33,7 +33,7 @@ State once; every phase below defers to this.
 
 This command tests against **local dev**, not a Vercel preview — a preview may be gated by Vercel's own access controls, and this command doesn't hand off to a human to click around on its behalf.
 
-1. Check whether a dev server is already reachable at `http://localhost:3000`; if so and `/login/bypass` loads, skip to step 5.
+1. Check whether a dev server is already reachable at `http://localhost:3000`; if so and `/login/bypass` loads, skip the rest of this phase and go straight to Phase 1 — nothing else here is needed.
 2. `npm run db:start` (Postgres via `docker compose`). If the port is already taken by something else, **stop and ask** the operator rather than picking a different port on your own.
 3. Confirm `.env` has a working `DATABASE_URL`/`DIRECT_URL` for that Postgres, a `BETTER_AUTH_SECRET`, and `VERCEL_ENV=development` (see `.env.example`). If any is missing, **stop and ask** before writing to `.env` — it's local-only and gitignored, but it's still the operator's file.
 4. `npm run prisma:migrate:deploy` then `npm run prisma:seed` (a no-op if already seeded).
