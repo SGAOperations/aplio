@@ -44,9 +44,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 const UNDO_NOTICE_ID = 'status-dialog-undo-notice';
 
-// Synchronizes with the wall clock (a genuinely external system, not app
-// state) so Undo disables itself the moment the window closes, even if the
-// dialog has been open the whole time.
+// Syncs with the wall clock so Undo disables itself the moment the window closes.
 function useDecisionEmailWindowExpired(scheduledAt?: Date): boolean {
   const time = scheduledAt?.getTime();
   const [expired, setExpired] = useState(false);
