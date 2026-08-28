@@ -1,25 +1,25 @@
 'use client';
 
+import { useState, useTransition } from 'react';
+
+import { toast } from 'sonner';
+
+import { loadApplicationStatusHistory } from '@/prisma/actions/applications';
 import type { $Enums } from '@/prisma/client';
 
-import {
-  APPLICATION_STATUS_ACTION_LABELS,
-  APPLICATION_STATUS_LABELS,
-  APPLICATION_STATUS_TRANSITIONS,
-  getApplicationStatusMenuGroups,
-  isNonReviewableApplicationStatus,
-} from '@/lib/constants';
+import { isNonReviewableApplicationStatus } from '@/lib/constants';
 import { ACTION_ICONS } from '@/lib/icons';
+import type { ApplicationStatusHistoryEntry } from '@/lib/types';
+import { isError } from '@/lib/utils';
 
+import { ApplicationStatusDialog } from '@/components/features/application-status-dialog';
+import { ApplicationStatusMenu } from '@/components/features/application-status-menu';
 import { useApplicationStatusMove } from '@/components/features/use-application-status-move';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
@@ -40,10 +40,33 @@ export function ApplicationStatusActions({
   const { isPending, selectTarget, confirmDialogProps } =
     useApplicationStatusMove({ applicationId, applicantName });
 
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [history, setHistory] = useState<ApplicationStatusHistoryEntry[]>([]);
+  const [isHistoryLoading, startHistoryTransition] = useTransition();
+  const [historyFailed, setHistoryFailed] = useState(false);
+
   if (isNonReviewableApplicationStatus(currentStatus)) return null;
 
-  const { forward, decisions } = getApplicationStatusMenuGroups(currentStatus);
-  const { back } = APPLICATION_STATUS_TRANSITIONS[currentStatus];
+  // Opens immediately and fetches in the same handler — no table pre-fetch
+  // of history for every visible row; re-fetches on every open.
+  function openDialog() {
+    setDialogOpen(true);
+    setHistoryFailed(false);
+    startHistoryTransition(async () => {
+      try {
+        const result = await loadApplicationStatusHistory({ applicationId });
+        if (isError(result)) {
+          setHistoryFailed(true);
+          toast.error(result.error);
+          return;
+        }
+        setHistory(result);
+      } catch {
+        setHistoryFailed(true);
+        toast.error('Something went wrong. Please try again.');
+      }
+    });
+  }
 
   return (
     <>
@@ -59,43 +82,26 @@ export function ApplicationStatusActions({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {forward.map((target) => (
-            <DropdownMenuItem
-              key={target}
-              onSelect={() => selectTarget(target)}
-            >
-              {APPLICATION_STATUS_ACTION_LABELS[target]}
-            </DropdownMenuItem>
-          ))}
-          {decisions.length > 0 && forward.length > 0 && (
-            <DropdownMenuSeparator />
-          )}
-          {decisions.map((target) => (
-            <DropdownMenuItem
-              key={target}
-              variant={target === 'rejected' ? 'destructive' : 'default'}
-              onSelect={() => selectTarget(target)}
-            >
-              {APPLICATION_STATUS_ACTION_LABELS[target]}
-            </DropdownMenuItem>
-          ))}
-          {back.length > 0 && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel>Move back</DropdownMenuLabel>
-              {back.map((target) => (
-                <DropdownMenuItem
-                  key={target}
-                  onSelect={() => selectTarget(target)}
-                >
-                  Move back to {APPLICATION_STATUS_LABELS[target]}
-                </DropdownMenuItem>
-              ))}
-            </>
-          )}
+          <ApplicationStatusMenu
+            status={currentStatus}
+            hoistNext={false}
+            isPending={isPending}
+            onSelect={selectTarget}
+            onSeeMore={openDialog}
+          />
         </DropdownMenuContent>
       </DropdownMenu>
       <ConfirmDialog {...confirmDialogProps} />
+      <ApplicationStatusDialog
+        applicationId={applicationId}
+        applicantName={displayName}
+        currentStatus={currentStatus}
+        history={history}
+        isHistoryLoading={isHistoryLoading}
+        historyFailed={historyFailed}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+      />
     </>
   );
 }

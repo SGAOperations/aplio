@@ -33,12 +33,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface ApplicationStatusDialogProps {
   applicationId: string;
   applicantName: string;
   currentStatus: $Enums.ApplicationStatus;
   history: ApplicationStatusHistoryEntry[];
+  // Only the table row's dialog fetches on open — the detail page passes
+  // its pre-fetched history and leaves these unset.
+  isHistoryLoading?: boolean;
+  historyFailed?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -48,6 +53,8 @@ export function ApplicationStatusDialog({
   applicantName,
   currentStatus,
   history,
+  isHistoryLoading = false,
+  historyFailed = false,
   open,
   onOpenChange,
 }: ApplicationStatusDialogProps) {
@@ -151,7 +158,21 @@ export function ApplicationStatusDialog({
 
             <div className="flex flex-col gap-2">
               <h3 className="text-sm font-medium">History</h3>
-              {history.length === 0 ? (
+              {isHistoryLoading ? (
+                <div
+                  aria-busy="true"
+                  aria-label="Loading history"
+                  className="flex flex-col gap-2"
+                >
+                  <Skeleton className="h-5 w-full" />
+                  <Skeleton className="h-5 w-full" />
+                  <Skeleton className="h-5 w-full" />
+                </div>
+              ) : historyFailed ? (
+                <p className="text-muted-foreground text-sm">
+                  Couldn&apos;t load the history. Close this and try again.
+                </p>
+              ) : history.length === 0 ? (
                 <p className="text-muted-foreground text-sm">
                   No status changes recorded yet.
                 </p>
