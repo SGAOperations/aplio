@@ -100,12 +100,13 @@ export function PositionCard({
 }: PositionCardProps) {
   const availability = getPositionAvailability(position);
   const isAccepting = availability === 'accepting';
+  const isDraft = myApplication?.status === 'draft';
   const canContinueOrResubmit =
     myApplication &&
     APPLICANT_EDITABLE_APPLICATION_STATUSES.includes(
       myApplication.status as (typeof APPLICANT_EDITABLE_APPLICATION_STATUSES)[number],
     ) &&
-    (myApplication.status === 'draft' || isAccepting);
+    (isDraft || isAccepting);
 
   let dateLabel: ReactNode = null;
   if (availability === 'accepting' && position.closesAt)
@@ -151,13 +152,15 @@ export function PositionCard({
                 !applicationStats && 'justify-between',
               )}
             >
-              <CardTitle className="text-lg leading-snug">
-                {position.title}
-              </CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-lg leading-snug">
+                  {position.title}
+                </CardTitle>
+                {myApplication && (
+                  <ApplicationStatusBadge status={myApplication.status} />
+                )}
+              </div>
               <PositionStatusBadge position={position} />
-              {myApplication && (
-                <ApplicationStatusBadge status={myApplication.status} />
-              )}
             </div>
           </CardHeader>
 
@@ -210,9 +213,7 @@ export function PositionCard({
                       <Button asChild size="sm">
                         <Link href={`/positions/${position.id}/apply`}>
                           <ACTION_ICONS.submit />
-                          {myApplication.status === 'draft'
-                            ? 'Continue application'
-                            : 'Edit & resubmit'}
+                          {isDraft ? 'Continue application' : 'Edit & resubmit'}
                         </Link>
                       </Button>
                     ) : (
