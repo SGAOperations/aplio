@@ -9,7 +9,7 @@ import { Providers } from '@/components/providers';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: { default: APP_NAME, template: 'Aplio • %s' },
+  title: { default: APP_NAME, template: `${APP_NAME} • %s` },
   description: APP_DESCRIPTION,
   icons: [
     // Light-mode favicon: white/light background logo

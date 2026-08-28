@@ -12,7 +12,7 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: '/',
     display: 'standalone',
     lang: 'en',
-    // Static JSON can't read CSS custom properties — see docs/DESIGN.md.
+    // Static JSON can't read CSS custom properties.
     background_color: '#18181b',
     theme_color: '#d41b2c',
     icons: [
