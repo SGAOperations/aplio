@@ -27,7 +27,7 @@ describe('icon vocabulary', () => {
     });
   }
 
-  // 'closed_by_date' and 'unavailable' both mean "closed" (AVAILABILITY_LABELS),
+  // 'closed_by_date' and 'unavailable' both mean "closed" (POSITION_AVAILABILITY_LABELS),
   // so sharing an icon is intentional; every other key must be distinct.
   it('POSITION_AVAILABILITY_ICONS has no duplicates beyond the two closed states', () => {
     const { accepting, upcoming, closed_by_date, unavailable } =
