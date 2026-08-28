@@ -152,15 +152,15 @@ export function PositionCard({
                 !applicationStats && 'justify-between',
               )}
             >
-              <CardTitle className="text-lg leading-snug">
-                {position.title}
-              </CardTitle>
               <div className="flex items-center gap-2">
-                <PositionStatusBadge position={position} />
-                {myApplication && !isDraft && (
+                <CardTitle className="text-lg leading-snug">
+                  {position.title}
+                </CardTitle>
+                {myApplication && (
                   <ApplicationStatusBadge status={myApplication.status} />
                 )}
               </div>
+              <PositionStatusBadge position={position} />
             </div>
           </CardHeader>
 
