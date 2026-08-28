@@ -110,7 +110,6 @@ export type MyApplicationListItem = Prisma.ApplicationGetPayload<{
     submittedAt: true;
     updatedAt: true;
     positionId: true;
-    deletedAt: true;
     position: {
       select: {
         id: true;

@@ -14,10 +14,12 @@ import { Card, CardContent } from '@/components/ui/card';
 
 interface StartApplicationCardProps {
   positionId: string;
+  hasDeletedDraft: boolean;
 }
 
 export function StartApplicationCard({
   positionId,
+  hasDeletedDraft,
 }: StartApplicationCardProps) {
   const [isPending, startTransition] = useTransition();
 
@@ -29,7 +31,11 @@ export function StartApplicationCard({
           toast.error(result.error);
           return;
         }
-        toast.success('Application started');
+        toast.success(
+          hasDeletedDraft
+            ? 'Your saved answers are back'
+            : 'Application started',
+        );
       } catch {
         toast.error('Something went wrong. Please try again.');
       }
@@ -45,7 +51,9 @@ export function StartApplicationCard({
             Start your application
           </h2>
           <p className="text-muted-foreground mt-2 text-sm">
-            Your answers save as you go, so you can finish later.
+            {hasDeletedDraft
+              ? 'You deleted a draft for this position. Starting again brings your saved answers back — you can change them before you submit.'
+              : 'Your answers save as you go, so you can finish later.'}
           </p>
         </div>
         <Button className="w-fit" onClick={handleStart} disabled={isPending}>

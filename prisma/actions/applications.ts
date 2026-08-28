@@ -86,7 +86,7 @@ const createOrUpdateApplicationAnswerSchema = z.object({
 const submitApplicationSchema = z.object({ applicationId: z.string().min(1) });
 
 const DRAFT_DELETED_MESSAGE =
-  'You deleted this draft. Restore it from My Applications to keep working on it.';
+  'You deleted this draft. Refresh the page to apply again with your answers.';
 
 // Interaction-time only — never called during render (see apply/page.tsx).
 export async function createDraftApplication(
@@ -110,14 +110,20 @@ export async function createDraftApplication(
           positionId: parsed.data.positionId,
         },
       },
-      select: { id: true, deletedAt: true },
+      select: { id: true, deletedAt: true, status: true },
     });
 
-    // Soft-deleted draft: revalidate (as the P2002 branch below does) so a
-    // stale tab refreshes onto the restore card, not the entry card.
-    if (existing?.deletedAt) {
-      revalidatePath(`/positions/${parsed.data.positionId}/apply`);
-      return { error: DRAFT_DELETED_MESSAGE };
+    // Revive in place — no re-snapshot, so customized/uploaded answers survive.
+    if (existing?.deletedAt && existing.status === 'draft') {
+      await tx.application.update({
+        where: { id: existing.id },
+        data: {
+          deletedAt: null,
+          deletedById: null,
+          updatedById: currentUser.id,
+        },
+      });
+      return;
     }
 
     // Existing drafts survive a closed window; submit is what blocks. Already
@@ -182,38 +188,6 @@ export async function createDraftApplication(
 
   revalidatePath(`/positions/${parsed.data.positionId}/apply`);
   revalidatePath('/my-applications');
-  revalidatePath('/');
-  revalidatePath('/positions');
-}
-
-export async function restoreDraftApplication(
-  applicationId: string,
-): Promise<ResponseType<void>> {
-  const currentUser = await getCurrentUser();
-
-  const parsed = applicationIdSchema.safeParse({ applicationId });
-  if (!parsed.success) throw new Error('Invalid input');
-
-  const id = parsed.data.applicationId;
-
-  const restored = await prisma.application.updateManyAndReturn({
-    where: {
-      id,
-      userId: currentUser.id,
-      status: 'draft',
-      deletedAt: { not: null },
-    },
-    data: { deletedAt: null, deletedById: null, updatedById: currentUser.id },
-    select: { positionId: true },
-  });
-
-  if (restored.length === 0)
-    return { error: 'This draft can no longer be restored.' };
-
-  const { positionId } = restored[0]!;
-  revalidatePath(`/positions/${positionId}/apply`);
-  revalidatePath('/my-applications');
-  revalidatePath(`/my-applications/${id}`);
   revalidatePath('/');
   revalidatePath('/positions');
 }
@@ -730,8 +704,8 @@ export async function withdrawApplication(
   revalidatePath('/positions', 'layout');
 }
 
-// Soft delete: both answer tables are left untouched, so the historical
-// answers a restore brings back are never wiped in the first place.
+// Soft delete: both answer tables are left untouched, so re-applying to the
+// same position brings the historical answers back on the same row.
 export async function deleteDraftApplication(
   applicationId: string,
 ): Promise<ResponseType<void>> {

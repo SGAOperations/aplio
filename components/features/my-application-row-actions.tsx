@@ -14,7 +14,6 @@ import { TERMINAL_DECISION_STATUSES } from '@/lib/constants';
 import { ACTION_ICONS } from '@/lib/icons';
 import { isError } from '@/lib/utils';
 
-import { RestoreDraftButton } from '@/components/features/restore-draft-button';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,34 +31,23 @@ interface MyApplicationRowActionsProps {
   applicationId: string;
   status: $Enums.ApplicationStatus;
   positionTitle: string;
-  deletedAt: Date | null;
 }
 
 export function MyApplicationRowActions({
   applicationId,
   status,
   positionTitle,
-  deletedAt,
 }: MyApplicationRowActionsProps) {
   const [isPending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
-
-  if (deletedAt)
-    return (
-      <RestoreDraftButton
-        applicationId={applicationId}
-        positionTitle={positionTitle}
-      />
-    );
 
   if (status === 'draft') {
     return (
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogTrigger asChild>
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
-            className="text-destructive hover:text-destructive"
             aria-label={`Delete draft for ${positionTitle}`}
           >
             <ACTION_ICONS.delete />
@@ -71,8 +59,8 @@ export function MyApplicationRowActions({
             <AlertDialogTitle>Delete this draft?</AlertDialogTitle>
             <AlertDialogDescription>
               Your draft application to &ldquo;{positionTitle}&rdquo; will be
-              marked deleted. Your answers are kept, so you can restore it from
-              My Applications later.
+              removed from My Applications. If you apply to this position again,
+              your answers come back.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -90,7 +78,8 @@ export function MyApplicationRowActions({
                       return;
                     }
                     toast.success('Draft deleted', {
-                      description: 'Restore it from My Applications any time.',
+                      description:
+                        'Apply to this position again to bring your answers back.',
                     });
                     setOpen(false);
                   } catch {
