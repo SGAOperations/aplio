@@ -30,6 +30,7 @@ import {
   ActionError,
   type ErrorType,
   cn,
+  findDivergingGlobalAnswers,
   isAnswered,
   isError,
   partitionAnswerValue,
@@ -41,6 +42,7 @@ import { AnswerCard } from '@/components/features/answer-card';
 import { AnswerDisplay } from '@/components/features/answer-display';
 import { AnswerEditor } from '@/components/features/answer-editor';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { WarningCallout } from '@/components/ui/warning-callout';
 
 type StepperFormValues = Record<string, string[]>;
@@ -200,6 +202,7 @@ export function ApplicationStepper({
   const router = useRouter();
   const [step, setStep] = useState<1 | 2>(1);
   const [isReverting, setIsReverting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   // isSubmitting resets before the un-awaited redirect lands, so this keeps Submit disabled.
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [missingGlobalIds, setMissingGlobalIds] = useState<Set<string>>(
@@ -310,45 +313,45 @@ export function ApplicationStepper({
 
   const watchedValues = useWatch({ control }) as StepperFormValues;
 
-  async function handleToggleCustomize() {
-    if (!isCustomizing) {
-      setIsCustomizing(true);
-      setMissingGlobalIds(new Set());
-      clearErrors('root');
-      return;
-    }
+  // Live, not snapshot: the form sits behind the modal overlay while the
+  // dialog is open, so this can't drift from what a revert will write.
+  const divergingGlobalAnswers = useMemo(
+    () =>
+      findDivergingGlobalAnswers(
+        globalQuestions.map((q) => q.id),
+        new Map(
+          globalQuestions.map((q) => [
+            q.id,
+            toStringArray(watchedValues[`g_${q.id}`]),
+          ]),
+        ),
+        globalAnswers,
+      ),
+    [globalQuestions, watchedValues, globalAnswers],
+  );
 
+  async function revertToProfileAnswers() {
     setIsReverting(true);
     try {
       const results = await Promise.all(
-        globalQuestions.map(async (q) => {
-          const profileValue = toStringArray(
-            globalAnswers.find((a: GlobalAnswer) => a.globalQuestionId === q.id)
-              ?.value,
-          );
-          const current = toStringArray(watchedValues[`g_${q.id}`]);
-          if (JSON.stringify(current) === JSON.stringify(profileValue))
-            return null;
-
+        divergingGlobalAnswers.map(async ({ questionId, profileValue }) => {
           // Waits for an in-flight autosave so the revert write lands last.
-          const pending = pendingSavesRef.current.get(q.id);
+          const pending = pendingSavesRef.current.get(questionId);
           if (pending) await pending.catch(() => {});
 
           const result = await createOrUpdateApplicationAnswer({
             applicationId: application.id,
-            questionId: q.id,
+            questionId,
             value: profileValue,
           });
           // Applied only once persisted: a failed field keeps its last saved value.
-          if (!isError(result)) setValue(`g_${q.id}`, profileValue);
+          if (!isError(result)) setValue(`g_${questionId}`, profileValue);
           return result;
         }),
       );
 
       // Surface a specific refusal verbatim, same as onSave/blur.
-      const firstError = results.find(
-        (r): r is ErrorType => r !== null && isError(r),
-      );
+      const firstError = results.find((r): r is ErrorType => isError(r));
       if (firstError) toast.error(firstError.error);
       else toast.success('Reverted to profile answers');
     } catch {
@@ -356,7 +359,24 @@ export function ApplicationStepper({
     } finally {
       setIsReverting(false);
       setIsCustomizing(false);
+      setConfirmOpen(false);
     }
+  }
+
+  function handleToggleCustomize() {
+    if (!isCustomizing) {
+      setIsCustomizing(true);
+      setMissingGlobalIds(new Set());
+      clearErrors('root');
+      return;
+    }
+
+    if (divergingGlobalAnswers.length > 0) {
+      setConfirmOpen(true);
+      return;
+    }
+
+    void revertToProfileAnswers();
   }
 
   async function onSubmit() {
@@ -434,16 +454,16 @@ export function ApplicationStepper({
               </p>
             </div>
             <Button
-              variant={isCustomizing ? 'default' : 'outline'}
+              variant="outline"
               size="sm"
               className="mt-0.5 shrink-0"
-              onClick={() => void handleToggleCustomize()}
+              onClick={handleToggleCustomize}
               disabled={isReverting}
             >
               {isCustomizing
                 ? isReverting
                   ? 'Reverting...'
-                  : 'Use profile answers'
+                  : 'Revert to profile answers'
                 : 'Customize'}
             </Button>
           </div>
@@ -503,6 +523,18 @@ export function ApplicationStepper({
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Revert to profile answers?"
+        description={`${divergingGlobalAnswers.length} customized ${divergingGlobalAnswers.length === 1 ? 'answer' : 'answers'} will be replaced with your profile ${divergingGlobalAnswers.length === 1 ? 'answer' : 'answers'}. This can't be undone.`}
+        confirmLabel="Revert answers"
+        pendingLabel="Reverting…"
+        destructive
+        isPending={isReverting}
+        onConfirm={() => void revertToProfileAnswers()}
+      />
 
       {step === 2 && hasPositionQuestions && (
         <div className="flex flex-col gap-6">

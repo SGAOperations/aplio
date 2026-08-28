@@ -5,6 +5,7 @@ import type { AnswerQuestion, PositionActivity } from '@/lib/types';
 import {
   answerFieldIds,
   canReviewPosition,
+  findDivergingGlobalAnswers,
   formatAlternatives,
   formatPaginationSummary,
   formatTableCount,
@@ -750,5 +751,75 @@ describe('resolveGlobalAnswerValues', () => {
     );
     expect(resolved.get('q1')).toEqual([]);
     expect(resolved.get('q2')).toEqual(['profile2']);
+  });
+});
+
+describe('findDivergingGlobalAnswers', () => {
+  it('returns nothing when every current value equals its profile value', () => {
+    const result = findDivergingGlobalAnswers(
+      ['q1'],
+      new Map([['q1', ['same']]]),
+      [{ globalQuestionId: 'q1', value: ['same'] }],
+    );
+    expect(result).toEqual([]);
+  });
+
+  it('is not diverging when both sides are empty, including no profile row at all', () => {
+    const result = findDivergingGlobalAnswers(
+      ['q1', 'q2'],
+      new Map([
+        ['q1', []],
+        ['q2', []],
+      ]),
+      [{ globalQuestionId: 'q1', value: [] }],
+    );
+    expect(result).toEqual([]);
+  });
+
+  it('returns only the diverging ids, in questionIds order, with the profile value a revert would write', () => {
+    const result = findDivergingGlobalAnswers(
+      ['q1', 'q2', 'q3'],
+      new Map([
+        ['q1', ['changed']],
+        ['q2', ['same']],
+        ['q3', ['also changed']],
+      ]),
+      [
+        { globalQuestionId: 'q1', value: ['profile1'] },
+        { globalQuestionId: 'q2', value: ['same'] },
+        { globalQuestionId: 'q3', value: ['profile3'] },
+      ],
+    );
+    expect(result).toEqual([
+      { questionId: 'q1', profileValue: ['profile1'] },
+      { questionId: 'q3', profileValue: ['profile3'] },
+    ]);
+  });
+
+  it('treats a different array order as diverging', () => {
+    const result = findDivergingGlobalAnswers(
+      ['q1'],
+      new Map([['q1', ['b', 'a']]]),
+      [{ globalQuestionId: 'q1', value: ['a', 'b'] }],
+    );
+    expect(result).toEqual([{ questionId: 'q1', profileValue: ['a', 'b'] }]);
+  });
+
+  it('treats a whitespace-only difference as diverging', () => {
+    const result = findDivergingGlobalAnswers(
+      ['q1'],
+      new Map([['q1', ['Yes ']]]),
+      [{ globalQuestionId: 'q1', value: ['Yes'] }],
+    );
+    expect(result).toEqual([{ questionId: 'q1', profileValue: ['Yes'] }]);
+  });
+
+  it('diverges with an empty profileValue when no profile row exists but the current value is non-empty', () => {
+    const result = findDivergingGlobalAnswers(
+      ['q1'],
+      new Map([['q1', ['answered']]]),
+      [],
+    );
+    expect(result).toEqual([{ questionId: 'q1', profileValue: [] }]);
   });
 });

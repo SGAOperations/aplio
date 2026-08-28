@@ -246,12 +246,13 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 
 ### AP-7 Customize or revert profile answers
 
-- **Trigger** — the customize toggle above the profile questions in the stepper, which auto-opens with the "New required profile questions were added…" callout when a required global question resolves (via `resolveGlobalAnswerValues`, `lib/utils.ts`) to no answer at all — neither an application row nor a profile value. A required question the applicant already answered on their profile does not trigger it, even with no application row yet.
-- **Happy path** — toggling on unlocks the profile answers for this application only. Toggling off writes each changed field back to the profile value via `createOrUpdateApplicationAnswer`, waiting on any in-flight autosave first so the revert lands last. Toast **"Reverted to profile answers"**.
+- **Trigger** — the customize toggle above the profile questions in the stepper, which auto-opens with the "New required profile questions were added…" callout when a required global question resolves (via `resolveGlobalAnswerValues`, `lib/utils.ts`) to no answer at all — neither an application row nor a profile value. A required question the applicant already answered on their profile does not trigger it, even with no application row yet. The toggle is always the outline button — it is never the step's filled primary, which stays reserved for Next/Submit.
+- **Happy path** — toggling on unlocks the profile answers for this application only. Toggling off (**Revert to profile answers**) compares each field to its profile value (`findDivergingGlobalAnswers`, `lib/utils.ts`, order- and whitespace-sensitive); with at least one differing answer, a confirmation dialog names the count ("N customized answers will be replaced with your profile answers. This can't be undone.") before anything is written. Confirming writes each changed field back to the profile value via `createOrUpdateApplicationAnswer`, waiting on any in-flight autosave first so the revert lands last. Toast **"Reverted to profile answers"**.
 - **Failure / edge**
+  - No fields differ from the profile → no dialog; reverting is a no-op with the same **"Reverted to profile answers"** toast.
+  - Cancelling the dialog writes nothing and leaves customize mode on.
   - Any single field's revert returns `{ error }` → that message is toasted verbatim and the field keeps its last saved value; the others still revert.
   - The batch throws → **"Failed to revert some answers"**.
-  - Fields already equal to the profile value are skipped.
 - **End state** — this application's answers match the profile again. `/profile` is untouched either way — customizing never writes back to the profile.
 
 ### AP-8 Upload or remove a file answer
