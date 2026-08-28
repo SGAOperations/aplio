@@ -77,7 +77,7 @@ export default async function MyPositionsPage() {
       <ManagedPositionsSection
         positions={managedPositions}
         statsByPosition={statsByPosition}
-        emptyDescription="Positions you manage appear here. Closed positions drop off 30 days after they close once no applications are pending."
+        emptyDescription="Positions you manage appear here. A closed position drops off once it has been closed for 30 days with no application status changes."
         emptyAction={<PositionCreateDialog />}
       />
     </div>
