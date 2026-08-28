@@ -105,9 +105,8 @@ function normalizeApplicationAnswers(application: ApplicationAnswersPayload): {
   };
 }
 
-// Scoped to the caller (no IDOR); returns the caller's application including
-// a deleted draft, in lockstep with createDraftApplication's pre-create
-// lookup — the page maps a deleted row to "absent" and Start revives it.
+// Includes a deleted draft, in lockstep with createDraftApplication's
+// pre-create lookup — the page maps a deleted row to "absent" and Start revives it.
 export async function getApplicationForApply(
   userId: string,
   positionId: string,
