@@ -1,6 +1,6 @@
 ---
 name: full-review
-description: Manual, once-per-release whole-platform audit against docs/ENGINEERING.md, docs/DESIGN.md, docs/PERMISSIONS.md and docs/WORKFLOWS.md — checks the code against the two spec docs and reports drift in both directions, with every finding tagged verified-live / verified-in-code / plausible. Manual only. Usage: /full-review
+description: Manual, once-per-release whole-platform audit against CLAUDE.md, docs/ENGINEERING.md, docs/DESIGN.md, docs/PERMISSIONS.md and docs/WORKFLOWS.md — checks the code against the spec docs and reports drift in both directions, with every finding tagged verified-live / verified-in-code / plausible. Manual only. Usage: /full-review
 disable-model-invocation: true
 allowed-tools: Read, Grep, Glob, Write, AskUserQuestion, Bash(gh *), Bash(npm run *), Bash(git log *), Bash(rm -f tests/db/probe-*.test.ts)
 ---
@@ -11,7 +11,7 @@ allowed-tools: Read, Grep, Glob, Write, AskUserQuestion, Bash(gh *), Bash(npm ru
 **Input:** none — the base URL for live verification is asked in Phase 0.
 **Repo:** `SGAOperations/aplio`.
 
-This is deliberately the opposite of the pipeline's `review-agent`: that one is diff-scoped and per-PR; this one sweeps the **entire app** against `docs/ENGINEERING.md`, `docs/DESIGN.md`, `docs/PERMISSIONS.md` and `docs/WORKFLOWS.md` and reports **drift in both directions** — code the docs don't describe, and documented behaviour the code no longer implements. The two docs are the spec: this command **never regenerates or edits them**, and it never reviews a PR diff or applies a pipeline label — `review-agent` stays the only thing that does either.
+This is deliberately the opposite of the pipeline's `review-agent`: that one is diff-scoped and per-PR; this one sweeps the **entire app** against `CLAUDE.md`, `docs/ENGINEERING.md`, `docs/DESIGN.md`, `docs/PERMISSIONS.md` and `docs/WORKFLOWS.md` and reports **drift in both directions** — code the docs don't describe, and documented behaviour the code no longer implements. Those docs are the spec: this command **never regenerates or edits them**, and it never reviews a PR diff or applies a pipeline label — `review-agent` stays the only thing that does either.
 
 ## The load-bearing rule
 
@@ -41,11 +41,11 @@ State once; every phase below defers to this.
 
 ## Phase 1 — fixture gate
 
-Run check 8 (`checks.md`) first, before anything else. Any `PositionStatus`/`ApplicationStatus` member the seed doesn't cover → report it as a finding **and degrade** the live phase for that state: claims touching an uncovered state max out at `plausible` for the rest of this run. Never proceed as if the fixture existed.
+Run check 9 (`checks.md`) first, before anything else. Any `PositionStatus`/`ApplicationStatus` member the seed doesn't cover → report it as a finding **and degrade** the live phase for that state: claims touching an uncovered state max out at `plausible` for the rest of this run. Never proceed as if the fixture existed.
 
 ## Phase 2 — static sweep
 
-Run checks 1–7 from `checks.md`, producing **candidates only** — each line `path:line · suspected problem · the doc clause it cites · what would prove or kill it`. **No candidate from this phase may be written into the final report as-is.** Cross-reference existing issues opportunistically here if one surfaces, but the systematic dedup pass is Phase 5.
+Run checks 1–8 from `checks.md`, producing **candidates only** — each line `path:line · suspected problem · the doc clause it cites · what would prove or kill it`. **No candidate from this phase may be written into the final report as-is.** Cross-reference existing issues opportunistically here if one surfaces, but the systematic dedup pass is Phase 5.
 
 ## Phase 3 — executed verification
 

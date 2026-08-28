@@ -72,16 +72,26 @@ Loaded on demand by `.claude/skills/full-review/SKILL.md`'s Phase 2. One entry p
 
 **Promote via:** `verified-in-code` for contrast (the script's own exit code) and page-width tiers (both files are readable); `verified-live` for touch targets (measuring at 375px).
 
-## 8. Seed coverage
+## 8. Repo convention conformance (`CLAUDE.md`)
+
+**Looks for:** structural conventions `CLAUDE.md` mandates that a code review can silently drift from — an `app/api/` route outside the two allowlisted ones (Better Auth, the Resend webhook); a `default export` outside the exempted route-file conventions; a server action's return shape that isn't `void`/data on success, `{ error }`, or a `throw` (the `{ ok }` shape `CLAUDE.md` explicitly forbids).
+
+**Anchors:** `Glob` for `app/api/**/route.ts` against `CLAUDE.md`'s two-line allowlist; `Grep` for `export default` outside `app/**/{page,layout,loading,error,not-found}.tsx`, `app/manifest.ts`, `proxy.ts`, and shadcn `components/ui/*`; `Grep` for `return { ok` / `{ ok: true }` in `prisma/actions/*`.
+
+**Violates:** `CLAUDE.md` → Architecture (API route allowlist, Server Actions return shape) and Code Style (named exports only).
+
+**Promote via:** `verified-in-code` — each anchor is a direct grep/read; no live step needed to see an extra route file or a default export.
+
+## 9. Seed coverage
 
 **Looks for:** every `PositionStatus` and `ApplicationStatus` member in `prisma/schema.prisma` appearing in `prisma/seed/positions.ts` / `prisma/seed/applications.ts`, plus the soft-deleted position and the deactivated user.
 
 **Anchors:** `prisma/schema.prisma` enum blocks; `prisma/seed/positions.ts`, `prisma/seed/applications.ts`, `prisma/seed/users.ts`.
 
-**Violates:** the acceptance bar for every other class in this file — a state the fixtures cannot reach is a state no live claim about it can be trusted for, which is why this check **runs first** (Phase 1) rather than alongside 1–7.
+**Violates:** the acceptance bar for every other class in this file — a state the fixtures cannot reach is a state no live claim about it can be trusted for, which is why this check **runs first** (Phase 1) rather than alongside 1–8.
 
 **Promote via:** direct read — comparing the schema enum to the seed defs is deterministic; no execution needed beyond reading both files.
 
 ## Adding a class
 
-These eight are a floor, not a ceiling. A run that finds a new **class** of problem (not just a new instance of an existing one) appends it here with the same four-part shape — that's the only way this command improves across releases.
+These nine are a floor, not a ceiling. A run that finds a new **class** of problem (not just a new instance of an existing one) appends it here with the same four-part shape — that's the only way this command improves across releases.

@@ -1,8 +1,5 @@
 #!/usr/bin/env node
-// Parses the OKLCH design tokens in app/globals.css and computes real WCAG
-// contrast ratios for every semantic pair, in both themes. Dependency-free by
-// design (docs/DESIGN.md §2's check) — an LLM asked to "compute contrast" in
-// prose fabricates numbers, so this is the only trustworthy source.
+// Computes real WCAG contrast from OKLCH tokens in app/globals.css — dependency-free so numbers aren't fabricated.
 import { readFileSync } from 'node:fs';
 
 const CSS_PATH = 'app/globals.css';
