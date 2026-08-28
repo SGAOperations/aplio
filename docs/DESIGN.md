@@ -3,8 +3,12 @@
 How Aplio's UI should look and behave. Read this before building or changing any UI. The single most important rule:
 
 > **IMPORTANT: never hardcode colors, radii, or font families.** Always use the semantic Tailwind tokens / CSS variables defined in `app/globals.css`. A literal hex, `rgb()`, or raw `oklch()` in a component is a bug. If you need a value that doesn't exist as a token, add a token to `globals.css` first.
+>
+> **Exception: `app/manifest.ts`.** A web app manifest is static JSON and can't read CSS custom properties, so `theme_color`/`background_color` are the one sanctioned place for a literal hex.
 
 Stack: shadcn/ui **new-york** style, **zinc** base color, **OKLCH** colors with light + `.dark` themes, **lucide** icons, RSC enabled. Config in `components.json`; tokens in `app/globals.css`.
+
+Platform icons (`app/apple-icon.png`, `public/icon-*.png`) are committed PNG rasters exported by hand from `public/logo-dark.svg` — re-export them if the logo changes.
 
 ## 1. Theme & atmosphere
 
