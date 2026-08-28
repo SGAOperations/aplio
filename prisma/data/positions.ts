@@ -4,6 +4,7 @@ import { cache } from 'react';
 
 import {
   MANAGED_POSITIONS_WINDOW_DAYS,
+  NON_REVIEWABLE_APPLICATION_STATUSES,
   PUBLISHED_POSITION_WHERE,
   RECENTLY_CLOSED_WINDOW_DAYS,
   UNRESOLVED_APPLICATION_STATUSES,
@@ -47,39 +48,40 @@ const positionWithQuestionsSelect = {
   },
 } as const;
 
-// Shared fragment for the isPositionActive predicate (lib/utils.ts). Always spread
-// alongside positionWithQuestionsSelect, which supplies the status/opensAt/closesAt
-// fields isPositionActive also needs (via getPositionAvailability) — this fragment
-// only adds the two fields that select doesn't already cover. The `where`
-// inside `_count` is the one fragile joint Prisma cannot type-check — any hand-written
-// _count.applications select that omits this unresolved-status filter will silently mark
-// an archived position active. `isPositionActive` only reads `_count.applications` once a
-// position is already closed (open positions return true before `_count` is consulted),
-// and `submitApplication` refuses a closed position, so a `draft` row can never be the
-// thing keeping a closed position "active" — counting it here only produces a permanent,
-// invisible pin (#340). Uses UNRESOLVED_APPLICATION_STATUSES (excludes 'draft') so this
-// matches getAdminPositions and the application count actually shown on the position
-// card (getPositionApplicationStats, prisma/data/applications.ts). Reused unchanged by
-// #360's getPositionForEdit widening so the manager list and the edit-freeze check share
-// one source of truth — note #360's edit freeze now also applies to positions this fix
-// newly allows to archive.
+// Fragment for isPositionActive; must change together with withPositionActivity below.
 export const positionActivitySelect = {
   updatedAt: true,
-  _count: {
+  applications: {
+    where: { deletedAt: null },
     select: {
-      applications: {
-        where: {
-          deletedAt: null,
-          // Fresh mutable array, not the readonly tuple — Prisma's generated
-          // filter types require ApplicationStatus[], not readonly [...]. An
-          // outer `as const` on this object would re-freeze the spread below,
-          // so this fragment is deliberately NOT `as const` (unlike its siblings).
-          status: { in: [...UNRESOLVED_APPLICATION_STATUSES] },
-        },
+      statusEvents: {
+        where: { to: { notIn: [...NON_REVIEWABLE_APPLICATION_STATUSES] } },
+        orderBy: { createdAt: 'desc' as const },
+        take: 1,
+        select: { createdAt: true },
       },
     },
   },
 };
+
+// Decodes positionActivitySelect's per-application rows into the single
+// timestamp isPositionActive needs. Must change together with the fragment above.
+export function withPositionActivity<
+  T extends { applications: { statusEvents: { createdAt: Date }[] }[] },
+>(row: T): Omit<T, 'applications'> & { lastStatusChangeAt: Date | null } {
+  const { applications, ...rest } = row;
+  const timestamps = applications
+    .map((application) => application.statusEvents[0]?.createdAt)
+    .filter((createdAt): createdAt is Date => createdAt !== undefined);
+
+  return {
+    ...rest,
+    lastStatusChangeAt:
+      timestamps.length > 0
+        ? new Date(Math.max(...timestamps.map((t) => t.getTime())))
+        : null,
+  };
+}
 
 // Filtered post-fetch so isAcceptingApplications stays the single source of truth.
 export async function getOpenPositions(): Promise<PositionWithQuestions[]> {
@@ -128,12 +130,13 @@ export async function getRecentlyClosedPositions(): Promise<
 export async function getManagedPositions(
   userId: string,
 ): Promise<ManagedPosition[]> {
-  return prisma.position.findMany({
+  const positions = await prisma.position.findMany({
     where: { managers: { some: { id: userId } }, deletedAt: null },
     select: { ...positionWithQuestionsSelect, ...positionActivitySelect },
     // Enum order puts draft first, then open, then closed.
     orderBy: [{ status: 'asc' }, { title: 'asc' }],
   });
+  return positions.map(withPositionActivity);
 }
 
 // Manager dashboard's "My Positions" widget: lean rows, aggregate counts only.
@@ -313,9 +316,11 @@ export const getPositionForEdit = cache(async function getPositionForEdit(
 
   if (!position) return null;
 
+  const { questions, ...rest } = withPositionActivity(position);
+
   return {
-    ...position,
-    questions: position.questions.map(({ _count, ...question }) => ({
+    ...rest,
+    questions: questions.map(({ _count, ...question }) => ({
       ...question,
       answerCount: _count.answers,
     })),
@@ -340,7 +345,7 @@ export async function checkPositionEditable(
     },
   });
 
-  return position !== null && isPositionActive(position);
+  return position !== null && isPositionActive(withPositionActivity(position));
 }
 
 // Admin-gated edit page only; counts exclude soft-deleted applications.

@@ -260,10 +260,10 @@ export function isAcceptingApplications(
  * Single source of truth for active vs archived — a second implementation is
  * an authorization bug, not just a display bug.
  *
- * Active unless closed (status 'closed', or 'open' past closesAt) AND has no
- * unresolved applications AND is outside the recency window. A lingering
- * 'draft' never counts — it can't be submitted to an already-closed position,
- * so counting it would pin the position active forever.
+ * Active unless closed (status 'closed', or 'open' past closesAt) AND it's
+ * been closed for at least MANAGED_POSITIONS_WINDOW_DAYS AND no application
+ * status has changed in that same window — an unresolved application only
+ * keeps a position active while it's still being worked.
  */
 export function isPositionActive(
   position: PositionActivity,
@@ -273,12 +273,17 @@ export function isPositionActive(
     position.status === 'closed' ||
     getPositionAvailability(position, now) === 'closed_by_date';
   if (!isClosed) return true;
-  if (position._count.applications > 0) return true;
 
   const cutoff = new Date(now);
   cutoff.setDate(cutoff.getDate() - MANAGED_POSITIONS_WINDOW_DAYS);
-  const recency = position.closesAt ?? position.updatedAt;
-  return recency >= cutoff;
+
+  const closedSince = position.closesAt ?? position.updatedAt;
+  if (closedSince >= cutoff) return true;
+
+  return (
+    position.lastStatusChangeAt !== null &&
+    position.lastStatusChangeAt >= cutoff
+  );
 }
 
 // Pure mirror of checkPositionAccess for rows already fetched. Compares ids
