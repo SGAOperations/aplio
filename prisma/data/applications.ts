@@ -164,12 +164,29 @@ export async function getMyApplication(
 ): Promise<MyApplicationDetail | null> {
   const application = await prisma.application.findFirst({
     where: { id, userId, deletedAt: null, position: PUBLISHED_POSITION_WHERE },
-    select: { ...applicationSelect, ...applicationAnswersSelect },
+    select: {
+      ...applicationSelect,
+      position: {
+        select: {
+          ...applicationSelect.position.select,
+          _count: { select: { questions: { where: { deletedAt: null } } } },
+        },
+      },
+      ...applicationAnswersSelect,
+    },
   });
 
   if (!application) return null;
 
-  return { ...application, ...normalizeApplicationAnswers(application) };
+  const { position, ...rest } = application;
+  const { _count, ...positionRest } = position;
+
+  return {
+    ...rest,
+    position: positionRest,
+    hasPositionQuestions: _count.questions > 0,
+    ...normalizeApplicationAnswers(application),
+  };
 }
 
 // Unauthorized and missing both return null; the page maps either to notFound().
