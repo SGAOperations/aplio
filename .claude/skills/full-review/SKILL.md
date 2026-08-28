@@ -1,37 +1,45 @@
 ---
 name: full-review
-description: Manual whole-app sweep for real bugs, confusing user-facing behavior, and code-level problems (duplication, poor or missing abstractions, dead code, inconsistent patterns). Run whenever a human wants to check the entire site — not tied to any schedule. Every finding tagged verified-live / verified-in-code / plausible. Manual only. Usage: /full-review
+description: Manual whole-app sweep for real bugs, confusing user-facing behavior, and code-level problems. Runs live verification itself against a local dev instance it stands up. Manual only. Usage: /full-review
 disable-model-invocation: true
-allowed-tools: Read, Grep, Glob, Write, AskUserQuestion, Bash(gh *), Bash(npm run *), Bash(git log *), Bash(rm -f tests/db/probe-*.test.ts)
+allowed-tools: Read, Grep, Glob, Write, AskUserQuestion, Bash(gh *), Bash(npm run *), Bash(git log *), Bash(rm -f tests/db/probe-*.test.ts), Browser
 ---
 
 # Full Review — whole-app bug & consistency sweep
 
 **Trigger:** Manual — a human runs `/full-review` whenever they want to check the whole site. Not tied to a release, a PR, or any schedule — run it as often or as rarely as someone wants.
-**Input:** none — the base URL for live verification is asked in Phase 0.
+**Input:** none — Phase 0 stands up its own local instance to verify against.
 **Repo:** `SGAOperations/aplio`.
 
 This is deliberately the opposite of the pipeline's `review-agent`: that one is diff-scoped and per-PR. This one sweeps the **entire app** for real bugs, confusing user-facing behavior, and code-level problems — duplicated logic, missing or over-built abstractions, dead code, inconsistent patterns between similar features. `CLAUDE.md`, `docs/ENGINEERING.md`, `docs/DESIGN.md`, `docs/PERMISSIONS.md` and `docs/WORKFLOWS.md` are useful context and get cited when they genuinely help, but **they are not the spec this command checks the code against** — they're maintained the same way the code is and drift too, so a finding stands on what the running app and the code actually do, not on a doc citation. This command never edits source or docs, never reviews a PR diff, and never applies a pipeline label — `review-agent` stays the only thing that does either.
 
 ## The load-bearing rule
 
-**A finding is a claim that must survive execution before it is reported.** The first ad hoc run of this kind of audit (2026-08-10) failed by confident static reasoning: four "criticals" evaporated under testing. So this command runs in strict phases — candidates from the static sweep (Phase 2) are worthless until Phase 3 (things this command actually ran or read closely enough to prove) or Phase 4 (things a human actually clicked) promotes or kills them. A candidate nothing executed or closely verified is capped at 🟡 Low, lives under "Unverified", and is never filed as an issue.
+**A finding is a claim that must survive execution before it is reported.** The first ad hoc run of this kind of audit (2026-08-10) failed by confident static reasoning: four "criticals" evaporated under testing. So this command runs in strict phases — candidates from the static sweep (Phase 2) are worthless until Phase 3 (things this command actually ran or read closely enough to prove) or Phase 4 (things this command actually clicked through live) promotes or kills them. A candidate nothing executed or closely verified is capped at 🟡 Low, lives under "Unverified", and is never filed as an issue.
 
-Two things make the live phase real rather than aspirational: `prisma/seed.ts` already produces every `PositionStatus` and `ApplicationStatus`, plus a soft-deleted position and a deactivated user; and `/login/bypass` gives one-click persona switching wherever `isBypassAllowed()` is true (`VERCEL_ENV` `development` or `preview`). This command has no browser tooling, so the click-through is a **generated script a human runs** — Phase 4 blocks on the results.
+Two things make the live phase real rather than aspirational: `prisma/seed.ts` already produces every `PositionStatus` and `ApplicationStatus`, plus a soft-deleted position and a deactivated user; and `/login/bypass` gives one-click persona switching wherever `isBypassAllowed()` is true (`VERCEL_ENV` `development` or `preview`). Phase 0 stands up a local dev instance and Phase 4 drives it directly, using the session's own Browser tool to log in as each persona and read the actual result. No script is handed off for a human to run, and there is no dependency on a Vercel preview being reachable.
 
 ## Evidence rules
 
 State once; every phase below defers to this.
 
-- **`verified-live`** — an operator performed named steps on the running instance and reported the result. **Required for 🔴 Critical.**
+- **`verified-live`** — the command (or, if it's driving manually, the operator) performed named steps on the running local instance and observed the actual result. **Required for 🔴 Critical.**
 - **`verified-in-code`** — reading the actual code (both sides of a comparison, a grep with a clear result) or a command this review actually ran proves it, named with what it showed. **Required for 🟠 Medium.**
 - **`plausible`** — reasoning only, nothing executed or directly confirmed. **Capped at 🟡 Low, listed under "Unverified", never filed as an issue.**
 - An **untagged finding is not reported.** Severities reuse the pipeline's vocabulary — 🔴 Critical · 🟠 Medium · 🟡 Low · ⚪ Nit — don't invent a second scale.
 - **The disproved section is mandatory.** Every candidate killed in Phase 3 or 4 gets `suspected → what was checked → what actually happens`. If nothing was disproved, say so explicitly (`0 of N candidates disproved`) and flag it — an all-confirmed run means the sweep was too shallow, not that the code is clean.
 
-## Phase 0 — scope and setup
+## Phase 0 — stand up a local instance
 
-`AskUserQuestion` for the base URL of a running instance where `isBypassAllowed()` is true. Recommend a **Vercel preview** as the default — local `npm run dev` needs env vars this repo's `.env` doesn't carry. Confirm with the operator that the seed has run there before continuing. This command always sweeps the whole app; there's no diff or date-range scope to narrow it.
+This command tests against **local dev**, not a Vercel preview — a preview may be gated by Vercel's own access controls, and this command doesn't hand off to a human to click around on its behalf.
+
+1. Check whether a dev server is already reachable at `http://localhost:3000`; if so and `/login/bypass` loads, skip to step 5.
+2. `npm run db:start` (Postgres via `docker compose`). If the port is already taken by something else, **stop and ask** the operator rather than picking a different port on your own.
+3. Confirm `.env` has a working `DATABASE_URL`/`DIRECT_URL` for that Postgres, a `BETTER_AUTH_SECRET`, and `VERCEL_ENV=development` (see `.env.example`). If any is missing, **stop and ask** before writing to `.env` — it's local-only and gitignored, but it's still the operator's file.
+4. `npm run prisma:migrate:deploy` then `npm run prisma:seed` (a no-op if already seeded).
+5. Start `npm run dev` in the background; once it reports ready, open it with the Browser tool and confirm `/login/bypass` renders the three persona buttons.
+
+This command always sweeps the whole app; there's no diff or date-range scope to narrow it.
 
 ## Phase 1 — fixture gate
 
@@ -57,11 +65,13 @@ Run checks 1–9 from `checks.md`, producing **candidates only** — each line `
 - **Code-reading candidates** (checks 2 categories 1–2, 5, 7, 8): re-read both sides side by side. If the comparison holds up, that reading **is** the `verified-in-code` evidence — no command needed.
 - **Live-only candidates** (check 2 category 3, check 6, check 9): nothing here promotes them — they carry through to Phase 4 unresolved.
 
-## Phase 4 — live click-through
+## Phase 4 — live verification
 
-Emit a **per-persona script** (anonymous → applicant → position manager → admin, switching via `/login/bypass`), one numbered step per candidate that survived Phase 2/3: what to do, as whom, on which record state, and the expected result. Include the known-open items from `docs/PERMISSIONS.md` → Known-open deviations and `docs/WORKFLOWS.md`'s `### Known open` blocks as a sanity check that nothing already-known has silently gotten worse — but weight these the same as any other candidate; they don't get special trust just for being written down.
+For every candidate that survived Phase 2/3 needing a live check, drive the local instance from Phase 0 directly using the Browser tool: log in as the right persona via `/login/bypass`, perform the described action against the right record state, and read the actual result (`get_page_text`/`read_page`, or a screenshot when the Browser pane is actually displayed — it isn't always, so fall back to the DOM/text read rather than blocking on a screenshot). Switch personas by returning to `/login/bypass`, never by guessing at cookies directly.
 
-**Then stop and wait for the operator's results.** Do not write the report from an unanswered script — an emitted-but-unrun script is not evidence of anything.
+Include the known-open items from `docs/PERMISSIONS.md` → Known-open deviations and `docs/WORKFLOWS.md`'s `### Known open` blocks as a sanity check that nothing already-known has silently gotten worse — weight these the same as any other candidate; they don't get special trust just for being written down.
+
+A candidate this phase genuinely can't resolve on its own (needs human judgment on whether something _looks_ right, or needs a persona/state this seed doesn't cover) stays `plausible` — don't guess at the result. If the Browser tool isn't available in this session at all, fall back to emitting a per-persona script for the operator to run themselves, and say so plainly in the report; that fallback is the exception, not the default.
 
 ## Phase 5 — dedup
 
