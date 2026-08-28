@@ -6,6 +6,7 @@ import {
 } from '@/prisma/data/applications';
 
 import { APPLICATION_STATUS_LABELS } from '@/lib/constants';
+import { CONCEPT_ICONS } from '@/lib/icons';
 import { type MyApplicationListItem } from '@/lib/types';
 
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
@@ -62,6 +63,7 @@ export async function MyApplicationsWidget({
     <SectionCard
       title="My Applications"
       subtitle={summary || undefined}
+      icon={CONCEPT_ICONS.myApplication}
       link={{
         href: '/my-applications',
         label: 'See all',
@@ -70,6 +72,8 @@ export async function MyApplicationsWidget({
     >
       {applications.length === 0 ? (
         <SectionCardEmpty
+          icon={CONCEPT_ICONS.myApplication}
+          title="No applications yet"
           description="You haven't started any applications yet."
           action={
             <Link

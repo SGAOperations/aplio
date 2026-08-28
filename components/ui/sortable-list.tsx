@@ -22,9 +22,9 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { ACTION_ICONS } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
@@ -214,7 +214,7 @@ export function SortableHandle({
       )}
       {...(disabled ? {} : handleProps)}
     >
-      <GripVertical className="size-4" aria-hidden="true" />
+      <ACTION_ICONS.drag />
     </Button>
   );
 }

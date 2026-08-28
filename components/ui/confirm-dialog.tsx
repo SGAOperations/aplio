@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 
-import { Loader2 } from 'lucide-react';
+import { ACTION_ICONS } from '@/lib/icons';
 
 import {
   AlertDialog,
@@ -65,9 +65,7 @@ export function ConfirmDialog({
               onConfirm();
             }}
           >
-            {isPending && (
-              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-            )}
+            {isPending && <ACTION_ICONS.pending className="animate-spin" />}
             {isPending ? pendingLabel : confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>

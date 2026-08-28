@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
-import { ArrowRight, type LucideIcon } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
+import { ACTION_ICONS } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,6 +21,7 @@ interface SectionCardLink {
 interface SectionCardProps {
   title: string;
   subtitle?: string;
+  icon?: LucideIcon;
   link?: SectionCardLink;
   sectionLabel?: string;
   titleAs?: 'h2' | 'h3';
@@ -29,6 +31,7 @@ interface SectionCardProps {
 export function SectionCard({
   title,
   subtitle,
+  icon: Icon,
   link,
   sectionLabel,
   titleAs: TitleTag,
@@ -41,17 +44,21 @@ export function SectionCard({
   ) : (
     <CardTitle className="text-base font-semibold">{title}</CardTitle>
   );
+  const GoToIcon = ACTION_ICONS.goTo;
 
   const card = (
     // overflow-hidden clips the header hover highlight to the card's rounded corners
     <Card className="gap-0 overflow-hidden p-0">
       <CardHeader className={HEADER_CLASS}>
         <div className="flex items-center justify-between">
-          <div>
-            {titleContent}
-            {subtitle && (
-              <p className="text-muted-foreground mt-1 text-sm">{subtitle}</p>
-            )}
+          <div className="flex items-center gap-2">
+            {Icon && <Icon className="text-muted-foreground size-4 shrink-0" />}
+            <div>
+              {titleContent}
+              {subtitle && (
+                <p className="text-muted-foreground mt-1 text-sm">{subtitle}</p>
+              )}
+            </div>
           </div>
           {link && (
             <Link
@@ -60,7 +67,7 @@ export function SectionCard({
               className="text-muted-foreground hover:text-foreground flex min-h-11 items-center gap-1 text-sm transition-colors md:min-h-0"
             >
               {link.label}
-              <ArrowRight className="size-3.5" aria-hidden="true" />
+              <GoToIcon className="size-3.5" />
             </Link>
           )}
         </div>
@@ -77,7 +84,7 @@ export function SectionCard({
 }
 
 interface SectionCardEmptyProps {
-  icon?: LucideIcon;
+  icon: LucideIcon;
   title?: string;
   description?: string;
   action?: ReactNode;
@@ -91,9 +98,7 @@ export function SectionCardEmpty({
 }: SectionCardEmptyProps) {
   return (
     <div className="flex flex-col items-center gap-3 py-10 text-center">
-      {Icon && (
-        <Icon className="text-muted-foreground size-10" aria-hidden="true" />
-      )}
+      <Icon className="text-muted-foreground size-10" />
       {(title || description) && (
         <div>
           {title && <p className="text-sm font-medium">{title}</p>}

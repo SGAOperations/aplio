@@ -3,7 +3,6 @@
 import type { ReactNode } from 'react';
 import { useState, useTransition } from 'react';
 
-import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import {
@@ -11,6 +10,7 @@ import {
   reorderPositionQuestions,
 } from '@/prisma/actions/position-question-actions';
 
+import { ACTION_ICONS } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
@@ -179,28 +179,26 @@ export function PositionQuestionsSection({
                     <Button
                       variant="ghost"
                       size="icon"
+                      aria-label="Edit question"
                       onClick={() => {
                         setShowAddForm(false);
                         setEditingId(question.id);
                       }}
                       disabled={isDeleting && deleteTarget?.id === question.id}
                     >
-                      <Pencil className="size-4" />
-                      <span className="sr-only">Edit question</span>
+                      <ACTION_ICONS.edit />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
+                      aria-label={`Delete question "${question.label}"`}
                       onClick={() => {
                         setDeleteTarget(question);
                         setDeleteDialogOpen(true);
                       }}
                       disabled={isDeleting && deleteTarget?.id === question.id}
                     >
-                      <Trash2 className="text-destructive size-4" />
-                      <span className="sr-only">
-                        Delete question &quot;{question.label}&quot;
-                      </span>
+                      <ACTION_ICONS.delete className="text-destructive" />
                     </Button>
                   </div>
                 </>
@@ -227,7 +225,7 @@ export function PositionQuestionsSection({
               setShowAddForm(true);
             }}
           >
-            <Plus className="size-4" />
+            <ACTION_ICONS.create />
             Add Question
           </Button>
         )}

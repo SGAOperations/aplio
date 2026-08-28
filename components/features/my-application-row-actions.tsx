@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from 'react';
 
-import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import {
@@ -12,6 +11,7 @@ import {
 import type { $Enums } from '@/prisma/client';
 
 import { TERMINAL_DECISION_STATUSES } from '@/lib/constants';
+import { ACTION_ICONS } from '@/lib/icons';
 import { isError } from '@/lib/utils';
 
 import { RestoreDraftButton } from '@/components/features/restore-draft-button';
@@ -62,6 +62,7 @@ export function MyApplicationRowActions({
             className="text-destructive hover:text-destructive"
             aria-label={`Delete draft for ${positionTitle}`}
           >
+            <ACTION_ICONS.delete />
             Delete
           </Button>
         </AlertDialogTrigger>
@@ -99,8 +100,10 @@ export function MyApplicationRowActions({
               }}
             >
               {isPending ? (
-                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-              ) : null}
+                <ACTION_ICONS.pending className="animate-spin" />
+              ) : (
+                <ACTION_ICONS.delete />
+              )}
               Delete draft
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -162,7 +165,7 @@ export function MyApplicationRowActions({
             }}
           >
             {isPending ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+              <ACTION_ICONS.pending className="animate-spin" />
             ) : null}
             Withdraw
           </AlertDialogAction>

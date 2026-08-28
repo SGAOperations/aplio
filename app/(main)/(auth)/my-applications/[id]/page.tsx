@@ -7,6 +7,7 @@ import { getMyApplication } from '@/prisma/data/applications';
 
 import { getCurrentUser } from '@/lib/auth/server';
 import { TERMINAL_DECISION_STATUSES } from '@/lib/constants';
+import { CONCEPT_ICONS } from '@/lib/icons';
 
 import { ApplicationAnswersList } from '@/components/features/application-answers-list';
 import { MyApplicationPrimaryAction } from '@/components/features/my-application-primary-action';
@@ -97,7 +98,11 @@ export default async function MyApplicationDetailPage({
       </div>
 
       <div className="flex flex-col gap-4">
-        <SectionCard title="Your profile answers" titleAs="h2">
+        <SectionCard
+          title="Your profile answers"
+          icon={CONCEPT_ICONS.profile}
+          titleAs="h2"
+        >
           <ApplicationAnswersList
             answers={application.globalAnswers}
             emptyMessage="No profile answers saved yet."
@@ -105,7 +110,11 @@ export default async function MyApplicationDetailPage({
           />
         </SectionCard>
 
-        <SectionCard title="Your answers for this position" titleAs="h2">
+        <SectionCard
+          title="Your answers for this position"
+          icon={CONCEPT_ICONS.position}
+          titleAs="h2"
+        >
           <ApplicationAnswersList
             answers={application.positionAnswers}
             emptyMessage="No position answers saved yet."

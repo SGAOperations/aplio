@@ -5,7 +5,6 @@ import { useCallback, useEffect, useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { z } from 'zod/v4';
 
@@ -25,6 +24,7 @@ import {
   OTP_RESEND_COOLDOWN_SECONDS,
   signInEmailSchema,
 } from '@/lib/constants';
+import { ACTION_ICONS } from '@/lib/icons';
 import { isError } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
@@ -289,7 +289,7 @@ export function LoginView({ copy, otpLink }: LoginViewProps) {
               disabled={otpForm.formState.isSubmitting || isRouting}
             >
               {(otpForm.formState.isSubmitting || isRouting) && (
-                <Loader2 className="animate-spin" />
+                <ACTION_ICONS.pending className="animate-spin" />
               )}
               Verify code
             </Button>
@@ -303,7 +303,7 @@ export function LoginView({ copy, otpLink }: LoginViewProps) {
           disabled={isResending || resendSecondsLeft > 0}
           className="w-full"
         >
-          {isResending && <Loader2 className="animate-spin" />}
+          {isResending && <ACTION_ICONS.pending className="animate-spin" />}
           {resendSecondsLeft > 0
             ? `Send a new code (${resendSecondsLeft}s)`
             : 'Send a new code'}
@@ -358,7 +358,7 @@ export function LoginView({ copy, otpLink }: LoginViewProps) {
             disabled={emailForm.formState.isSubmitting}
           >
             {emailForm.formState.isSubmitting && (
-              <Loader2 className="animate-spin" />
+              <ACTION_ICONS.pending className="animate-spin" />
             )}
             Continue
           </Button>

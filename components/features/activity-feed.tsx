@@ -1,5 +1,3 @@
-import { Activity } from 'lucide-react';
-
 import {
   getMyRecentActivity,
   getRecentApplications,
@@ -10,6 +8,7 @@ import {
   APPLICATION_STATUS_LABELS,
   STATUS_BADGE_VARIANT_TO_DOT,
 } from '@/lib/constants';
+import { CONCEPT_ICONS } from '@/lib/icons';
 import { type ActivityItem, type Reviewer } from '@/lib/types';
 import { getRenamedTo } from '@/lib/utils';
 
@@ -25,10 +24,14 @@ interface ActivityFeedListProps {
 
 function ActivityFeedList({ items, emptyDescription }: ActivityFeedListProps) {
   return (
-    <SectionCard title="Recent activity" sectionLabel="Recent activity">
+    <SectionCard
+      title="Recent activity"
+      icon={CONCEPT_ICONS.activity}
+      sectionLabel="Recent activity"
+    >
       {items.length === 0 ? (
         <SectionCardEmpty
-          icon={Activity}
+          icon={CONCEPT_ICONS.activity}
           title="No recent activity"
           description={emptyDescription}
         />

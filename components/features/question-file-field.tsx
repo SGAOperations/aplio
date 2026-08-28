@@ -2,7 +2,6 @@
 
 import { useId, useState, useTransition } from 'react';
 
-import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import {
@@ -16,6 +15,7 @@ import {
   FILE_UPLOAD_MAX_BYTES,
   FILE_UPLOAD_MIME_TYPES,
 } from '@/lib/constants';
+import { ACTION_ICONS } from '@/lib/icons';
 import type { QuestionFileTarget } from '@/lib/types';
 import { cn, isError } from '@/lib/utils';
 
@@ -136,7 +136,7 @@ export function QuestionFileField({
           aria-live="polite"
           className="text-muted-foreground flex items-center gap-2 text-sm"
         >
-          <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+          <ACTION_ICONS.pending className="animate-spin" />
           Uploading…
         </span>
       ) : url ? (
@@ -166,6 +166,7 @@ export function QuestionFileField({
                   className="text-destructive hover:text-destructive min-h-11 sm:min-h-9"
                   disabled={disabled}
                 >
+                  <ACTION_ICONS.delete />
                   Remove
                 </Button>
               </AlertDialogTrigger>
@@ -189,6 +190,7 @@ export function QuestionFileField({
                       handleRemove();
                     }}
                   >
+                    <ACTION_ICONS.delete />
                     Remove file
                   </AlertDialogAction>
                 </AlertDialogFooter>

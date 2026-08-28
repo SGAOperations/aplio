@@ -2,11 +2,11 @@
 
 import { useTransition } from 'react';
 
-import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { createDraftApplication } from '@/prisma/actions/applications';
 
+import { ACTION_ICONS, CONCEPT_ICONS } from '@/lib/icons';
 import { isError } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
@@ -40,7 +40,8 @@ export function StartApplicationCard({
     <Card className="gap-0 p-0">
       <CardContent className="flex flex-col gap-4 p-4">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight">
+          <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+            <CONCEPT_ICONS.myApplication className="text-muted-foreground size-4" />
             Start your application
           </h2>
           <p className="text-muted-foreground mt-2 text-sm">
@@ -48,9 +49,7 @@ export function StartApplicationCard({
           </p>
         </div>
         <Button className="w-fit" onClick={handleStart} disabled={isPending}>
-          {isPending && (
-            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-          )}
+          {isPending && <ACTION_ICONS.pending className="animate-spin" />}
           {isPending ? 'Starting…' : 'Start application'}
         </Button>
       </CardContent>

@@ -6,7 +6,7 @@ allowed-tools: Read, Grep, Glob, Edit
 
 # Responsive pass
 
-Apply the mobile-first rules from `CLAUDE.md` and `docs/DESIGN.md` §7.
+Apply the mobile-first rules from `CLAUDE.md` and `docs/DESIGN.md` §8.
 
 ## What to enforce
 

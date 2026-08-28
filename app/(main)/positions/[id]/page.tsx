@@ -2,13 +2,12 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import { EyeOff, Inbox, Pencil } from 'lucide-react';
-
 import type { User } from '@/prisma/client';
 import { getPositionDetail } from '@/prisma/data/positions';
 
 import { getOptionalManagerAccess } from '@/lib/auth/guards';
 import { requireName } from '@/lib/auth/server';
+import { ACTION_ICONS, CONCEPT_ICONS, STATE_ICONS } from '@/lib/icons';
 import type { PositionDetail } from '@/lib/types';
 import { getPositionAvailability, markdownToPlainText } from '@/lib/utils';
 
@@ -85,7 +84,7 @@ export default async function PublicPositionDetailPage({
       </div>
 
       {position.status === 'draft' && (
-        <WarningCallout icon={EyeOff}>
+        <WarningCallout icon={STATE_ICONS.hidden}>
           <p className="font-medium">This position is a draft.</p>
           <p>
             Only its managers and admins can see this page. Set it to Open in
@@ -106,7 +105,10 @@ export default async function PublicPositionDetailPage({
 
       {(position.questions.length > 0 || canManage) && (
         <div className="max-w-2xl">
-          <h2 className="mb-3 text-base font-medium">Application questions</h2>
+          <h2 className="mb-3 flex items-center gap-2 text-base font-medium">
+            <CONCEPT_ICONS.question className="text-muted-foreground size-4" />
+            Application questions
+          </h2>
           {position.questions.length > 0 ? (
             <ul className="text-muted-foreground list-inside list-disc space-y-1 text-sm">
               {position.questions.map((question) => (
@@ -126,11 +128,15 @@ export default async function PublicPositionDetailPage({
           <>
             {isAuthenticated ? (
               <Button asChild>
-                <Link href={`/positions/${id}/apply`}>Apply now</Link>
+                <Link href={`/positions/${id}/apply`}>
+                  <ACTION_ICONS.submit />
+                  Apply now
+                </Link>
               </Button>
             ) : (
               <Button asChild>
                 <Link href={`/login?redirectTo=/positions/${id}/apply`}>
+                  <ACTION_ICONS.submit />
                   Apply
                 </Link>
               </Button>
@@ -157,13 +163,13 @@ export default async function PublicPositionDetailPage({
           <>
             <Button asChild variant="outline">
               <Link href={`/positions/${id}/edit`}>
-                <Pencil className="size-4" />
+                <ACTION_ICONS.edit />
                 Edit
               </Link>
             </Button>
             <Button asChild variant="outline">
               <Link href={`/applications?positionId=${id}`}>
-                <Inbox className="size-4" />
+                <CONCEPT_ICONS.application />
                 Applications
               </Link>
             </Button>
