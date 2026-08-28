@@ -348,6 +348,9 @@ export const APPLICATION_STATUS_BADGE_VARIANT: Record<
   withdrawn: 'outline',
 };
 
+// Outranks status on a soft-deleted draft — see ApplicationStatusBadge.
+export const DELETED_APPLICATION_LABEL = 'Deleted';
+
 // Excludes 'withdrawn': no consumer needs the unfiltered status list.
 export const APPLICATION_STATUS_VALUES = [
   'draft',
@@ -592,6 +595,19 @@ export const APPLICANT_EDITABLE_APPLICATION_STATUSES = [
   'draft',
   'withdrawn',
 ] as const satisfies $Enums.ApplicationStatus[];
+
+// Narrows a status without an unsafe cast at each call site.
+export function isApplicantEditableApplicationStatus(
+  status: $Enums.ApplicationStatus,
+): status is (typeof APPLICANT_EDITABLE_APPLICATION_STATUSES)[number] {
+  return (
+    APPLICANT_EDITABLE_APPLICATION_STATUSES as readonly $Enums.ApplicationStatus[]
+  ).includes(status);
+}
+
+// Shared by the text- and file-answer edit paths so the sentence can't drift.
+export const APPLICATION_NOT_EDITABLE_MESSAGE =
+  'This application has already been submitted. Withdraw it to make changes.';
 
 // Includes 'draft' (unlike UNRESOLVED): a draft-only applicant still needs attention.
 export const NON_TERMINAL_APPLICATION_STATUSES = [

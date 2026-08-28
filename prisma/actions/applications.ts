@@ -4,7 +4,6 @@ import { revalidatePath } from 'next/cache';
 
 import { z } from 'zod/v4';
 
-import { cleanupOrphanedBlob } from '@/prisma/actions/question-files';
 import { Prisma } from '@/prisma/client';
 import type {
   GlobalAnswer,
@@ -22,7 +21,7 @@ import { getCurrentUser } from '@/lib/auth/server';
 import {
   ANSWER_LONG_MAX_LENGTH,
   ANSWER_MAX_VALUES,
-  APPLICANT_EDITABLE_APPLICATION_STATUSES,
+  APPLICATION_NOT_EDITABLE_MESSAGE,
   APPLICATION_STATUS_LABELS,
   REVIEWER_APPLICATION_STATUSES,
   SHORT_ANSWER_FORMAT_ERROR_MESSAGES,
@@ -30,6 +29,7 @@ import {
   getAnswerValueError,
   getApplicationStatusForwardSources,
   isAllowedApplicationStatusTransition,
+  isApplicantEditableApplicationStatus,
   matchesShortAnswerFormat,
 } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
@@ -85,9 +85,8 @@ const createOrUpdateApplicationAnswerSchema = z.object({
 
 const submitApplicationSchema = z.object({ applicationId: z.string().min(1) });
 
-// Shared so callers don't distinguish which action rejected the write.
-const APPLICATION_NOT_EDITABLE_MESSAGE =
-  'This application has already been submitted. Withdraw it to make changes.';
+const DRAFT_DELETED_MESSAGE =
+  'You deleted this draft. Restore it from My Applications to keep working on it.';
 
 // Interaction-time only — never called during render (see apply/page.tsx).
 export async function createDraftApplication(
@@ -110,10 +109,16 @@ export async function createDraftApplication(
           userId: currentUser.id,
           positionId: parsed.data.positionId,
         },
-        deletedAt: null,
       },
-      select: { id: true },
+      select: { id: true, deletedAt: true },
     });
+
+    // Soft-deleted draft: revalidate (as the P2002 branch below does) so a
+    // stale tab refreshes onto the restore card, not the entry card.
+    if (existing?.deletedAt) {
+      revalidatePath(`/positions/${parsed.data.positionId}/apply`);
+      return { error: DRAFT_DELETED_MESSAGE };
+    }
 
     // Existing drafts survive a closed window; submit is what blocks. Already
     // having one is success, not an error — the page just re-reads it.
@@ -166,6 +171,7 @@ export async function createDraftApplication(
         revalidatePath(`/positions/${parsed.data.positionId}/apply`);
         revalidatePath('/my-applications');
         revalidatePath('/');
+        revalidatePath('/positions');
         return { error: 'You already have an application for this position.' };
       }
       throw error;
@@ -177,6 +183,39 @@ export async function createDraftApplication(
   revalidatePath(`/positions/${parsed.data.positionId}/apply`);
   revalidatePath('/my-applications');
   revalidatePath('/');
+  revalidatePath('/positions');
+}
+
+export async function restoreDraftApplication(
+  applicationId: string,
+): Promise<ResponseType<void>> {
+  const currentUser = await getCurrentUser();
+
+  const parsed = applicationIdSchema.safeParse({ applicationId });
+  if (!parsed.success) throw new Error('Invalid input');
+
+  const id = parsed.data.applicationId;
+
+  const restored = await prisma.application.updateManyAndReturn({
+    where: {
+      id,
+      userId: currentUser.id,
+      status: 'draft',
+      deletedAt: { not: null },
+    },
+    data: { deletedAt: null, deletedById: null, updatedById: currentUser.id },
+    select: { positionId: true },
+  });
+
+  if (restored.length === 0)
+    return { error: 'This draft can no longer be restored.' };
+
+  const { positionId } = restored[0]!;
+  revalidatePath(`/positions/${positionId}/apply`);
+  revalidatePath('/my-applications');
+  revalidatePath(`/my-applications/${id}`);
+  revalidatePath('/');
+  revalidatePath('/positions');
 }
 
 export async function createOrUpdateApplicationAnswer(params: {
@@ -193,16 +232,14 @@ export async function createOrUpdateApplicationAnswer(params: {
 
   const application = await prisma.application.findUnique({
     where: { id: applicationId },
-    select: { userId: true, positionId: true, status: true },
+    select: { userId: true, positionId: true, status: true, deletedAt: true },
   });
 
   requireOwnership(application, currentUser.id);
 
-  if (
-    !APPLICANT_EDITABLE_APPLICATION_STATUSES.includes(
-      application.status as (typeof APPLICANT_EDITABLE_APPLICATION_STATUSES)[number],
-    )
-  )
+  if (application.deletedAt) return { error: DRAFT_DELETED_MESSAGE };
+
+  if (!isApplicantEditableApplicationStatus(application.status))
     return { error: APPLICATION_NOT_EDITABLE_MESSAGE };
 
   // Label and scope must come from the DB, not the client — the label is the
@@ -351,12 +388,10 @@ export async function submitApplication(
     requireOwnership(application, currentUser.id);
 
     // Status check first — wins over the window/required-answer checks below.
-    if (
-      !APPLICANT_EDITABLE_APPLICATION_STATUSES.includes(
-        application.status as (typeof APPLICANT_EDITABLE_APPLICATION_STATUSES)[number],
-      )
-    )
+    if (!isApplicantEditableApplicationStatus(application.status))
       return { error: APPLICATION_NOT_EDITABLE_MESSAGE };
+
+    if (application.deletedAt !== null) return { error: DRAFT_DELETED_MESSAGE };
 
     // A draft's position can be soft-deleted after creation, before submit.
     if (application.position.deletedAt !== null)
@@ -695,6 +730,8 @@ export async function withdrawApplication(
   revalidatePath('/positions', 'layout');
 }
 
+// Soft delete: both answer tables are left untouched, so the historical
+// answers a restore brings back are never wiped in the first place.
 export async function deleteDraftApplication(
   applicationId: string,
 ): Promise<ResponseType<void>> {
@@ -705,43 +742,23 @@ export async function deleteDraftApplication(
 
   const id = parsed.data.applicationId;
 
-  // Collected pre-delete so blobs can be reference-counted after commit.
-  let fileUrls: string[] = [];
-
-  const deleteResult = await prisma.$transaction(async (tx) => {
-    const app = await tx.application.findFirst({
-      where: { id, userId: currentUser.id, status: 'draft', deletedAt: null },
-      select: { id: true },
-    });
-
-    if (!app) return { error: 'This draft can no longer be deleted.' };
-
-    // file_upload only — other answers are plain text, never blob URLs.
-    const [globalAnswers, positionAnswers] = await Promise.all([
-      tx.globalApplicationAnswer.findMany({
-        where: { applicationId: id, questionType: 'file_upload' },
-        select: { value: true },
-      }),
-      tx.positionApplicationAnswer.findMany({
-        where: { applicationId: id, questionType: 'file_upload' },
-        select: { value: true },
-      }),
-    ]);
-    fileUrls = [...globalAnswers, ...positionAnswers].flatMap((a) => a.value);
-
-    await tx.globalApplicationAnswer.deleteMany({
-      where: { applicationId: id },
-    });
-    await tx.positionApplicationAnswer.deleteMany({
-      where: { applicationId: id },
-    });
-    await tx.application.delete({ where: { id } });
+  const deleted = await prisma.application.updateManyAndReturn({
+    where: { id, userId: currentUser.id, status: 'draft', deletedAt: null },
+    data: {
+      deletedAt: new Date(),
+      deletedById: currentUser.id,
+      updatedById: currentUser.id,
+    },
+    select: { positionId: true },
   });
 
-  if (deleteResult && 'error' in deleteResult) return deleteResult;
+  if (deleted.length === 0)
+    return { error: 'This draft can no longer be deleted.' };
 
-  await Promise.all(fileUrls.map((url) => cleanupOrphanedBlob(url)));
-
+  const { positionId } = deleted[0]!;
+  revalidatePath(`/positions/${positionId}/apply`);
   revalidatePath('/my-applications');
   revalidatePath(`/my-applications/${id}`);
+  revalidatePath('/');
+  revalidatePath('/positions');
 }

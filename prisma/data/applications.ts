@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { $Enums, type Prisma } from '@/prisma/client';
+import { positionActivitySelect } from '@/prisma/data/positions';
 
 import {
   buildApplicationWhere,
@@ -14,6 +15,7 @@ import {
 import { prisma } from '@/lib/prisma';
 import {
   type AdminApplicationListItem,
+  type ApplicantOtherApplication,
   type ApplicationFilters,
   type ApplicationForReview,
   type ApplicationReviewAnswer,
@@ -21,10 +23,12 @@ import {
   type DraftApplication,
   type MyApplicationDetail,
   type MyApplicationListItem,
+  type MyPositionApplication,
   type PositionApplicationStats,
   type ReviewableApplicant,
   type Reviewer,
 } from '@/lib/types';
+import { canReviewPosition, isPositionActive } from '@/lib/utils';
 
 const applicationSelect = {
   id: true,
@@ -32,6 +36,7 @@ const applicationSelect = {
   submittedAt: true,
   updatedAt: true,
   positionId: true,
+  deletedAt: true,
   position: {
     select: {
       id: true,
@@ -99,7 +104,7 @@ function normalizeApplicationAnswers(application: ApplicationAnswersPayload): {
 }
 
 // Scoped to the caller (no IDOR); returns the caller's application at any status
-// (draft, withdrawn, or otherwise) so the apply route decides what to render.
+// or deletion state so the apply route decides what to render.
 // Predicate must match createDraftApplication's pre-create lookup, or the page
 // loops between the entry state and "already exists".
 export async function getApplicationForApply(
@@ -107,16 +112,22 @@ export async function getApplicationForApply(
   positionId: string,
 ): Promise<DraftApplication | null> {
   return prisma.application.findFirst({
-    where: { userId, positionId, deletedAt: null },
+    where: { userId, positionId },
     include: { globalAnswers: true, positionAnswers: true },
   });
 }
 
+// Deleted drafts stay visible so the applicant can restore them; every other
+// deleted status is excluded, since only drafts are ever soft-deleted here.
 export async function getMyApplications(
   userId: string,
 ): Promise<MyApplicationListItem[]> {
   return prisma.application.findMany({
-    where: { userId, deletedAt: null, position: PUBLISHED_POSITION_WHERE },
+    where: {
+      userId,
+      position: PUBLISHED_POSITION_WHERE,
+      OR: [{ deletedAt: null }, { status: 'draft' }],
+    },
     select: applicationSelect,
     orderBy: { updatedAt: 'desc' },
   });
@@ -132,6 +143,18 @@ export async function getRecentMyApplications(
     orderBy: { updatedAt: 'desc' },
     take,
   });
+}
+
+// No status filter — caller needs draft/withdrawn too; one row per position via the [userId, positionId] unique constraint.
+export async function getMyApplicationsByPosition(
+  userId: string,
+): Promise<Map<string, MyPositionApplication>> {
+  const applications = await prisma.application.findMany({
+    where: { userId, deletedAt: null },
+    select: { id: true, positionId: true, status: true },
+  });
+
+  return new Map(applications.map((a) => [a.positionId, a]));
 }
 
 // Same visibility as getMyApplications, so a bookmarked URL can't outlive its list row.
@@ -216,6 +239,61 @@ export async function getApplicationStatusHistory(
     createdAt: event.createdAt,
     changedByName: event.changedBy.name ?? event.changedBy.email,
   }));
+}
+
+// Cross-scope by design (docs/PERMISSIONS.md) — step 2 deliberately drops buildReviewablePositionWhere.
+export async function getApplicantOtherApplications(
+  applicationId: string,
+  user: Reviewer,
+): Promise<ApplicantOtherApplication[]> {
+  const anchor = await prisma.application.findFirst({
+    where: { id: applicationId, ...buildApplicationWhere(user, 'listable') },
+    select: { userId: true },
+  });
+  if (!anchor) return [];
+
+  const applications = await prisma.application.findMany({
+    where: {
+      userId: anchor.userId,
+      id: { not: applicationId },
+      deletedAt: null,
+      status: { not: 'draft' },
+      position: PUBLISHED_POSITION_WHERE,
+    },
+    select: {
+      id: true,
+      status: true,
+      submittedAt: true,
+      position: {
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          opensAt: true,
+          closesAt: true,
+          ...positionActivitySelect,
+          managers: { where: { id: user.id }, select: { id: true } },
+        },
+      },
+    },
+    orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
+  });
+
+  return applications
+    .filter((application) => isPositionActive(application.position))
+    .map((application) => ({
+      id: application.id,
+      status: application.status,
+      submittedAt: application.submittedAt,
+      position: {
+        id: application.position.id,
+        title: application.position.title,
+      },
+      canOpen: canReviewPosition(
+        user,
+        application.position.managers.map((manager) => manager.id),
+      ),
+    }));
 }
 
 export async function getMyApplicationStatusCounts(

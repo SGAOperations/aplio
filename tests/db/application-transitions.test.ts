@@ -32,8 +32,7 @@ import {
 import { prisma } from '@/lib/prisma';
 import { isError } from '@/lib/utils';
 
-// Mirrors the (deliberately unexported) copy in prisma/actions/applications.ts —
-// asserting the exact sentence is the point of this suite.
+// Local literal, not the lib/constants.ts export — asserting the exact sentence is the point.
 const APPLICATION_NOT_EDITABLE_MESSAGE =
   'This application has already been submitted. Withdraw it to make changes.';
 const WITHDRAW_NOT_ALLOWED_MESSAGE =

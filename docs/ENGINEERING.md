@@ -7,7 +7,7 @@ Stack context: Next.js App Router, Prisma, Tailwind CSS 4, shadcn/ui, Stack Auth
 ## 1. Architecture
 
 - **Server-first.** Every component is a server component until it provably needs interactivity, hooks, or browser APIs. Push `'use client'` to the smallest leaf possible — a page with one interactive button is a server page importing a small client component, not a client page.
-- **Data flows one way.** Server components fetch via **data-fetching functions in `prisma/data/`**; mutations go through **server actions in `prisma/actions/`**; client components receive data as props. No fetching in client components, no API routes (except `/api/auth`).
+- **Data flows one way.** Server components fetch via **data-fetching functions in `prisma/data/`**; mutations go through **server actions in `prisma/actions/`**; client components receive data as props. No fetching in client components, no API routes outside `CLAUDE.md`'s allowlist.
 - **Avoid `useEffect`.** In this server-first codebase almost every `useEffect` is a mistake — data fetching, deriving state from props, or syncing state all have better homes (server components, values computed during render, event handlers, `key` to reset state, `nuqs` for URL state). **An empty-deps `useEffect(() => {…}, [])` is essentially never correct here** — it almost always hides fetching/initialization that belongs server-side, so treat it as a near-automatic review finding. Use `useEffect` **only** to synchronize with a genuinely external system (a non-React widget, a subscription, a DOM measurement) when there is no alternative, and justify it with a comment.
 - **Composition over prop-drilling.** If a prop passes through more than two layers untouched, restructure: pass `children`, split the component, or fetch closer to where the data is used (server components make this cheap).
 - **Co-location & layering.** Route-specific components live next to their route; anything used twice moves to `components/`. **Server actions live in `prisma/actions/`, data-fetching queries in `prisma/data/`**, grouped by domain (`applications.ts`, never a catch-all `actions.ts`). **Shared types and constants are global — `lib/types.ts` and `lib/constants.ts` — not per-service files.**
@@ -49,6 +49,7 @@ await prisma.$transaction(async (tx) => {
 - **Schema discipline.** Status-like fields are Prisma `enum`s following existing enum naming; foreign keys get explicit relations; fields queried in `where`/`orderBy` at scale get `@@index`. Schema changes always come with the corresponding migration and are called out in the plan.
 - **Application status audit trail.** Every write that changes `Application.status` records an `ApplicationStatusEvent` in the same transaction — four paths do this today (`submitApplication`, `updateApplicationStatus`, `updateApplicationStatuses`, `withdrawApplication`); a fifth write path would otherwise silently skip the trail.
 - **Validate at every boundary.** Every server action parses its input with a zod schema before touching the database — even when the form also validates client-side. Client validation is UX; server validation is integrity.
+- **`EmailLog` delivery state is provider-reported and eventually consistent.** `sent` means handed off to Resend, not received — no UI should treat it as proof of delivery.
 
 ## 3. Security
 
@@ -199,7 +200,7 @@ A scannable summary of the issues that recur in this codebase. **impl** builds t
 - **Queries:** `select` what's rendered but **reuse shared `lib` types** (slight over-fetch OK; never sensitive/internal/other-users' fields to a client); no N+1; `$transaction` for multi-step writes. (§2)
 - **Async states:** every async surface ships loading + empty (plus the error model above). (§4)
 - **Components:** server-first; `'use client'` only on the smallest leaf; **no `useEffect` (empty-deps especially)**; **shadcn/Radix primitives, not hand-rolled raw elements**; role-gate nav where the route is role-gated. (§1, §5)
-- **Structure & conventions:** server actions in `prisma/actions/`, queries in `prisma/data/`; **shared types/constants in `lib/types.ts`/`lib/constants.ts`** (not per-service); abstract repetition sensibly (no over-abstraction); named exports only (except route files); no API routes except `/api/auth`; **design tokens, never hardcoded colors**; strict TS, no `any`. (§1, §7)
+- **Structure & conventions:** server actions in `prisma/actions/`, queries in `prisma/data/`; **shared types/constants in `lib/types.ts`/`lib/constants.ts`** (not per-service); abstract repetition sensibly (no over-abstraction); named exports only (except route files); no API routes outside `CLAUDE.md`'s allowlist; **design tokens, never hardcoded colors**; strict TS, no `any`. (§1, §7)
 - **Hygiene:** no dead scaffolding/shims/transitional re-exports; schema changes ship with their migration. (§1)
 - **Comments:** rare, **one line by default** (two only rarely, never three); terse fragments, not sentences; **no issue/PR/`§` refs**, no narration; JSDoc only where the signature doesn't already say it. (§7)
 

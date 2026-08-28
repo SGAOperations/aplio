@@ -4,6 +4,7 @@ import { MANAGED_POSITIONS_WINDOW_DAYS } from '@/lib/constants';
 import type { AnswerQuestion, PositionActivity } from '@/lib/types';
 import {
   answerFieldIds,
+  canReviewPosition,
   formatAlternatives,
   formatPaginationSummary,
   formatTableCount,
@@ -192,6 +193,24 @@ describe('isPositionActive', () => {
       _count: { applications: 0 },
     };
     expect(isPositionActive(position, NOW)).toBe(false);
+  });
+});
+
+describe('canReviewPosition', () => {
+  it('lets an admin through regardless of the manager list', () => {
+    expect(canReviewPosition({ id: 'admin-1', isAdmin: true }, [])).toBe(true);
+  });
+
+  it('lets a manager through when their id is in the list', () => {
+    expect(
+      canReviewPosition({ id: 'mgr-1', isAdmin: false }, ['mgr-1', 'mgr-2']),
+    ).toBe(true);
+  });
+
+  it('denies a manager whose id is not in the list', () => {
+    expect(
+      canReviewPosition({ id: 'mgr-3', isAdmin: false }, ['mgr-1', 'mgr-2']),
+    ).toBe(false);
   });
 });
 

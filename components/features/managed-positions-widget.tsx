@@ -30,7 +30,7 @@ export async function ManagedPositionsWidget({
             My Positions
           </CardTitle>
           <Link
-            href="/positions"
+            href="/my-positions"
             aria-label="See all positions"
             className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm transition-colors"
           >

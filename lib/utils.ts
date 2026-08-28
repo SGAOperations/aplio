@@ -16,6 +16,7 @@ import type {
   PositionActivity,
   PositionAvailability,
   PositionWindow,
+  Reviewer,
   UserRoleFilter,
 } from '@/lib/types';
 
@@ -278,6 +279,15 @@ export function isPositionActive(
   cutoff.setDate(cutoff.getDate() - MANAGED_POSITIONS_WINDOW_DAYS);
   const recency = position.closesAt ?? position.updatedAt;
   return recency >= cutoff;
+}
+
+// Pure mirror of checkPositionAccess for rows already fetched. Compares ids
+// (rather than trusting a pre-filtered list) so it's correct against a full manager list too.
+export function canReviewPosition(
+  user: Reviewer,
+  managerIds: string[],
+): boolean {
+  return user.isAdmin || managerIds.includes(user.id);
 }
 
 interface FormatTableCountOptions {

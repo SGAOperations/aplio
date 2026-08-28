@@ -8,10 +8,14 @@ import { z } from 'zod/v4';
 import type { Prisma } from '@/prisma/client';
 
 import { getCurrentUser } from '@/lib/auth/server';
+import { cleanupOrphanedBlob } from '@/lib/blobs';
 import {
+  APPLICANT_EDITABLE_APPLICATION_STATUSES,
+  APPLICATION_NOT_EDITABLE_MESSAGE,
   FILE_UPLOAD_MAX_BYTES,
   FILE_UPLOAD_MIME_EXTENSIONS,
   FILE_UPLOAD_MIME_TYPES,
+  isApplicantEditableApplicationStatus,
   questionFileTargetSchema,
 } from '@/lib/constants';
 import {
@@ -24,11 +28,10 @@ import type { QuestionFileDownload, QuestionFileTarget } from '@/lib/types';
 import { type ResponseType } from '@/lib/utils';
 
 const GENERIC_TYPE_ERROR = 'Only PDF, PNG and JPG files are allowed.';
-const SUBMITTED_ERROR = 'This application has already been submitted.';
 const NOT_AVAILABLE_ERROR = 'This file is no longer available.';
 
-// Signals the caller to surface SUBMITTED_ERROR rather than rethrow as unexpected.
-class ApplicationSubmittedError extends Error {}
+// Signals the caller to surface APPLICATION_NOT_EDITABLE_MESSAGE, not rethrow as unexpected.
+class ApplicationNotEditableError extends Error {}
 
 // Returned verbatim as user-facing copy; question-file-field.tsx mirrors them.
 const fileSchema = z
@@ -54,7 +57,7 @@ type ResolvedTarget =
   | { scope: 'profile' }
   | { scope: 'application'; positionId: string };
 
-// An ownership miss is IDOR-style and throws; a stale tab's submit returns.
+// An ownership miss is IDOR-style and throws; a status change returns.
 async function authorizeTarget(
   userId: string,
   target: QuestionFileTarget,
@@ -93,7 +96,8 @@ async function authorizeTarget(
     if (!question) throw new Error('Question not found or not authorized');
   }
 
-  if (application.status !== 'draft') return { error: SUBMITTED_ERROR };
+  if (!isApplicantEditableApplicationStatus(application.status))
+    return { error: APPLICATION_NOT_EDITABLE_MESSAGE };
 
   return { scope: 'application', positionId: application.positionId };
 }
@@ -133,10 +137,14 @@ async function readAndWriteAnswerValue(
   }
 
   const application = await tx.application.findFirst({
-    where: { id: target.applicationId, status: 'draft' },
+    where: {
+      id: target.applicationId,
+      status: { in: [...APPLICANT_EDITABLE_APPLICATION_STATUSES] },
+      deletedAt: null,
+    },
     select: { id: true },
   });
-  if (!application) throw new ApplicationSubmittedError();
+  if (!application) throw new ApplicationNotEditableError();
 
   if (target.isGlobal) {
     const where = {
@@ -199,22 +207,6 @@ async function readAndWriteAnswerValue(
   return existing?.value[0] ?? null;
 }
 
-// Several rows can share one blob, so it goes only with the last reference.
-export async function cleanupOrphanedBlob(url: string): Promise<void> {
-  try {
-    const [profileCount, globalAppCount, positionAppCount] = await Promise.all([
-      prisma.globalAnswer.count({ where: { value: { has: url } } }),
-      prisma.globalApplicationAnswer.count({ where: { value: { has: url } } }),
-      prisma.positionApplicationAnswer.count({
-        where: { value: { has: url } },
-      }),
-    ]);
-    if (profileCount + globalAppCount + positionAppCount === 0) await del(url);
-  } catch {
-    // Swallowed: an orphaned blob is never user-actionable.
-  }
-}
-
 export async function uploadQuestionFileAnswer(
   formData: FormData,
 ): Promise<ResponseType<{ url: string; name: string }>> {
@@ -256,8 +248,8 @@ export async function uploadQuestionFileAnswer(
   } catch (error) {
     // A failed write must not orphan the blob just uploaded.
     await del(blob.url).catch(() => {});
-    if (error instanceof ApplicationSubmittedError)
-      return { error: SUBMITTED_ERROR };
+    if (error instanceof ApplicationNotEditableError)
+      return { error: APPLICATION_NOT_EDITABLE_MESSAGE };
     throw error;
   }
 
@@ -286,8 +278,8 @@ export async function removeQuestionFileAnswer(
       readAndWriteAnswerValue(tx, target, [], user.id),
     );
   } catch (error) {
-    if (error instanceof ApplicationSubmittedError)
-      return { error: SUBMITTED_ERROR };
+    if (error instanceof ApplicationNotEditableError)
+      return { error: APPLICATION_NOT_EDITABLE_MESSAGE };
     throw error;
   }
 

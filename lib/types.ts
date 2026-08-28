@@ -110,6 +110,7 @@ export type MyApplicationListItem = Prisma.ApplicationGetPayload<{
     submittedAt: true;
     updatedAt: true;
     positionId: true;
+    deletedAt: true;
     position: {
       select: {
         id: true;
@@ -286,6 +287,16 @@ export type ApplicationStatusHistoryEntry = {
   createdAt: Date;
 };
 
+// Reviewer-only cross-scope row; canOpen is resolved server-side so no
+// manager identity crosses out of the query.
+export type ApplicantOtherApplication = {
+  id: string;
+  status: $Enums.ApplicationStatus;
+  submittedAt: Date;
+  position: { id: string; title: string };
+  canOpen: boolean;
+};
+
 // Kept in sync with lib/constants.ts#questionFileTargetSchema.
 export type QuestionFileTarget =
   | { scope: 'profile'; questionId: string }
@@ -341,6 +352,12 @@ export type PositionApplicationStats = {
   counts: Partial<Record<$Enums.ApplicationStatus, number>>;
   total: number;
 };
+
+// Feeds the browse page's applied marker on PositionCard. No applicant
+// identity, no answers — safe for a client leaf.
+export type MyPositionApplication = Prisma.ApplicationGetPayload<{
+  select: { id: true; positionId: true; status: true };
+}>;
 
 export interface NavIdentity {
   name: string | null;

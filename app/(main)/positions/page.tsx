@@ -2,24 +2,16 @@ import type { Metadata } from 'next';
 
 import { Briefcase } from 'lucide-react';
 
-import { getPositionApplicationStats } from '@/prisma/data/applications';
-import { isManager } from '@/prisma/data/managers';
+import { getMyApplicationsByPosition } from '@/prisma/data/applications';
 import {
-  getAdminPositions,
-  getManagedPositions,
   getOpenPositions,
   getRecentlyClosedPositions,
 } from '@/prisma/data/positions';
 
 import { getOptionalUser, requireName } from '@/lib/auth/server';
-import type {
-  PositionApplicationStats,
-  PositionWithQuestions,
-} from '@/lib/types';
+import type { MyPositionApplication } from '@/lib/types';
 
-import { ManagedPositionsSection } from '@/components/features/managed-positions-section';
 import { PositionCard } from '@/components/features/position-card';
-import { PositionCreateDialog } from '@/components/features/position-create-dialog';
 import { PageHeader } from '@/components/layouts/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 
@@ -28,97 +20,22 @@ export const metadata: Metadata = { title: 'Positions' };
 export default async function PositionsPage() {
   const user = await getOptionalUser();
   if (user) await requireName(user);
-  const isAdmin = user?.isAdmin ?? false;
-
-  // Admin branch: flat list with create action and application stats on every card.
-  if (isAdmin) {
-    const positions = await getAdminPositions();
-    const adminStatsByPosition =
-      positions.length > 0
-        ? await getPositionApplicationStats(positions.map((p) => p.id))
-        : new Map<string, PositionApplicationStats>();
-    return (
-      <div className="flex flex-col gap-6">
-        <PageHeader
-          title="Positions"
-          description="Create positions and track their applications."
-          actions={<PositionCreateDialog />}
-        />
-        {positions.length === 0 ? (
-          <EmptyState
-            icon={Briefcase}
-            title="No positions yet"
-            description="Create your first position to start accepting applications."
-            action={<PositionCreateDialog />}
-          />
-        ) : (
-          <div className="flex flex-col gap-4">
-            {positions.map((position) => (
-              <PositionCard
-                key={position.id}
-                position={position}
-                canManage={true}
-                isAuthenticated={true}
-                applicationStats={adminStatsByPosition.get(position.id)}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
   const isAuthenticated = user !== null;
 
-  // Fetch open and recently-closed in parallel; fetch managed/manager status only when signed in.
-  const [openPositions, recentlyClosed, managedPositions, isManagerUser] =
-    await Promise.all([
-      getOpenPositions(),
-      getRecentlyClosedPositions(),
-      user ? getManagedPositions(user.id) : Promise.resolve([]),
-      user ? isManager(user.id) : Promise.resolve(false),
-    ]);
-
-  // Build a set of managed IDs so canManage can be derived in O(1) per card.
-  const managedIds = new Set(managedPositions.map((p) => p.id));
-
-  // Aggregates only, so they are safe to show a manager.
-  const statsByPosition =
-    managedIds.size > 0
-      ? await getPositionApplicationStats([...managedIds])
-      : new Map<string, PositionApplicationStats>();
-
-  // isManager and getManagedPositions disagree once positions are closed >30d with nothing pending — empty state, not omission.
-  const showManagedSection = isManagerUser;
-
-  // Managed positions get their own section — exclude them here to avoid duplication.
-  const isNotManaged = (p: PositionWithQuestions) => !managedIds.has(p.id);
-  const filteredOpenPositions = openPositions.filter(isNotManaged);
-  const filteredRecentlyClosed = recentlyClosed.filter(isNotManaged);
-  const allOpenPositionsManaged =
-    openPositions.length > 0 && filteredOpenPositions.length === 0;
+  const [openPositions, recentlyClosed, myApplications] = await Promise.all([
+    getOpenPositions(),
+    getRecentlyClosedPositions(),
+    user
+      ? getMyApplicationsByPosition(user.id)
+      : Promise.resolve(new Map<string, MyPositionApplication>()),
+  ]);
 
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
         title="Positions"
-        description={
-          isManagerUser
-            ? 'Manage your positions and browse open roles.'
-            : 'Browse open positions and apply.'
-        }
-        actions={isManagerUser ? <PositionCreateDialog /> : undefined}
+        description="Browse open positions and apply."
       />
-
-      {/* My Managed Positions — shown first for managers; omitted for non-managers */}
-      {showManagedSection && (
-        <ManagedPositionsSection
-          positions={managedPositions}
-          statsByPosition={statsByPosition}
-          emptyDescription="Positions you manage appear here. Closed positions drop off 30 days after they close once no applications are pending."
-          emptyAction={<PositionCreateDialog />}
-        />
-      )}
 
       {/* Open Positions — always rendered, even when empty */}
       <section
@@ -128,27 +45,20 @@ export default async function PositionsPage() {
         <h2 id="open-positions-heading" className="text-lg font-semibold">
           Open Positions
         </h2>
-        {filteredOpenPositions.length === 0 ? (
+        {openPositions.length === 0 ? (
           <EmptyState
             icon={Briefcase}
-            title={
-              allOpenPositionsManaged
-                ? 'No other open positions'
-                : 'No open positions'
-            }
-            description={
-              allOpenPositionsManaged
-                ? 'Every open position right now is one you manage — see My Managed Positions above.'
-                : 'Check back later for open positions.'
-            }
+            title="No open positions"
+            description="Check back later for open positions."
           />
         ) : (
           <div className="flex flex-col gap-4">
-            {filteredOpenPositions.map((position) => (
+            {openPositions.map((position) => (
               <PositionCard
                 key={position.id}
                 position={position}
                 isAuthenticated={isAuthenticated}
+                myApplication={myApplications.get(position.id)}
               />
             ))}
           </div>
@@ -156,7 +66,7 @@ export default async function PositionsPage() {
       </section>
 
       {/* Recently Closed — omitted when empty (showing nothing is less noisy) */}
-      {filteredRecentlyClosed.length > 0 && (
+      {recentlyClosed.length > 0 && (
         <section
           aria-labelledby="recently-closed-heading"
           className="flex flex-col gap-4"
@@ -165,11 +75,12 @@ export default async function PositionsPage() {
             Recently Closed
           </h2>
           <div className="flex flex-col gap-4">
-            {filteredRecentlyClosed.map((position) => (
+            {recentlyClosed.map((position) => (
               <PositionCard
                 key={position.id}
                 position={position}
                 isAuthenticated={isAuthenticated}
+                myApplication={myApplications.get(position.id)}
               />
             ))}
           </div>

@@ -11,9 +11,9 @@ import { getProfileData } from '@/prisma/data/profile';
 import { withRedirectTo } from '@/lib/auth/redirect';
 import { getCurrentUser } from '@/lib/auth/server';
 import {
-  APPLICANT_EDITABLE_APPLICATION_STATUSES,
   APPLICATION_STATUS_LABELS,
   UNRESOLVED_APPLICATION_STATUSES,
+  isApplicantEditableApplicationStatus,
 } from '@/lib/constants';
 import {
   isAcceptingApplications,
@@ -22,6 +22,7 @@ import {
 } from '@/lib/utils';
 
 import { ApplicationStepper } from '@/components/features/application-stepper';
+import { RestoreDraftButton } from '@/components/features/restore-draft-button';
 import { StartApplicationCard } from '@/components/features/start-application-card';
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
 import { PageHeader } from '@/components/layouts/page-header';
@@ -72,10 +73,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
       .every((d) => isAnswered(d.question, toStringArray(d.answer?.value)));
 
   const isEditable =
-    application &&
-    APPLICANT_EDITABLE_APPLICATION_STATUSES.includes(
-      application.status as (typeof APPLICANT_EDITABLE_APPLICATION_STATUSES)[number],
-    );
+    application && isApplicantEditableApplicationStatus(application.status);
 
   const isResubmit = application?.status === 'withdrawn';
 
@@ -150,6 +148,35 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
                 <Link href={application ? '/my-applications' : '/positions'}>
                   {application ? 'View my applications' : 'Browse positions'}
                 </Link>
+              </Button>
+              <Button asChild variant="ghost" className="w-fit">
+                <Link href={`/positions/${id}`}>Back to position</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : application?.deletedAt ? (
+        <Card className="gap-0 p-0">
+          <CardContent className="flex flex-col gap-4 p-4">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight">
+                You deleted this draft
+              </h2>
+              <p className="text-muted-foreground mt-2 text-sm">
+                Your answers are still saved. Restore the draft to pick up where
+                you left off.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <RestoreDraftButton
+                applicationId={application.id}
+                positionTitle={position.title}
+                variant="default"
+                size="default"
+                className="w-fit"
+              />
+              <Button asChild variant="ghost" className="w-fit">
+                <Link href="/my-applications">View my applications</Link>
               </Button>
               <Button asChild variant="ghost" className="w-fit">
                 <Link href={`/positions/${id}`}>Back to position</Link>
