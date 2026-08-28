@@ -10,6 +10,11 @@ import type { BadgeVariant } from '@/components/ui/badge';
 // Authoring zone for position windows — see lib/dates.ts.
 export const ORG_TIMEZONE = 'America/New_York';
 
+// Shared between app/layout.tsx metadata and app/manifest.ts.
+export const APP_NAME = 'Aplio';
+export const APP_DESCRIPTION =
+  'A student government application management system.';
+
 export const QUESTION_TYPE_VALUES = [
   'short_answer',
   'long_answer',
