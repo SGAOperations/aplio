@@ -5,7 +5,6 @@ import {
   APPLICATION_STATUS_LABELS,
   AVAILABILITY_LABELS,
   AVAILABILITY_VARIANTS,
-  DELETED_APPLICATION_LABEL,
   STATUS_LABELS,
   STATUS_VARIANTS,
 } from '@/lib/constants';
@@ -21,16 +20,11 @@ import { Badge } from '@/components/ui/badge';
 
 interface ApplicationStatusBadgeProps {
   status: $Enums.ApplicationStatus;
-  deletedAt?: Date | null;
 }
 
 export function ApplicationStatusBadge({
   status,
-  deletedAt,
 }: ApplicationStatusBadgeProps) {
-  if (deletedAt)
-    return <Badge variant="outline">{DELETED_APPLICATION_LABEL}</Badge>;
-
   const Icon = APPLICATION_STATUS_ICONS[status];
   return (
     <Badge variant={APPLICATION_STATUS_BADGE_VARIANT[status]}>

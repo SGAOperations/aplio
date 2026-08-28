@@ -12,7 +12,6 @@ import {
   createDraftApplication,
   createOrUpdateApplicationAnswer,
   deleteDraftApplication,
-  restoreDraftApplication,
   submitApplication,
 } from '@/prisma/actions/applications';
 import type { GlobalQuestion, Position, User } from '@/prisma/client';
@@ -29,10 +28,8 @@ import { isError } from '@/lib/utils';
 // Mirrors the (deliberately unexported) copy in prisma/actions/applications.ts —
 // asserting the exact sentence is the point of this suite.
 const DRAFT_DELETED_MESSAGE =
-  'You deleted this draft. Restore it from My Applications to keep working on it.';
+  'You deleted this draft. Refresh the page to apply again with your answers.';
 const DRAFT_DELETE_NOT_ALLOWED_MESSAGE = 'This draft can no longer be deleted.';
-const DRAFT_RESTORE_NOT_ALLOWED_MESSAGE =
-  'This draft can no longer be restored.';
 
 let admin: User;
 let openPosition: Position;
@@ -48,7 +45,7 @@ afterAll(async () => {
   await cleanupFixtures();
 });
 
-describe('delete / restore lifecycle', () => {
+describe('delete / revive lifecycle', () => {
   it('delete leaves both answer tables untouched and soft-deletes the row', async () => {
     const applicant = await createTestUser();
     const application = await createTestApplication(applicant, openPosition, {
@@ -84,7 +81,20 @@ describe('delete / restore lifecycle', () => {
     expect(answers[0]?.value).toEqual(['hello']);
   });
 
-  it('restore clears deletedAt/deletedById with answers byte-identical', async () => {
+  it('a deleted draft is absent from getMyApplications', async () => {
+    const applicant = await createTestUser();
+    const application = await createTestApplication(applicant, openPosition, {
+      status: 'draft',
+    });
+
+    actAs(applicant);
+    await deleteDraftApplication(application.id);
+
+    const mine = await getMyApplications(applicant.id);
+    expect(mine.map((a) => a.id)).not.toContain(application.id);
+  });
+
+  it('createDraftApplication on a deleted draft revives the same row with answers intact', async () => {
     const applicant = await createTestUser();
     const application = await createTestApplication(applicant, openPosition, {
       status: 'draft',
@@ -104,23 +114,32 @@ describe('delete / restore lifecycle', () => {
     actAs(applicant);
     await deleteDraftApplication(application.id);
 
-    const restoreResult = await restoreDraftApplication(application.id);
-    expect(restoreResult).toBeUndefined();
+    const result = await createDraftApplication({
+      positionId: openPosition.id,
+    });
+    expect(result).toBeUndefined();
 
-    const restored = await prisma.application.findUniqueOrThrow({
+    const revived = await prisma.application.findUniqueOrThrow({
       where: { id: application.id },
     });
-    expect(restored.deletedAt).toBeNull();
-    expect(restored.deletedById).toBeNull();
+    expect(revived.deletedAt).toBeNull();
+    expect(revived.deletedById).toBeNull();
 
-    const restoredAnswer =
-      await prisma.globalApplicationAnswer.findUniqueOrThrow({
-        where: { id: answer.id },
-      });
-    expect(restoredAnswer.value).toEqual(['preserved']);
+    const rows = await prisma.application.findMany({
+      where: { userId: applicant.id, positionId: openPosition.id },
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.id).toBe(application.id);
+
+    const globalAnswers = await prisma.globalApplicationAnswer.findMany({
+      where: { applicationId: application.id },
+    });
+    expect(globalAnswers).toHaveLength(1);
+    expect(globalAnswers[0]?.id).toBe(answer.id);
+    expect(globalAnswers[0]?.value).toEqual(['preserved']);
   });
 
-  it('double restore returns the error', async () => {
+  it('a second createDraftApplication on the now-live draft still succeeds', async () => {
     const applicant = await createTestUser();
     const application = await createTestApplication(applicant, openPosition, {
       status: 'draft',
@@ -128,22 +147,18 @@ describe('delete / restore lifecycle', () => {
 
     actAs(applicant);
     await deleteDraftApplication(application.id);
-    const first = await restoreDraftApplication(application.id);
-    expect(first).toBeUndefined();
+    await createDraftApplication({ positionId: openPosition.id });
 
-    const second = await restoreDraftApplication(application.id);
-    expect(second).toEqual({ error: DRAFT_RESTORE_NOT_ALLOWED_MESSAGE });
-  });
-
-  it('restoring a draft that was never deleted returns the error', async () => {
-    const applicant = await createTestUser();
-    const application = await createTestApplication(applicant, openPosition, {
-      status: 'draft',
+    const second = await createDraftApplication({
+      positionId: openPosition.id,
     });
+    expect(second).toBeUndefined();
 
-    actAs(applicant);
-    const result = await restoreDraftApplication(application.id);
-    expect(result).toEqual({ error: DRAFT_RESTORE_NOT_ALLOWED_MESSAGE });
+    const rows = await prisma.application.findMany({
+      where: { userId: applicant.id, positionId: openPosition.id },
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.id).toBe(application.id);
   });
 
   it('deleting an already-deleted draft returns the error, not a second soft-delete', async () => {
@@ -159,28 +174,7 @@ describe('delete / restore lifecycle', () => {
   });
 });
 
-describe('write paths reject a soft-deleted draft', () => {
-  it('createDraftApplication returns DRAFT_DELETED_MESSAGE and creates no second row', async () => {
-    const applicant = await createTestUser();
-    const application = await createTestApplication(applicant, openPosition, {
-      status: 'draft',
-    });
-
-    actAs(applicant);
-    await deleteDraftApplication(application.id);
-
-    const result = await createDraftApplication({
-      positionId: openPosition.id,
-    });
-    expect(result).toEqual({ error: DRAFT_DELETED_MESSAGE });
-
-    const rows = await prisma.application.findMany({
-      where: { userId: applicant.id, positionId: openPosition.id },
-    });
-    expect(rows).toHaveLength(1);
-    expect(rows[0]?.id).toBe(application.id);
-  });
-
+describe('write paths still reject a stale-tab edit of a deleted draft', () => {
   it('createOrUpdateApplicationAnswer returns DRAFT_DELETED_MESSAGE and writes nothing', async () => {
     const applicant = await createTestUser();
     const application = await createTestApplication(applicant, openPosition, {
@@ -222,7 +216,7 @@ describe('write paths reject a soft-deleted draft', () => {
   });
 });
 
-describe('reconciliation after restore', () => {
+describe('reconciliation after revival', () => {
   it('a required global question added while deleted blocks submit, then succeeds once answered', async () => {
     const applicant = await createTestUser();
     const application = await createTestApplication(applicant, openPosition, {
@@ -239,8 +233,10 @@ describe('reconciliation after restore', () => {
       order: -1_000_000,
     });
 
-    const restoreResult = await restoreDraftApplication(application.id);
-    expect(restoreResult).toBeUndefined();
+    const reviveResult = await createDraftApplication({
+      positionId: openPosition.id,
+    });
+    expect(reviveResult).toBeUndefined();
 
     const blocked = await submitApplication(application.id);
     if (!isError(blocked)) throw new Error('expected an error result');
@@ -265,8 +261,8 @@ describe('reconciliation after restore', () => {
   });
 });
 
-describe('deleted drafts in list and reviewer queries', () => {
-  it('getMyApplications includes a deleted draft while status counts and reviewer queries exclude it', async () => {
+describe('deleted drafts excluded from status counts and reviewer queries', () => {
+  it('getMyApplicationStatusCounts and reviewer scopes exclude a deleted draft', async () => {
     const applicant = await createTestUser();
     const application = await createTestApplication(applicant, openPosition, {
       status: 'draft',
@@ -274,11 +270,6 @@ describe('deleted drafts in list and reviewer queries', () => {
 
     actAs(applicant);
     await deleteDraftApplication(application.id);
-
-    const mine = await getMyApplications(applicant.id);
-    expect(mine.map((a) => a.id)).toContain(application.id);
-    const deletedRow = mine.find((a) => a.id === application.id);
-    expect(deletedRow?.deletedAt).not.toBeNull();
 
     const counts = await getMyApplicationStatusCounts(applicant.id);
     // A deleted draft never contributes to any status bucket.
@@ -296,5 +287,12 @@ describe('deleted drafts in list and reviewer queries', () => {
       where: { id: application.id, ...reviewerWhere },
     });
     expect(reviewerVisible).toBeNull();
+
+    // Revival: still nowhere in reviewer surfaces until submitted.
+    await createDraftApplication({ positionId: openPosition.id });
+    const reviewerResultsAfterRevival = await getApplications(admin, {});
+    expect(reviewerResultsAfterRevival.map((a) => a.id)).not.toContain(
+      application.id,
+    );
   });
 });
