@@ -50,6 +50,7 @@ await prisma.$transaction(async (tx) => {
 - **Application status audit trail.** Every write that changes `Application.status` records an `ApplicationStatusEvent` in the same transaction — four paths do this today (`submitApplication`, `updateApplicationStatus`, `updateApplicationStatuses`, `withdrawApplication`); a fifth write path would otherwise silently skip the trail.
 - **Validate at every boundary.** Every server action parses its input with a zod schema before touching the database — even when the form also validates client-side. Client validation is UX; server validation is integrity.
 - **`EmailLog` delivery state is provider-reported and eventually consistent.** `sent` means handed off to Resend, not received — no UI should treat it as proof of delivery.
+- **One decision email ever, per application.** Once a decision email (`application_accepted`/`application_rejected`) reaches `sent` or later, no later status change — any number of flips back and forth, single or bulk — may schedule or send another for that same application. `lib/email/application-emails.ts`'s dispatch functions check this before every send; it is a permanent property of the application, not of the current status (`docs/WORKFLOWS.md` XC-8).
 
 ## 3. Security
 

@@ -25,6 +25,7 @@ import {
   withdrawApplication,
 } from '@/prisma/actions/applications';
 import type { Position, User } from '@/prisma/client';
+import { getDecisionEmailNotice } from '@/prisma/data/applications';
 
 import { RESEND_BATCH_MAX_EMAILS } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
@@ -216,6 +217,169 @@ describe('single decision dispatch', () => {
     expect(log.error).toBe('already delivered');
   });
 
+  it('schedules exactly one live email through accept -> undo -> accept again', async () => {
+    mockSend
+      .mockResolvedValueOnce({
+        data: { id: 'resend-scheduled-4a' },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: { id: 'resend-scheduled-4b' },
+        error: null,
+      });
+    mockCancel.mockResolvedValueOnce({
+      data: { id: 'resend-scheduled-4a' },
+      error: null,
+    });
+    const applicant = await createTestUser();
+    const application = await createTestApplication(applicant, position, {
+      status: 'applied',
+    });
+
+    actAs(admin);
+    await updateApplicationStatus({
+      applicationId: application.id,
+      status: 'accepted',
+    });
+    await flushAfter();
+
+    await updateApplicationStatus({
+      applicationId: application.id,
+      status: 'reviewing',
+    });
+    await flushAfter();
+
+    await updateApplicationStatus({
+      applicationId: application.id,
+      status: 'accepted',
+    });
+    await flushAfter();
+
+    expect(mockSend).toHaveBeenCalledTimes(2);
+    expect(mockCancel).toHaveBeenCalledTimes(1);
+
+    const logs = await prisma.emailLog.findMany({
+      where: {
+        applicationId: application.id,
+        template: 'application_accepted',
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+    expect(logs).toHaveLength(2);
+    expect(logs[0]).toMatchObject({
+      status: 'cancelled',
+      providerMessageId: 'resend-scheduled-4a',
+    });
+    expect(logs[1]).toMatchObject({
+      status: 'scheduled',
+      providerMessageId: 'resend-scheduled-4b',
+    });
+  });
+
+  it('does not schedule a second email when the prior cancel fails, avoiding a double send', async () => {
+    mockSend.mockResolvedValueOnce({
+      data: { id: 'resend-scheduled-5' },
+      error: null,
+    });
+    mockCancel.mockRejectedValueOnce(new Error('already delivered'));
+    const applicant = await createTestUser();
+    const application = await createTestApplication(applicant, position, {
+      status: 'applied',
+    });
+
+    actAs(admin);
+    await updateApplicationStatus({
+      applicationId: application.id,
+      status: 'accepted',
+    });
+    await flushAfter();
+
+    await updateApplicationStatus({
+      applicationId: application.id,
+      status: 'reviewing',
+    });
+    await flushAfter();
+
+    await updateApplicationStatus({
+      applicationId: application.id,
+      status: 'accepted',
+    });
+    await flushAfter();
+
+    // Only the original send — a second one would leave two live schedules
+    // in Resend, exactly the bug this gate prevents.
+    expect(mockSend).toHaveBeenCalledTimes(1);
+
+    const logs = await prisma.emailLog.findMany({
+      where: {
+        applicationId: application.id,
+        template: 'application_accepted',
+      },
+    });
+    expect(logs).toHaveLength(1);
+    expect(logs[0]).toMatchObject({
+      status: 'scheduled',
+      providerMessageId: 'resend-scheduled-5',
+      error: 'already delivered',
+    });
+  });
+
+  it('never schedules a second decision email once one has reached sent, even after flipping back and forth', async () => {
+    mockSend.mockResolvedValueOnce({
+      data: { id: 'resend-scheduled-6' },
+      error: null,
+    });
+    const applicant = await createTestUser();
+    const application = await createTestApplication(applicant, position, {
+      status: 'applied',
+    });
+
+    actAs(admin);
+    await updateApplicationStatus({
+      applicationId: application.id,
+      status: 'accepted',
+    });
+    await flushAfter();
+
+    // Simulates the delivery webhook upgrading the row past `scheduled`.
+    await prisma.emailLog.updateMany({
+      where: {
+        applicationId: application.id,
+        template: 'application_accepted',
+      },
+      data: { status: 'delivered' },
+    });
+
+    await updateApplicationStatus({
+      applicationId: application.id,
+      status: 'reviewing',
+    });
+    await flushAfter();
+
+    await updateApplicationStatus({
+      applicationId: application.id,
+      status: 'rejected',
+      override: true,
+    });
+    await flushAfter();
+
+    await updateApplicationStatus({
+      applicationId: application.id,
+      status: 'accepted',
+      override: true,
+    });
+    await flushAfter();
+
+    expect(mockSend).toHaveBeenCalledTimes(1);
+    expect(mockCancel).not.toHaveBeenCalled();
+
+    const logs = await prisma.emailLog.findMany({
+      where: { applicationId: application.id },
+    });
+    expect(logs).toHaveLength(1);
+    expect(logs[0]?.status).toBe('delivered');
+  });
+
   it('commits the status change and writes failed when the provider rejects the send', async () => {
     mockSend.mockResolvedValueOnce({
       data: null,
@@ -297,6 +461,63 @@ describe('bulk decision dispatch', () => {
       );
     },
   );
+
+  it('skips a recipient whose decision email already reached sent, but still emails the rest', async () => {
+    mockBatchSend.mockImplementationOnce((payload: unknown[]) =>
+      Promise.resolve({
+        data: {
+          data: payload.map((_, i) => ({ id: `batch-skip-${i}` })),
+          errors: [],
+        },
+        error: null,
+      }),
+    );
+
+    const applicant1 = await createTestUser();
+    const applicant2 = await createTestUser();
+    const app1 = await createTestApplication(applicant1, position, {
+      status: 'applied',
+    });
+    const app2 = await createTestApplication(applicant2, position, {
+      status: 'applied',
+    });
+
+    // app1 already had a rejection delivered in an earlier round-trip.
+    await prisma.emailLog.create({
+      data: {
+        to: applicant1.email,
+        applicationId: app1.id,
+        template: 'application_rejected',
+        subject: 'Subject',
+        status: 'delivered',
+      },
+    });
+
+    actAs(admin);
+    const result = await updateApplicationStatuses({
+      applicationIds: [app1.id, app2.id],
+      status: 'rejected',
+    });
+    expect(result).toEqual({ updated: 2, skipped: 0 });
+    await flushAfter();
+
+    expect(mockBatchSend).toHaveBeenCalledTimes(1);
+    expect(mockBatchSend).toHaveBeenCalledWith(
+      [expect.objectContaining({ to: applicant2.email })],
+      expect.anything(),
+    );
+
+    const app1Logs = await prisma.emailLog.findMany({
+      where: { applicationId: app1.id, template: 'application_rejected' },
+    });
+    expect(app1Logs).toHaveLength(1);
+    expect(app1Logs[0]?.status).toBe('delivered');
+
+    const app2Log = await prisma.emailLog.findFirstOrThrow({
+      where: { applicationId: app2.id, template: 'application_rejected' },
+    });
+    expect(app2Log.status).toBe('sent');
+  });
 
   it('chunks over RESEND_BATCH_MAX_EMAILS recipients into multiple batch.send calls', async () => {
     mockBatchSend.mockImplementation((payload: unknown[]) =>
@@ -385,5 +606,102 @@ describe('submitApplication receipts', () => {
       },
     });
     expect(logs).toHaveLength(2);
+  });
+});
+
+describe('getDecisionEmailNotice', () => {
+  it('returns the real scheduledAt while a decision email is still pending', async () => {
+    mockSend.mockResolvedValueOnce({
+      data: { id: 'resend-notice-1' },
+      error: null,
+    });
+    const applicant = await createTestUser();
+    const application = await createTestApplication(applicant, position, {
+      status: 'applied',
+    });
+
+    actAs(admin);
+    await updateApplicationStatus({
+      applicationId: application.id,
+      status: 'accepted',
+    });
+    await flushAfter();
+
+    const log = await prisma.emailLog.findFirstOrThrow({
+      where: {
+        applicationId: application.id,
+        template: 'application_accepted',
+      },
+    });
+
+    const notice = await getDecisionEmailNotice(
+      application.id,
+      'accepted',
+      admin,
+    );
+    expect(notice).toEqual({
+      status: 'scheduled',
+      scheduledAt: log.scheduledAt,
+    });
+  });
+
+  it('returns sent once the email is delivered, with no timestamp', async () => {
+    const applicant = await createTestUser();
+    const application = await createTestApplication(applicant, position, {
+      status: 'rejected',
+    });
+    await prisma.emailLog.create({
+      data: {
+        to: applicant.email,
+        applicationId: application.id,
+        template: 'application_rejected',
+        subject: 'Subject',
+        status: 'delivered',
+      },
+    });
+
+    const notice = await getDecisionEmailNotice(
+      application.id,
+      'rejected',
+      admin,
+    );
+    expect(notice).toEqual({ status: 'sent' });
+  });
+
+  it('returns null once the pending send was cancelled', async () => {
+    const applicant = await createTestUser();
+    const application = await createTestApplication(applicant, position, {
+      status: 'reviewing',
+    });
+    await prisma.emailLog.create({
+      data: {
+        to: applicant.email,
+        applicationId: application.id,
+        template: 'application_accepted',
+        subject: 'Subject',
+        status: 'cancelled',
+      },
+    });
+
+    const notice = await getDecisionEmailNotice(
+      application.id,
+      'accepted',
+      admin,
+    );
+    expect(notice).toBeNull();
+  });
+
+  it('returns null for a status with no decision email', async () => {
+    const applicant = await createTestUser();
+    const application = await createTestApplication(applicant, position, {
+      status: 'reviewing',
+    });
+
+    const notice = await getDecisionEmailNotice(
+      application.id,
+      'reviewing',
+      admin,
+    );
+    expect(notice).toBeNull();
   });
 });

@@ -14,7 +14,7 @@ import {
   applicationRejectedEmail,
 } from '@/lib/email/templates';
 import { prisma } from '@/lib/prisma';
-import { getFirstName } from '@/lib/utils';
+import { classifyDecisionEmailStatus, getFirstName } from '@/lib/utils';
 
 type DecisionStatus = 'accepted' | 'rejected';
 
@@ -76,11 +76,14 @@ export async function sendApplicationReceipt(recipient: {
   }
 }
 
-// No scheduledAt time filter — attempt the cancel regardless and let the provider be the judge.
+// No scheduledAt time filter — attempt the cancel regardless and let the
+// provider be the judge. Returns the applicationIds whose pending send
+// couldn't be verified cancelled, so a caller never schedules a competing
+// send on top of one that may still be live in Resend.
 export async function cancelPendingDecisionEmails(
   applicationIds: string[],
-): Promise<void> {
-  if (applicationIds.length === 0) return;
+): Promise<Set<string>> {
+  if (applicationIds.length === 0) return new Set();
 
   const pending = await prisma.emailLog.findMany({
     where: {
@@ -88,12 +91,13 @@ export async function cancelPendingDecisionEmails(
       status: 'scheduled',
       providerMessageId: { not: null },
     },
-    select: { id: true, providerMessageId: true },
+    select: { id: true, applicationId: true, providerMessageId: true },
   });
 
-  if (pending.length === 0) return;
+  if (pending.length === 0) return new Set();
 
   const resend = getResend();
+  const uncancelled = new Set<string>();
   for (const row of pending) {
     if (!row.providerMessageId) continue;
     try {
@@ -104,14 +108,39 @@ export async function cancelPendingDecisionEmails(
         data: { status: 'cancelled' },
       });
     } catch (err) {
+      if (row.applicationId) uncancelled.add(row.applicationId);
       // Best-effort: the mail almost certainly already went out. Leave the row
-      // `scheduled` so a later delivered webhook can still upgrade it.
+      // `scheduled` so a later delivered webhook can still upgrade it, and so
+      // the next status change on this application retries the cancel.
       await prisma.emailLog.update({
         where: { id: row.id },
         data: { error: err instanceof Error ? err.message : String(err) },
       });
     }
   }
+  return uncancelled;
+}
+
+// Applications with a decision email that has already left Resend's control —
+// the permanent one-email-ever gate reads this before every dispatch.
+async function applicationsWithDispatchedDecisionEmail(
+  applicationIds: string[],
+): Promise<Set<string>> {
+  if (applicationIds.length === 0) return new Set();
+
+  const logs = await prisma.emailLog.findMany({
+    where: {
+      applicationId: { in: applicationIds },
+      template: { in: Object.values(DECISION_EMAIL_TEMPLATES) },
+    },
+    select: { applicationId: true, status: true },
+  });
+
+  const dispatched = new Set<string>();
+  for (const log of logs)
+    if (log.applicationId && classifyDecisionEmailStatus(log.status) === 'sent')
+      dispatched.add(log.applicationId);
+  return dispatched;
 }
 
 // Covers the quick actions, the override Select, and undo alike — cancel
@@ -124,9 +153,20 @@ export async function dispatchDecisionEmail({
   status: $Enums.ApplicationStatus;
 }): Promise<void> {
   try {
-    await cancelPendingDecisionEmails([recipient.applicationId]);
+    const uncancelled = await cancelPendingDecisionEmails([
+      recipient.applicationId,
+    ]);
 
     if (!isDecisionStatus(status)) return;
+
+    // A prior schedule that couldn't be verified cancelled may still fire in
+    // Resend — scheduling another here would double-send the applicant.
+    if (uncancelled.has(recipient.applicationId)) return;
+
+    const dispatched = await applicationsWithDispatchedDecisionEmail([
+      recipient.applicationId,
+    ]);
+    if (dispatched.has(recipient.applicationId)) return;
 
     const { subject, html, text } = decisionEmailTemplate(status, recipient);
     const scheduledAt = new Date(
@@ -148,8 +188,9 @@ export async function dispatchDecisionEmail({
   }
 }
 
-// Eligibility isn't forward-only, so a bulk move can land on a row that
-// still holds a pending single-decision send — cancel first, same as dispatchDecisionEmail.
+// Eligibility isn't forward-only, so a bulk move can land on a row that still
+// holds a pending single-decision send — cancel first, same as
+// dispatchDecisionEmail, and skip anything that can't be verified cancelled.
 export async function dispatchBulkDecisionEmails({
   recipients,
   status,
@@ -160,9 +201,16 @@ export async function dispatchBulkDecisionEmails({
   if (recipients.length === 0 || !isDecisionStatus(status)) return;
 
   try {
-    await cancelPendingDecisionEmails(recipients.map((r) => r.applicationId));
+    const applicationIds = recipients.map((r) => r.applicationId);
+    const uncancelled = await cancelPendingDecisionEmails(applicationIds);
+    const dispatched =
+      await applicationsWithDispatchedDecisionEmail(applicationIds);
+    const eligible = recipients.filter(
+      (r) => !dispatched.has(r.applicationId) && !uncancelled.has(r.applicationId),
+    );
+    if (eligible.length === 0) return;
 
-    const entries = recipients.map((recipient) => {
+    const entries = eligible.map((recipient) => {
       const { subject, html, text } = decisionEmailTemplate(status, recipient);
       return {
         to: recipient.to,
