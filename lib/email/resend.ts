@@ -191,7 +191,7 @@ export async function sendEmailBatch(
   if (entries.length === 0) return;
 
   const from = getSenderAddress();
-  const emailSchema = z.string().email();
+  const emailSchema = z.string().trim().email();
   const valid: SendEmailBatchEntry[] = [];
   const invalid: SendEmailBatchEntry[] = [];
   for (const entry of entries)

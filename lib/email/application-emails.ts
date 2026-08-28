@@ -95,8 +95,9 @@ export async function cancelPendingDecisionEmails(
 
   const resend = getResend();
   for (const row of pending) {
+    if (!row.providerMessageId) continue;
     try {
-      const { error } = await resend.emails.cancel(row.providerMessageId!);
+      const { error } = await resend.emails.cancel(row.providerMessageId);
       if (error) throw new Error(error.message);
       await prisma.emailLog.update({
         where: { id: row.id },

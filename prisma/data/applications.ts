@@ -313,17 +313,24 @@ export async function getDecisionEmailNotice(
   });
 
   if (!log) return null;
-  if (log.status === 'scheduled') return 'scheduled';
-  if (
-    log.status === 'sent' ||
-    log.status === 'delivered' ||
-    log.status === 'bounced' ||
-    log.status === 'complained' ||
-    log.status === 'suppressed'
-  )
-    return 'sent';
-  // 'cancelled' or 'failed'
-  return null;
+
+  switch (log.status) {
+    case 'scheduled':
+      return 'scheduled';
+    case 'sent':
+    case 'delivered':
+    case 'bounced':
+    case 'complained':
+    case 'suppressed':
+      return 'sent';
+    case 'cancelled':
+    case 'failed':
+      return null;
+    default: {
+      const exhaustive: never = log.status;
+      throw new Error(`Unhandled email status: ${JSON.stringify(exhaustive)}`);
+    }
+  }
 }
 
 // Cross-scope by design (docs/PERMISSIONS.md) — step 2 deliberately drops buildReviewablePositionWhere.

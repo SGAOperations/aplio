@@ -305,9 +305,7 @@ export type ApplicationStatusHistoryEntry = {
   createdAt: Date;
 };
 
-// Derived from EmailLog, not the status event's timestamp — see
-// getDecisionEmailNotice. null covers cancelled/failed/no-row and the brief
-// window before the after() write lands.
+// Derived from EmailLog, not the status event's timestamp.
 export type DecisionEmailNoticeState = 'scheduled' | 'sent' | null;
 
 // Reviewer-only cross-scope row; canOpen is resolved server-side so no
