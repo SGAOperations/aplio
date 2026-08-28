@@ -11,8 +11,9 @@ import type {
   GlobalQuestion,
   PositionApplicationAnswer,
 } from '@/prisma/client';
+import { getApplicationStatusHistory } from '@/prisma/data/applications';
 
-import { requireOwnership } from '@/lib/auth/guards';
+import { requireManagerOrAdmin, requireOwnership } from '@/lib/auth/guards';
 import {
   buildApplicationScopeWhere,
   buildApplicationWhere,
@@ -23,20 +24,22 @@ import {
   ANSWER_MAX_VALUES,
   APPLICATION_NOT_EDITABLE_MESSAGE,
   APPLICATION_STATUS_LABELS,
+  NON_REVIEWABLE_APPLICATION_STATUSES,
   REVIEWER_APPLICATION_STATUSES,
   SHORT_ANSWER_FORMAT_ERROR_MESSAGES,
   TERMINAL_DECISION_STATUSES,
   getAnswerValueError,
-  getApplicationStatusForwardSources,
   isAllowedApplicationStatusTransition,
   isApplicantEditableApplicationStatus,
   matchesShortAnswerFormat,
 } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
-import { type AnswerQuestion } from '@/lib/types';
+import {
+  type AnswerQuestion,
+  type ApplicationStatusHistoryEntry,
+} from '@/lib/types';
 import {
   type ResponseType,
-  formatAlternatives,
   isAcceptingApplications,
   isAnswered,
   isError,
@@ -586,13 +589,13 @@ export async function updateApplicationStatuses(
   const { status } = parsed.data;
 
   const { eligible, updatedIds } = await prisma.$transaction(async (tx) => {
-    // Forward-only sources so a bulk move-back can't silently walk an
-    // already-decided row backward; captured with its status for the event's `from`.
+    // Any reviewer status but the target itself is eligible — forward,
+    // backward, or a final decision; captured with its status for the event's `from`.
     const eligible = await tx.application.findMany({
       where: {
         id: { in: applicationIds },
         ...buildApplicationScopeWhere(user),
-        status: { in: getApplicationStatusForwardSources(status) },
+        status: { notIn: [...NON_REVIEWABLE_APPLICATION_STATUSES, status] },
       },
       select: { id: true, status: true },
     });
@@ -629,14 +632,10 @@ export async function updateApplicationStatuses(
     return { eligible, updatedIds: updated.map((a) => a.id) };
   });
 
-  if (eligible.length === 0) {
-    const sourceLabels = getApplicationStatusForwardSources(status).map(
-      (source) => APPLICATION_STATUS_LABELS[source],
-    );
+  if (eligible.length === 0)
     return {
-      error: `None of the selected applications can move to ${APPLICATION_STATUS_LABELS[status]} — that's only reachable from ${formatAlternatives(sourceLabels)}.`,
+      error: `None of the selected applications can move to ${APPLICATION_STATUS_LABELS[status]} — they're already there, or they're drafts or withdrawn.`,
     };
-  }
 
   revalidatePath('/applications');
   // Wildcard segment: a bulk update has no individual positionIds to hand.
@@ -646,6 +645,19 @@ export async function updateApplicationStatuses(
     updated: updatedIds.length,
     skipped: applicationIds.length - updatedIds.length,
   };
+}
+
+// Read-only: a table row opens the dialog without the page pre-fetching
+// history for every visible row. No revalidatePath — nothing is written.
+export async function loadApplicationStatusHistory(
+  input: unknown,
+): Promise<ResponseType<ApplicationStatusHistoryEntry[]>> {
+  const user = await requireManagerOrAdmin();
+
+  const parsed = applicationIdSchema.safeParse(input);
+  if (!parsed.success) return { error: 'Invalid input' };
+
+  return getApplicationStatusHistory(parsed.data.applicationId, user);
 }
 
 const WITHDRAW_NOT_ALLOWED_MESSAGE =
