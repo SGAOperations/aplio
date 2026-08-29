@@ -10,6 +10,7 @@ import {
   TERMINAL_DECISION_STATUS_NOTES,
   getNextApplicationStatus,
   isNonReviewableApplicationStatus,
+  isTerminalDecisionApplicationStatus,
 } from '@/lib/constants';
 import { ACTION_ICONS } from '@/lib/icons';
 import type { ApplicationStatusHistoryEntry } from '@/lib/types';
@@ -57,8 +58,7 @@ export function ApplicationStatusHeaderActions({
     </Button>
   );
 
-  // Non-primary — a decision is already made, this only reopens the
-  // override dialog, it doesn't push the application further forward.
+  // Non-primary — only reopens the override dialog, doesn't advance the application.
   const changeDecisionButton = (
     <Button
       variant="outline"
@@ -93,8 +93,7 @@ export function ApplicationStatusHeaderActions({
     );
   }
 
-  const isTerminalDecision =
-    currentStatus === 'accepted' || currentStatus === 'rejected';
+  const isTerminalDecision = isTerminalDecisionApplicationStatus(currentStatus);
 
   if (isTerminalDecision) {
     return (

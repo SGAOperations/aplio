@@ -602,6 +602,13 @@ export const TERMINAL_DECISION_STATUSES: readonly $Enums.ApplicationStatus[] = [
   'rejected',
 ];
 
+// Narrows a status without an unsafe cast at each call site.
+export function isTerminalDecisionApplicationStatus(
+  status: $Enums.ApplicationStatus,
+): status is 'accepted' | 'rejected' {
+  return TERMINAL_DECISION_STATUSES.includes(status);
+}
+
 export const RECENTLY_CLOSED_WINDOW_DAYS = 7;
 
 // Longer than the public window so managers and admins keep oversight during wrap-up.

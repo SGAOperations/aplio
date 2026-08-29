@@ -5,6 +5,7 @@ import type { $Enums } from '@/prisma/client';
 import {
   APPLICATION_STATUS_ACTION_LABELS,
   getApplicationStatusMenu,
+  isTerminalDecisionApplicationStatus,
 } from '@/lib/constants';
 
 import {
@@ -31,9 +32,9 @@ export function ApplicationStatusMenu({
 }: ApplicationStatusMenuProps) {
   const { next, decisions } = getApplicationStatusMenu(status);
   const showNext = !hoistNext && next !== null;
-  // reviewing's next step is accepted, already a decision — no separator
-  // needed between it and reject, they're one group.
-  const nextIsDecision = next === 'accepted' || next === 'rejected';
+  // No separator when next is itself a decision (reviewing -> accepted).
+  const nextIsDecision =
+    next !== null && isTerminalDecisionApplicationStatus(next);
 
   return (
     <>

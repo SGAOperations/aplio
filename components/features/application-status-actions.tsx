@@ -7,7 +7,10 @@ import { toast } from 'sonner';
 import { loadApplicationStatusHistory } from '@/prisma/actions/applications';
 import type { $Enums } from '@/prisma/client';
 
-import { isNonReviewableApplicationStatus } from '@/lib/constants';
+import {
+  isNonReviewableApplicationStatus,
+  isTerminalDecisionApplicationStatus,
+} from '@/lib/constants';
 import { ACTION_ICONS } from '@/lib/icons';
 import type { ApplicationStatusHistoryEntry } from '@/lib/types';
 import { isError } from '@/lib/utils';
@@ -48,8 +51,7 @@ export function ApplicationStatusActions({
 
   if (isNonReviewableApplicationStatus(currentStatus)) return null;
 
-  const isTerminalDecision =
-    currentStatus === 'accepted' || currentStatus === 'rejected';
+  const isTerminalDecision = isTerminalDecisionApplicationStatus(currentStatus);
 
   // Opens immediately and fetches in the same handler — no table pre-fetch
   // of history for every visible row; re-fetches on every open.
@@ -78,9 +80,13 @@ export function ApplicationStatusActions({
   return (
     <>
       {isTerminalDecision ? (
-        // A decision is already made — a plain, non-primary button straight
-        // to the override dialog, no dropdown to hold just one item.
-        <Button variant="outline" size="sm" onClick={openDialog}>
+        // Decision made — plain button straight to the override dialog.
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={openDialog}
+          disabled={isPending}
+        >
           Change decision
         </Button>
       ) : (
