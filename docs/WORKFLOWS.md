@@ -94,12 +94,12 @@ Anyone not signed in. The only routes they can use are `/positions`, `/positions
 ### AN-2 View a position
 
 - **Trigger** — a position card on `/positions`, or a direct link to `/positions/[id]`.
-- **Happy path** — `getPositionDetail(id)`, then `getOptionalManagerAccess(position.managers)` — which never forces auth, so an anonymous visitor and a signed-in non-manager get identical output. Renders the title, availability badge, markdown description, the list of application question labels, and the primary CTA ([AN-3](#an-3-start-applying-from-a-position)). The back link is viewer-dependent: "&larr; Back to my positions" → `/my-positions` when the viewer can manage this position, otherwise "&larr; Back to positions" → `/positions`.
+- **Happy path** — `getPositionDetail(id)`, then `getOptionalManagerAccess(position.managers)` — which never forces auth, so an anonymous visitor and a signed-in non-manager get identical output. Renders the title, availability badge, the application window date, markdown description, the list of application question labels, and the primary CTA ([AN-3](#an-3-start-applying-from-a-position)). The back link is viewer-dependent: "&larr; Back to my positions" → `/my-positions` when the viewer can manage this position, otherwise "&larr; Back to positions" → `/positions`.
 - **Failure / edge**
   - Position missing or soft-deleted → `notFound()`.
   - Position is a `draft` and the viewer cannot manage it → `notFound()`, identical to missing ([XC-4](#xc-4-denial-shape)).
   - No description → "No description yet."
-  - Window not open yet → a secondary badge "Opens <date>"; already closed → "Closed <date>". No Apply button in either case.
+  - Window not open yet → the date under the title reads **Opens <date>**; already closed → **Closed <date>**. No Apply button in either case.
 - **End state** — read-only.
 
 ### AN-3 Start applying from a position

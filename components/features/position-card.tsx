@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import type { ReactNode } from 'react';
 
 import {
   APPLICANT_EDITABLE_APPLICATION_STATUSES,
@@ -16,13 +15,13 @@ import type {
 } from '@/lib/types';
 import { cn, getPositionAvailability, markdownToPlainText } from '@/lib/utils';
 
+import { PositionDateLine } from '@/components/features/position-date-line';
 import {
   ApplicationStatusBadge,
   PositionStatusBadge,
 } from '@/components/features/status-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LocalTime } from '@/components/ui/local-time';
 import { Markdown } from '@/components/ui/markdown';
 
 interface PositionCardProps {
@@ -108,29 +107,6 @@ export function PositionCard({
     ) &&
     (isDraft || isAccepting);
 
-  let dateLabel: ReactNode = null;
-  if (availability === 'accepting' && position.closesAt)
-    dateLabel = (
-      <>
-        Closes <LocalTime date={position.closesAt} precision="datetime" />
-      </>
-    );
-  else if (availability === 'upcoming' && position.opensAt)
-    dateLabel = (
-      <>
-        Opens <LocalTime date={position.opensAt} precision="datetime" />
-      </>
-    );
-  else if (
-    (availability === 'closed_by_date' || availability === 'unavailable') &&
-    position.closesAt
-  )
-    dateLabel = (
-      <>
-        Closed <LocalTime date={position.closesAt} precision="datetime" />
-      </>
-    );
-
   return (
     <Card className="flex flex-col gap-0 p-0">
       {/* Two-column layout: when applicationStats is present the outer div becomes a
@@ -145,7 +121,7 @@ export function PositionCard({
             applicationStats && 'sm:flex sm:min-w-0 sm:flex-1 sm:flex-col',
           )}
         >
-          <CardHeader className="p-4 pb-2">
+          <CardHeader className="p-4 pb-3">
             <div
               className={cn(
                 'flex flex-wrap items-center gap-2',
@@ -162,6 +138,7 @@ export function PositionCard({
               </div>
               <PositionStatusBadge position={position} />
             </div>
+            <PositionDateLine position={position} className="mt-1" />
           </CardHeader>
 
           <CardContent
@@ -178,9 +155,6 @@ export function PositionCard({
                   className="[&_p]:line-clamp-3"
                 />
               </div>
-            )}
-            {dateLabel && (
-              <p className="text-muted-foreground mt-1 text-xs">{dateLabel}</p>
             )}
 
             {/* mt-auto ensures buttons always sit at the bottom of the left column */}

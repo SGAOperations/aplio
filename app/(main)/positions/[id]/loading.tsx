@@ -9,6 +9,7 @@ export default function PositionDetailLoading() {
           <Skeleton className="h-8 w-64" />
           <Skeleton className="h-5 w-16 rounded-full" />
         </div>
+        <Skeleton className="mt-3 h-5 w-48" />
       </div>
       <div className="max-w-2xl space-y-2">
         <Skeleton className="h-4 w-full" />
