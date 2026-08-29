@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { REVIEWER_APPLICATION_STATUS_OPTIONS } from '@/lib/constants';
 import { ACTION_ICONS } from '@/lib/icons';
 import type { ApplicationFilters, ReviewableApplicant } from '@/lib/types';
+import { displayUserName } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -42,12 +43,12 @@ export function ApplicationsToolbar({
   const applicantLabels = useMemo(() => {
     const nameCounts = new Map<string, number>();
     for (const a of applicants) {
-      const key = a.name ?? a.email;
+      const key = displayUserName(a);
       nameCounts.set(key, (nameCounts.get(key) ?? 0) + 1);
     }
     return new Map(
       applicants.map((a) => {
-        const key = a.name ?? a.email;
+        const key = displayUserName(a);
         const label =
           (nameCounts.get(key) ?? 0) > 1 ? `${key} · ${a.email}` : key;
         return [a.id, label] as const;

@@ -16,7 +16,9 @@ import {
 import { ACTION_ICONS, CONCEPT_ICONS } from '@/lib/icons';
 import type { AdminUserListItem } from '@/lib/types';
 import {
+  displayUserName,
   formatTableCount,
+  getUserName,
   getUserRoleRank,
   getUserRoleTokens,
 } from '@/lib/utils';
@@ -80,16 +82,16 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
   function openAdminDialog(user: AdminUserListItem) {
     setAdminTarget({
       id: user.id,
-      displayName: user.name ?? user.email,
+      displayName: displayUserName(user),
       email: user.email,
-      name: user.name,
+      name: getUserName(user),
       makeAdmin: !user.isAdmin,
     });
     setAdminDialogOpen(true);
   }
 
   function openDeactivateDialog(user: AdminUserListItem) {
-    setDeactivateTarget({ id: user.id, displayName: user.name ?? user.email });
+    setDeactivateTarget({ id: user.id, displayName: displayUserName(user) });
     setDeactivateDialogOpen(true);
   }
 
@@ -98,21 +100,24 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       {
         key: 'user',
         header: 'User',
-        sortAccessor: (u) => u.name ?? u.email,
-        searchValue: (u) => [u.name ?? '', u.email],
-        cell: (u) => (
-          <div className="flex flex-col">
-            <span className="font-medium">{u.name ?? u.email}</span>
-            {u.name && (
-              <span className="text-muted-foreground text-xs">{u.email}</span>
-            )}
-          </div>
-        ),
+        sortAccessor: (u) => displayUserName(u),
+        searchValue: (u) => [displayUserName(u), u.email],
+        cell: (u) => {
+          const name = getUserName(u);
+          return (
+            <div className="flex flex-col">
+              <span className="font-medium">{name ?? u.email}</span>
+              <span className="text-muted-foreground text-xs">
+                {name ? u.email : 'No name yet'}
+              </span>
+            </div>
+          );
+        },
       },
       {
         key: 'roles',
         header: 'Roles',
-        sortAccessor: (u) => [getUserRoleRank(u), u.name ?? u.email, u.email],
+        sortAccessor: (u) => [getUserRoleRank(u), displayUserName(u), u.email],
         filterValue: getUserRoleTokens,
         cell: (u) => {
           const isManager = getUserRoleTokens(u).includes('manager');
@@ -384,18 +389,15 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
             const isSelf = user.id === currentUserId;
             const isManager = getUserRoleTokens(user).includes('manager');
             const appCount = user._count.applications;
+            const name = getUserName(user);
             return (
               <div className="flex flex-col gap-3 p-4">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex flex-col">
-                    <span className="font-medium">
-                      {user.name ?? user.email}
+                    <span className="font-medium">{name ?? user.email}</span>
+                    <span className="text-muted-foreground text-xs">
+                      {name ? user.email : 'No name yet'}
                     </span>
-                    {user.name && (
-                      <span className="text-muted-foreground text-xs">
-                        {user.email}
-                      </span>
-                    )}
                   </div>
                   <div className="flex flex-wrap justify-end gap-1">
                     {user.isAdmin && <Badge variant="default">Admin</Badge>}

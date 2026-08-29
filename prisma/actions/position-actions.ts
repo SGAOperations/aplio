@@ -23,7 +23,7 @@ import {
 import { orgDayEnd, orgDayStart } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
 import type { PositionManager, UserSearchResult } from '@/lib/types';
-import { type ResponseType } from '@/lib/utils';
+import { type ResponseType, displayUserName } from '@/lib/utils';
 
 // description defaults to '' so a draft can be created quickly.
 const createPositionSchema = z
@@ -298,7 +298,7 @@ export async function searchUsers(
   });
 
   return users.map((u) => ({
-    displayName: u.name ?? u.email,
+    displayName: displayUserName(u),
     primaryEmail: u.email,
   }));
 }
