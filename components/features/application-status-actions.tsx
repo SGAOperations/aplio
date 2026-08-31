@@ -50,8 +50,7 @@ export function ApplicationStatusActions({
   const requestIdRef = useRef(0);
 
   if (isNonReviewableApplicationStatus(currentStatus)) return null;
-
-  const isTerminalDecision = isTerminalDecisionApplicationStatus(currentStatus);
+  if (isTerminalDecisionApplicationStatus(currentStatus)) return null;
 
   // Opens immediately and fetches in the same handler — no table pre-fetch
   // of history for every visible row; re-fetches on every open.
@@ -79,39 +78,27 @@ export function ApplicationStatusActions({
 
   return (
     <>
-      {isTerminalDecision ? (
-        // Decision made — plain button straight to the override dialog.
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={openDialog}
-          disabled={isPending}
-        >
-          Change decision
-        </Button>
-      ) : (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={`Change status for ${displayName}`}
-              disabled={isPending}
-            >
-              <ACTION_ICONS.more />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <ApplicationStatusMenu
-              status={currentStatus}
-              hoistNext={false}
-              isPending={isPending}
-              onSelect={selectTarget}
-              onSeeMore={openDialog}
-            />
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={`Change status for ${displayName}`}
+            disabled={isPending}
+          >
+            <ACTION_ICONS.more />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <ApplicationStatusMenu
+            status={currentStatus}
+            hoistNext={false}
+            isPending={isPending}
+            onSelect={selectTarget}
+            onSeeMore={openDialog}
+          />
+        </DropdownMenuContent>
+      </DropdownMenu>
       <ConfirmDialog {...confirmDialogProps} />
       <ApplicationStatusDialog
         applicationId={applicationId}

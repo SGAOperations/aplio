@@ -33,10 +33,11 @@ interface ApplicationStatusHeaderActionsProps {
   history: ApplicationStatusHistoryEntry[];
 }
 
-// Fixed two-control budget in PageHeader's actions slot: a split button plus
-// the `⋯` that opens the status dialog. Once a decision is made, both
-// collapse into a single "Change decision" button. Move-backs never appear
-// here — only in the dialog's any-status Select.
+// PageHeader's actions slot: an unresolved status gets a split button whose
+// caret dropdown includes "See more" to open the status dialog; a decision
+// collapses that into a single "Change decision" button; non-reviewable
+// statuses get the standalone `⋯` as their sole control. Move-backs never
+// appear here — only in the dialog's any-status Select.
 export function ApplicationStatusHeaderActions({
   applicationId,
   currentStatus,
@@ -150,7 +151,6 @@ export function ApplicationStatusHeaderActions({
         </DropdownMenu>
       </div>
 
-      {moreButton}
       <ConfirmDialog {...move.confirmDialogProps} />
       {dialog}
     </>
