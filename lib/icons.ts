@@ -8,6 +8,7 @@ import {
   ArrowUpDown,
   Briefcase,
   CalendarCheck,
+  CalendarClock,
   Check,
   ChevronDown,
   CircleCheck,
@@ -65,7 +66,8 @@ type Concept =
   | 'user'
   | 'question'
   | 'profile'
-  | 'activity';
+  | 'activity'
+  | 'deadline';
 
 export const CONCEPT_ICONS: Record<Concept, LucideIcon> = {
   home: House,
@@ -76,6 +78,7 @@ export const CONCEPT_ICONS: Record<Concept, LucideIcon> = {
   question: ListChecks,
   profile: UserPen,
   activity: Activity,
+  deadline: CalendarClock,
 };
 
 export const APPLICATION_STATUS_ICONS: Record<
