@@ -14,7 +14,7 @@ import type {
   ApplicationSortDirection,
   ApplicationSortField,
 } from '@/lib/types';
-import { getDisplayName, getRenamedTo } from '@/lib/utils';
+import { getApplicantName, getDisplayName, getRenamedTo } from '@/lib/utils';
 
 import { ApplicationStatusActions } from '@/components/features/application-status-actions';
 import { ApplicationsBulkBar } from '@/components/features/applications-bulk-bar';
@@ -155,7 +155,7 @@ export function ApplicationsTable({
                 ({renamedTo})
               </span>
             )}
-            {(app.applicantName ?? app.user.name) && (
+            {getApplicantName(app) && (
               <span className="text-muted-foreground block text-xs">
                 {app.user.email}
               </span>
@@ -281,7 +281,7 @@ export function ApplicationsTable({
                     />
                   </div>
                 </div>
-                {(app.applicantName ?? app.user.name) && (
+                {getApplicantName(app) && (
                   <span className="text-muted-foreground truncate text-xs">
                     {app.user.email}
                   </span>

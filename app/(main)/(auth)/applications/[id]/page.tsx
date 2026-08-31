@@ -10,7 +10,7 @@ import {
 
 import { getCurrentUser } from '@/lib/auth/server';
 import { CONCEPT_ICONS } from '@/lib/icons';
-import { getRenamedTo } from '@/lib/utils';
+import { getDisplayName, getRenamedTo } from '@/lib/utils';
 
 import { ApplicantOtherApplications } from '@/components/features/applicant-other-applications';
 import { ApplicationAnswersList } from '@/components/features/application-answers-list';
@@ -31,12 +31,7 @@ export async function generateMetadata({
   const user = await getCurrentUser();
   const application = await getApplicationForReview(id, user);
   if (!application) return {};
-  return {
-    title:
-      application.applicantName ??
-      application.user.name ??
-      application.user.email,
-  };
+  return { title: getDisplayName(application) };
 }
 
 export default async function ApplicationDetailPage({
@@ -52,10 +47,7 @@ export default async function ApplicationDetailPage({
 
   if (!application) notFound();
 
-  const applicantName =
-    application.applicantName ??
-    application.user.name ??
-    application.user.email;
+  const applicantName = getDisplayName(application);
   const renamedTo = getRenamedTo(application);
 
   return (

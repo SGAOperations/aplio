@@ -12,7 +12,7 @@ import {
 
 import { ACTION_ICONS } from '@/lib/icons';
 import type { PositionManager, UserSearchResult } from '@/lib/types';
-import { isError } from '@/lib/utils';
+import { getUserName, isError } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -150,6 +150,7 @@ export function PositionManagersSection({
           {managers.map((manager) => {
             const isSelf = manager.id === currentUserId;
             const blockSelfRemoval = isSelf && !isAdmin;
+            const managerName = getUserName(manager);
 
             return (
               <li
@@ -158,9 +159,9 @@ export function PositionManagersSection({
               >
                 <div>
                   <p className="text-sm font-medium">
-                    {manager.name ?? manager.email}
+                    {managerName ?? manager.email}
                   </p>
-                  {manager.name && (
+                  {managerName && (
                     <p className="text-muted-foreground text-xs">
                       {manager.email}
                     </p>

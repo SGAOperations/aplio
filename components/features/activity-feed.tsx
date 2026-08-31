@@ -10,7 +10,7 @@ import {
 } from '@/lib/constants';
 import { CONCEPT_ICONS } from '@/lib/icons';
 import { type ActivityItem, type Reviewer } from '@/lib/types';
-import { getRenamedTo } from '@/lib/utils';
+import { getDisplayName, getRenamedTo } from '@/lib/utils';
 
 import { LocalTime } from '@/components/ui/local-time';
 import { SectionCard, SectionCardEmpty } from '@/components/ui/section-card';
@@ -110,7 +110,7 @@ export async function ReviewerActivityFeed({
   const applications = await getRecentApplications(reviewer, 10);
 
   const items: ActivityItem[] = applications.map((app) => {
-    const applicantLabel = app.applicantName ?? app.user.name ?? app.user.email;
+    const applicantLabel = getDisplayName(app);
     const renamedTo = getRenamedTo(app);
     const variant = APPLICATION_STATUS_BADGE_VARIANT[app.status];
     return {

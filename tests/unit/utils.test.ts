@@ -5,12 +5,15 @@ import type { AnswerQuestion, PositionActivity } from '@/lib/types';
 import {
   answerFieldIds,
   canReviewPosition,
+  displayUserName,
   findDivergingGlobalAnswers,
   formatAlternatives,
   formatPaginationSummary,
   formatTableCount,
+  getApplicantName,
   getPaginationRange,
   getPositionAvailability,
+  getUserName,
   getUserRoleRank,
   getUserRoleTokens,
   isAnswered,
@@ -821,5 +824,76 @@ describe('findDivergingGlobalAnswers', () => {
       [],
     );
     expect(result).toEqual([{ questionId: 'q1', profileValue: [] }]);
+  });
+});
+
+describe('getUserName', () => {
+  it('returns null for a null name', () => {
+    expect(getUserName({ name: null })).toBeNull();
+  });
+
+  it('returns null for an empty string', () => {
+    expect(getUserName({ name: '' })).toBeNull();
+  });
+
+  it('returns null for a whitespace-only name', () => {
+    expect(getUserName({ name: '   ' })).toBeNull();
+  });
+
+  it('returns a real name unchanged', () => {
+    expect(getUserName({ name: 'Ada Lovelace' })).toBe('Ada Lovelace');
+  });
+
+  it('trims surrounding whitespace', () => {
+    expect(getUserName({ name: '  Ada Lovelace  ' })).toBe('Ada Lovelace');
+  });
+});
+
+describe('displayUserName', () => {
+  it('falls back to email when the name is null', () => {
+    expect(displayUserName({ name: null, email: 'ada@example.com' })).toBe(
+      'ada@example.com',
+    );
+  });
+
+  it('falls back to email when the name is blank', () => {
+    expect(displayUserName({ name: '   ', email: 'ada@example.com' })).toBe(
+      'ada@example.com',
+    );
+  });
+
+  it('prefers a real name over the email', () => {
+    expect(
+      displayUserName({ name: 'Ada Lovelace', email: 'ada@example.com' }),
+    ).toBe('Ada Lovelace');
+  });
+});
+
+describe('getApplicantName', () => {
+  it('prefers the frozen applicantName over the live user name', () => {
+    expect(
+      getApplicantName({
+        applicantName: 'Frozen Name',
+        user: { name: 'Live Name' },
+      }),
+    ).toBe('Frozen Name');
+  });
+
+  it('falls back to the live user name when applicantName is blank', () => {
+    expect(
+      getApplicantName({ applicantName: '   ', user: { name: 'Live Name' } }),
+    ).toBe('Live Name');
+  });
+
+  it('falls back to the live user name when applicantName is null', () => {
+    expect(
+      getApplicantName({ applicantName: null, user: { name: 'Live Name' } }),
+    ).toBe('Live Name');
+  });
+
+  it('returns null when neither name is set', () => {
+    expect(
+      getApplicantName({ applicantName: '', user: { name: null } }),
+    ).toBeNull();
   });
 });

@@ -11,10 +11,9 @@ import { ACTION_ICONS, CONCEPT_ICONS, STATE_ICONS } from '@/lib/icons';
 import type { PositionDetail } from '@/lib/types';
 import { getPositionAvailability, markdownToPlainText } from '@/lib/utils';
 
+import { PositionDateLine } from '@/components/features/position-date-line';
 import { PositionStatusBadge } from '@/components/features/status-badge';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { LocalTime } from '@/components/ui/local-time';
 import { Markdown } from '@/components/ui/markdown';
 import { WarningCallout } from '@/components/ui/warning-callout';
 
@@ -63,8 +62,6 @@ export default async function PublicPositionDetailPage({
   const isAuthenticated = view.user !== null;
   const availability = getPositionAvailability(position);
   const isAccepting = availability === 'accepting';
-  const isClosed =
-    availability === 'closed_by_date' || position.status === 'closed';
 
   return (
     <div className="flex flex-col gap-8">
@@ -81,6 +78,7 @@ export default async function PublicPositionDetailPage({
           </h1>
           <PositionStatusBadge position={position} />
         </div>
+        <PositionDateLine position={position} className="mt-3 text-base" />
       </div>
 
       {position.status === 'draft' && (
@@ -124,41 +122,22 @@ export default async function PublicPositionDetailPage({
       )}
 
       <div className="flex flex-wrap items-center gap-3">
-        {isAccepting && (
-          <>
-            {isAuthenticated ? (
-              <Button asChild>
-                <Link href={`/positions/${id}/apply`}>
-                  <ACTION_ICONS.submit />
-                  Apply now
-                </Link>
-              </Button>
-            ) : (
-              <Button asChild>
-                <Link href={`/login?redirectTo=/positions/${id}/apply`}>
-                  <ACTION_ICONS.submit />
-                  Apply
-                </Link>
-              </Button>
-            )}
-            {position.closesAt && (
-              <span className="text-muted-foreground text-sm">
-                Closes{' '}
-                <LocalTime date={position.closesAt} precision="datetime" />
-              </span>
-            )}
-          </>
-        )}
-        {availability === 'upcoming' && position.opensAt && (
-          <Badge variant="secondary">
-            Opens <LocalTime date={position.opensAt} precision="datetime" />
-          </Badge>
-        )}
-        {isClosed && position.closesAt && (
-          <span className="text-muted-foreground text-sm">
-            Closed <LocalTime date={position.closesAt} precision="datetime" />
-          </span>
-        )}
+        {isAccepting &&
+          (isAuthenticated ? (
+            <Button asChild>
+              <Link href={`/positions/${id}/apply`}>
+                <ACTION_ICONS.submit />
+                Apply now
+              </Link>
+            </Button>
+          ) : (
+            <Button asChild>
+              <Link href={`/login?redirectTo=/positions/${id}/apply`}>
+                <ACTION_ICONS.submit />
+                Apply
+              </Link>
+            </Button>
+          ))}
         {canManage && (
           <>
             <Button asChild variant="outline">

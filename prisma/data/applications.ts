@@ -31,7 +31,11 @@ import {
   type ReviewableApplicant,
   type Reviewer,
 } from '@/lib/types';
-import { canReviewPosition, isPositionActive } from '@/lib/utils';
+import {
+  canReviewPosition,
+  displayUserName,
+  isPositionActive,
+} from '@/lib/utils';
 
 const applicationSelect = {
   id: true,
@@ -248,7 +252,7 @@ export async function getApplicationStatusHistory(
     from: event.from,
     to: event.to,
     createdAt: event.createdAt,
-    changedByName: event.changedBy.name ?? event.changedBy.email,
+    changedByName: displayUserName(event.changedBy),
   }));
 }
 

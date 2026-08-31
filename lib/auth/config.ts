@@ -51,6 +51,15 @@ export const auth = betterAuth({
     },
   },
   databaseHooks: {
+    user: {
+      create: {
+        // Better Auth's email-otp flow writes name: "" for a first-time
+        // signup with no name; store NULL so it's not a "real" blank name.
+        before: async (user) => ({
+          data: { name: user.name.trim() || undefined },
+        }),
+      },
+    },
     session: {
       create: {
         // Throws — returning false leaves callers dereferencing a null session's .token.
