@@ -71,8 +71,8 @@ export default async function EditPositionPage({
       <PageHeader
         title={position.title}
         description={canEdit ? 'Edit position' : 'View position'}
-        backHref="/positions"
-        backLabel="Back to positions"
+        backHref="/my-positions"
+        backLabel="Back to My Positions"
       />
 
       {!canEdit && (
