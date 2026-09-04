@@ -10,6 +10,7 @@ import type { $Enums, Prisma } from '@/prisma/client';
 import type {
   APPLICATION_SORT_DIRECTIONS,
   APPLICATION_SORT_FIELDS,
+  PublicApplicationStatus,
   REVIEWER_APPLICATION_STATUSES,
 } from '@/lib/constants';
 
@@ -83,9 +84,14 @@ export type PositionForEdit = Prisma.PositionGetPayload<{
 }> & { questions: PositionQuestionForEdit[]; lastStatusChangeAt: Date | null };
 
 // Matches getApplicationForApply's query in prisma/data/applications.ts.
-export type DraftApplication = Prisma.ApplicationGetPayload<{
-  include: { globalAnswers: true; positionAnswers: true };
-}>;
+// status is overridden to the public value — applicant-facing, never the
+// internal reviewer status.
+export type DraftApplication = Omit<
+  Prisma.ApplicationGetPayload<{
+    include: { globalAnswers: true; positionAnswers: true };
+  }>,
+  'status'
+> & { status: PublicApplicationStatus };
 
 export type GlobalQuestionListItem = Prisma.GlobalQuestionGetPayload<{
   select: {
@@ -103,24 +109,28 @@ export type GlobalQuestionListItem = Prisma.GlobalQuestionGetPayload<{
 }>;
 
 // position.status/opensAt/closesAt let a row decide resubmit availability without a second query.
-export type MyApplicationListItem = Prisma.ApplicationGetPayload<{
-  select: {
-    id: true;
-    status: true;
-    submittedAt: true;
-    updatedAt: true;
-    positionId: true;
-    position: {
-      select: {
-        id: true;
-        title: true;
-        status: true;
-        opensAt: true;
-        closesAt: true;
+// status is the public value; lastSavedAt replaces updatedAt — null once
+// submitted, so a submitted row can never leak its last-touched time.
+export type MyApplicationListItem = Omit<
+  Prisma.ApplicationGetPayload<{
+    select: {
+      id: true;
+      status: true;
+      submittedAt: true;
+      positionId: true;
+      position: {
+        select: {
+          id: true;
+          title: true;
+          status: true;
+          opensAt: true;
+          closesAt: true;
+        };
       };
     };
-  };
-}>;
+  }>,
+  'status'
+> & { status: PublicApplicationStatus; lastSavedAt: Date | null };
 
 // Answer arrays overridden with the shape getMyApplication maps into. Extends
 // MyApplicationListItem so MyApplicationPrimaryAction/MyApplicationRowActions
@@ -357,10 +367,13 @@ export type PositionApplicationStats = {
 };
 
 // Feeds the browse page's applied marker on PositionCard. No applicant
-// identity, no answers — safe for a client leaf.
-export type MyPositionApplication = Prisma.ApplicationGetPayload<{
-  select: { id: true; positionId: true; status: true };
-}>;
+// identity, no answers — safe for a client leaf. status is the public value.
+export type MyPositionApplication = Omit<
+  Prisma.ApplicationGetPayload<{
+    select: { id: true; positionId: true; status: true };
+  }>,
+  'status'
+> & { status: PublicApplicationStatus };
 
 export interface NavIdentity {
   name: string | null;

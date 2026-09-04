@@ -9,7 +9,7 @@ import type { z } from 'zod/v4';
 import { updatePosition } from '@/prisma/actions/position-actions';
 import type { PositionStatus } from '@/prisma/client';
 
-import { STATUS_OPTIONS, positionFormSchema } from '@/lib/constants';
+import { POSITION_STATUS_OPTIONS, positionFormSchema } from '@/lib/constants';
 import { ACTION_ICONS } from '@/lib/icons';
 
 import { MarkdownField } from '@/components/features/markdown-field';
@@ -118,7 +118,7 @@ export function PositionDetailsForm({ position }: PositionDetailsFormProps) {
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {STATUS_OPTIONS.map((opt) => (
+                  {POSITION_STATUS_OPTIONS.map((opt) => (
                     <SelectItem key={opt.value} value={opt.value}>
                       {opt.label}
                     </SelectItem>

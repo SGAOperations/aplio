@@ -23,14 +23,7 @@ function buildCountsSummary(counts: Partial<Record<string, number>>): string {
   const draftCount = counts['draft'] ?? 0;
   const submittedParts: string[] = [];
 
-  const statusOrder = [
-    'applied',
-    'reached_out',
-    'interview_scheduled',
-    'reviewing',
-    'accepted',
-    'rejected',
-  ] as const;
+  const statusOrder = ['applied', 'accepted', 'rejected'] as const;
 
   for (const status of statusOrder) {
     const count = counts[status];

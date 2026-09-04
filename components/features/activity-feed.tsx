@@ -85,7 +85,7 @@ export async function ApplicantActivityFeed({
       id: app.id,
       statusVariant: variant,
       sentence: `Your application for ${app.position.title} is ${statusLabel}`,
-      timestamp: app.updatedAt,
+      timestamp: app.submittedAt,
     };
   });
 
