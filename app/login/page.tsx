@@ -46,13 +46,14 @@ export default async function SignInPage({
         description:
           "Enter your email to continue your application. We'll send you a one-time code.",
         sentDescription:
-          'Check your inbox for a one-time code to continue your application.',
+          'Check your inbox for a one-time code to continue your application. Delivery can take up to 5 minutes.',
       }
     : {
         title: 'Sign in',
         description:
           "Enter your email to sign in or create an account. We'll send you a one-time code.",
-        sentDescription: 'Check your inbox for a one-time code.',
+        sentDescription:
+          'Check your inbox for a one-time code. Delivery can take up to 5 minutes.',
       };
 
   return (

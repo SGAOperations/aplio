@@ -114,8 +114,8 @@ Anyone not signed in. The only routes they can use are `/positions`, `/positions
 ### AN-4 Sign in with an email code
 
 - **Trigger** — the email step on `/login`, any redirect from [XC-1](#xc-1-sign-in-gate-and-the-redirectto-round-trip), or the sign-in link/button in the OTP email (`/login?email=<address>&otp=<code>`).
-- **Happy path** — the email is validated against `signInEmailSchema`; `checkSignInAllowed` rejects deactivated accounts before any mail is sent; `isOtpResendAllowed` enforces the server-side cooldown; then `authClient.emailOtp.sendVerificationOtp`. Toast **"Code sent."** and the view switches to the 6-digit `InputOTP` step ("Check your inbox for a one-time code."). The code auto-submits at 6 digits via `authClient.signIn.emailOtp`, then `router.refresh()` hands the destination decision back to `/login`.
-- **Happy path — email link** — `/login` parses `email`/`otp` via `parseOtpLinkParams`; `LoginView` shows a "Signing you in…" panel, strips both params from the URL (`history.replaceState`) before calling `authClient.signIn.emailOtp` client-side with them, then `router.refresh()` — the same code path a typed code takes, so the rate limit, the 300s expiry and the 3-attempt cap all apply unchanged. Works on a device that never saw the email step, since the link carries the email itself. `redirectTo` is deliberately not carried in the link.
+- **Happy path** — the email is validated against `signInEmailSchema`; `checkSignInAllowed` rejects deactivated accounts before any mail is sent; `isOtpResendAllowed` enforces the server-side cooldown; then `authClient.emailOtp.sendVerificationOtp`. Toast **"Code sent."** and the view switches to the 6-digit `InputOTP` step ("Check your inbox for a one-time code. Delivery can take up to 5 minutes."). The code auto-submits at 6 digits via `authClient.signIn.emailOtp`, then `router.refresh()` hands the destination decision back to `/login`.
+- **Happy path — email link** — `/login` parses `email`/`otp` via `parseOtpLinkParams`; `LoginView` shows a "Signing you in…" panel, strips both params from the URL (`history.replaceState`) before calling `authClient.signIn.emailOtp` client-side with them, then `router.refresh()` — the same code path a typed code takes, so the rate limit, the 600s expiry and the 3-attempt cap all apply unchanged. Works on a device that never saw the email step, since the link carries the email itself. `redirectTo` is deliberately not carried in the link.
 - **Failure / edge**
   - Invalid email → inline field error "Please enter a valid email address"; nothing is sent.
   - Deactivated account → toast with `ACCOUNT_DEACTIVATED_MESSAGE`; stays on the email step ([XC-7](#xc-7-deactivated-account)).
@@ -132,7 +132,7 @@ Anyone not signed in. The only routes they can use are `/positions`, `/positions
 - **Trigger** — **Send a new code** on the OTP step.
 - **Happy path** — same `sendCode` path as [AN-4](#an-4-sign-in-with-an-email-code); the code field resets and toast **"New code sent."**
 - **Failure / edge**
-  - Within the cooldown → the button is disabled and counts down (`Send a new code (42s)`); `OTP_RESEND_COOLDOWN_SECONDS` is 60. The countdown is display only — `isOtpResendAllowed` reads the stored OTP's `createdAt` server-side, so a tampered or skewed client timer still gets the 429 message.
+  - Within the cooldown → the button is disabled and counts down (`Send a new code (2:53)`); `OTP_RESEND_COOLDOWN_SECONDS` is 180. The countdown is display only — `isOtpResendAllowed` reads the stored OTP's `createdAt` server-side, so a tampered or skewed client timer still gets the 429 message.
   - Send fails → error toast; the previous code remains valid until it expires.
 - **End state** — a fresh OTP; the cooldown restarts.
 

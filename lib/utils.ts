@@ -431,6 +431,14 @@ export function formatPaginationSummary({
   return `Showing ${rangeStart}–${rangeEnd} of ${total} ${matching}${nounLabel}`;
 }
 
+/** `m:ss`, always minutes-and-seconds (never a bare second count); negative clamps to `0:00`. */
+export function formatCountdown(seconds: number): string {
+  const clamped = Math.max(0, Math.ceil(seconds));
+  const minutes = Math.floor(clamped / 60);
+  const rest = clamped % 60;
+  return `${minutes}:${String(rest).padStart(2, '0')}`;
+}
+
 interface RoleTokenInput {
   isAdmin: boolean;
   managedPositions: readonly unknown[];
