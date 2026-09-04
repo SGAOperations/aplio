@@ -26,11 +26,7 @@ export const applyNavItems: NavItem[] = [
 
 // Shown to admins AND managers — anyone who can review applications.
 export const manageReviewerNavItems: NavItem[] = [
-  {
-    href: '/manage/positions',
-    label: 'Manage Positions',
-    icon: FolderKanban,
-  },
+  { href: '/manage/positions', label: 'Manage Positions', icon: FolderKanban },
   {
     href: '/applications',
     label: 'Applications',
