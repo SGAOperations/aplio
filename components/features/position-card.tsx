@@ -174,7 +174,9 @@ export function PositionCard({
                     </Link>
                   </Button>
                   <Button asChild variant="outline" size="sm">
-                    <Link href={`/applications?positionId=${position.id}`}>
+                    <Link
+                      href={`/manage/applications?positionId=${position.id}`}
+                    >
                       <CONCEPT_ICONS.application />
                       Applications
                     </Link>

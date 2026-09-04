@@ -26,7 +26,7 @@ export async function RecentApplications({
       title="Recent Applications"
       icon={CONCEPT_ICONS.application}
       link={{
-        href: '/applications',
+        href: '/manage/applications',
         label: 'See all',
         ariaLabel: 'See all applications',
       }}
@@ -65,7 +65,7 @@ function ApplicationList({
           >
             {/* order-* keeps one DOM order for both the stacked mobile layout and the single desktop line */}
             <Link
-              href={`/applications/${app.id}`}
+              href={`/manage/applications/${app.id}`}
               className="order-1 flex min-h-11 min-w-0 flex-1 items-center hover:underline md:min-h-0"
             >
               <span className="min-w-0 flex-1 truncate text-sm font-medium">

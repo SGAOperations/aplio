@@ -28,7 +28,7 @@ export const applyNavItems: NavItem[] = [
 export const manageReviewerNavItems: NavItem[] = [
   { href: '/manage/positions', label: 'Manage Positions', icon: FolderKanban },
   {
-    href: '/applications',
+    href: '/manage/applications',
     label: 'Applications',
     icon: CONCEPT_ICONS.application,
   },

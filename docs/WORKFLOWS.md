@@ -169,7 +169,7 @@ Anyone not signed in. The only routes they can use are `/positions`, `/positions
 
 ### Known open
 
-- `/positions` has no search, filter or sort — it renders every open position as a flat card list, so it degrades as the catalogue grows. `/applications` has the only filtering UI in the app.
+- `/positions` has no search, filter or sort — it renders every open position as a flat card list, so it degrades as the catalogue grows. `/manage/applications` has the only filtering UI in the app.
 
 ---
 
@@ -403,7 +403,7 @@ A user who manages at least one non-deleted position. Manager status is **derive
 ### PM-4 Edit position details
 
 - **Trigger** — **Edit** on `/positions/[id]`, or a managed position card (`/manage/positions/[id]/edit`, Details tab).
-- **Happy path** — the page loads the position, then `requireListedManagerOr404` against the already-loaded managers list. `PositionDetailsForm` submits `updatePosition`, which authenticates, checks existence, checks access, then checks editability. Toast **"Position updated"**; the position, its detail page, the dashboard, `/my-applications` and `/applications` are all revalidated because a status flip changes what every surface shows.
+- **Happy path** — the page loads the position, then `requireListedManagerOr404` against the already-loaded managers list. `PositionDetailsForm` submits `updatePosition`, which authenticates, checks existence, checks access, then checks editability. Toast **"Position updated"**; the position, its detail page, the dashboard, `/my-applications` and `/manage/applications` are all revalidated because a status flip changes what every surface shows.
 - **Failure / edge**
   - Position missing or soft-deleted → `notFound()`, checked **before** the access guard so both paths 404 identically.
   - Not a listed manager and not an admin → `notFound()`.
@@ -448,7 +448,7 @@ A user who manages at least one non-deleted position. Manager status is **derive
 
 ### PM-8 Work the application queue
 
-- **Trigger** — Applications under **Manage** (`/applications`), or the **Applications** button on a managed position, which pre-applies `?positionId=`.
+- **Trigger** — Applications under **Manage** (`/manage/applications`), or the **Applications** button on a managed position, which pre-applies `?positionId=`.
 - **Happy path** — `requireManagerOrAdminOr404` gates the role (the `(auth)` layout only gates profile completeness). Query params are parsed with `.catch(undefined)` per field, so one malformed param never sinks the rest. The toolbar offers a position filter ("All positions"), an applicant filter ("All applicants"), a status filter ("All statuses"), a debounced search over "Name, email, position, or date", **Clear filters**, and sortable columns (date, name, status). Results are scoped by `buildApplicationWhere(user, 'reviewable')` — a manager sees only their positions' applications; drafts and withdrawn rows are excluded. The position title in each row links to `/positions/[id]`. The applicant option list (`getReviewableApplicants`) is scoped the same way the results are, so a manager only ever sees applicants who applied to positions they manage. For the four unresolved statuses, each row's `⋯` opens the same `ApplicationStatusMenu` items as the detail page's caret ([PM-11](#pm-11-move-one-application-through-the-status-path)) with the next step as the first item instead of hoisted, ending in **See more** — no separator between the next step and Reject when the next step already is Accept (`reviewing`). `accepted`/`rejected` rows render no action control at all — the row returns `null`, mirroring the non-reviewable early return already in the same component; changing a final decision is detail-page only ([PM-14](#pm-14-override-a-status-undo-or-review-its-history)). Opening the dialog via **See more** calls the read-only `loadApplicationStatusHistory` action since the table has no pre-fetched history per row, showing the dialog's loading skeleton while the fetch is in flight.
 - **Failure / edge**
   - Not a manager or admin → `notFound()`.
@@ -460,8 +460,8 @@ A user who manages at least one non-deleted position. Manager status is **derive
 
 ### PM-9 Open an application for review
 
-- **Trigger** — a row on `/applications` (`/applications/[id]`).
-- **Happy path** — `getApplicationForReview(id, user)` uses the `listable` scope — withdrawn rows are kept, drafts are not — and `getApplicationStatusHistory(id, user)` fetches alongside it. The page shows a "Back to Applications" link, then a header row with the applicant's snapshotted name and status badge together, their email underneath, and a header action appropriate to status, right-aligned on that same row — a split button for the four unresolved statuses (its caret dropdown ends in **See more**, which opens the status dialog; there is no separate standalone `⋯` alongside it since that would duplicate the caret item), a `⋯` opening the dialog directly for non-reviewable statuses, or a **Change decision** button for terminal decisions; below it, a linked position title and the applied date, then an "Other applications" section (`getApplicantOtherApplications`) followed by the profile and position answer groups full width. The "Other applications" section lists this applicant's other applications platform-wide — including positions the viewer doesn't manage — with precise status, applied date, and the position title linked to `/positions/[id]`; a row links to `/applications/[id]` only when the viewer can actually open it (admin, or a manager of that position) — otherwise the row shows no link at all. Answers render by shape (short/single/multiple choice in a label-value row, long answers full-width as prose, files as a Download row) from the snapshotted `questionLabel`/`value`/`type` — never a live question lookup, so a question retyped or relabeled after submission still shows the original label and every stored value. See `PERMISSIONS.md` → "Cross-scope disclosure" for the authorization rule.
+- **Trigger** — a row on `/manage/applications` (`/manage/applications/[id]`).
+- **Happy path** — `getApplicationForReview(id, user)` uses the `listable` scope — withdrawn rows are kept, drafts are not — and `getApplicationStatusHistory(id, user)` fetches alongside it. The page shows a "Back to Applications" link, then a header row with the applicant's snapshotted name and status badge together, their email underneath, and a header action appropriate to status, right-aligned on that same row — a split button for the four unresolved statuses (its caret dropdown ends in **See more**, which opens the status dialog; there is no separate standalone `⋯` alongside it since that would duplicate the caret item), a `⋯` opening the dialog directly for non-reviewable statuses, or a **Change decision** button for terminal decisions; below it, a linked position title and the applied date, then an "Other applications" section (`getApplicantOtherApplications`) followed by the profile and position answer groups full width. The "Other applications" section lists this applicant's other applications platform-wide — including positions the viewer doesn't manage — with precise status, applied date, and the position title linked to `/positions/[id]`; a row links to `/manage/applications/[id]` only when the viewer can actually open it (admin, or a manager of that position) — otherwise the row shows no link at all. Answers render by shape (short/single/multiple choice in a label-value row, long answers full-width as prose, files as a Download row) from the snapshotted `questionLabel`/`value`/`type` — never a live question lookup, so a question retyped or relabeled after submission still shows the original label and every stored value. See `PERMISSIONS.md` → "Cross-scope disclosure" for the authorization rule.
 - **Failure / edge**
   - Outside the caller's scope, a draft, or missing → `notFound()`; unauthorized and missing are indistinguishable.
   - The applicant renamed themselves since submitting → the heading reads "<snapshotted name> (<current name>)".
@@ -475,7 +475,7 @@ A user who manages at least one non-deleted position. Manager status is **derive
 
 ### PM-10 Download an applicant's file answer
 
-- **Trigger** — the **Download** button on a file answer on `/applications/[id]`.
+- **Trigger** — the **Download** button on a file answer on `/manage/applications/[id]`.
 - **Happy path** — same action and same by-row authorization as [AP-12](#ap-12-download-your-own-file-answer); a reviewer qualifies through the position-manager branch of the scope rather than ownership.
 - **Failure / edge** — as [AP-12](#ap-12-download-your-own-file-answer). An application outside the reviewer's scope throws rather than returning a message.
 - **End state** — the file is on the reviewer's device; nothing is written.
@@ -490,11 +490,11 @@ A user who manages at least one non-deleted position. Manager status is **derive
   - The status changed between the check and the write → **"This application just changed. Refresh to see its current status."**
   - The application is outside the caller's reviewable scope → the action throws (IDOR-shaped, unreachable from the UI) → generic toast.
   - `draft` and `withdrawn` render the header's note copy plus `⋯` instead of a move control; `accepted`/`rejected` render the terminal-decision note plus a **Change decision** button — neither renders the split button.
-- **End state** — the new status, plus one `ApplicationStatusEvent` row recording it; `/applications` and the detail page are revalidated. `accepted`/`rejected` also remove the applicant's ability to withdraw ([AP-13](#ap-13-withdraw-an-application)).
+- **End state** — the new status, plus one `ApplicationStatusEvent` row recording it; `/manage/applications` and the detail page are revalidated. `accepted`/`rejected` also remove the applicant's ability to withdraw ([AP-13](#ap-13-withdraw-an-application)).
 
 ### PM-12 Move several applications at once
 
-- **Trigger** — selecting rows on `/applications`, then a target status in the bulk bar, behind a confirmation.
+- **Trigger** — selecting rows on `/manage/applications`, then a target status in the bulk bar, behind a confirmation.
 - **Happy path** — the target Select offers all six reviewer statuses. `updateApplicationStatuses` dedupes the ids, reads each eligible row's current status, then compare-and-swaps every row inside one transaction so the target set cannot drift mid-write, recording one `ApplicationStatusEvent` per row actually moved. Eligibility is any reviewer status but the target itself, excluding `draft`/`withdrawn` — the forward-only restriction is retired, so a backward move or a flip of a final decision both apply in bulk now. Before anything is written, the confirmation states the split computed by `summarizeBulkStatusChange` (`lib/utils.ts`, via `getApplicationStatusRank`): "N will move forward.", "M will move backward.", "K will change a final decision — it's currently Accepted or Rejected.", "J skipped — drafts, withdrawn, or already <Target>.", plus a line about applicant visibility: "Applicants will see this decision on their application." when the target itself is Accepted/Rejected; when the target isn't a decision but the batch reverses one, "Applicants whose decision is reversed will see this change; the rest still show as Applied."; only when the batch has no final-decision rows at all does it read "Applicants won't see this change — every in-review application shows as Applied to them." (`summary.applicantVisible`). Toast **"Updated N application(s)"**; deliberately no confetti here — bulk moves many rows at once with no single moment to animate ([PM-11](#pm-11-move-one-application-through-the-status-path) has the single-row burst).
 - **Failure / edge**
   - Some ids ineligible → **"Updated N of M applications"** with the description "N skipped — drafts, withdrawn, or already <Target>."
@@ -527,11 +527,11 @@ A user who manages at least one non-deleted position. Manager status is **derive
   - No events at all (an application created outside the app's own write paths, e.g. a fixture or seed) → "No status changes recorded yet." instead of an empty list.
   - The table row's history fetch fails → "Couldn't load the history. Close this and try again." plus an error toast.
   - Unexpected throw → generic toast.
-- **End state** — the dialog stays open after a successful change so the reviewer watches the new row land in the timeline; the header, `/applications`, and this page are all revalidated.
+- **End state** — the dialog stays open after a successful change so the reviewer watches the new row land in the timeline; the header, `/manage/applications`, and this page are all revalidated.
 
 ### Known open
 
-- `/applications` truncates at 100 rows with no pagination or cursor — the toolbar reports the truncation but there is no way to reach row 101 except by filtering.
+- `/manage/applications` truncates at 100 rows with no pagination or cursor — the toolbar reports the truncation but there is no way to reach row 101 except by filtering.
 - No notification of any kind is sent on a status change — an applicant learns their outcome only by revisiting `/my-applications`.
 
 ---

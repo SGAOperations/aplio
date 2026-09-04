@@ -147,7 +147,7 @@ export async function updatePosition(
   // status can flip open <-> draft, changing what every surface shows.
   revalidatePath('/');
   revalidatePath('/my-applications');
-  revalidatePath('/applications');
+  revalidatePath('/manage/applications');
 }
 
 export async function deletePosition(
@@ -190,7 +190,7 @@ export async function deletePosition(
   // Soft-deleting hides this position's applications everywhere.
   revalidatePath('/');
   revalidatePath('/my-applications');
-  revalidatePath('/applications');
+  revalidatePath('/manage/applications');
 }
 
 export async function addPositionManager(

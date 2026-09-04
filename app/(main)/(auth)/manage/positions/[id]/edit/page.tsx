@@ -90,7 +90,7 @@ export default async function EditPositionPage({
                 {unresolvedTotal === 1 ? 'application is' : 'applications are'}{' '}
                 still awaiting a decision — reviewing is not blocked.{' '}
                 <Link
-                  href={`/applications?positionId=${position.id}`}
+                  href={`/manage/applications?positionId=${position.id}`}
                   className="underline underline-offset-2"
                 >
                   Review applications

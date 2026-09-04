@@ -56,7 +56,7 @@ export default async function ApplicationDetailPage({
         <PageHeader
           title={renamedTo ? `${applicantName} (${renamedTo})` : applicantName}
           description={application.user.email}
-          backHref="/applications"
+          backHref="/manage/applications"
           backLabel="Back to Applications"
           titleAdornment={
             <ApplicationStatusBadge status={application.status} />
