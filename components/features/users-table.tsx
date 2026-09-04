@@ -16,6 +16,7 @@ import {
 import { ACTION_ICONS, CONCEPT_ICONS } from '@/lib/icons';
 import type { AdminUserListItem } from '@/lib/types';
 import {
+  cn,
   displayUserName,
   formatTableCount,
   getUserName,
@@ -23,7 +24,7 @@ import {
   getUserRoleTokens,
 } from '@/lib/utils';
 
-import { Badge } from '@/components/ui/badge';
+import { Badge, badgeVariants } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { DataTable, DataTableRowActions } from '@/components/ui/data-table';
@@ -41,6 +42,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface UsersTableProps {
   users: AdminUserListItem[];
@@ -61,6 +68,36 @@ interface AdminTarget {
 interface DeactivateTarget {
   id: string;
   displayName: string;
+}
+
+// Controlled so onClick can force `open` after Radix's pointerdown-close
+// reopens on the subsequent click — the tap path on touch devices.
+function ManagedPositionsOverflow({
+  hidden,
+}: {
+  hidden: AdminUserListItem['managedPositions'];
+}) {
+  const [open, setOpen] = useState(false);
+  const titles = hidden.map((p) => p.title).join(', ');
+  return (
+    <Tooltip open={open} onOpenChange={setOpen}>
+      <TooltipTrigger
+        type="button"
+        className={cn(badgeVariants({ variant: 'outline' }), 'cursor-pointer')}
+        onClick={() => setOpen(true)}
+      >
+        +{hidden.length} more
+        <span className="sr-only">: {titles}</span>
+      </TooltipTrigger>
+      <TooltipContent className="max-h-64 overflow-y-auto">
+        <ul>
+          {hidden.map((pos) => (
+            <li key={pos.id}>{pos.title}</li>
+          ))}
+        </ul>
+      </TooltipContent>
+    </Tooltip>
+  );
 }
 
 export function UsersTable({ users, currentUserId }: UsersTableProps) {
@@ -171,9 +208,9 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
                 </Badge>
               ))}
               {u.managedPositions.length > 2 && (
-                <Badge variant="outline">
-                  +{u.managedPositions.length - 2} more
-                </Badge>
+                <ManagedPositionsOverflow
+                  hidden={u.managedPositions.slice(2)}
+                />
               )}
             </div>
           );
@@ -301,189 +338,190 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
 
   return (
     <>
-      <div className="flex flex-col gap-4">
-        <DataTableToolbar>
-          <DataTableToolbarField label="Role" htmlFor="users-role-filter">
-            <Select value={roleFilter} onValueChange={setRoleFilter}>
-              <SelectTrigger id="users-role-filter" className="w-full">
-                <SelectValue placeholder="All roles" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All roles</SelectItem>
-                {USER_ROLE_FILTER_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </DataTableToolbarField>
-
-          {positionOptions.length > 0 && (
-            <DataTableToolbarField
-              label="Managed position"
-              htmlFor="users-position-filter"
-            >
-              <Select value={positionFilter} onValueChange={setPositionFilter}>
-                <SelectTrigger id="users-position-filter" className="w-full">
-                  <SelectValue placeholder="All positions" />
+      <TooltipProvider delayDuration={300}>
+        <div className="flex flex-col gap-4">
+          <DataTableToolbar>
+            <DataTableToolbarField label="Role" htmlFor="users-role-filter">
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger id="users-role-filter" className="w-full">
+                  <SelectValue placeholder="All roles" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All positions</SelectItem>
-                  {positionOptions.map((pos) => (
-                    <SelectItem key={pos.id} value={pos.id}>
-                      {pos.title}
+                  <SelectItem value="">All roles</SelectItem>
+                  {USER_ROLE_FILTER_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </DataTableToolbarField>
-          )}
 
-          <DataTableToolbarField
-            label="Search"
-            htmlFor="users-search"
-            className="sm:w-64"
-          >
-            <Input
-              id="users-search"
-              placeholder="Search by name or email"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </DataTableToolbarField>
+            {positionOptions.length > 0 && (
+              <DataTableToolbarField
+                label="Managed position"
+                htmlFor="users-position-filter"
+              >
+                <Select
+                  value={positionFilter}
+                  onValueChange={setPositionFilter}
+                >
+                  <SelectTrigger id="users-position-filter" className="w-full">
+                    <SelectValue placeholder="All positions" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All positions</SelectItem>
+                    {positionOptions.map((pos) => (
+                      <SelectItem key={pos.id} value={pos.id}>
+                        {pos.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </DataTableToolbarField>
+            )}
 
-          {isFiltered && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={clearFilters}
-              className="w-full sm:w-auto"
+            <DataTableToolbarField
+              label="Search"
+              htmlFor="users-search"
+              className="sm:w-64"
             >
-              <ACTION_ICONS.clearFilters />
-              Clear filters
-            </Button>
-          )}
+              <Input
+                id="users-search"
+                placeholder="Search by name or email"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </DataTableToolbarField>
 
-          <p
-            aria-live="polite"
-            className="text-muted-foreground w-full text-sm sm:ml-auto sm:w-auto sm:self-end"
-          >
-            {formatTableCount({
-              shown: filtered.length,
-              total: users.length,
-              noun: 'user',
-              isFiltered,
-            })}
-            {` · ${adminCount} ${adminCount === 1 ? 'admin' : 'admins'} · ${managerCount} ${managerCount === 1 ? 'manager' : 'managers'}`}
-          </p>
-        </DataTableToolbar>
+            {isFiltered && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="w-full sm:w-auto"
+              >
+                <ACTION_ICONS.clearFilters />
+                Clear filters
+              </Button>
+            )}
 
-        <DataTable
-          rows={filtered}
-          columns={COLUMNS}
-          getRowKey={(u) => u.id}
-          caption="Users"
-          defaultSort={{ key: 'roles', direction: 'asc' }}
-          noMatchMessage="No users match your filters."
-          mobileCard={(user) => {
-            const isSelf = user.id === currentUserId;
-            const isManager = getUserRoleTokens(user).includes('manager');
-            const appCount = user._count.applications;
-            const name = getUserName(user);
-            return (
-              <div className="flex flex-col gap-3 p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex flex-col">
-                    <span className="font-medium">{name ?? user.email}</span>
-                    {name && (
-                      <span className="text-muted-foreground text-xs">
-                        {user.email}
+            <p
+              aria-live="polite"
+              className="text-muted-foreground w-full text-sm sm:ml-auto sm:w-auto sm:self-end"
+            >
+              {formatTableCount({
+                shown: filtered.length,
+                total: users.length,
+                noun: 'user',
+                isFiltered,
+              })}
+              {` · ${adminCount} ${adminCount === 1 ? 'admin' : 'admins'} · ${managerCount} ${managerCount === 1 ? 'manager' : 'managers'}`}
+            </p>
+          </DataTableToolbar>
+
+          <DataTable
+            rows={filtered}
+            columns={COLUMNS}
+            getRowKey={(u) => u.id}
+            caption="Users"
+            defaultSort={{ key: 'roles', direction: 'asc' }}
+            noMatchMessage="No users match your filters."
+            mobileCard={(user) => {
+              const isSelf = user.id === currentUserId;
+              const isManager = getUserRoleTokens(user).includes('manager');
+              const appCount = user._count.applications;
+              const name = getUserName(user);
+              return (
+                <div className="flex flex-col gap-3 p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex flex-col">
+                      <span className="font-medium">{name ?? user.email}</span>
+                      {name && (
+                        <span className="text-muted-foreground text-xs">
+                          {user.email}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap justify-end gap-1">
+                      {user.isAdmin && <Badge variant="default">Admin</Badge>}
+                      {isManager && <Badge variant="secondary">Manager</Badge>}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                    <span className="text-muted-foreground">
+                      Joined{' '}
+                      <LocalTime date={user.createdAt} precision="date" />
+                    </span>
+                    {appCount > 0 ? (
+                      <Button
+                        variant="link"
+                        size="sm"
+                        asChild
+                        className="h-auto p-0"
+                      >
+                        <Link href={`/applications?userId=${user.id}`}>
+                          {appCount}{' '}
+                          {appCount === 1 ? 'application' : 'applications'}
+                        </Link>
+                      </Button>
+                    ) : (
+                      <span className="text-muted-foreground">
+                        0 applications
                       </span>
                     )}
                   </div>
-                  <div className="flex flex-wrap justify-end gap-1">
-                    {user.isAdmin && <Badge variant="default">Admin</Badge>}
-                    {isManager && <Badge variant="secondary">Manager</Badge>}
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-                  <span className="text-muted-foreground">
-                    Joined <LocalTime date={user.createdAt} precision="date" />
-                  </span>
-                  {appCount > 0 ? (
-                    <Button
-                      variant="link"
-                      size="sm"
-                      asChild
-                      className="h-auto p-0"
-                    >
-                      <Link href={`/applications?userId=${user.id}`}>
-                        {appCount}{' '}
-                        {appCount === 1 ? 'application' : 'applications'}
-                      </Link>
-                    </Button>
-                  ) : (
-                    <span className="text-muted-foreground">
-                      0 applications
-                    </span>
+                  {isManager && (
+                    <div className="flex flex-wrap gap-1">
+                      {user.managedPositions.map((pos) => (
+                        <Badge key={pos.id} variant="outline">
+                          {pos.title}
+                        </Badge>
+                      ))}
+                    </div>
                   )}
+                  <DataTableRowActions>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={isSelf}
+                      title={
+                        isSelf
+                          ? 'You cannot change your own admin role'
+                          : undefined
+                      }
+                      aria-disabled={isSelf}
+                      onClick={() => openAdminDialog(user)}
+                    >
+                      {user.isAdmin ? (
+                        <ACTION_ICONS.demote />
+                      ) : (
+                        <ACTION_ICONS.promote />
+                      )}
+                      {user.isAdmin ? 'Remove admin' : 'Make admin'}
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      disabled={isSelf}
+                      title={
+                        isSelf
+                          ? 'You cannot deactivate your own account'
+                          : undefined
+                      }
+                      aria-disabled={isSelf}
+                      onClick={() => openDeactivateDialog(user)}
+                    >
+                      <ACTION_ICONS.deactivate />
+                      Deactivate
+                    </Button>
+                  </DataTableRowActions>
                 </div>
-                {isManager && (
-                  <div className="flex flex-wrap gap-1">
-                    {user.managedPositions.slice(0, 2).map((pos) => (
-                      <Badge key={pos.id} variant="outline">
-                        {pos.title}
-                      </Badge>
-                    ))}
-                    {user.managedPositions.length > 2 && (
-                      <Badge variant="outline">
-                        +{user.managedPositions.length - 2} more
-                      </Badge>
-                    )}
-                  </div>
-                )}
-                <DataTableRowActions>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={isSelf}
-                    title={
-                      isSelf
-                        ? 'You cannot change your own admin role'
-                        : undefined
-                    }
-                    aria-disabled={isSelf}
-                    onClick={() => openAdminDialog(user)}
-                  >
-                    {user.isAdmin ? (
-                      <ACTION_ICONS.demote />
-                    ) : (
-                      <ACTION_ICONS.promote />
-                    )}
-                    {user.isAdmin ? 'Remove admin' : 'Make admin'}
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    disabled={isSelf}
-                    title={
-                      isSelf
-                        ? 'You cannot deactivate your own account'
-                        : undefined
-                    }
-                    aria-disabled={isSelf}
-                    onClick={() => openDeactivateDialog(user)}
-                  >
-                    <ACTION_ICONS.deactivate />
-                    Deactivate
-                  </Button>
-                </DataTableRowActions>
-              </div>
-            );
-          }}
-        />
-      </div>
+              );
+            }}
+          />
+        </div>
+      </TooltipProvider>
 
       <ConfirmDialog
         open={adminDialogOpen}
