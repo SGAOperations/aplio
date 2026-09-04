@@ -107,6 +107,14 @@ describe('getPositionDateInfo', () => {
     ).toEqual({ label: 'Opens', date: opensAt, emphasis: 'calm' });
   });
 
+  it('reads Opens, calm, for a draft with a past open date', () => {
+    const opensAt = new Date(NOW);
+    opensAt.setDate(opensAt.getDate() - 5);
+    expect(
+      getPositionDateInfo({ status: 'draft', opensAt, closesAt: null }, NOW),
+    ).toEqual({ label: 'Opens', date: opensAt, emphasis: 'calm' });
+  });
+
   it('prefers closesAt over opensAt for a draft with both', () => {
     const opensAt = new Date(NOW);
     opensAt.setDate(opensAt.getDate() + 1);
