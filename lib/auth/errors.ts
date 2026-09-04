@@ -13,7 +13,7 @@ const TOO_MANY_ATTEMPTS_MESSAGE =
 const VERIFY_RATE_LIMITED_MESSAGE =
   'Too many attempts. Wait a minute, then send a new code.';
 const SEND_RATE_LIMITED_MESSAGE =
-  'Too many requests. Wait a minute, then try again.';
+  'Too many requests. Wait a few minutes, then try again.';
 
 function readString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;

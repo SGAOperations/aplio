@@ -25,7 +25,7 @@ import {
   signInEmailSchema,
 } from '@/lib/constants';
 import { ACTION_ICONS } from '@/lib/icons';
-import { isError } from '@/lib/utils';
+import { formatCountdown, isError } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -304,10 +304,21 @@ export function LoginView({ copy, otpLink }: LoginViewProps) {
           className="w-full"
         >
           {isResending && <ACTION_ICONS.pending className="animate-spin" />}
-          {resendSecondsLeft > 0
-            ? `Send a new code (${resendSecondsLeft}s)`
-            : 'Send a new code'}
+          {resendSecondsLeft > 0 ? (
+            <>
+              Send a new code (
+              <span className="tabular-nums">
+                {formatCountdown(resendSecondsLeft)}
+              </span>
+              )
+            </>
+          ) : (
+            'Send a new code'
+          )}
         </Button>
+        <p className="sr-only" aria-live="polite">
+          {resendSecondsLeft === 0 && 'You can request a new code now.'}
+        </p>
 
         <Button
           variant="secondary"

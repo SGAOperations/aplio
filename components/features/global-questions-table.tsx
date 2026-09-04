@@ -62,7 +62,11 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
         header: 'Label',
         cellClassName: 'font-medium',
         sortAccessor: (q) => q.label,
-        cell: (q) => q.label,
+        cell: (q) => (
+          <span className="block max-w-md [overflow-wrap:anywhere] whitespace-normal">
+            {q.label}
+          </span>
+        ),
       },
       {
         key: 'type',
@@ -91,6 +95,7 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
             <QuestionOptionChips
               options={q.options}
               allowOther={q.allowOther}
+              className="max-w-xs"
             />
           ) : (
             <span className="text-muted-foreground">—</span>
@@ -195,8 +200,10 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
         mobileCard={(question) => (
           <div className="flex flex-col gap-3 p-4">
             <div className="flex items-start justify-between gap-2">
-              <p className="font-medium">{question.label}</p>
-              <div className="flex items-center gap-2">
+              <p className="min-w-0 flex-1 font-medium [overflow-wrap:anywhere]">
+                {question.label}
+              </p>
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
                 <Badge variant={QUESTION_TYPE_BADGE_VARIANT[question.type]}>
                   {QUESTION_TYPE_LABELS[question.type]}
                 </Badge>

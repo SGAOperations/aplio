@@ -105,11 +105,12 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
         cell: (u) => {
           const name = getUserName(u);
           return (
-            <div className="flex flex-col">
+            // Matches the name+email stack so nameless rows keep row height.
+            <div className="flex min-h-9 flex-col justify-center">
               <span className="font-medium">{name ?? u.email}</span>
-              <span className="text-muted-foreground text-xs">
-                {name ? u.email : 'No name yet'}
-              </span>
+              {name && (
+                <span className="text-muted-foreground text-xs">{u.email}</span>
+              )}
             </div>
           );
         },
@@ -395,9 +396,11 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex flex-col">
                     <span className="font-medium">{name ?? user.email}</span>
-                    <span className="text-muted-foreground text-xs">
-                      {name ? user.email : 'No name yet'}
-                    </span>
+                    {name && (
+                      <span className="text-muted-foreground text-xs">
+                        {user.email}
+                      </span>
+                    )}
                   </div>
                   <div className="flex flex-wrap justify-end gap-1">
                     {user.isAdmin && <Badge variant="default">Admin</Badge>}

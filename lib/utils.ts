@@ -15,6 +15,7 @@ import type {
   AnswerQuestion,
   PositionActivity,
   PositionAvailability,
+  PositionDateInfo,
   PositionWindow,
   Reviewer,
   UserRoleFilter,
@@ -300,6 +301,33 @@ export function isAcceptingApplications(
   return getPositionAvailability(position, now) === 'accepting';
 }
 
+export function getPositionDateInfo(
+  position: PositionWindow,
+  now: Date = new Date(),
+): PositionDateInfo | null {
+  if (position.status === 'draft') {
+    if (position.closesAt)
+      return { label: 'Closes', date: position.closesAt, emphasis: 'calm' };
+    if (position.opensAt)
+      return { label: 'Opens', date: position.opensAt, emphasis: 'calm' };
+    return null;
+  }
+
+  // Past the draft branch, 'unavailable' can only mean status 'closed'.
+  const availability = getPositionAvailability(position, now);
+  if (availability === 'accepting' && position.closesAt)
+    return { label: 'Closes', date: position.closesAt, emphasis: 'live' };
+  if (availability === 'upcoming' && position.opensAt)
+    return { label: 'Opens', date: position.opensAt, emphasis: 'live' };
+  if (
+    (availability === 'closed_by_date' || availability === 'unavailable') &&
+    position.closesAt
+  )
+    return { label: 'Closed', date: position.closesAt, emphasis: 'calm' };
+
+  return null;
+}
+
 /**
  * Single source of truth for active vs archived — a second implementation is
  * an authorization bug, not just a display bug.
@@ -429,6 +457,14 @@ export function formatPaginationSummary({
   if (rangeStart === 1 && rangeEnd === total)
     return `${total} ${matching}${nounLabel}`;
   return `Showing ${rangeStart}–${rangeEnd} of ${total} ${matching}${nounLabel}`;
+}
+
+/** `m:ss`, always minutes-and-seconds (never a bare second count); negative clamps to `0:00`. */
+export function formatCountdown(seconds: number): string {
+  const clamped = Math.max(0, Math.ceil(seconds));
+  const minutes = Math.floor(clamped / 60);
+  const rest = clamped % 60;
+  return `${minutes}:${String(rest).padStart(2, '0')}`;
 }
 
 interface RoleTokenInput {
