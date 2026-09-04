@@ -12,6 +12,7 @@ import {
   UNRESOLVED_APPLICATION_STATUSES,
   getAnswerBlurError,
   getAnswerValueError,
+  getStatusOptions,
   matchesShortAnswerFormat,
   positionFormSchema,
 } from '@/lib/constants';
@@ -353,5 +354,36 @@ describe('validatePositionDates (via positionFormSchema)', () => {
     expect(
       result.error.issues.some((issue) => issue.path.join('.') === 'opensAt'),
     ).toBe(true);
+  });
+});
+
+describe('getStatusOptions', () => {
+  it('offers every status to an admin, regardless of current status', () => {
+    expect(getStatusOptions(true).map((o) => o.value)).toContain('open');
+    expect(getStatusOptions(true, 'closed').map((o) => o.value)).toContain(
+      'open',
+    );
+  });
+
+  it('omits open for a manager with no current status (create)', () => {
+    expect(getStatusOptions(false).map((o) => o.value)).toEqual([
+      'draft',
+      'closed',
+    ]);
+  });
+
+  it('keeps open selectable for a manager when the position is already open', () => {
+    expect(getStatusOptions(false, 'open').map((o) => o.value)).toContain(
+      'open',
+    );
+  });
+
+  it('omits open for a manager editing a draft or closed position', () => {
+    expect(getStatusOptions(false, 'draft').map((o) => o.value)).not.toContain(
+      'open',
+    );
+    expect(getStatusOptions(false, 'closed').map((o) => o.value)).not.toContain(
+      'open',
+    );
   });
 });

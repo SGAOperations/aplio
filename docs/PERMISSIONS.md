@@ -60,8 +60,8 @@ Four principals, each derived rather than stored as a single role field:
 | `applications.ts` — `updateApplicationStatus`                                                                                             | query-scoped via `buildApplicationWhere(user, 'reviewable')` (no named guard)                                                                                     | miss → **throw** (IDOR-style, unreachable from the UI, not `{ error }`); stale-but-visible transition → `{ error }` from `isAllowedApplicationStatusTransition`                              | throw on scope miss, `{ error }` on invalid transition or write race                                                                      |
 | `applications.ts` — `updateApplicationStatuses` (bulk)                                                                                    | authorization **folded into the `updateMany` where** (`buildApplicationScopeWhere(user)` + `status: { notIn: [...NON_REVIEWABLE_APPLICATION_STATUSES, status] }`) | any reviewer status but the target is eligible — forward, backward, or a final decision                                                                                                      | `{ updated, skipped }` — a skip count, never an error, for rows outside the caller's scope, `draft`/`withdrawn`, or already at the target |
 | `question-files.ts` — file answer actions                                                                                                 | `getCurrentUser()` + `authorizeTarget` (ownership miss throws)                                                                                                    | gated on `APPLICANT_EDITABLE_APPLICATION_STATUSES` (`draft`\|`withdrawn`) in **both** the pre-check and the in-transaction `findFirst`, matching the text-answer path                        | `{ error: APPLICATION_NOT_EDITABLE_MESSAGE }`                                                                                             |
-| `position-actions.ts` — `createPosition`, `searchUsers`                                                                                   | `requireManagerOrAdmin()`                                                                                                                                         | —                                                                                                                                                                                            | throw                                                                                                                                     |
-| `position-actions.ts` — `updatePosition`                                                                                                  | `getCurrentUser()` → existence check → `requirePositionAccess(id)` → `checkPositionEditable`                                                                      | archived positions rejected even for their own manager                                                                                                                                       | `{ error: ARCHIVED_POSITION_EDIT_ERROR }`                                                                                                 |
+| `position-actions.ts` — `createPosition`, `searchUsers`                                                                                   | `requireManagerOrAdmin()`                                                                                                                                         | a non-admin creating with `status: 'open'` is refused                                                                                                                                        | throw; `{ error: POSITION_OPEN_REQUIRES_ADMIN_ERROR }` for the status check                                                               |
+| `position-actions.ts` — `updatePosition`                                                                                                  | `getCurrentUser()` → existence check → `requirePositionAccess(id)` → `checkPositionEditable`                                                                      | archived positions rejected even for their own manager; a non-admin moving the stored status **to** `open` is refused (an already-`open` position stays freely editable)                     | `{ error: ARCHIVED_POSITION_EDIT_ERROR }` / `{ error: POSITION_OPEN_REQUIRES_ADMIN_ERROR }`                                               |
 | `position-actions.ts` — `deletePosition`                                                                                                  | `requireAdmin()`                                                                                                                                                  | the "has applications" guard is **folded into the `updateMany` where** (`applications: { none: { deletedAt: null, status: { not: 'draft' } } }`), so check-and-write are atomic              | `{ error: POSITION_DELETE_BLOCKED_ERROR }` or `{ error: 'no longer exists' }`                                                             |
 | `position-actions.ts` — `addPositionManager`, `removePositionManager`                                                                     | `getCurrentUser()` → existence check → `requirePositionAccess(positionId)`                                                                                        | `removePositionManager` blocks non-admin self-removal                                                                                                                                        | `{ error: 'You cannot remove yourself as a manager. Ask an admin to do it.' }`                                                            |
 | `position-question-actions.ts` — `createPositionQuestion`, `updatePositionQuestion`, `reorderPositionQuestions`, `deletePositionQuestion` | `requirePositionAccess(positionId)` → `checkPositionEditable`                                                                                                     | `updatePositionQuestion` / `deletePositionQuestion` scope their write to `{ id, positionId }` to prevent cross-position IDOR                                                                 | `{ error: ARCHIVED_POSITION_EDIT_ERROR }`                                                                                                 |
@@ -92,12 +92,13 @@ Four principals, each derived rather than stored as a single role field:
 
 | Transition                                   | Allowed     | Rule                                                           |
 | -------------------------------------------- | ----------- | -------------------------------------------------------------- |
-| `draft → open` (publish)                     | yes         | Any manager, non-archived position                             |
+| `draft → open` (publish)                     | yes         | Admin only, non-archived position                              |
 | `open → closed` (close)                      | yes         | Confirm first when unresolved applications exist               |
-| `closed → open` (reopen)                     | conditional | Only when `closesAt` is null or in the future                  |
+| `closed → open` (reopen)                     | conditional | Admin only, and only when `closesAt` is null or in the future  |
 | `open → draft`, `closed → draft` (unpublish) | conditional | Blocked once any non-deleted application exists, at any status |
 | create as `closed`                           | no          | `createPosition` may only create `draft` or `open`             |
 
+- **Publishing is a permission, not a workflow.** There is no submit-for-approval step, no pending queue, no approve/reject with a reason, and no notification to the manager. A manager creates and shapes a draft; an admin performs the act of setting it `open`, from either `draft` or `closed`. Content edits after publishing stay unrestricted — approval gates the status change, not the position's fields.
 - **Reopening past `closesAt` is a silent no-op**, not a reopen — `getPositionAvailability` (`lib/utils.ts`) still returns `closed_by_date`, so the position reads Open and accepts nothing. Reject it: `{ error: "This position's close date has passed. Clear or extend the close date to reopen it." }`
 - **Unpublishing hides a position out from under applicants who already have work in it**, so the first application — including a draft nobody has submitted — is one-way out of `draft`: `{ error: 'Someone has already started an application, so this position cannot go back to draft. Close it instead.' }`
 - **Reopening changes nothing about existing applications.** Decisions stand; a reviewer reverses one through the application status control, not by reopening the position.
@@ -107,15 +108,16 @@ Four principals, each derived rather than stored as a single role field:
 
 **Publish freezes nothing. The first application freezes nothing.** The only hard freeze is archive. Do not re-derive a stricter rule from the fact that a position is live — freezing fields would be stricter than the settled "questions stay fully editable", which is incoherent.
 
-| Capability (manager)          | `draft`    | `open`                    | `closed`                    | archived   |
-| ----------------------------- | ---------- | ------------------------- | --------------------------- | ---------- |
-| Title, description            | ✓          | ✓                         | ✓                           | ✗          |
-| `opensAt` / `closesAt`        | ✓          | ✓                         | ✓                           | ✗          |
-| Questions (add, edit, delete) | ✓          | ✓                         | ✓                           | ✗          |
-| Managers (add, remove others) | ✓          | ✓                         | ✓                           | ✓          |
-| Status → `open` / `closed`    | ✓          | ✓                         | only if `closesAt` not past | ✗          |
-| Status → `draft`              | ✓          | only with no applications | only with no applications   | ✗          |
-| Delete the position           | admin only | admin only                | admin only                  | admin only |
+| Capability (manager)          | `draft`        | `open`                    | `closed`                  | archived   |
+| ----------------------------- | -------------- | ------------------------- | ------------------------- | ---------- |
+| Title, description            | ✓              | ✓                         | ✓                         | ✗          |
+| `opensAt` / `closesAt`        | ✓              | ✓                         | ✓                         | ✗          |
+| Questions (add, edit, delete) | ✓              | ✓                         | ✓                         | ✗          |
+| Managers (add, remove others) | ✓              | ✓                         | ✓                         | ✓          |
+| Status → `open`               | ✗ (admin only) | ✓ (already open — no-op)  | ✗ (admin only)            | ✗          |
+| Status → `closed`             | ✓              | ✓                         | ✓ (no-op)                 | ✗          |
+| Status → `draft`              | ✓              | only with no applications | only with no applications | ✗          |
+| Delete the position           | admin only     | admin only                | admin only                | admin only |
 
 Managers stay editable on an archived position: membership is how an admin hands oversight off, and `addPositionManager` / `removePositionManager` deliberately skip `checkPositionEditable`.
 
@@ -140,11 +142,12 @@ Confirmations carry the risk the freezes don't.
 
 Manager is M2M membership in `Position.managers` (`prisma/schema.prisma`), not a flag on `User`. `createPosition` auto-connects its creator, so a manager can always edit what they made.
 
-**There is no field-level split.** A manager may do everything on a non-archived position. An admin adds exactly three things:
+**There is no field-level split.** A manager may do everything on a non-archived position. An admin adds exactly four things:
 
 1. Edit an archived position.
 2. Delete a position (`requireAdmin`; still blocked by `POSITION_DELETE_BLOCKED_ERROR` once non-draft applications exist).
 3. Remove any manager, including themselves — the self-removal block lives in `removePositionManager`.
+4. Publish a position — set `status` to `open`, from `draft` or `closed`. A manager can create and edit everything about a draft but cannot open it; they save it and ask an admin.
 
 ## Question editing and answer preservation
 
