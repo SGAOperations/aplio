@@ -70,10 +70,7 @@ interface DeactivateTarget {
   displayName: string;
 }
 
-// Controlled so onClick can open on tap — Radix's own onClick composes
-// with `context.onClose`, which runs right after ours in the same event
-// and would otherwise close what we just opened; preventDefault stops it
-// (composeEventHandlers skips the paired handler once defaultPrevented).
+// preventDefault stops Radix's composed onClose from reversing our setOpen(true).
 function ManagedPositionsOverflow({
   hidden,
 }: {
