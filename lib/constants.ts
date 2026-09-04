@@ -415,7 +415,7 @@ export const USER_ROLE_FILTER_OPTIONS: {
   { value: 'manager', label: 'Manager' },
 ];
 
-// Single source for the /applications sort union and its zod enum.
+// Single source for the /manage/applications sort union and its zod enum.
 export const APPLICATION_SORT_FIELDS = ['date', 'name', 'status'] as const;
 export const APPLICATION_SORT_DIRECTIONS = ['asc', 'desc'] as const;
 

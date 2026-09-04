@@ -32,7 +32,7 @@ function buildHref(filters: ApplicationFilters, page: number): string {
   if (page > 1) params.set('page', String(page));
 
   const qs = params.toString();
-  return qs ? `/applications?${qs}` : '/applications';
+  return qs ? `/manage/applications?${qs}` : '/manage/applications';
 }
 
 export function ApplicationsPagination({

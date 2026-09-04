@@ -145,7 +145,7 @@ export function ApplicationsTable({
         return (
           <>
             <Link
-              href={`/applications/${app.id}`}
+              href={`/manage/applications/${app.id}`}
               className="font-medium hover:underline"
             >
               {displayName}
@@ -211,7 +211,7 @@ export function ApplicationsTable({
       description="Try adjusting or clearing your filters."
       action={
         <Button variant="outline" asChild>
-          <Link href="/applications">
+          <Link href="/manage/applications">
             <ACTION_ICONS.clearFilters />
             Clear filters
           </Link>
@@ -261,7 +261,7 @@ export function ApplicationsTable({
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 truncate">
                     <Link
-                      href={`/applications/${app.id}`}
+                      href={`/manage/applications/${app.id}`}
                       className="font-medium hover:underline"
                     >
                       {displayName}

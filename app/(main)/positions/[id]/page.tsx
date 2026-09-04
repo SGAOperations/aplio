@@ -147,7 +147,7 @@ export default async function PublicPositionDetailPage({
               </Link>
             </Button>
             <Button asChild variant="outline">
-              <Link href={`/applications?positionId=${id}`}>
+              <Link href={`/manage/applications?positionId=${id}`}>
                 <CONCEPT_ICONS.application />
                 Applications
               </Link>
