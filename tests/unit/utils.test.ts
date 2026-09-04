@@ -304,7 +304,7 @@ describe('formatCountdown', () => {
     expect(formatCountdown(42)).toBe('0:42');
   });
 
-  it('renders an exact minute', () => {
+  it('pads seconds within a minute', () => {
     expect(formatCountdown(95)).toBe('1:35');
   });
 
