@@ -200,6 +200,12 @@ export type PositionAvailability =
   | 'closed_by_date'
   | 'unavailable';
 
+export type PositionDateInfo = {
+  label: 'Opens' | 'Closes' | 'Closed';
+  date: Date;
+  emphasis: 'live' | 'calm';
+};
+
 // Admin-gated contexts only.
 export type OpenPositionSummaryItem = Prisma.PositionGetPayload<{
   select: { id: true; title: true; _count: { select: { applications: true } } };

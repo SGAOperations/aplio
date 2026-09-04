@@ -100,6 +100,7 @@ Anyone not signed in. The only routes they can use are `/positions`, `/positions
   - Position is a `draft` and the viewer cannot manage it → `notFound()`, identical to missing ([XC-4](#xc-4-denial-shape)).
   - No description → "No description yet."
   - Window not open yet → the date under the title reads **Opens <date>**; already closed → **Closed <date>**. No Apply button in either case.
+  - A `draft` visible to its managers shows its planned window in future tense — **Opens <date>** or **Closes <date>**, never "Closed" — since a draft's dates are a plan, not a deadline.
 - **End state** — read-only.
 
 ### AN-3 Start applying from a position

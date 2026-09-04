@@ -13,6 +13,7 @@ import {
   getApplicantName,
   getPaginationRange,
   getPositionAvailability,
+  getPositionDateInfo,
   getUserName,
   getUserRoleRank,
   getUserRoleTokens,
@@ -78,6 +79,101 @@ describe('getPositionAvailability', () => {
     expect(
       getPositionAvailability({ status: 'open', opensAt: null, closesAt }, NOW),
     ).toBe('accepting');
+  });
+});
+
+describe('getPositionDateInfo', () => {
+  it('reads Closes, calm, for a draft with a future close date', () => {
+    const closesAt = new Date(NOW);
+    closesAt.setDate(closesAt.getDate() + 5);
+    expect(
+      getPositionDateInfo({ status: 'draft', opensAt: null, closesAt }, NOW),
+    ).toEqual({ label: 'Closes', date: closesAt, emphasis: 'calm' });
+  });
+
+  it('reads Closes, calm, for a draft with a past close date', () => {
+    const closesAt = new Date(NOW);
+    closesAt.setDate(closesAt.getDate() - 5);
+    expect(
+      getPositionDateInfo({ status: 'draft', opensAt: null, closesAt }, NOW),
+    ).toEqual({ label: 'Closes', date: closesAt, emphasis: 'calm' });
+  });
+
+  it('reads Opens, calm, for a draft with only an open date', () => {
+    const opensAt = new Date(NOW);
+    opensAt.setDate(opensAt.getDate() + 5);
+    expect(
+      getPositionDateInfo({ status: 'draft', opensAt, closesAt: null }, NOW),
+    ).toEqual({ label: 'Opens', date: opensAt, emphasis: 'calm' });
+  });
+
+  it('prefers closesAt over opensAt for a draft with both', () => {
+    const opensAt = new Date(NOW);
+    opensAt.setDate(opensAt.getDate() + 1);
+    const closesAt = new Date(NOW);
+    closesAt.setDate(closesAt.getDate() + 5);
+    expect(
+      getPositionDateInfo({ status: 'draft', opensAt, closesAt }, NOW),
+    ).toEqual({ label: 'Closes', date: closesAt, emphasis: 'calm' });
+  });
+
+  it('returns null for a draft with no dates', () => {
+    expect(
+      getPositionDateInfo(
+        { status: 'draft', opensAt: null, closesAt: null },
+        NOW,
+      ),
+    ).toBeNull();
+  });
+
+  it('reads Closes, live, for an open position accepting applications', () => {
+    const closesAt = new Date(NOW);
+    closesAt.setDate(closesAt.getDate() + 5);
+    expect(
+      getPositionDateInfo({ status: 'open', opensAt: null, closesAt }, NOW),
+    ).toEqual({ label: 'Closes', date: closesAt, emphasis: 'live' });
+  });
+
+  it('returns null for an accepting position with no closesAt', () => {
+    expect(
+      getPositionDateInfo(
+        { status: 'open', opensAt: null, closesAt: null },
+        NOW,
+      ),
+    ).toBeNull();
+  });
+
+  it('reads Opens, live, for an open position not yet open', () => {
+    const opensAt = new Date(NOW);
+    opensAt.setDate(opensAt.getDate() + 5);
+    expect(
+      getPositionDateInfo({ status: 'open', opensAt, closesAt: null }, NOW),
+    ).toEqual({ label: 'Opens', date: opensAt, emphasis: 'live' });
+  });
+
+  it('reads Closed, calm, for an open position past its close date', () => {
+    const closesAt = new Date(NOW);
+    closesAt.setDate(closesAt.getDate() - 5);
+    expect(
+      getPositionDateInfo({ status: 'open', opensAt: null, closesAt }, NOW),
+    ).toEqual({ label: 'Closed', date: closesAt, emphasis: 'calm' });
+  });
+
+  it('reads Closed, calm, for a closed position with a closesAt', () => {
+    const closesAt = new Date(NOW);
+    closesAt.setDate(closesAt.getDate() - 5);
+    expect(
+      getPositionDateInfo({ status: 'closed', opensAt: null, closesAt }, NOW),
+    ).toEqual({ label: 'Closed', date: closesAt, emphasis: 'calm' });
+  });
+
+  it('returns null for a closed position with no closesAt', () => {
+    expect(
+      getPositionDateInfo(
+        { status: 'closed', opensAt: null, closesAt: null },
+        NOW,
+      ),
+    ).toBeNull();
   });
 });
 

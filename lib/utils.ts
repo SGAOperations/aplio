@@ -15,6 +15,7 @@ import type {
   AnswerQuestion,
   PositionActivity,
   PositionAvailability,
+  PositionDateInfo,
   PositionWindow,
   Reviewer,
   UserRoleFilter,
@@ -298,6 +299,33 @@ export function isAcceptingApplications(
   now?: Date,
 ): boolean {
   return getPositionAvailability(position, now) === 'accepting';
+}
+
+export function getPositionDateInfo(
+  position: PositionWindow,
+  now: Date = new Date(),
+): PositionDateInfo | null {
+  if (position.status === 'draft') {
+    if (position.closesAt)
+      return { label: 'Closes', date: position.closesAt, emphasis: 'calm' };
+    if (position.opensAt)
+      return { label: 'Opens', date: position.opensAt, emphasis: 'calm' };
+    return null;
+  }
+
+  // Past the draft branch, 'unavailable' can only mean status 'closed'.
+  const availability = getPositionAvailability(position, now);
+  if (availability === 'accepting' && position.closesAt)
+    return { label: 'Closes', date: position.closesAt, emphasis: 'live' };
+  if (availability === 'upcoming' && position.opensAt)
+    return { label: 'Opens', date: position.opensAt, emphasis: 'live' };
+  if (
+    (availability === 'closed_by_date' || availability === 'unavailable') &&
+    position.closesAt
+  )
+    return { label: 'Closed', date: position.closesAt, emphasis: 'calm' };
+
+  return null;
 }
 
 /**
