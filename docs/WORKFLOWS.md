@@ -397,6 +397,8 @@ A user who manages at least one non-deleted position. Manager status is **derive
 - **Failure / edge**
   - Missing title → "Title is required" inline.
   - Description over 10 000 characters, or an unparseable date ("Enter a valid date") → inline.
+  - `opensAt` before today → **"The open date must be today or later."**; `closesAt` before today → **"The close date must be today or later."** inline (both dates are new on create, so every date is checked). Today itself is always allowed for both fields.
+  - `opensAt` after `closesAt` → the existing ordering messages, unchanged.
   - Not a manager or admin → the action throws ([XC-4](#xc-4-denial-shape)); the affordance is not rendered in the first place.
   - A manager posting `status: 'open'` anyway (stale tab, hand-made request) → `{ error: POSITION_OPEN_REQUIRES_ADMIN_ERROR }`: **"Only an admin can open a position. Ask an admin to publish it for you."**
 - **End state** — a `Position` at the chosen status with the creator as its only manager. A `draft` position is invisible to everyone else ([AN-2](#an-2-view-a-position)).
@@ -410,6 +412,7 @@ A user who manages at least one non-deleted position. Manager status is **derive
   - Not a listed manager and not an admin → `notFound()`.
   - Archived (closed >30 days with no application status change since) and the caller is not an admin → the form is replaced by `PositionDetailsReadonly` under a warning callout ("This position is archived. It closed more than 30 days ago and no application status has changed since…"), plus a stalled-applications line and a **Review applications** link when the position still holds unresolved applications. A stale tab that posts anyway gets `ARCHIVED_POSITION_EDIT_ERROR`: **"This position is archived. Ask an admin if it still needs changes."** ([AD-2](#ad-2-edit-an-archived-position))
   - A manager posting a transition **to** `open` from `draft` or `closed` (stale tab, hand-made request) → `{ error: POSITION_OPEN_REQUIRES_ADMIN_ERROR }`: **"Only an admin can open a position. Ask an admin to publish it for you."** The form keeps its values so they can pick Draft or Closed and resubmit.
+  - `opensAt` or `closesAt` **changed** to a date before today → the same past-date messages as [PM-3](#pm-3-create-a-position), checked against the position's own previous dates. An untouched past date on an already-open position saves normally — the rule only fires on a field the manager actually changed.
   - Deleted between render and submit → **"This position no longer exists."**
   - Unexpected throw → **"Something went wrong. Please try again."**
   - Status `open` with a `closesAt` already past → below the Status field the form shows a warning callout ("Applicants see this position as Closed…"), naming the passed date and offering both remedies (extend `closesAt`, or set status to Closed); the Status select still shows Open — displaying anything else would misrepresent what's stored.

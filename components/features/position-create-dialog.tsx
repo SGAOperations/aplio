@@ -1,18 +1,20 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useMemo } from 'react';
 import { useFormContext } from 'react-hook-form';
 
 import { toast } from 'sonner';
-import type { z } from 'zod/v4';
 
 import { createPosition } from '@/prisma/actions/position-actions';
 
 import {
   POSITION_OPEN_REQUIRES_ADMIN_HINT,
+  type PositionFormValues,
   getStatusOptions,
-  positionFormSchema,
+  makePositionFormSchema,
 } from '@/lib/constants';
+import { toOrgDayString } from '@/lib/dates';
 import { ACTION_ICONS } from '@/lib/icons';
 
 import { MarkdownField } from '@/components/features/markdown-field';
@@ -34,8 +36,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-
-type PositionFormValues = z.infer<typeof positionFormSchema>;
 
 const defaultValues: PositionFormValues = {
   title: '',
@@ -152,6 +152,10 @@ interface PositionCreateDialogProps {
 // Dialog-triggered, so it uses FormDialog directly, as GlobalQuestionDialog does.
 export function PositionCreateDialog({ isAdmin }: PositionCreateDialogProps) {
   const router = useRouter();
+  const schema = useMemo(
+    () => makePositionFormSchema(toOrgDayString(new Date())),
+    [],
+  );
 
   async function onSubmit(data: PositionFormValues): Promise<boolean> {
     const result = await createPosition({
@@ -177,7 +181,7 @@ export function PositionCreateDialog({ isAdmin }: PositionCreateDialogProps) {
         </Button>
       }
       title="Create Position"
-      schema={positionFormSchema}
+      schema={schema}
       defaultValues={defaultValues}
       onSubmit={onSubmit}
       submitLabel="Create Position"
