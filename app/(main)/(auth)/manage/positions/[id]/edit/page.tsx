@@ -12,7 +12,7 @@ import { requireListedManagerOr404 } from '@/lib/auth/guards';
 import { UNRESOLVED_APPLICATION_STATUSES } from '@/lib/constants';
 import { toOrgDayString } from '@/lib/dates';
 import { STATE_ICONS } from '@/lib/icons';
-import { isPositionActive } from '@/lib/utils';
+import { isOpenPastCloseDate, isPositionActive } from '@/lib/utils';
 
 import { PositionDangerZone } from '@/components/features/position-danger-zone';
 import { PositionDetailsForm } from '@/components/features/position-details-form';
@@ -22,6 +22,7 @@ import { PositionManagersSection } from '@/components/features/position-managers
 import { PositionQuestionsReadonly } from '@/components/features/position-questions-readonly';
 import { PositionQuestionsSection } from '@/components/features/position-questions-section';
 import { PageHeader } from '@/components/layouts/page-header';
+import { LocalTime } from '@/components/ui/local-time';
 import { WarningCallout } from '@/components/ui/warning-callout';
 
 interface EditPositionPageProps {
@@ -50,6 +51,9 @@ export default async function EditPositionPage({
   const user = await requireListedManagerOr404(position.managers);
 
   const canEdit = user.isAdmin || isPositionActive(position);
+  const staleCloseDate = isOpenPastCloseDate(position)
+    ? position.closesAt
+    : null;
 
   const deletionSummary = user.isAdmin
     ? await getPositionDeletionSummary(position.id)
@@ -104,21 +108,39 @@ export default async function EditPositionPage({
       <PositionEditTabs
         detailsContent={
           canEdit ? (
-            <PositionDetailsForm
-              position={{
-                id: position.id,
-                title: position.title,
-                description: position.description,
-                status: position.status,
-                opensAt: position.opensAt
-                  ? toOrgDayString(position.opensAt)
-                  : null,
-                closesAt: position.closesAt
-                  ? toOrgDayString(position.closesAt)
-                  : null,
-              }}
-              isAdmin={user.isAdmin}
-            />
+            <div className="flex flex-col gap-4">
+              {staleCloseDate && (
+                <WarningCallout>
+                  <div className="flex flex-col gap-1">
+                    <p className="font-medium">
+                      Applicants see this position as Closed.
+                    </p>
+                    <p>
+                      Its close date passed on{' '}
+                      <LocalTime date={staleCloseDate} precision="date" />, so
+                      it stopped accepting applications even though its status
+                      is still Open. Change Closes At below to a future date to
+                      reopen it, or set Status to Closed to make that explicit.
+                    </p>
+                  </div>
+                </WarningCallout>
+              )}
+              <PositionDetailsForm
+                position={{
+                  id: position.id,
+                  title: position.title,
+                  description: position.description,
+                  status: position.status,
+                  opensAt: position.opensAt
+                    ? toOrgDayString(position.opensAt)
+                    : null,
+                  closesAt: position.closesAt
+                    ? toOrgDayString(position.closesAt)
+                    : null,
+                }}
+                isAdmin={user.isAdmin}
+              />
+            </div>
           ) : (
             <PositionDetailsReadonly
               position={{

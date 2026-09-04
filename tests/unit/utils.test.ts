@@ -23,6 +23,7 @@ import {
   isAnswered,
   isBypassAllowed,
   isError,
+  isOpenPastCloseDate,
   isPositionActive,
   isSameIdSet,
   partitionAnswerValue,
@@ -94,12 +95,16 @@ describe('getPositionDateInfo', () => {
     ).toEqual({ label: 'Closes', date: closesAt, emphasis: 'calm' });
   });
 
-  it('reads Closes, calm, for a draft with a past close date', () => {
+  it('reads Was scheduled to close, stale, for a draft with a past close date', () => {
     const closesAt = new Date(NOW);
     closesAt.setDate(closesAt.getDate() - 5);
     expect(
       getPositionDateInfo({ status: 'draft', opensAt: null, closesAt }, NOW),
-    ).toEqual({ label: 'Closes', date: closesAt, emphasis: 'calm' });
+    ).toEqual({
+      label: 'Was scheduled to close',
+      date: closesAt,
+      emphasis: 'stale',
+    });
   });
 
   it('reads Opens, calm, for a draft with only an open date', () => {
@@ -110,21 +115,60 @@ describe('getPositionDateInfo', () => {
     ).toEqual({ label: 'Opens', date: opensAt, emphasis: 'calm' });
   });
 
-  it('reads Opens, calm, for a draft with a past open date', () => {
+  it('reads Was scheduled to open, stale, for a draft with a past open date', () => {
     const opensAt = new Date(NOW);
     opensAt.setDate(opensAt.getDate() - 5);
     expect(
       getPositionDateInfo({ status: 'draft', opensAt, closesAt: null }, NOW),
-    ).toEqual({ label: 'Opens', date: opensAt, emphasis: 'calm' });
+    ).toEqual({
+      label: 'Was scheduled to open',
+      date: opensAt,
+      emphasis: 'stale',
+    });
   });
 
-  it('prefers closesAt over opensAt for a draft with both', () => {
+  it('prefers closesAt over opensAt for a draft with both dates future', () => {
     const opensAt = new Date(NOW);
     opensAt.setDate(opensAt.getDate() + 1);
     const closesAt = new Date(NOW);
     closesAt.setDate(closesAt.getDate() + 5);
     expect(
       getPositionDateInfo({ status: 'draft', opensAt, closesAt }, NOW),
+    ).toEqual({ label: 'Closes', date: closesAt, emphasis: 'calm' });
+  });
+
+  it('reads Was scheduled to close, stale, for a draft with both dates past', () => {
+    const opensAt = new Date(NOW);
+    opensAt.setDate(opensAt.getDate() - 10);
+    const closesAt = new Date(NOW);
+    closesAt.setDate(closesAt.getDate() - 5);
+    expect(
+      getPositionDateInfo({ status: 'draft', opensAt, closesAt }, NOW),
+    ).toEqual({
+      label: 'Was scheduled to close',
+      date: closesAt,
+      emphasis: 'stale',
+    });
+  });
+
+  it('reads Was scheduled to open, stale, for a draft with a past open date and a future close date', () => {
+    const opensAt = new Date(NOW);
+    opensAt.setDate(opensAt.getDate() - 5);
+    const closesAt = new Date(NOW);
+    closesAt.setDate(closesAt.getDate() + 5);
+    expect(
+      getPositionDateInfo({ status: 'draft', opensAt, closesAt }, NOW),
+    ).toEqual({
+      label: 'Was scheduled to open',
+      date: opensAt,
+      emphasis: 'stale',
+    });
+  });
+
+  it('reads Closes, calm, for a draft with a closesAt exactly at now (inclusive boundary)', () => {
+    const closesAt = new Date(NOW);
+    expect(
+      getPositionDateInfo({ status: 'draft', opensAt: null, closesAt }, NOW),
     ).toEqual({ label: 'Closes', date: closesAt, emphasis: 'calm' });
   });
 
@@ -185,6 +229,49 @@ describe('getPositionDateInfo', () => {
         NOW,
       ),
     ).toBeNull();
+  });
+});
+
+describe('isOpenPastCloseDate', () => {
+  it('is true for an open position past its close date', () => {
+    const closesAt = new Date(NOW);
+    closesAt.setDate(closesAt.getDate() - 5);
+    expect(
+      isOpenPastCloseDate({ status: 'open', opensAt: null, closesAt }, NOW),
+    ).toBe(true);
+  });
+
+  it('is false for an open position with a future close date', () => {
+    const closesAt = new Date(NOW);
+    closesAt.setDate(closesAt.getDate() + 5);
+    expect(
+      isOpenPastCloseDate({ status: 'open', opensAt: null, closesAt }, NOW),
+    ).toBe(false);
+  });
+
+  it('is false for an open position with no close date', () => {
+    expect(
+      isOpenPastCloseDate(
+        { status: 'open', opensAt: null, closesAt: null },
+        NOW,
+      ),
+    ).toBe(false);
+  });
+
+  it('is false for a closed position', () => {
+    const closesAt = new Date(NOW);
+    closesAt.setDate(closesAt.getDate() - 5);
+    expect(
+      isOpenPastCloseDate({ status: 'closed', opensAt: null, closesAt }, NOW),
+    ).toBe(false);
+  });
+
+  it('is false for a draft with a past close date', () => {
+    const closesAt = new Date(NOW);
+    closesAt.setDate(closesAt.getDate() - 5);
+    expect(
+      isOpenPastCloseDate({ status: 'draft', opensAt: null, closesAt }, NOW),
+    ).toBe(false);
   });
 });
 
