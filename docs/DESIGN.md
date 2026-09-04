@@ -50,11 +50,11 @@ Any change to a brand/status token must keep ≥4.5:1 contrast against its paire
 - **Spacing:** Tailwind 4-point scale. Card padding `p-6` (compact `p-4`); stack gaps `gap-4`/`gap-6`; form field gap `gap-2`. Be consistent rather than pixel-tuning.
 - **Page width tiers:** every route inside the app shell picks exactly one tier for its top-level container. `app-shell.tsx` supplies only `p-6`, so the page owns the width.
 
-  | Tier           | Container classes   | Use for                                                                                                                 |
-  | -------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-  | **Full-bleed** | none (no `max-w`)   | list, table and dashboard pages — `/`, `/positions`, `/users`, `/applications`, `/my-applications`, `/global-questions` |
-  | **Wide**       | `mx-auto max-w-5xl` | two-column review/detail pages — `/applications/[id]`, `/my-applications/[id]`                                          |
-  | **Narrow**     | `mx-auto max-w-2xl` | single-column forms and reading views — `/profile`, `/positions/[id]/apply`, `/positions/[id]/edit`                     |
+  | Tier           | Container classes   | Use for                                                                                                                                      |
+  | -------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+  | **Full-bleed** | none (no `max-w`)   | list, table and dashboard pages — `/`, `/positions`, `/manage/positions`, `/users`, `/applications`, `/my-applications`, `/global-questions` |
+  | **Wide**       | `mx-auto max-w-5xl` | two-column review/detail pages — `/applications/[id]`, `/my-applications/[id]`                                                               |
+  | **Narrow**     | `mx-auto max-w-2xl` | single-column forms and reading views — `/profile`, `/positions/[id]/apply`, `/manage/positions/[id]/edit`                                   |
 
   There is no fourth tier: `max-w-6xl`/`4xl`/`3xl` on a page container is a bug. Inside a full-bleed page, constraining an individual prose block (`max-w-2xl` on a description) is correct and not a tier violation — see `/positions/[id]`. A route's `loading.tsx` must use the same tier as its `page.tsx`, or the skeleton shifts on resolve. Routes outside the app shell (`(legal)`, `login`) set their own width.
 

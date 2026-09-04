@@ -10,7 +10,6 @@ import {
   canReviewPosition,
   displayUserName,
   findDivergingGlobalAnswers,
-  formatAlternatives,
   formatCountdown,
   formatPaginationSummary,
   formatTableCount,
@@ -673,73 +672,97 @@ describe('isError', () => {
 describe('summarizeBulkStatusChange', () => {
   it('has no skipped label when nothing is skipped', () => {
     expect(
-      summarizeBulkStatusChange([
-        { status: 'applied' },
-        { status: 'reviewing' },
-      ]),
-    ).toEqual({ eligibleCount: 2, skippedCount: 0, skippedLabel: null });
-  });
-
-  it('names a single withdrawn row', () => {
-    expect(
-      summarizeBulkStatusChange([
-        { status: 'applied' },
-        { status: 'withdrawn' },
-      ]),
+      summarizeBulkStatusChange(
+        [{ status: 'applied' }, { status: 'reviewing' }],
+        'accepted',
+      ),
     ).toEqual({
-      eligibleCount: 1,
-      skippedCount: 1,
-      skippedLabel: '1 withdrawn application',
+      forwardCount: 2,
+      backwardCount: 0,
+      finalDecisionCount: 0,
+      skippedCount: 0,
+      eligibleCount: 2,
+      skippedLabel: null,
+      applicantVisible: true,
     });
   });
 
-  it('handles every row being withdrawn', () => {
+  it('skips draft, withdrawn, and rows already at the target', () => {
     expect(
-      summarizeBulkStatusChange([
-        { status: 'withdrawn' },
-        { status: 'withdrawn' },
-      ]),
+      summarizeBulkStatusChange(
+        [
+          { status: 'draft' },
+          { status: 'withdrawn' },
+          { status: 'reached_out' },
+        ],
+        'reached_out',
+      ),
     ).toEqual({
+      forwardCount: 0,
+      backwardCount: 0,
+      finalDecisionCount: 0,
+      skippedCount: 3,
       eligibleCount: 0,
-      skippedCount: 2,
-      skippedLabel: '2 withdrawn applications',
+      skippedLabel: '3 skipped — drafts, withdrawn, or already Reached out.',
+      applicantVisible: false,
     });
   });
 
-  it('combines draft and withdrawn counts in NON_REVIEWABLE order', () => {
+  it('counts a currently-decided row as a final decision, not forward/backward', () => {
     expect(
-      summarizeBulkStatusChange([
-        { status: 'withdrawn' },
-        { status: 'draft' },
-        { status: 'applied' },
-      ]),
+      summarizeBulkStatusChange([{ status: 'accepted' }], 'reviewing'),
     ).toEqual({
+      forwardCount: 0,
+      backwardCount: 0,
+      finalDecisionCount: 1,
+      skippedCount: 0,
       eligibleCount: 1,
-      skippedCount: 2,
-      skippedLabel: '1 draft application and 1 withdrawn application',
+      skippedLabel: null,
+      applicantVisible: true,
     });
   });
-});
 
-describe('formatAlternatives', () => {
-  it('returns a single label as-is', () => {
-    expect(formatAlternatives(['Reviewing'])).toBe('Reviewing');
+  it('splits a mixed selection into forward, backward, final decision and skipped', () => {
+    expect(
+      summarizeBulkStatusChange(
+        [
+          { status: 'applied' },
+          { status: 'reviewing' },
+          { status: 'accepted' },
+          { status: 'draft' },
+        ],
+        'reached_out',
+      ),
+    ).toEqual({
+      forwardCount: 1,
+      backwardCount: 1,
+      finalDecisionCount: 1,
+      skippedCount: 1,
+      eligibleCount: 3,
+      skippedLabel: '1 skipped — drafts, withdrawn, or already Reached out.',
+      applicantVisible: true,
+    });
   });
 
-  it('joins two labels with "or"', () => {
-    expect(formatAlternatives(['Reached out', 'Reviewing'])).toBe(
-      'Reached out or Reviewing',
-    );
+  it('is applicant-visible when the target is a decision, even with nothing to reverse', () => {
+    expect(
+      summarizeBulkStatusChange([{ status: 'applied' }], 'rejected')
+        .applicantVisible,
+    ).toBe(true);
   });
 
-  it('joins three or more labels with a comma list and a trailing "or"', () => {
-    expect(formatAlternatives(['Applied', 'Reached out', 'Reviewing'])).toBe(
-      'Applied, Reached out, or Reviewing',
-    );
+  it('is not applicant-visible for an unresolved target with no decisions in the batch', () => {
+    expect(
+      summarizeBulkStatusChange([{ status: 'applied' }], 'reviewing')
+        .applicantVisible,
+    ).toBe(false);
   });
 
-  it('returns an empty string for no labels', () => {
-    expect(formatAlternatives([])).toBe('');
+  it('is applicant-visible for an unresolved target that reverses a decision', () => {
+    expect(
+      summarizeBulkStatusChange([{ status: 'rejected' }], 'reviewing')
+        .applicantVisible,
+    ).toBe(true);
   });
 });
 

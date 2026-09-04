@@ -225,8 +225,7 @@ describe('updateApplicationStatus', () => {
 
   it('overrides the graph and still writes an event when override is true', async () => {
     const applicant = await createTestUser();
-    // 'accepted' has no forward/back/decision path to 'applied' in
-    // APPLICATION_STATUS_TRANSITIONS — a genuinely off-graph move.
+    // 'accepted' is terminal and has no path to 'applied' — a genuinely off-path move.
     const application = await createTestApplication(applicant, openPosition, {
       status: 'accepted',
     });
@@ -287,7 +286,7 @@ describe('updateApplicationStatus', () => {
 });
 
 describe('updateApplicationStatuses bulk mixed selections', () => {
-  it('updates only the legal-source rows in a mixed selection and skips the rest', async () => {
+  it('moves a backward row and a final-decision row now that bulk accepts any reviewer status', async () => {
     const appliedApplicant = await createTestUser();
     const appliedApp = await createTestApplication(
       appliedApplicant,
@@ -306,7 +305,7 @@ describe('updateApplicationStatuses bulk mixed selections', () => {
       applicationIds: [appliedApp.id, acceptedApp.id],
       status: 'reviewing',
     });
-    expect(result).toEqual({ updated: 1, skipped: 1 });
+    expect(result).toEqual({ updated: 2, skipped: 0 });
 
     const updatedApplied = await prisma.application.findUniqueOrThrow({
       where: { id: appliedApp.id },
@@ -314,29 +313,63 @@ describe('updateApplicationStatuses bulk mixed selections', () => {
     });
     expect(updatedApplied.status).toBe('reviewing');
 
-    const untouchedAccepted = await prisma.application.findUniqueOrThrow({
+    // Backward move: 'accepted' is further along the path than 'reviewing'.
+    const movedBackAccepted = await prisma.application.findUniqueOrThrow({
       where: { id: acceptedApp.id },
       select: { status: true },
     });
-    expect(untouchedAccepted.status).toBe('accepted');
+    expect(movedBackAccepted.status).toBe('reviewing');
+
+    const events = await prisma.applicationStatusEvent.findMany({
+      where: { applicationId: acceptedApp.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(events[0]).toMatchObject({ from: 'accepted', to: 'reviewing' });
+  });
+
+  it('errors when every selected row is draft, withdrawn, or already at the target', async () => {
+    const draftApplicant = await createTestUser();
+    const draftApp = await createTestApplication(draftApplicant, openPosition, {
+      status: 'draft',
+    });
+    const withdrawnApplicant = await createTestUser();
+    const withdrawnApp = await createTestApplication(
+      withdrawnApplicant,
+      openPosition,
+      { status: 'withdrawn' },
+    );
+    const alreadyThereApplicant = await createTestUser();
+    const alreadyThereApp = await createTestApplication(
+      alreadyThereApplicant,
+      openPosition,
+      { status: 'reviewing' },
+    );
+
+    actAs(admin);
+    const result = await updateApplicationStatuses({
+      applicationIds: [draftApp.id, withdrawnApp.id, alreadyThereApp.id],
+      status: 'reviewing',
+    });
+    expect(result).toEqual({
+      error:
+        "None of the selected applications can move to Reviewing — they're already there, or they're drafts or withdrawn.",
+    });
   });
 
   it('returns an error naming the target when no selected row can legally move there', async () => {
     const applicant = await createTestUser();
-    // 'rejected' is excluded from getApplicationStatusForwardSources('accepted')
-    // post-§5 (only the four unresolved statuses are acceptable sources).
     const application = await createTestApplication(applicant, openPosition, {
-      status: 'rejected',
+      status: 'draft',
     });
 
     actAs(admin);
     const result = await updateApplicationStatuses({
       applicationIds: [application.id],
-      status: 'accepted',
+      status: 'reviewing',
     });
     expect(result).toEqual({
       error:
-        "None of the selected applications can move to Accepted — that's only reachable from Applied, Reached out, Interview scheduled, or Reviewing.",
+        "None of the selected applications can move to Reviewing — they're already there, or they're drafts or withdrawn.",
     });
   });
 
@@ -371,7 +404,7 @@ describe('updateApplicationStatuses bulk mixed selections', () => {
     );
   });
 
-  it('bulk-moves a back-only target (applied) since it has no forward source', async () => {
+  it('bulk-moves every eligible row backward to a target with no forward source', async () => {
     const reachedOutApplicant = await createTestUser();
     const reachedOutApp = await createTestApplication(
       reachedOutApplicant,
@@ -390,7 +423,7 @@ describe('updateApplicationStatuses bulk mixed selections', () => {
       applicationIds: [reachedOutApp.id, reviewingApp.id],
       status: 'applied',
     });
-    expect(result).toEqual({ updated: 1, skipped: 1 });
+    expect(result).toEqual({ updated: 2, skipped: 0 });
 
     const updatedReachedOut = await prisma.application.findUniqueOrThrow({
       where: { id: reachedOutApp.id },
@@ -398,11 +431,11 @@ describe('updateApplicationStatuses bulk mixed selections', () => {
     });
     expect(updatedReachedOut.status).toBe('applied');
 
-    const untouchedReviewing = await prisma.application.findUniqueOrThrow({
+    const movedBackReviewing = await prisma.application.findUniqueOrThrow({
       where: { id: reviewingApp.id },
       select: { status: true },
     });
-    expect(untouchedReviewing.status).toBe('reviewing');
+    expect(movedBackReviewing.status).toBe('applied');
   });
 });
 
@@ -452,6 +485,7 @@ describe('ApplicationStatusEvent', () => {
     await updateApplicationStatus({
       applicationId: application.id,
       status: 'reviewing',
+      override: true,
     });
 
     const latest = await getApplicationStatusHistory(application.id, admin);
@@ -494,6 +528,7 @@ describe('ApplicationStatusEvent', () => {
     await updateApplicationStatus({
       applicationId: application.id,
       status: 'reviewing',
+      override: true,
     });
 
     const asOwningManager = await getApplicationStatusHistory(

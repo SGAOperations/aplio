@@ -3,16 +3,15 @@ import { describe, expect, it } from 'vitest';
 import type { $Enums } from '@/prisma/client';
 
 import {
-  ACCEPTABLE_APPLICATION_STATUSES,
   APPLICATION_STATUS_ACTION_LABELS,
-  APPLICATION_STATUS_TRANSITIONS,
+  APPLICATION_STATUS_PATH,
   APPLICATION_STATUS_VALUES,
-  NON_REVIEWABLE_APPLICATION_STATUSES,
-  REJECTABLE_APPLICATION_STATUSES,
+  UNRESOLVED_APPLICATION_STATUSES,
   getAllowedApplicationStatusTransitions,
-  getApplicationStatusForwardSources,
-  getApplicationStatusMenuGroups,
+  getApplicationStatusMenu,
+  getApplicationStatusRank,
   getApplicationStatusUndoTarget,
+  getNextApplicationStatus,
   isAllowedApplicationStatusTransition,
 } from '@/lib/constants';
 import { getApplicationStatusHistoryRowLabel } from '@/lib/utils';
@@ -22,23 +21,86 @@ const ALL_STATUSES: $Enums.ApplicationStatus[] = [
   'withdrawn',
 ];
 
-describe('APPLICATION_STATUS_TRANSITIONS', () => {
-  it('is total over every ApplicationStatus', () => {
-    for (const status of ALL_STATUSES)
-      expect(APPLICATION_STATUS_TRANSITIONS[status]).toBeDefined();
+describe('getNextApplicationStatus', () => {
+  it('walks the path forward for every unresolved status', () => {
+    expect(getNextApplicationStatus('applied')).toBe('reached_out');
+    expect(getNextApplicationStatus('reached_out')).toBe('interview_scheduled');
+    expect(getNextApplicationStatus('interview_scheduled')).toBe('reviewing');
+    expect(getNextApplicationStatus('reviewing')).toBe('accepted');
   });
 
-  it('never lists a state as its own forward or back target', () => {
-    for (const status of ALL_STATUSES) {
-      const { forward, back } = APPLICATION_STATUS_TRANSITIONS[status];
-      expect(forward).not.toContain(status);
-      expect(back).not.toContain(status);
-    }
+  it('is null for both terminals', () => {
+    expect(getNextApplicationStatus('accepted')).toBeNull();
+    expect(getNextApplicationStatus('rejected')).toBeNull();
   });
 
+  it('is null for both applicant-owned statuses', () => {
+    expect(getNextApplicationStatus('draft')).toBeNull();
+    expect(getNextApplicationStatus('withdrawn')).toBeNull();
+  });
+});
+
+describe('APPLICATION_STATUS_PATH', () => {
+  it('is the only place the order is written down — every entry is a real status', () => {
+    for (const status of APPLICATION_STATUS_PATH)
+      expect(ALL_STATUSES).toContain(status);
+  });
+
+  it('never repeats a status', () => {
+    expect(new Set(APPLICATION_STATUS_PATH).size).toBe(
+      APPLICATION_STATUS_PATH.length,
+    );
+  });
+});
+
+describe('getApplicationStatusRank', () => {
+  it('increases along the path', () => {
+    const applied = getApplicationStatusRank('applied');
+    const reviewing = getApplicationStatusRank('reviewing');
+    expect(applied).not.toBeNull();
+    expect(reviewing).not.toBeNull();
+    expect(reviewing!).toBeGreaterThan(applied!);
+  });
+
+  it('gives rejected the same rank as accepted', () => {
+    expect(getApplicationStatusRank('rejected')).toBe(
+      getApplicationStatusRank('accepted'),
+    );
+  });
+
+  it('is null for draft and withdrawn', () => {
+    expect(getApplicationStatusRank('draft')).toBeNull();
+    expect(getApplicationStatusRank('withdrawn')).toBeNull();
+  });
+});
+
+describe('getAllowedApplicationStatusTransitions', () => {
   it('gives draft and withdrawn no moves at all', () => {
     for (const status of ['draft', 'withdrawn'] as const)
       expect(getAllowedApplicationStatusTransitions(status)).toEqual([]);
+  });
+
+  it('is exactly the next step plus Accept/Reject for each unresolved status', () => {
+    expect(new Set(getAllowedApplicationStatusTransitions('applied'))).toEqual(
+      new Set(['reached_out', 'accepted', 'rejected']),
+    );
+    expect(
+      new Set(getAllowedApplicationStatusTransitions('reached_out')),
+    ).toEqual(new Set(['interview_scheduled', 'accepted', 'rejected']));
+    expect(
+      new Set(getAllowedApplicationStatusTransitions('interview_scheduled')),
+    ).toEqual(new Set(['reviewing', 'accepted', 'rejected']));
+  });
+
+  it('dedupes reviewing, whose next step already is accepted', () => {
+    const allowed = getAllowedApplicationStatusTransitions('reviewing');
+    expect(new Set(allowed)).toEqual(new Set(['accepted', 'rejected']));
+    expect(allowed.filter((s) => s === 'accepted')).toHaveLength(1);
+  });
+
+  it('gives both terminals no moves', () => {
+    expect(getAllowedApplicationStatusTransitions('accepted')).toEqual([]);
+    expect(getAllowedApplicationStatusTransitions('rejected')).toEqual([]);
   });
 
   it('never allows a move into draft or withdrawn', () => {
@@ -50,6 +112,34 @@ describe('APPLICATION_STATUS_TRANSITIONS', () => {
   });
 });
 
+describe('isAllowedApplicationStatusTransition', () => {
+  it('rejects reviewing -> interview_scheduled on the normal path', () => {
+    expect(
+      isAllowedApplicationStatusTransition('reviewing', 'interview_scheduled'),
+    ).toBe(false);
+  });
+
+  it('rejects accepted -> rejected on the normal path', () => {
+    expect(isAllowedApplicationStatusTransition('accepted', 'rejected')).toBe(
+      false,
+    );
+  });
+
+  it('allows Accept and Reject from every unresolved status, none of the others', () => {
+    for (const status of ALL_STATUSES) {
+      const isUnresolved = (
+        UNRESOLVED_APPLICATION_STATUSES as readonly $Enums.ApplicationStatus[]
+      ).includes(status);
+      expect(isAllowedApplicationStatusTransition(status, 'accepted')).toBe(
+        isUnresolved,
+      );
+      expect(isAllowedApplicationStatusTransition(status, 'rejected')).toBe(
+        isUnresolved,
+      );
+    }
+  });
+});
+
 describe('APPLICATION_STATUS_ACTION_LABELS', () => {
   it('describes interview_scheduled as a status, not an imperative action', () => {
     expect(APPLICATION_STATUS_ACTION_LABELS.interview_scheduled).toBe(
@@ -58,134 +148,53 @@ describe('APPLICATION_STATUS_ACTION_LABELS', () => {
   });
 });
 
-describe('rejected reachability', () => {
-  it('allows rejected from exactly REJECTABLE_APPLICATION_STATUSES', () => {
+describe('getApplicationStatusMenu', () => {
+  it('hoists nothing — next is the raw path successor for every unresolved status', () => {
+    expect(getApplicationStatusMenu('applied').next).toBe('reached_out');
+    expect(getApplicationStatusMenu('reached_out').next).toBe(
+      'interview_scheduled',
+    );
+    expect(getApplicationStatusMenu('interview_scheduled').next).toBe(
+      'reviewing',
+    );
+    expect(getApplicationStatusMenu('reviewing').next).toBe('accepted');
+  });
+
+  it('holds both decisions when next is not a decision', () => {
+    expect(getApplicationStatusMenu('applied').decisions).toEqual([
+      'accepted',
+      'rejected',
+    ]);
+  });
+
+  it('dedupes reviewing — its next step already is accepted, so decisions holds only reject', () => {
+    expect(getApplicationStatusMenu('reviewing').decisions).toEqual([
+      'rejected',
+    ]);
+  });
+
+  it('is empty (next and decisions) on both terminals', () => {
+    for (const status of ['accepted', 'rejected'] as const) {
+      const menu = getApplicationStatusMenu(status);
+      expect(menu.next).toBeNull();
+      expect(menu.decisions).toEqual([]);
+    }
+  });
+
+  it('is empty (next and decisions) on both applicant-owned statuses', () => {
+    for (const status of ['draft', 'withdrawn'] as const) {
+      const menu = getApplicationStatusMenu(status);
+      expect(menu.next).toBeNull();
+      expect(menu.decisions).toEqual([]);
+    }
+  });
+
+  it('never puts a move-back in either field', () => {
     for (const status of ALL_STATUSES) {
-      const canReject = isAllowedApplicationStatusTransition(
-        status,
-        'rejected',
-      );
-      const expected = (
-        REJECTABLE_APPLICATION_STATUSES as readonly $Enums.ApplicationStatus[]
-      ).includes(status);
-      expect(canReject).toBe(expected);
-    }
-  });
-});
-
-describe('getApplicationStatusForwardSources', () => {
-  const forwardOrRejectSources = (
-    to: $Enums.ApplicationStatus,
-  ): $Enums.ApplicationStatus[] =>
-    ALL_STATUSES.filter((from) => {
-      const { forward } = APPLICATION_STATUS_TRANSITIONS[from];
-      const isAcceptable = (
-        ACCEPTABLE_APPLICATION_STATUSES as readonly $Enums.ApplicationStatus[]
-      ).includes(from);
-      const isRejectable = (
-        REJECTABLE_APPLICATION_STATUSES as readonly $Enums.ApplicationStatus[]
-      ).includes(from);
-      return (
-        (forward as readonly $Enums.ApplicationStatus[]).includes(to) ||
-        (isAcceptable && to === 'accepted') ||
-        (isRejectable && to === 'rejected')
-      );
-    });
-
-  const backSources = (
-    to: $Enums.ApplicationStatus,
-  ): $Enums.ApplicationStatus[] =>
-    ALL_STATUSES.filter((from) =>
-      (
-        APPLICATION_STATUS_TRANSITIONS[from]
-          .back as readonly $Enums.ApplicationStatus[]
-      ).includes(to),
-    );
-
-  it('prefers forward/reject sources whenever any exist', () => {
-    for (const to of ALL_STATUSES) {
-      const forward = forwardOrRejectSources(to);
-      if (forward.length === 0) continue;
-      expect(new Set(getApplicationStatusForwardSources(to))).toEqual(
-        new Set(forward),
-      );
-    }
-  });
-
-  it('falls back to back-sources when a target has no forward source', () => {
-    const backOnlyTargets = ALL_STATUSES.filter(
-      (to) => forwardOrRejectSources(to).length === 0,
-    );
-    // Guards against this loop vacuously passing if the graph ever changes.
-    expect(backOnlyTargets).not.toHaveLength(0);
-
-    for (const to of backOnlyTargets)
-      expect(new Set(getApplicationStatusForwardSources(to))).toEqual(
-        new Set(backSources(to)),
-      );
-  });
-
-  it('accepted is reachable from all four unresolved statuses', () => {
-    expect(new Set(getApplicationStatusForwardSources('accepted'))).toEqual(
-      new Set(ACCEPTABLE_APPLICATION_STATUSES),
-    );
-  });
-});
-
-describe('accepted reachability', () => {
-  it('allows accepted from exactly ACCEPTABLE_APPLICATION_STATUSES, mirroring rejected', () => {
-    for (const status of ALL_STATUSES) {
-      const canAccept = isAllowedApplicationStatusTransition(
-        status,
-        'accepted',
-      );
-      const expected = (
-        ACCEPTABLE_APPLICATION_STATUSES as readonly $Enums.ApplicationStatus[]
-      ).includes(status);
-      expect(canAccept).toBe(expected);
-    }
-  });
-
-  it('never lists accepted in a forward array — only via ACCEPTABLE_APPLICATION_STATUSES', () => {
-    for (const status of ALL_STATUSES)
-      expect(APPLICATION_STATUS_TRANSITIONS[status].forward).not.toContain(
-        'accepted',
-      );
-  });
-
-  it('is offered from every unresolved status, none of the non-reviewable ones', () => {
-    for (const status of NON_REVIEWABLE_APPLICATION_STATUSES)
-      expect(getAllowedApplicationStatusTransitions(status)).not.toContain(
-        'accepted',
-      );
-  });
-});
-
-describe('getApplicationStatusMenuGroups', () => {
-  it('puts forward above, decisions below, and never a back move in either group', () => {
-    for (const from of ALL_STATUSES) {
-      const { forward: expectedForward, back } =
-        APPLICATION_STATUS_TRANSITIONS[from];
-      const { forward, decisions } = getApplicationStatusMenuGroups(from);
-
-      expect(forward).toEqual([...expectedForward]);
-      for (const backTarget of back)
-        expect(decisions).not.toContain(backTarget);
-      for (const backTarget of back) expect(forward).not.toContain(backTarget);
-    }
-  });
-
-  it('matches ACCEPTABLE/REJECTABLE membership for the decisions group', () => {
-    for (const from of ALL_STATUSES) {
-      const { decisions } = getApplicationStatusMenuGroups(from);
-      const isAcceptable = (
-        ACCEPTABLE_APPLICATION_STATUSES as readonly $Enums.ApplicationStatus[]
-      ).includes(from);
-      const isRejectable = (
-        REJECTABLE_APPLICATION_STATUSES as readonly $Enums.ApplicationStatus[]
-      ).includes(from);
-      expect(decisions.includes('accepted')).toBe(isAcceptable);
-      expect(decisions.includes('rejected')).toBe(isRejectable);
+      const { next, decisions } = getApplicationStatusMenu(status);
+      if (next) expect(getApplicationStatusRank(status)).not.toBeNull();
+      expect(decisions).not.toContain('interview_scheduled');
+      expect(decisions).not.toContain('reviewing');
     }
   });
 });

@@ -6,8 +6,8 @@ import type { $Enums } from '@/prisma/client';
 import {
   APPLICATION_STATUS_LABELS,
   MANAGED_POSITIONS_WINDOW_DAYS,
-  NON_REVIEWABLE_APPLICATION_STATUSES,
   USER_ROLE_FILTER_OPTIONS,
+  getApplicationStatusRank,
   isNonReviewableApplicationStatus,
 } from '@/lib/constants';
 import type {
@@ -121,13 +121,6 @@ export function isSameIdSet(
   if (setA.size !== a.length || setB.size !== b.length) return false;
   for (const id of setA) if (!setB.has(id)) return false;
   return true;
-}
-
-/** Alternatives ("reachable from X or Y"), not a conjunction — "or" throughout. */
-export function formatAlternatives(labels: string[]): string {
-  if (labels.length <= 1) return labels.join('');
-  if (labels.length === 2) return labels.join(' or ');
-  return `${labels.slice(0, -1).join(', ')}, or ${labels[labels.length - 1]}`;
 }
 
 /** Joins truthy ids for `aria-describedby`; `undefined` when none apply. */
@@ -488,35 +481,61 @@ export function getUserRoleRank(user: RoleTokenInput): number {
 }
 
 export type BulkStatusChangeSummary = {
-  eligibleCount: number;
+  forwardCount: number;
+  backwardCount: number;
+  finalDecisionCount: number;
   skippedCount: number;
-  /** e.g. "1 withdrawn application"; null when nothing is skipped. */
+  eligibleCount: number;
+  /** e.g. "1 skipped — drafts, withdrawn, or already Reviewing."; null when nothing is skipped. */
   skippedLabel: string | null;
+  // True when the target is a decision, or the batch reverses one — either
+  // way an applicant sees something other than the "Applied" collapse.
+  applicantVisible: boolean;
 };
 
-/** Partitions rows the bulk bar can't touch server-side (NON_REVIEWABLE_APPLICATION_STATUSES). */
+/**
+ * Four-way split of a bulk move toward `target`: skipped (draft, withdrawn,
+ * or already at target) → final decision (currently accepted/rejected) →
+ * backward (further along the path than target) → forward. Mutually
+ * exclusive, evaluated in that order.
+ */
 export function summarizeBulkStatusChange(
   rows: { status: $Enums.ApplicationStatus }[],
+  target: $Enums.ApplicationStatus,
 ): BulkStatusChangeSummary {
-  const skipped = rows.filter((r) =>
-    isNonReviewableApplicationStatus(r.status),
-  );
+  let forwardCount = 0;
+  let backwardCount = 0;
+  let finalDecisionCount = 0;
+  let skippedCount = 0;
 
-  if (skipped.length === 0)
-    return { eligibleCount: rows.length, skippedCount: 0, skippedLabel: null };
+  const targetRank = getApplicationStatusRank(target);
 
-  const skippedLabel = NON_REVIEWABLE_APPLICATION_STATUSES.map((status) => {
-    const count = skipped.filter((r) => r.status === status).length;
-    if (count === 0) return null;
-    const label = APPLICATION_STATUS_LABELS[status].toLowerCase();
-    return `${count} ${label} ${count === 1 ? 'application' : 'applications'}`;
-  })
-    .filter((part): part is string => part !== null)
-    .join(' and ');
+  for (const row of rows) {
+    if (isNonReviewableApplicationStatus(row.status) || row.status === target) {
+      skippedCount++;
+      continue;
+    }
+    if (row.status === 'accepted' || row.status === 'rejected') {
+      finalDecisionCount++;
+      continue;
+    }
+    const rowRank = getApplicationStatusRank(row.status);
+    if (rowRank !== null && targetRank !== null && rowRank > targetRank)
+      backwardCount++;
+    else forwardCount++;
+  }
 
   return {
-    eligibleCount: rows.length - skipped.length,
-    skippedCount: skipped.length,
-    skippedLabel,
+    forwardCount,
+    backwardCount,
+    finalDecisionCount,
+    skippedCount,
+    eligibleCount: rows.length - skippedCount,
+    skippedLabel:
+      skippedCount > 0
+        ? `${skippedCount} skipped — drafts, withdrawn, or already ${APPLICATION_STATUS_LABELS[target]}.`
+        : null,
+    applicantVisible:
+      target === 'accepted' || target === 'rejected' || finalDecisionCount > 0,
   };
 }

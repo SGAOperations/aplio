@@ -24,15 +24,9 @@ export const applyNavItems: NavItem[] = [
   },
 ];
 
-export const myPositionsNavItem: NavItem = {
-  href: '/my-positions',
-  label: 'My Positions',
-  icon: FolderKanban,
-};
-
 // Shown to admins AND managers — anyone who can review applications.
 export const manageReviewerNavItems: NavItem[] = [
-  myPositionsNavItem,
+  { href: '/manage/positions', label: 'Manage Positions', icon: FolderKanban },
   {
     href: '/applications',
     label: 'Applications',

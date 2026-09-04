@@ -388,6 +388,24 @@ export const REVIEWER_APPLICATION_STATUSES = [
 export const REVIEWER_APPLICATION_STATUS_OPTIONS =
   APPLICATION_STATUS_OPTIONS.filter((o) => o.value !== 'draft');
 
+// Collapses reviewer-internal statuses to what an applicant may see: the
+// four in-review statuses all read as 'applied'; everything else maps to
+// itself. Values (not keys) derive PublicApplicationStatus, so the type
+// can't drift from the map.
+export const PUBLIC_APPLICATION_STATUS = {
+  draft: 'draft',
+  applied: 'applied',
+  reached_out: 'applied',
+  interview_scheduled: 'applied',
+  reviewing: 'applied',
+  accepted: 'accepted',
+  rejected: 'rejected',
+  withdrawn: 'withdrawn',
+} as const satisfies Record<$Enums.ApplicationStatus, $Enums.ApplicationStatus>;
+
+export type PublicApplicationStatus =
+  (typeof PUBLIC_APPLICATION_STATUS)[keyof typeof PUBLIC_APPLICATION_STATUS];
+
 // Array order is rank order — also drives getUserRoleRank's fallback.
 export const USER_ROLE_FILTER_OPTIONS: {
   value: UserRoleFilter;
@@ -404,71 +422,58 @@ export const APPLICATION_SORT_DIRECTIONS = ['asc', 'desc'] as const;
 // Sized so the bulk bar's "select all" still covers a useful batch per page.
 export const APPLICATIONS_PAGE_SIZE = 50;
 
-// Single source of truth for the server guard and the rendered quick actions.
-// Array order is display order; `draft`/`withdrawn` have no reviewer moves.
-export const APPLICATION_STATUS_TRANSITIONS = {
-  draft: { forward: [], back: [] },
-  applied: { forward: ['reached_out', 'reviewing'], back: [] },
-  reached_out: {
-    forward: ['interview_scheduled', 'reviewing'],
-    back: ['applied'],
-  },
-  interview_scheduled: { forward: ['reviewing'], back: ['reached_out'] },
-  reviewing: { forward: ['interview_scheduled'], back: ['reached_out'] },
-  accepted: { forward: [], back: ['reviewing', 'interview_scheduled'] },
-  rejected: { forward: [], back: ['reviewing', 'interview_scheduled'] },
-  withdrawn: { forward: [], back: [] },
-} as const satisfies Record<
-  $Enums.ApplicationStatus,
-  {
-    forward: readonly $Enums.ApplicationStatus[];
-    back: readonly $Enums.ApplicationStatus[];
-  }
->;
-
-// Same members as UNRESOLVED_APPLICATION_STATUSES, but a different meaning —
-// 'rejected' is reachable from every one of these.
-export const REJECTABLE_APPLICATION_STATUSES = [
+// Source of truth for "what comes next" — nothing else hardcodes an order.
+// draft/withdrawn are off the path (applicant-owned); reviewing's next step
+// is accepted, not another reviewer status.
+export const APPLICATION_STATUS_PATH = [
+  'draft',
   'applied',
   'reached_out',
   'interview_scheduled',
   'reviewing',
+  'accepted',
 ] as const satisfies $Enums.ApplicationStatus[];
 
-// Same members as REJECTABLE_APPLICATION_STATUSES — Accept is offered from
-// every unresolved status, not just the two the `forward` graph reaches.
-export const ACCEPTABLE_APPLICATION_STATUSES = [
-  'applied',
-  'reached_out',
-  'interview_scheduled',
-  'reviewing',
-] as const satisfies $Enums.ApplicationStatus[];
-
-export function isRejectableApplicationStatus(
-  status: $Enums.ApplicationStatus,
-): boolean {
-  return (
-    REJECTABLE_APPLICATION_STATUSES as readonly $Enums.ApplicationStatus[]
-  ).includes(status);
+// Null for draft/withdrawn (applicant-owned, off-path) and for accepted/rejected (terminal).
+export function getNextApplicationStatus(
+  from: $Enums.ApplicationStatus,
+): (typeof REVIEWER_APPLICATION_STATUSES)[number] | null {
+  if (from === 'draft' || from === 'withdrawn') return null;
+  const index = (
+    APPLICATION_STATUS_PATH as readonly $Enums.ApplicationStatus[]
+  ).indexOf(from);
+  if (index === -1) return null;
+  const next = APPLICATION_STATUS_PATH[index + 1];
+  if (!next) return null;
+  return next as (typeof REVIEWER_APPLICATION_STATUSES)[number];
 }
 
-export function isAcceptableApplicationStatus(
+// Path position; `rejected` shares `accepted`'s rank (both terminal); null
+// for draft/withdrawn (off-path).
+export function getApplicationStatusRank(
   status: $Enums.ApplicationStatus,
-): boolean {
-  return (
-    ACCEPTABLE_APPLICATION_STATUSES as readonly $Enums.ApplicationStatus[]
-  ).includes(status);
+): number | null {
+  if (status === 'draft' || status === 'withdrawn') return null;
+  const rankOf = status === 'rejected' ? 'accepted' : status;
+  const index = (
+    APPLICATION_STATUS_PATH as readonly $Enums.ApplicationStatus[]
+  ).indexOf(rankOf);
+  return index === -1 ? null : index;
 }
 
+// The legal set from a status: its next path step, plus Accept/Reject while
+// unresolved (deduped — reviewing's next step already is accepted).
 export function getAllowedApplicationStatusTransitions(
   from: $Enums.ApplicationStatus,
 ): $Enums.ApplicationStatus[] {
-  const { forward, back } = APPLICATION_STATUS_TRANSITIONS[from];
+  const next = getNextApplicationStatus(from);
+  const isUnresolved = (
+    UNRESOLVED_APPLICATION_STATUSES as readonly $Enums.ApplicationStatus[]
+  ).includes(from);
   return [
-    ...forward,
-    ...(isAcceptableApplicationStatus(from) ? (['accepted'] as const) : []),
-    ...(isRejectableApplicationStatus(from) ? (['rejected'] as const) : []),
-    ...back,
+    ...(next ? [next] : []),
+    ...(isUnresolved && next !== 'accepted' ? (['accepted'] as const) : []),
+    ...(isUnresolved ? (['rejected'] as const) : []),
   ];
 }
 
@@ -479,38 +484,8 @@ export function isAllowedApplicationStatusTransition(
   return getAllowedApplicationStatusTransitions(from).includes(to);
 }
 
-// Bulk targets exclude move-back sources: a batch moving several applications
-// toward a target should skip a row already past it, not walk it backward.
-// A target with no forward source at all (e.g. 'applied') is back-only, so
-// there's no "already past it" row to protect — fall back to its back
-// sources rather than making that target permanently unreachable in bulk.
-export function getApplicationStatusForwardSources(
-  to: $Enums.ApplicationStatus,
-): $Enums.ApplicationStatus[] {
-  const forwardSources = (
-    Object.keys(APPLICATION_STATUS_TRANSITIONS) as $Enums.ApplicationStatus[]
-  ).filter((from) => {
-    const { forward } = APPLICATION_STATUS_TRANSITIONS[from];
-    return (
-      (forward as readonly $Enums.ApplicationStatus[]).includes(to) ||
-      (isAcceptableApplicationStatus(from) && to === 'accepted') ||
-      (isRejectableApplicationStatus(from) && to === 'rejected')
-    );
-  });
-  if (forwardSources.length > 0) return forwardSources;
-
-  return (
-    Object.keys(APPLICATION_STATUS_TRANSITIONS) as $Enums.ApplicationStatus[]
-  ).filter((from) =>
-    (
-      APPLICATION_STATUS_TRANSITIONS[from]
-        .back as readonly $Enums.ApplicationStatus[]
-    ).includes(to),
-  );
-}
-
-// Imperative copy for forward/decision quick-action buttons. 'applied' is a
-// back-target only — a reviewer never moves an application forward into it.
+// Never a menu target — no status ever has 'applied' as its next path step
+// or a decision, but the Record must stay total over ReviewerStatus.
 export const APPLICATION_STATUS_ACTION_LABELS: Record<
   (typeof REVIEWER_APPLICATION_STATUSES)[number],
   string
@@ -531,7 +506,7 @@ export const TERMINAL_DECISION_STATUS_NOTES: Record<
   rejected: 'Rejected. The applicant can no longer withdraw this application.',
 };
 
-// States a reviewer may not act *on*, unlike REVIEWER_APPLICATION_STATUSES (may set *to*).
+// States a reviewer may not act *on* — distinct from REVIEWER_APPLICATION_STATUSES (may set *to*).
 export const NON_REVIEWABLE_APPLICATION_STATUSES = [
   'draft',
   'withdrawn',
@@ -555,22 +530,22 @@ export const NON_REVIEWABLE_APPLICATION_STATUS_NOTES: Record<
   draft: 'This application has not been submitted yet.',
 };
 
-// Partitions a status's allowed moves for the header's caret menu: forward
-// steps above the separator, Accept/Reject below — never move-backs.
-export function getApplicationStatusMenuGroups(
-  from: $Enums.ApplicationStatus,
-): {
-  forward: (typeof REVIEWER_APPLICATION_STATUSES)[number][];
-  decisions: (typeof REVIEWER_APPLICATION_STATUSES)[number][];
+// One menu shape for both surfaces: the next path step, then Accept/Reject
+// (deduped against `next` — reviewing's next step already is accepted).
+// Empty on both terminals and both applicant-owned statuses.
+export function getApplicationStatusMenu(from: $Enums.ApplicationStatus): {
+  next: (typeof REVIEWER_APPLICATION_STATUSES)[number] | null;
+  decisions: ('accepted' | 'rejected')[];
 } {
-  const { forward } = APPLICATION_STATUS_TRANSITIONS[from];
+  const next = getNextApplicationStatus(from);
+  const isUnresolved = (
+    UNRESOLVED_APPLICATION_STATUSES as readonly $Enums.ApplicationStatus[]
+  ).includes(from);
   return {
-    // Never draft/withdrawn — no status lists either as a forward target.
-    forward: [...forward] as (typeof REVIEWER_APPLICATION_STATUSES)[number][],
-    decisions: [
-      ...(isAcceptableApplicationStatus(from) ? (['accepted'] as const) : []),
-      ...(isRejectableApplicationStatus(from) ? (['rejected'] as const) : []),
-    ],
+    next,
+    decisions: isUnresolved
+      ? (['accepted', 'rejected'] as const).filter((d) => d !== next)
+      : [],
   };
 }
 
@@ -627,6 +602,13 @@ export const TERMINAL_DECISION_STATUSES: readonly $Enums.ApplicationStatus[] = [
   'rejected',
 ];
 
+// Narrows a status without an unsafe cast at each call site.
+export function isTerminalDecisionApplicationStatus(
+  status: $Enums.ApplicationStatus,
+): status is 'accepted' | 'rejected' {
+  return TERMINAL_DECISION_STATUSES.includes(status);
+}
+
 export const RECENTLY_CLOSED_WINDOW_DAYS = 7;
 
 // Longer than the public window so managers and admins keep oversight during wrap-up.
@@ -667,20 +649,25 @@ export function validatePositionDates(
 export const POSITION_DELETE_BLOCKED_ERROR =
   "This position has applications, so it can't be deleted. Close it instead.";
 
-export const STATUS_VALUES = [
+export const POSITION_STATUS_VALUES = [
   'draft',
   'open',
   'closed',
 ] as const satisfies PositionStatus[];
 
-export const STATUS_LABELS: Record<PositionStatus, string> = {
+export const POSITION_STATUS_LABELS: Record<PositionStatus, string> = {
   draft: 'Draft',
   open: 'Open',
   closed: 'Closed',
 };
 
-export const STATUS_OPTIONS: { value: PositionStatus; label: string }[] =
-  STATUS_VALUES.map((value) => ({ value, label: STATUS_LABELS[value] }));
+export const POSITION_STATUS_OPTIONS: {
+  value: PositionStatus;
+  label: string;
+}[] = POSITION_STATUS_VALUES.map((value) => ({
+  value,
+  label: POSITION_STATUS_LABELS[value],
+}));
 
 export const POSITION_DESCRIPTION_MAX_LENGTH = 10000;
 export const MARKDOWN_GUIDE_URL = 'https://www.markdownguide.org/basic-syntax/';
@@ -699,17 +686,16 @@ export const positionFormSchema = z
         POSITION_DESCRIPTION_MAX_LENGTH,
         `Description must be ${POSITION_DESCRIPTION_MAX_LENGTH.toLocaleString()} characters or fewer.`,
       ),
-    status: z.enum(STATUS_VALUES),
+    status: z.enum(POSITION_STATUS_VALUES),
     opensAt: orgDayInputSchema.optional(),
     closesAt: orgDayInputSchema.optional(),
   })
   .superRefine(validatePositionDates);
 
-export const STATUS_VARIANTS: Record<PositionStatus, BadgeVariant> = {
-  draft: 'secondary',
-  open: 'default',
-  closed: 'outline',
-};
+export const POSITION_STATUS_BADGE_VARIANT: Record<
+  PositionStatus,
+  BadgeVariant
+> = { draft: 'secondary', open: 'default', closed: 'outline' };
 
 // Position-scoped surfaces (draft still shows its applications); PUBLISHED is for cross-position ones.
 export const VISIBLE_POSITION_WHERE = {
@@ -727,21 +713,26 @@ export const QUESTION_TYPE_OPTIONS: { value: QuestionType; label: string }[] =
     label: QUESTION_TYPE_LABELS[value],
   }));
 
-// Mirrors STATUS_LABELS 'open'/'closed' so the badge reflects effective state, not the raw enum.
-export const AVAILABILITY_LABELS: Record<PositionAvailability, string> = {
+// Mirrors POSITION_STATUS_LABELS 'open'/'closed' so the badge reflects effective state, not the raw enum.
+export const POSITION_AVAILABILITY_LABELS: Record<
+  PositionAvailability,
+  string
+> = {
   accepting: 'Open',
   upcoming: 'Upcoming',
   closed_by_date: 'Closed',
   unavailable: 'Closed',
 };
 
-export const AVAILABILITY_VARIANTS: Record<PositionAvailability, BadgeVariant> =
-  {
-    accepting: 'default',
-    upcoming: 'secondary',
-    closed_by_date: 'outline',
-    unavailable: 'outline',
-  };
+export const POSITION_AVAILABILITY_BADGE_VARIANT: Record<
+  PositionAvailability,
+  BadgeVariant
+> = {
+  accepting: 'default',
+  upcoming: 'secondary',
+  closed_by_date: 'outline',
+  unavailable: 'outline',
+};
 
 export const PRIVACY_HREF = '/privacy';
 export const TERMS_HREF = '/terms';

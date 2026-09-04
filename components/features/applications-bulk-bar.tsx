@@ -10,12 +10,11 @@ import type { $Enums } from '@/prisma/client';
 import {
   APPLICATION_STATUS_LABELS,
   REVIEWER_APPLICATION_STATUS_OPTIONS,
-  getApplicationStatusForwardSources,
   isNonReviewableApplicationStatus,
 } from '@/lib/constants';
 import { ACTION_ICONS } from '@/lib/icons';
 import type { ApplicationListRow } from '@/lib/types';
-import { formatAlternatives, summarizeBulkStatusChange } from '@/lib/utils';
+import { summarizeBulkStatusChange } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -53,9 +52,13 @@ export function ApplicationsBulkBar({
   const count = selected.length;
   const countLabel = count === 1 ? '1 selected' : `${count} selected`;
 
-  const { eligibleCount, skippedLabel } = summarizeBulkStatusChange(selected);
+  const summary = status ? summarizeBulkStatusChange(selected, status) : null;
+  const eligibleCount = summary?.eligibleCount ?? 0;
+  const skippedLabel = summary?.skippedLabel ?? null;
   const isRejecting = status === 'rejected';
+  const isDecision = status === 'accepted' || status === 'rejected';
   const statusLabel = status ? APPLICATION_STATUS_LABELS[status] : '';
+  const finalDecisionCount = summary?.finalDecisionCount ?? 0;
 
   function handleConfirm() {
     if (!status) return;
@@ -74,13 +77,10 @@ export function ApplicationsBulkBar({
         if (skipped === 0) {
           toast.success(`Updated ${updated} ${applicationNoun(updated)}`);
         } else {
-          const sourceLabels = getApplicationStatusForwardSources(status).map(
-            (source) => APPLICATION_STATUS_LABELS[source],
-          );
           toast.success(
             `Updated ${updated} of ${updated + skipped} applications`,
             {
-              description: `${statusLabel} is only reachable from ${formatAlternatives(sourceLabels)}.`,
+              description: `${skipped} skipped — drafts, withdrawn, or already ${statusLabel}.`,
             },
           );
         }
@@ -88,7 +88,11 @@ export function ApplicationsBulkBar({
         setConfirmOpen(false);
         onApplied(
           selected
-            .filter((a) => isNonReviewableApplicationStatus(a.status))
+            .filter(
+              (a) =>
+                isNonReviewableApplicationStatus(a.status) ||
+                a.status === status,
+            )
             .map((a) => a.id),
         );
       } catch {
@@ -107,9 +111,7 @@ export function ApplicationsBulkBar({
             role="status"
             className="text-muted-foreground text-xs"
           >
-            {eligibleCount === 0
-              ? "Nothing to update — withdrawn applications can't be changed."
-              : `${skippedLabel} will be skipped.`}
+            {skippedLabel}
           </span>
         )}
       </div>
@@ -165,14 +167,23 @@ export function ApplicationsBulkBar({
         }
         description={
           <div className="flex flex-col gap-2">
-            <p>
-              {eligibleCount} of {count} selected applications will change to{' '}
-              {statusLabel}.
-            </p>
-            <p>Applicants see this status on their own application page.</p>
-            {skippedLabel && (
-              <p>{skippedLabel} will be skipped and stay as-is.</p>
+            {summary && summary.forwardCount > 0 && (
+              <p>{summary.forwardCount} will move forward.</p>
             )}
+            {summary && summary.backwardCount > 0 && (
+              <p>{summary.backwardCount} will move backward.</p>
+            )}
+            {finalDecisionCount > 0 && (
+              <p>{`${finalDecisionCount} will change a final decision — it's currently Accepted or Rejected.`}</p>
+            )}
+            {skippedLabel && <p>{skippedLabel}</p>}
+            <p>
+              {isDecision
+                ? 'Applicants will see this decision on their application.'
+                : summary?.applicantVisible
+                  ? 'Applicants whose decision is reversed will see this change; the rest still show as Applied.'
+                  : "Applicants won't see this change — every in-review application shows as Applied to them."}
+            </p>
           </div>
         }
         confirmLabel={

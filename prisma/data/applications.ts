@@ -12,7 +12,9 @@ import {
 } from '@/lib/auth/scopes';
 import {
   APPLICATIONS_PAGE_SIZE,
+  PUBLIC_APPLICATION_STATUS,
   PUBLISHED_POSITION_WHERE,
+  type PublicApplicationStatus,
   VISIBLE_POSITION_WHERE,
 } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
@@ -36,6 +38,24 @@ import {
   displayUserName,
   isPositionActive,
 } from '@/lib/utils';
+
+// Maps status to the public value and updatedAt to lastSavedAt — null once
+// submitted, so a submitted row never carries a "last touched" timestamp.
+function toPublicApplication<
+  T extends { status: $Enums.ApplicationStatus; updatedAt: Date },
+>(
+  application: T,
+): Omit<T, 'status' | 'updatedAt'> & {
+  status: PublicApplicationStatus;
+  lastSavedAt: Date | null;
+} {
+  const { status, updatedAt, ...rest } = application;
+  return {
+    ...rest,
+    status: PUBLIC_APPLICATION_STATUS[status],
+    lastSavedAt: status === 'draft' ? updatedAt : null,
+  };
+}
 
 const applicationSelect = {
   id: true,
@@ -115,32 +135,42 @@ export async function getApplicationForApply(
   userId: string,
   positionId: string,
 ): Promise<DraftApplication | null> {
-  return prisma.application.findFirst({
+  const application = await prisma.application.findFirst({
     where: { userId, positionId },
     include: { globalAnswers: true, positionAnswers: true },
   });
+  if (!application) return null;
+
+  return {
+    ...application,
+    status: PUBLIC_APPLICATION_STATUS[application.status],
+  };
 }
 
 export async function getMyApplications(
   userId: string,
 ): Promise<MyApplicationListItem[]> {
-  return prisma.application.findMany({
+  const applications = await prisma.application.findMany({
     where: { userId, deletedAt: null, position: PUBLISHED_POSITION_WHERE },
     select: applicationSelect,
-    orderBy: { updatedAt: 'desc' },
+    orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
   });
+
+  return applications.map(toPublicApplication);
 }
 
 export async function getRecentMyApplications(
   userId: string,
   take = 5,
 ): Promise<MyApplicationListItem[]> {
-  return prisma.application.findMany({
+  const applications = await prisma.application.findMany({
     where: { userId, deletedAt: null, position: PUBLISHED_POSITION_WHERE },
     select: applicationSelect,
-    orderBy: { updatedAt: 'desc' },
+    orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
     take,
   });
+
+  return applications.map(toPublicApplication);
 }
 
 // No status filter — caller needs draft/withdrawn too; one row per position via the [userId, positionId] unique constraint.
@@ -152,7 +182,12 @@ export async function getMyApplicationsByPosition(
     select: { id: true, positionId: true, status: true },
   });
 
-  return new Map(applications.map((a) => [a.positionId, a]));
+  return new Map(
+    applications.map((a) => [
+      a.positionId,
+      { ...a, status: PUBLIC_APPLICATION_STATUS[a.status] },
+    ]),
+  );
 }
 
 // Same visibility as getMyApplications, so a bookmarked URL can't outlive its list row.
@@ -180,7 +215,7 @@ export async function getMyApplication(
   const { _count, ...positionRest } = position;
 
   return {
-    ...rest,
+    ...toPublicApplication(rest),
     position: positionRest,
     hasPositionQuestions: _count.questions > 0,
     ...normalizeApplicationAnswers(application),
@@ -315,14 +350,19 @@ export async function getApplicantOtherApplications(
 
 export async function getMyApplicationStatusCounts(
   userId: string,
-): Promise<Partial<Record<$Enums.ApplicationStatus, number>>> {
+): Promise<Partial<Record<PublicApplicationStatus, number>>> {
   const rows = await prisma.application.groupBy({
     by: ['status'],
     where: { userId, deletedAt: null, position: PUBLISHED_POSITION_WHERE },
     _count: true,
   });
 
-  return Object.fromEntries(rows.map((r) => [r.status, r._count]));
+  const counts: Partial<Record<PublicApplicationStatus, number>> = {};
+  for (const row of rows) {
+    const publicStatus = PUBLIC_APPLICATION_STATUS[row.status];
+    counts[publicStatus] = (counts[publicStatus] ?? 0) + row._count;
+  }
+  return counts;
 }
 
 // Returns cross-user data — reviewer-gated callers only.
@@ -515,7 +555,7 @@ export async function getMyRecentActivity(
   userId: string,
   take = 10,
 ): Promise<MyApplicationListItem[]> {
-  return prisma.application.findMany({
+  const applications = await prisma.application.findMany({
     where: {
       userId,
       deletedAt: null,
@@ -523,9 +563,11 @@ export async function getMyRecentActivity(
       position: PUBLISHED_POSITION_WHERE,
     },
     select: applicationSelect,
-    orderBy: { updatedAt: 'desc' },
+    orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
     take,
   });
+
+  return applications.map(toPublicApplication);
 }
 
 export async function getReviewablePositions(

@@ -10,7 +10,6 @@ import { withRedirectTo } from '@/lib/auth/redirect';
 import { getCurrentUser } from '@/lib/auth/server';
 import {
   APPLICATION_STATUS_LABELS,
-  UNRESOLVED_APPLICATION_STATUSES,
   isApplicantEditableApplicationStatus,
 } from '@/lib/constants';
 import { CONCEPT_ICONS, STATE_ICONS } from '@/lib/icons';
@@ -114,9 +113,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
                 </span>
               </div>
               <p className="text-muted-foreground mt-3 text-sm">
-                {UNRESOLVED_APPLICATION_STATUSES.includes(
-                  activeApplication.status as (typeof UNRESOLVED_APPLICATION_STATUSES)[number],
-                )
+                {activeApplication.status === 'applied'
                   ? 'To change your answers, withdraw this application from My Applications, then edit and resubmit it.'
                   : `This application has been ${APPLICATION_STATUS_LABELS[activeApplication.status]} and can no longer be edited.`}
               </p>

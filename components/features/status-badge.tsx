@@ -3,10 +3,10 @@ import { type $Enums } from '@/prisma/client';
 import {
   APPLICATION_STATUS_BADGE_VARIANT,
   APPLICATION_STATUS_LABELS,
-  AVAILABILITY_LABELS,
-  AVAILABILITY_VARIANTS,
-  STATUS_LABELS,
-  STATUS_VARIANTS,
+  POSITION_AVAILABILITY_BADGE_VARIANT,
+  POSITION_AVAILABILITY_LABELS,
+  POSITION_STATUS_BADGE_VARIANT,
+  POSITION_STATUS_LABELS,
 } from '@/lib/constants';
 import {
   APPLICATION_STATUS_ICONS,
@@ -43,12 +43,12 @@ export function PositionStatusBadge({ position }: PositionStatusBadgeProps) {
   const availability = getPositionAvailability(position);
   const variant =
     availability === 'unavailable'
-      ? STATUS_VARIANTS[position.status]
-      : AVAILABILITY_VARIANTS[availability];
+      ? POSITION_STATUS_BADGE_VARIANT[position.status]
+      : POSITION_AVAILABILITY_BADGE_VARIANT[availability];
   const label =
     availability === 'unavailable'
-      ? STATUS_LABELS[position.status]
-      : AVAILABILITY_LABELS[availability];
+      ? POSITION_STATUS_LABELS[position.status]
+      : POSITION_AVAILABILITY_LABELS[availability];
   const Icon =
     availability === 'unavailable'
       ? POSITION_STATUS_ICONS[position.status]

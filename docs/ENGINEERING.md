@@ -98,6 +98,7 @@ export async function withdrawApplication(input: unknown) {
 - **Server/client boundary.** No secrets, tokens, internal IDs beyond necessity, or other-users' data in props passed to client components. Anything serialized to the client is public to that user.
 - **Dev-only code is env-gated.** Anything like `prisma/actions/dev-bypass.ts` must be impossible to trigger in production (explicit `NODE_ENV`/env-flag guard).
 - **No raw SQL with interpolation.** Use Prisma query builders; if `$queryRaw` is unavoidable, use tagged-template parameters only.
+- **Applicant-facing surfaces receive the public application status only.** `Application.status`'s in-review detail (`reached_out`, `interview_scheduled`, `reviewing`) is reviewer-only data — collapse it through `PUBLIC_APPLICATION_STATUS` (`lib/constants.ts`) in the query, not at render, so it never reaches an applicant's RSC payload. Type the field `PublicApplicationStatus` on every applicant-facing payload so passing the raw enum into one of those components is a compile error, not a review catch.
 
 ## 4. UX Completeness
 
