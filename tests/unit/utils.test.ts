@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { MANAGED_POSITIONS_WINDOW_DAYS } from '@/lib/constants';
+import {
+  MANAGED_POSITIONS_WINDOW_DAYS,
+  OTP_RESEND_COOLDOWN_SECONDS,
+} from '@/lib/constants';
 import type { AnswerQuestion, PositionActivity } from '@/lib/types';
 import {
   answerFieldIds,
@@ -8,6 +11,7 @@ import {
   displayUserName,
   findDivergingGlobalAnswers,
   formatAlternatives,
+  formatCountdown,
   formatPaginationSummary,
   formatTableCount,
   getApplicantName,
@@ -288,6 +292,28 @@ describe('formatTableCount', () => {
         pluralNoun: 'queries',
       }),
     ).toBe('2 queries');
+  });
+});
+
+describe('formatCountdown', () => {
+  it('renders zero as 0:00', () => {
+    expect(formatCountdown(0)).toBe('0:00');
+  });
+
+  it('pads sub-minute seconds', () => {
+    expect(formatCountdown(42)).toBe('0:42');
+  });
+
+  it('pads seconds within a minute', () => {
+    expect(formatCountdown(95)).toBe('1:35');
+  });
+
+  it('renders the full cooldown', () => {
+    expect(formatCountdown(OTP_RESEND_COOLDOWN_SECONDS)).toBe('3:00');
+  });
+
+  it('clamps a negative value to 0:00', () => {
+    expect(formatCountdown(-5)).toBe('0:00');
   });
 });
 
