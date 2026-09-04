@@ -487,6 +487,7 @@ export async function submitApplication(
 
   revalidatePath('/applications');
   revalidatePath('/positions', 'layout');
+  revalidatePath('/manage/positions', 'layout');
   // The draft leaves /my-applications' draft-state list once submitted.
   revalidatePath('/my-applications');
   revalidatePath(`/my-applications/${applicationId}`);
@@ -702,6 +703,7 @@ export async function withdrawApplication(
   revalidatePath(`/my-applications/${applicationId}`);
   revalidatePath('/applications');
   revalidatePath('/positions', 'layout');
+  revalidatePath('/manage/positions', 'layout');
 }
 
 // Soft delete: both answer tables are left untouched, so re-applying to the

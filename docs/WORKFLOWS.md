@@ -94,7 +94,7 @@ Anyone not signed in. The only routes they can use are `/positions`, `/positions
 ### AN-2 View a position
 
 - **Trigger** — a position card on `/positions`, or a direct link to `/positions/[id]`.
-- **Happy path** — `getPositionDetail(id)`, then `getOptionalManagerAccess(position.managers)` — which never forces auth, so an anonymous visitor and a signed-in non-manager get identical output. Renders the title, availability badge, the application window date, markdown description, the list of application question labels, and the primary CTA ([AN-3](#an-3-start-applying-from-a-position)). The back link is viewer-dependent: "&larr; Back to my positions" → `/my-positions` when the viewer can manage this position, otherwise "&larr; Back to positions" → `/positions`.
+- **Happy path** — `getPositionDetail(id)`, then `getOptionalManagerAccess(position.managers)` — which never forces auth, so an anonymous visitor and a signed-in non-manager get identical output. Renders the title, availability badge, the application window date, markdown description, the list of application question labels, and the primary CTA ([AN-3](#an-3-start-applying-from-a-position)). The back link is viewer-dependent: "&larr; Back to Manage Positions" → `/manage/positions` when the viewer can manage this position, otherwise "&larr; Back to positions" → `/positions`.
 - **Failure / edge**
   - Position missing or soft-deleted → `notFound()`.
   - Position is a `draft` and the viewer cannot manage it → `notFound()`, identical to missing ([XC-4](#xc-4-denial-shape)).
@@ -367,7 +367,7 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 
 ## Position manager (PM)
 
-A user who manages at least one non-deleted position. Manager status is **derived**, not stored — there is no role column; `isManager` counts `Position.managers` rows. A manager who manages nothing cannot create their first position; only an admin can bootstrap them ([PM-6](#pm-6-add-a-manager)). Managers run every [Applicant](#applicant-ap) workflow as well; they get no dashboard completeness banner, but the apply-page block applies to them like anyone else ([XC-3](#xc-3-profile-completeness)). The sidebar gains a **Manage** group with **My Positions** and Applications; Positions stays under Apply, since a manager browses and applies like any other user ([AN-1](#an-1-browse-positions)).
+A user who manages at least one non-deleted position. Manager status is **derived**, not stored — there is no role column; `isManager` counts `Position.managers` rows. A manager who manages nothing cannot create their first position; only an admin can bootstrap them ([PM-6](#pm-6-add-a-manager)). Managers run every [Applicant](#applicant-ap) workflow as well; they get no dashboard completeness banner, but the apply-page block applies to them like anyone else ([XC-3](#xc-3-profile-completeness)). The sidebar gains a **Manage** group with **Manage Positions** and Applications; Positions stays under Apply, since a manager browses and applies like any other user ([AN-1](#an-1-browse-positions)).
 
 ### PM-1 See your dashboard
 
@@ -378,8 +378,8 @@ A user who manages at least one non-deleted position. Manager status is **derive
 
 ### PM-2 See the positions you manage
 
-- **Trigger** — **My Positions** under **Manage** (`/my-positions`).
-- **Happy path** — `requireManagerOrAdminOr404()` gates the route. `getManagedPositions(user.id)` plus per-position application stats render as an **Active** section first, then a collapsed **Archived (N)** disclosure for anything `!isPositionActive`. A **New position** action sits in the header, under "My Positions" · "Track applications and edit the positions you manage." Positions you manage also keep appearing in the Open Positions list on `/positions` ([AN-1](#an-1-browse-positions)) — the browse page never filters them out.
+- **Trigger** — **Manage Positions** under **Manage** (`/manage/positions`).
+- **Happy path** — `requireManagerOrAdminOr404()` gates the route. `getManagedPositions(user.id)` plus per-position application stats render as an **Active** section first, then a collapsed **Archived (N)** disclosure for anything `!isPositionActive`. A **New position** action sits in the header, under "Manage Positions" · "Track applications and edit the positions you manage." Positions you manage also keep appearing in the Open Positions list on `/positions` ([AN-1](#an-1-browse-positions)) — the browse page never filters them out.
 - **Failure / edge**
   - Not a manager or admin → `notFound()` ([XC-4](#xc-4-denial-shape)); the nav item is not rendered for them either.
   - The active list is empty while some positions are archived → "No active positions" · "Every position you manage is archived — expand Archived below to see them."
@@ -388,7 +388,7 @@ A user who manages at least one non-deleted position. Manager status is **derive
 
 ### PM-3 Create a position
 
-- **Trigger** — **New position** on `/my-positions` or the dashboard.
+- **Trigger** — **New position** on `/manage/positions` or the dashboard.
 - **Happy path** — `PositionCreateDialog` → `createPosition`, guarded by `requireManagerOrAdmin`. Title is required; description defaults to empty so a draft can be created quickly; `opensAt`/`closesAt` are org-timezone day boundaries (`America/New_York`). The creator is auto-connected as a manager so they can edit it immediately. Toast **"Position created"** and the dialog routes to the new position's edit page.
 - **Failure / edge**
   - Missing title → "Title is required" inline.
@@ -398,7 +398,7 @@ A user who manages at least one non-deleted position. Manager status is **derive
 
 ### PM-4 Edit position details
 
-- **Trigger** — **Edit** on `/positions/[id]`, or a managed position card (`/positions/[id]/edit`, Details tab).
+- **Trigger** — **Edit** on `/positions/[id]`, or a managed position card (`/manage/positions/[id]/edit`, Details tab).
 - **Happy path** — the page loads the position, then `requireListedManagerOr404` against the already-loaded managers list. `PositionDetailsForm` submits `updatePosition`, which authenticates, checks existence, checks access, then checks editability. Toast **"Position updated"**; the position, its detail page, the dashboard, `/my-applications` and `/applications` are all revalidated because a status flip changes what every surface shows.
 - **Failure / edge**
   - Position missing or soft-deleted → `notFound()`, checked **before** the access guard so both paths 404 identically.
@@ -410,7 +410,7 @@ A user who manages at least one non-deleted position. Manager status is **derive
 
 ### PM-5 Manage position questions
 
-- **Trigger** — the Questions tab on `/positions/[id]/edit`.
+- **Trigger** — the Questions tab on `/manage/positions/[id]/edit`.
 - **Happy path** — `createPositionQuestion` appends at `max(order) + 1` inside a transaction (so concurrent inserts can't collide on order); `updatePositionQuestion` and `deletePositionQuestion` both scope their write to the `positionId` to prevent cross-position IDOR, and delete is a soft delete. Toasts **"Question added"**, **"Question updated"**, **"Question deleted"**.
 - **Failure / edge**
   - Validation — a missing label ("Label is required"), a choice question with no options ("At least one option is required for choice questions"), options or `allowOther` on a non-choice type, more than `QUESTION_MAX_OPTIONS` (50), an option over 200 characters, or a format on a non-`short_answer` type ("Format is only available for short-answer questions") → the first zod issue's message, verbatim.
@@ -422,8 +422,8 @@ A user who manages at least one non-deleted position. Manager status is **derive
 
 ### PM-6 Add a manager
 
-- **Trigger** — the Managers tab on `/positions/[id]/edit`.
-- **Happy path** — typing searches through `searchUsers` (gated to managers/admins, name or email, case-insensitive, capped at 10 results, and it returns display name + email only — never the user id). Picking a result calls `addPositionManager`, which authenticates, checks the position exists, checks access, resolves the target by email, and connects them. Toast **"Manager added"**; `/positions` and `/users` are revalidated too, since membership drives both.
+- **Trigger** — the Managers tab on `/manage/positions/[id]/edit`.
+- **Happy path** — typing searches through `searchUsers` (gated to managers/admins, name or email, case-insensitive, capped at 10 results, and it returns display name + email only — never the user id). Picking a result calls `addPositionManager`, which authenticates, checks the position exists, checks access, resolves the target by email, and connects them. Toast **"Manager added"**; `/positions`, `/manage/positions` and `/users` are revalidated too, since membership drives all three.
 - **Failure / edge**
   - Query over 200 characters → **"Search is limited to 200 characters."**; an empty query returns no results without querying.
   - Position deleted since render → **"This position no longer exists."**
@@ -501,7 +501,7 @@ A user who manages at least one non-deleted position. Manager status is **derive
 
 ### PM-13 Reorder position questions
 
-- **Trigger** — the drag handle on a question card, Questions tab on `/positions/[id]/edit`.
+- **Trigger** — the drag handle on a question card, Questions tab on `/manage/positions/[id]/edit`.
 - **Happy path** — the list is wrapped in a shared `SortableProvider` (dnd-kit); dropping a card calls `reorderPositionQuestions` with the full ordered id list, which renumbers every live question `1..N` in one transaction. The new order shows immediately (`useOptimistic`) while the write is in flight. Toast **"Order saved"**.
 - **Failure / edge**
   - The id set changed since the page loaded (a question added or deleted in another tab) → **"The question list changed since this page loaded. Refresh and try reordering again."**; the list reverts to the server's order.
@@ -533,11 +533,11 @@ A user who manages at least one non-deleted position. Manager status is **derive
 
 ## Admin (AD)
 
-An admin is a **manager on every position**: every [Position manager](#position-manager-pm) workflow applies unchanged, with the scope widened from "positions I manage" to all of them (`buildReviewablePositionWhere`), and draft positions visible everywhere. Admins are exempt from the archived-position edit block ([PM-4](#pm-4-edit-position-details)) and from the self-removal rule ([PM-7](#pm-7-remove-a-manager)). This section covers only the admin-exclusive surfaces. The sidebar gains **Users** and **Global Questions** under Manage, alongside the **My Positions** and Applications a manager already sees ([PM intro](#position-manager-pm)).
+An admin is a **manager on every position**: every [Position manager](#position-manager-pm) workflow applies unchanged, with the scope widened from "positions I manage" to all of them (`buildReviewablePositionWhere`), and draft positions visible everywhere. Admins are exempt from the archived-position edit block ([PM-4](#pm-4-edit-position-details)) and from the self-removal rule ([PM-7](#pm-7-remove-a-manager)). This section covers only the admin-exclusive surfaces. The sidebar gains **Users** and **Global Questions** under Manage, alongside the **Manage Positions** and Applications a manager already sees ([PM intro](#position-manager-pm)).
 
 ### AD-1 See every position
 
-- **Trigger** — **My Positions** under **Manage** (`/my-positions`).
+- **Trigger** — **Manage Positions** under **Manage** (`/manage/positions`).
 - **Happy path** — admins get a distinct branch inside the same route: one flat list from `getAdminPositions()` — including drafts — with application stats on every card, under an "All Positions" heading and "Every position, with its application stats." There is no Active/Archived split.
 - **Failure / edge**
   - No positions at all → `EmptyState` "No positions yet" · "Create your first position to start accepting applications." with the create action.
@@ -546,14 +546,14 @@ An admin is a **manager on every position**: every [Position manager](#position-
 
 ### AD-2 Edit an archived position
 
-- **Trigger** — `/positions/[id]/edit` for a position closed more than 30 days ago with no application status change since.
+- **Trigger** — `/manage/positions/[id]/edit` for a position closed more than 30 days ago with no application status change since.
 - **Happy path** — `checkPositionEditable` returns true for an admin, so the editable form and the question actions render normally where a manager would see the read-only view and the warning callout ([PM-4](#pm-4-edit-position-details), [PM-5](#pm-5-manage-position-questions)).
 - **Failure / edge** — as [PM-4](#pm-4-edit-position-details); the archived branch simply does not fire.
 - **End state** — as [PM-4](#pm-4-edit-position-details).
 
 ### AD-3 Delete a position
 
-- **Trigger** — the Delete position card at the bottom of `/positions/[id]/edit`, rendered only for admins.
+- **Trigger** — the Delete position card at the bottom of `/manage/positions/[id]/edit`, rendered only for admins.
 - **Happy path** — the card states "Deleting hides this position everywhere — the positions list, search results and any direct link. This can't be undone from the app." The confirmation names the position and, when relevant, adds "N unsubmitted draft applications will disappear too." `deletePosition` soft-deletes with the blocking condition folded into the `where`, so the check and the write are one atomic statement. Toast **"Position deleted"**.
 - **Failure / edge**
   - Any non-draft application exists → the button is disabled, and a stale tab that posts anyway gets `POSITION_DELETE_BLOCKED_ERROR`: **"This position has applications, so it can't be deleted. Close it instead."**

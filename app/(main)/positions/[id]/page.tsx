@@ -67,10 +67,10 @@ export default async function PublicPositionDetailPage({
     <div className="flex flex-col gap-8">
       <div>
         <Link
-          href={canManage ? '/my-positions' : '/positions'}
+          href={canManage ? '/manage/positions' : '/positions'}
           className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1 text-sm transition-colors"
         >
-          &larr; {canManage ? 'Back to my positions' : 'Back to positions'}
+          &larr; {canManage ? 'Back to Manage Positions' : 'Back to positions'}
         </Link>
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">
@@ -141,7 +141,7 @@ export default async function PublicPositionDetailPage({
         {canManage && (
           <>
             <Button asChild variant="outline">
-              <Link href={`/positions/${id}/edit`}>
+              <Link href={`/manage/positions/${id}/edit`}>
                 <ACTION_ICONS.edit />
                 Edit
               </Link>

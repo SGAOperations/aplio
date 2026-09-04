@@ -25,7 +25,7 @@ export async function ManagedPositionsWidget({
       title="My Positions"
       icon={CONCEPT_ICONS.position}
       link={{
-        href: '/my-positions',
+        href: '/manage/positions',
         label: 'See all',
         ariaLabel: 'See all positions',
       }}
