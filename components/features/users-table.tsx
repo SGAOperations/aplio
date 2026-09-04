@@ -70,8 +70,10 @@ interface DeactivateTarget {
   displayName: string;
 }
 
-// Controlled so onClick can force `open` after Radix's pointerdown-close
-// reopens on the subsequent click — the tap path on touch devices.
+// Controlled so onClick can open on tap — Radix's own onClick composes
+// with `context.onClose`, which runs right after ours in the same event
+// and would otherwise close what we just opened; preventDefault stops it
+// (composeEventHandlers skips the paired handler once defaultPrevented).
 function ManagedPositionsOverflow({
   hidden,
 }: {
@@ -84,7 +86,10 @@ function ManagedPositionsOverflow({
       <TooltipTrigger
         type="button"
         className={cn(badgeVariants({ variant: 'outline' }), 'cursor-pointer')}
-        onClick={() => setOpen(true)}
+        onClick={(event) => {
+          event.preventDefault();
+          setOpen(true);
+        }}
       >
         +{hidden.length} more
         <span className="sr-only">: {titles}</span>
