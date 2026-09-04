@@ -145,7 +145,7 @@ export function PositionCreateDialog() {
       return false;
     }
     toast.success('Position created');
-    router.push(`/positions/${result.id}/edit`);
+    router.push(`/manage/positions/${result.id}/edit`);
     return true;
   }
 

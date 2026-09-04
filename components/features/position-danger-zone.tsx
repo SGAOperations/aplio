@@ -99,7 +99,7 @@ export function PositionDangerZone({
                       }
                       toast.success('Position deleted');
                       setOpen(false);
-                      router.push('/my-positions');
+                      router.push('/manage/positions');
                     } catch {
                       toast.error('Something went wrong. Please try again.');
                     }

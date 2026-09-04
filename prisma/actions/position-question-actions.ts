@@ -78,7 +78,7 @@ export async function createPositionQuestion(
     });
   });
 
-  revalidatePath(`/positions/${positionId}/edit`);
+  revalidatePath(`/manage/positions/${positionId}/edit`);
   return { id: created.id, order: created.order };
 }
 
@@ -113,7 +113,7 @@ export async function updatePositionQuestion(
 
   if (result.count === 0) return { error: 'This question no longer exists.' };
 
-  revalidatePath(`/positions/${positionId}/edit`);
+  revalidatePath(`/manage/positions/${positionId}/edit`);
 }
 
 export async function reorderPositionQuestions(
@@ -150,7 +150,7 @@ export async function reorderPositionQuestions(
     ),
   );
 
-  revalidatePath(`/positions/${positionId}/edit`);
+  revalidatePath(`/manage/positions/${positionId}/edit`);
 }
 
 export async function deletePositionQuestion(
@@ -174,5 +174,5 @@ export async function deletePositionQuestion(
 
   if (result.count === 0) return { error: 'This question no longer exists.' };
 
-  revalidatePath(`/positions/${positionId}/edit`);
+  revalidatePath(`/manage/positions/${positionId}/edit`);
 }

@@ -168,7 +168,7 @@ export function PositionCard({
                     </Link>
                   </Button>
                   <Button asChild variant="outline" size="sm">
-                    <Link href={`/positions/${position.id}/edit`}>
+                    <Link href={`/manage/positions/${position.id}/edit`}>
                       <ACTION_ICONS.edit />
                       Edit
                     </Link>

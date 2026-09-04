@@ -21,7 +21,7 @@ export async function OpenPositionsSummary({
       title="Open Positions"
       icon={CONCEPT_ICONS.position}
       link={{
-        href: '/my-positions',
+        href: '/manage/positions',
         label: 'See all',
         ariaLabel: 'See all positions',
       }}
@@ -33,7 +33,7 @@ export async function OpenPositionsSummary({
           description="Create a position to start accepting applications."
           action={
             <Link
-              href="/my-positions"
+              href="/manage/positions"
               className="text-primary text-sm font-medium hover:underline"
             >
               Manage positions

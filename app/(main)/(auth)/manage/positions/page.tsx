@@ -17,9 +17,9 @@ import { PositionCreateDialog } from '@/components/features/position-create-dial
 import { PageHeader } from '@/components/layouts/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 
-export const metadata: Metadata = { title: 'My Positions' };
+export const metadata: Metadata = { title: 'Manage Positions' };
 
-export default async function MyPositionsPage() {
+export default async function ManagePositionsPage() {
   // The (auth) layout only gates profile completeness, so this gates the role.
   const user = await requireManagerOrAdminOr404();
 
@@ -70,7 +70,7 @@ export default async function MyPositionsPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="My Positions"
+        title="Manage Positions"
         description="Track applications and edit the positions you manage."
         actions={<PositionCreateDialog />}
       />
