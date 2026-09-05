@@ -205,7 +205,8 @@ export async function dispatchBulkDecisionEmails({
     const dispatched =
       await applicationsWithDispatchedDecisionEmail(applicationIds);
     const eligible = recipients.filter(
-      (r) => !dispatched.has(r.applicationId) && !uncancelled.has(r.applicationId),
+      (r) =>
+        !dispatched.has(r.applicationId) && !uncancelled.has(r.applicationId),
     );
     if (eligible.length === 0) return;
 
