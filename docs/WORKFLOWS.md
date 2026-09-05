@@ -550,7 +550,7 @@ An admin is a **manager on every position**: every [Position manager](#position-
 ### AD-1 See every position
 
 - **Trigger** — **Manage Positions** under **Manage** (`/manage/positions`).
-- **Happy path** — admins get a distinct branch inside the same route: one flat list from `getAdminPositions()` — including drafts — with application stats on every card, under an "All Positions" heading and "Every position, with its application stats." There is no Active/Archived split.
+- **Happy path** — admins get the same `ManagedPositionsSection` Open/Closed/Draft grouping as [PM-2](#pm-2-see-the-positions-you-manage) (including its Archived disclosure and sort keys), but scoped to every position via `getAdminPositions()` instead of just the ones they manage — drafts included, with application stats on every card, under an "All Positions" heading and "Every position, with its application stats." description.
 - **Failure / edge**
   - No positions at all → `EmptyState` "No positions yet" · "Create your first position to start accepting applications." with the create action.
   - A draft position's detail page carries the callout "This position is a draft. Only its managers and admins can see this page. Set it to Open in Edit to make it visible to applicants."
