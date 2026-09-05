@@ -9,11 +9,16 @@ import { getOptionalManagerAccess } from '@/lib/auth/guards';
 import { requireName } from '@/lib/auth/server';
 import { ACTION_ICONS, CONCEPT_ICONS, STATE_ICONS } from '@/lib/icons';
 import type { PositionDetail } from '@/lib/types';
-import { getPositionAvailability, markdownToPlainText } from '@/lib/utils';
+import {
+  getPositionAvailability,
+  getPositionDateInfo,
+  markdownToPlainText,
+} from '@/lib/utils';
 
 import { PositionDateLine } from '@/components/features/position-date-line';
 import { PositionStatusBadge } from '@/components/features/status-badge';
 import { Button } from '@/components/ui/button';
+import { LocalTime } from '@/components/ui/local-time';
 import { Markdown } from '@/components/ui/markdown';
 import { WarningCallout } from '@/components/ui/warning-callout';
 
@@ -62,6 +67,11 @@ export default async function PublicPositionDetailPage({
   const isAuthenticated = view.user !== null;
   const availability = getPositionAvailability(position);
   const isAccepting = availability === 'accepting';
+  const dateInfo = getPositionDateInfo(position);
+  const staleDraftDate =
+    position.status === 'draft' && dateInfo?.emphasis === 'stale'
+      ? dateInfo
+      : null;
 
   return (
     <div className="flex flex-col gap-8">
@@ -83,11 +93,24 @@ export default async function PublicPositionDetailPage({
 
       {position.status === 'draft' && (
         <WarningCallout icon={STATE_ICONS.hidden}>
-          <p className="font-medium">This position is a draft.</p>
-          <p>
-            Only its managers and admins can see this page. Set it to Open in
-            Edit to make it visible to applicants.
-          </p>
+          <div className="flex flex-col gap-1">
+            <p className="font-medium">This position is a draft.</p>
+            <p>
+              Only its managers and admins can see this page. Set it to Open in
+              Edit to make it visible to applicants.
+            </p>
+            {staleDraftDate && (
+              <p>
+                Its scheduled{' '}
+                {staleDraftDate.label === 'Was scheduled to open'
+                  ? 'open'
+                  : 'close'}{' '}
+                date, <LocalTime date={staleDraftDate.date} precision="date" />,
+                has already passed — update its dates in Edit if the schedule no
+                longer applies.
+              </p>
+            )}
+          </div>
         </WarningCallout>
       )}
 
@@ -147,7 +170,7 @@ export default async function PublicPositionDetailPage({
               </Link>
             </Button>
             <Button asChild variant="outline">
-              <Link href={`/applications?positionId=${id}`}>
+              <Link href={`/manage/applications?positionId=${id}`}>
                 <CONCEPT_ICONS.application />
                 Applications
               </Link>

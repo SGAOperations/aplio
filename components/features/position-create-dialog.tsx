@@ -1,14 +1,20 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useMemo } from 'react';
 import { useFormContext } from 'react-hook-form';
 
 import { toast } from 'sonner';
-import type { z } from 'zod/v4';
 
 import { createPosition } from '@/prisma/actions/position-actions';
 
-import { POSITION_STATUS_OPTIONS, positionFormSchema } from '@/lib/constants';
+import {
+  POSITION_OPEN_REQUIRES_ADMIN_HINT,
+  type PositionFormValues,
+  getStatusOptions,
+  makePositionFormSchema,
+} from '@/lib/constants';
+import { toOrgDayString } from '@/lib/dates';
 import { ACTION_ICONS } from '@/lib/icons';
 
 import { MarkdownField } from '@/components/features/markdown-field';
@@ -31,8 +37,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-type PositionFormValues = z.infer<typeof positionFormSchema>;
-
 const defaultValues: PositionFormValues = {
   title: '',
   description: '',
@@ -41,10 +45,16 @@ const defaultValues: PositionFormValues = {
   closesAt: '',
 };
 
-// FormDialog wraps children in FormProvider, so isSubmitting comes from context.
-function PositionFormFields() {
+interface PositionFormFieldsProps {
+  isAdmin: boolean;
+}
+
+// FormDialog wraps children in FormProvider, so isSubmitting comes from
+// context; isAdmin comes from the parent, which doesn't sit in that context.
+function PositionFormFields({ isAdmin }: PositionFormFieldsProps) {
   const { formState } = useFormContext<PositionFormValues>();
   const isSubmitting = formState.isSubmitting;
+  const statusOptions = getStatusOptions(isAdmin);
 
   return (
     <>
@@ -83,13 +93,18 @@ function PositionFormFields() {
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
-                {POSITION_STATUS_OPTIONS.map((opt) => (
+                {statusOptions.map((opt) => (
                   <SelectItem key={opt.value} value={opt.value}>
                     {opt.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {!isAdmin && (
+              <FormDescription>
+                {POSITION_OPEN_REQUIRES_ADMIN_HINT}
+              </FormDescription>
+            )}
             <FormMessage />
           </FormItem>
         )}
@@ -130,9 +145,17 @@ function PositionFormFields() {
   );
 }
 
+interface PositionCreateDialogProps {
+  isAdmin: boolean;
+}
+
 // Dialog-triggered, so it uses FormDialog directly, as GlobalQuestionDialog does.
-export function PositionCreateDialog() {
+export function PositionCreateDialog({ isAdmin }: PositionCreateDialogProps) {
   const router = useRouter();
+  const schema = useMemo(
+    () => makePositionFormSchema(toOrgDayString(new Date())),
+    [],
+  );
 
   async function onSubmit(data: PositionFormValues): Promise<boolean> {
     const result = await createPosition({
@@ -158,12 +181,12 @@ export function PositionCreateDialog() {
         </Button>
       }
       title="Create Position"
-      schema={positionFormSchema}
+      schema={schema}
       defaultValues={defaultValues}
       onSubmit={onSubmit}
       submitLabel="Create Position"
     >
-      <PositionFormFields />
+      <PositionFormFields isAdmin={isAdmin} />
     </FormDialog>
   );
 }

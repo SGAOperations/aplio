@@ -186,7 +186,9 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
           const appCount = u._count.applications;
           return appCount > 0 ? (
             <Button variant="link" size="sm" asChild className="h-auto p-0">
-              <Link href={`/applications?userId=${u.id}`}>{appCount}</Link>
+              <Link href={`/manage/applications?userId=${u.id}`}>
+                {appCount}
+              </Link>
             </Button>
           ) : (
             <span className="text-muted-foreground">0</span>
@@ -462,7 +464,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
                         asChild
                         className="h-auto p-0"
                       >
-                        <Link href={`/applications?userId=${user.id}`}>
+                        <Link href={`/manage/applications?userId=${user.id}`}>
                           {appCount}{' '}
                           {appCount === 1 ? 'application' : 'applications'}
                         </Link>

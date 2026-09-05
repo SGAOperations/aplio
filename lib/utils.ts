@@ -294,11 +294,32 @@ export function isAcceptingApplications(
   return getPositionAvailability(position, now) === 'accepting';
 }
 
+// 'closed_by_date' is reachable only from status 'open' — that divergence is the whole condition.
+export function isOpenPastCloseDate(
+  position: PositionWindow,
+  now?: Date,
+): boolean {
+  return getPositionAvailability(position, now) === 'closed_by_date';
+}
+
 export function getPositionDateInfo(
   position: PositionWindow,
   now: Date = new Date(),
 ): PositionDateInfo | null {
   if (position.status === 'draft') {
+    // A stale date outranks a future one — the missed date is the thing needing attention.
+    if (position.closesAt && now > position.closesAt)
+      return {
+        label: 'Was scheduled to close',
+        date: position.closesAt,
+        emphasis: 'stale',
+      };
+    if (position.opensAt && now > position.opensAt)
+      return {
+        label: 'Was scheduled to open',
+        date: position.opensAt,
+        emphasis: 'stale',
+      };
     if (position.closesAt)
       return { label: 'Closes', date: position.closesAt, emphasis: 'calm' };
     if (position.opensAt)

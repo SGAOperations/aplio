@@ -488,7 +488,7 @@ export async function submitApplication(
 
   if (isError(result)) return result;
 
-  revalidatePath('/applications');
+  revalidatePath('/manage/applications');
   revalidatePath('/positions', 'layout');
   revalidatePath('/manage/positions', 'layout');
   // The draft leaves /my-applications' draft-state list once submitted.
@@ -566,8 +566,8 @@ export async function updateApplicationStatus(
 
   if (result && 'error' in result) return result;
 
-  revalidatePath(`/applications/${applicationId}`);
-  revalidatePath('/applications');
+  revalidatePath(`/manage/applications/${applicationId}`);
+  revalidatePath('/manage/applications');
 }
 
 const updateApplicationStatusesSchema = z.object({
@@ -637,9 +637,9 @@ export async function updateApplicationStatuses(
       error: `None of the selected applications can move to ${APPLICATION_STATUS_LABELS[status]} — they're already there, or they're drafts or withdrawn.`,
     };
 
-  revalidatePath('/applications');
+  revalidatePath('/manage/applications');
   // Wildcard segment: a bulk update has no individual positionIds to hand.
-  revalidatePath('/applications/[id]', 'layout');
+  revalidatePath('/manage/applications/[id]', 'layout');
 
   return {
     updated: updatedIds.length,
@@ -713,7 +713,7 @@ export async function withdrawApplication(
 
   revalidatePath('/my-applications');
   revalidatePath(`/my-applications/${applicationId}`);
-  revalidatePath('/applications');
+  revalidatePath('/manage/applications');
   revalidatePath('/positions', 'layout');
   revalidatePath('/manage/positions', 'layout');
 }

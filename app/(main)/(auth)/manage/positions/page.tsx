@@ -35,14 +35,14 @@ export default async function ManagePositionsPage() {
         <PageHeader
           title="All Positions"
           description="Every position, with its application stats."
-          actions={<PositionCreateDialog />}
+          actions={<PositionCreateDialog isAdmin={user.isAdmin} />}
         />
         {positions.length === 0 ? (
           <EmptyState
             icon={Briefcase}
             title="No positions yet"
             description="Create your first position to start accepting applications."
-            action={<PositionCreateDialog />}
+            action={<PositionCreateDialog isAdmin={user.isAdmin} />}
           />
         ) : (
           <div className="flex flex-col gap-4">
@@ -72,13 +72,13 @@ export default async function ManagePositionsPage() {
       <PageHeader
         title="Manage Positions"
         description="Track applications and edit the positions you manage."
-        actions={<PositionCreateDialog />}
+        actions={<PositionCreateDialog isAdmin={user.isAdmin} />}
       />
       <ManagedPositionsSection
         positions={managedPositions}
         statsByPosition={statsByPosition}
         emptyDescription="Positions you manage appear here. A closed position drops off once it has been closed for 30 days with no application status changes."
-        emptyAction={<PositionCreateDialog />}
+        emptyAction={<PositionCreateDialog isAdmin={user.isAdmin} />}
       />
     </div>
   );

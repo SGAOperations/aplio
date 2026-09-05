@@ -415,7 +415,7 @@ export const USER_ROLE_FILTER_OPTIONS: {
   { value: 'manager', label: 'Manager' },
 ];
 
-// Single source for the /applications sort union and its zod enum.
+// Single source for the /manage/applications sort union and its zod enum.
 export const APPLICATION_SORT_FIELDS = ['date', 'name', 'status'] as const;
 export const APPLICATION_SORT_DIRECTIONS = ['asc', 'desc'] as const;
 
@@ -618,7 +618,16 @@ export const MANAGED_POSITIONS_WINDOW_DAYS = 30;
 export const ARCHIVED_POSITION_EDIT_ERROR =
   'This position is archived. Ask an admin if it still needs changes.';
 
-// Shared by positionFormSchema and createPositionSchema/updatePositionSchema.
+// Returned by createPosition/updatePosition when a non-admin tries to set 'open'.
+export const POSITION_OPEN_REQUIRES_ADMIN_ERROR =
+  'Only an admin can open a position. Ask an admin to publish it for you.';
+
+// The form-description twin of POSITION_OPEN_REQUIRES_ADMIN_ERROR — only ever
+// rendered where the Status select omits 'open', so it can name the workaround.
+export const POSITION_OPEN_REQUIRES_ADMIN_HINT =
+  'Only an admin can open a position. Save it as a draft and ask an admin to publish it.';
+
+// Shared by makePositionFormSchema and createPositionSchema/updatePositionSchema.
 export const POSITION_OPENS_AT_ORDER_ERROR =
   'The open date must be on or before the close date.';
 export const POSITION_CLOSES_AT_ORDER_ERROR =
@@ -645,6 +654,57 @@ export function validatePositionDates(
   }
 }
 
+export const POSITION_OPENS_AT_PAST_ERROR =
+  'The open date must be today or later.';
+export const POSITION_CLOSES_AT_PAST_ERROR =
+  'The close date must be today or later.';
+
+// Skips empty/unset and unchanged values; flags only a new or changed
+// date before today.
+export function positionPastDateIssues(
+  data: { opensAt?: string; closesAt?: string },
+  today: string,
+  previous?: { opensAt?: string; closesAt?: string },
+): { path: 'opensAt' | 'closesAt'; message: string }[] {
+  const issues: { path: 'opensAt' | 'closesAt'; message: string }[] = [];
+
+  if (
+    data.opensAt &&
+    data.opensAt !== previous?.opensAt &&
+    data.opensAt < today
+  )
+    issues.push({ path: 'opensAt', message: POSITION_OPENS_AT_PAST_ERROR });
+
+  if (
+    data.closesAt &&
+    data.closesAt !== previous?.closesAt &&
+    data.closesAt < today
+  )
+    issues.push({ path: 'closesAt', message: POSITION_CLOSES_AT_PAST_ERROR });
+
+  return issues;
+}
+
+// Ordering plus past-date, for the client form and createPosition —
+// updatePosition runs positionPastDateIssues directly against its loaded row.
+export function positionDatesRefinement(
+  today: string,
+  previous?: { opensAt?: string; closesAt?: string },
+) {
+  return (
+    data: { opensAt?: string; closesAt?: string },
+    ctx: z.RefinementCtx,
+  ) => {
+    validatePositionDates(data, ctx);
+    for (const issue of positionPastDateIssues(data, today, previous))
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [issue.path],
+        message: issue.message,
+      });
+  };
+}
+
 // Returned by deletePosition when it has non-draft applications.
 export const POSITION_DELETE_BLOCKED_ERROR =
   "This position has applications, so it can't be deleted. Close it instead.";
@@ -669,6 +729,15 @@ export const POSITION_STATUS_OPTIONS: {
   label: POSITION_STATUS_LABELS[value],
 }));
 
+// Non-admins never get 'open' to choose, except to keep an already-open position selectable.
+export function getStatusOptions(
+  isAdmin: boolean,
+  currentStatus?: PositionStatus,
+): typeof POSITION_STATUS_OPTIONS {
+  if (isAdmin || currentStatus === 'open') return POSITION_STATUS_OPTIONS;
+  return POSITION_STATUS_OPTIONS.filter((opt) => opt.value !== 'open');
+}
+
 export const POSITION_DESCRIPTION_MAX_LENGTH = 10000;
 export const MARKDOWN_GUIDE_URL = 'https://www.markdownguide.org/basic-syntax/';
 
@@ -677,20 +746,31 @@ const orgDayInputSchema = z.union([z.iso.date(), z.literal('')], {
   error: 'Enter a valid date',
 });
 
-export const positionFormSchema = z
-  .object({
-    title: z.string().min(1, 'Title is required'),
-    description: z
-      .string()
-      .max(
-        POSITION_DESCRIPTION_MAX_LENGTH,
-        `Description must be ${POSITION_DESCRIPTION_MAX_LENGTH.toLocaleString()} characters or fewer.`,
-      ),
-    status: z.enum(POSITION_STATUS_VALUES),
-    opensAt: orgDayInputSchema.optional(),
-    closesAt: orgDayInputSchema.optional(),
-  })
-  .superRefine(validatePositionDates);
+const positionFormShape = {
+  title: z.string().min(1, 'Title is required'),
+  description: z
+    .string()
+    .max(
+      POSITION_DESCRIPTION_MAX_LENGTH,
+      `Description must be ${POSITION_DESCRIPTION_MAX_LENGTH.toLocaleString()} characters or fewer.`,
+    ),
+  status: z.enum(POSITION_STATUS_VALUES),
+  opensAt: orgDayInputSchema.optional(),
+  closesAt: orgDayInputSchema.optional(),
+};
+
+// `today`/`previous` are injected — this module must not import lib/dates.ts
+// (it imports ORG_TIMEZONE from here, so the reverse import would cycle).
+export function makePositionFormSchema(
+  today: string,
+  previous?: { opensAt?: string; closesAt?: string },
+) {
+  return z
+    .object(positionFormShape)
+    .superRefine(positionDatesRefinement(today, previous));
+}
+
+export type PositionFormValues = z.infer<z.ZodObject<typeof positionFormShape>>;
 
 export const POSITION_STATUS_BADGE_VARIANT: Record<
   PositionStatus,

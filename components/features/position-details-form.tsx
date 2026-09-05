@@ -1,15 +1,22 @@
 'use client';
 
+import type { ReactNode } from 'react';
+import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import type { z } from 'zod/v4';
 
 import { updatePosition } from '@/prisma/actions/position-actions';
 import type { PositionStatus } from '@/prisma/client';
 
-import { POSITION_STATUS_OPTIONS, positionFormSchema } from '@/lib/constants';
+import {
+  POSITION_OPEN_REQUIRES_ADMIN_HINT,
+  type PositionFormValues,
+  getStatusOptions,
+  makePositionFormSchema,
+} from '@/lib/constants';
+import { toOrgDayString } from '@/lib/dates';
 import { ACTION_ICONS } from '@/lib/icons';
 
 import { MarkdownField } from '@/components/features/markdown-field';
@@ -41,14 +48,30 @@ interface PositionDetailsFormProps {
     opensAt: string | null;
     closesAt: string | null;
   };
+  isAdmin: boolean;
+  // Server-rendered warning callout(s) about a status/date divergence, shown
+  // right under the Status field so they read as one status-related section.
+  statusNotice?: ReactNode;
 }
 
-type PositionFormValues = z.infer<typeof positionFormSchema>;
-
 // Always visible, not dialog-triggered: shadcn Form primitives directly, no FormDialog.
-export function PositionDetailsForm({ position }: PositionDetailsFormProps) {
+export function PositionDetailsForm({
+  position,
+  isAdmin,
+  statusNotice,
+}: PositionDetailsFormProps) {
+  const statusOptions = getStatusOptions(isAdmin, position.status);
+  const schema = useMemo(
+    () =>
+      makePositionFormSchema(toOrgDayString(new Date()), {
+        opensAt: position.opensAt ?? undefined,
+        closesAt: position.closesAt ?? undefined,
+      }),
+    [position.opensAt, position.closesAt],
+  );
+
   const form = useForm<PositionFormValues>({
-    resolver: zodResolver(positionFormSchema),
+    resolver: zodResolver(schema),
     defaultValues: {
       title: position.title,
       description: position.description,
@@ -118,17 +141,24 @@ export function PositionDetailsForm({ position }: PositionDetailsFormProps) {
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {POSITION_STATUS_OPTIONS.map((opt) => (
+                  {statusOptions.map((opt) => (
                     <SelectItem key={opt.value} value={opt.value}>
                       {opt.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {!isAdmin && position.status !== 'open' && (
+                <FormDescription>
+                  {POSITION_OPEN_REQUIRES_ADMIN_HINT}
+                </FormDescription>
+              )}
               <FormMessage />
             </FormItem>
           )}
         />
+
+        {statusNotice}
 
         <div className="grid gap-2 sm:grid-cols-2">
           <FormField

@@ -64,7 +64,7 @@ function OtherApplicationList({
           </span>
           {app.canOpen && (
             <Link
-              href={`/applications/${app.id}`}
+              href={`/manage/applications/${app.id}`}
               aria-label={`View ${app.position.title} application`}
               className="shrink-0 text-sm font-medium hover:underline"
             >

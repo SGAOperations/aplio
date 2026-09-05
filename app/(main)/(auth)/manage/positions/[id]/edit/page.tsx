@@ -12,7 +12,11 @@ import { requireListedManagerOr404 } from '@/lib/auth/guards';
 import { UNRESOLVED_APPLICATION_STATUSES } from '@/lib/constants';
 import { toOrgDayString } from '@/lib/dates';
 import { STATE_ICONS } from '@/lib/icons';
-import { isPositionActive } from '@/lib/utils';
+import {
+  getPositionDateInfo,
+  isOpenPastCloseDate,
+  isPositionActive,
+} from '@/lib/utils';
 
 import { PositionDangerZone } from '@/components/features/position-danger-zone';
 import { PositionDetailsForm } from '@/components/features/position-details-form';
@@ -22,6 +26,7 @@ import { PositionManagersSection } from '@/components/features/position-managers
 import { PositionQuestionsReadonly } from '@/components/features/position-questions-readonly';
 import { PositionQuestionsSection } from '@/components/features/position-questions-section';
 import { PageHeader } from '@/components/layouts/page-header';
+import { LocalTime } from '@/components/ui/local-time';
 import { WarningCallout } from '@/components/ui/warning-callout';
 
 interface EditPositionPageProps {
@@ -50,6 +55,15 @@ export default async function EditPositionPage({
   const user = await requireListedManagerOr404(position.managers);
 
   const canEdit = user.isAdmin || isPositionActive(position);
+  const staleCloseDate = isOpenPastCloseDate(position)
+    ? position.closesAt
+    : null;
+  const dateInfo = getPositionDateInfo(position);
+  const draftPastDate =
+    position.status === 'draft' && dateInfo?.emphasis === 'stale'
+      ? dateInfo
+      : null;
+  const draftPastOpenDate = draftPastDate?.label === 'Was scheduled to open';
 
   const deletionSummary = user.isAdmin
     ? await getPositionDeletionSummary(position.id)
@@ -90,7 +104,7 @@ export default async function EditPositionPage({
                 {unresolvedTotal === 1 ? 'application is' : 'applications are'}{' '}
                 still awaiting a decision — reviewing is not blocked.{' '}
                 <Link
-                  href={`/applications?positionId=${position.id}`}
+                  href={`/manage/applications?positionId=${position.id}`}
                   className="underline underline-offset-2"
                 >
                   Review applications
@@ -117,6 +131,53 @@ export default async function EditPositionPage({
                   ? toOrgDayString(position.closesAt)
                   : null,
               }}
+              statusNotice={
+                (staleCloseDate || draftPastDate) && (
+                  <div className="flex flex-col gap-2">
+                    {staleCloseDate && (
+                      <WarningCallout>
+                        <div className="flex flex-col gap-1">
+                          <p className="font-medium">
+                            Applicants see this position as Closed.
+                          </p>
+                          <p>
+                            Its close date passed on{' '}
+                            <LocalTime date={staleCloseDate} precision="date" />
+                            , so it stopped accepting applications even though
+                            its status is still Open. Change Closes At below to
+                            a future date to reopen it, or set Status to Closed
+                            to make that explicit.
+                          </p>
+                        </div>
+                      </WarningCallout>
+                    )}
+                    {draftPastDate && (
+                      <WarningCallout>
+                        <div className="flex flex-col gap-1">
+                          <p className="font-medium">
+                            This position was scheduled to{' '}
+                            {draftPastOpenDate ? 'open' : 'close'}.
+                          </p>
+                          <p>
+                            Its {draftPastOpenDate ? 'open' : 'close'} date
+                            passed on{' '}
+                            <LocalTime
+                              date={draftPastDate.date}
+                              precision="date"
+                            />
+                            , but its status is still Draft, so applicants
+                            can&apos;t see it. Change{' '}
+                            {draftPastOpenDate ? 'Opens At' : 'Closes At'} below
+                            to a future date, or set Status to Open to publish
+                            it now.
+                          </p>
+                        </div>
+                      </WarningCallout>
+                    )}
+                  </div>
+                )
+              }
+              isAdmin={user.isAdmin}
             />
           ) : (
             <PositionDetailsReadonly

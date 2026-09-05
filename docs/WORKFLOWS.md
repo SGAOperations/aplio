@@ -104,7 +104,7 @@ Anyone not signed in. The only routes they can use are `/positions`, `/positions
   - Position is a `draft` and the viewer cannot manage it → `notFound()`, identical to missing ([XC-4](#xc-4-denial-shape)).
   - No description → "No description yet."
   - Window not open yet → the date under the title reads **Opens <date>**; already closed → **Closed <date>**. No Apply button in either case.
-  - A `draft` visible to its managers shows its planned window in future tense — **Opens <date>** or **Closes <date>**, never "Closed" — since a draft's dates are a plan, not a deadline.
+  - A `draft` visible to its managers shows its planned window in future tense — **Opens <date>** or **Closes <date>**, never "Closed" — since a draft's dates are a plan, not a deadline. Once that date has passed, the line reads **Was scheduled to open <date>** or **Was scheduled to close <date>** in the warning treatment instead, and the draft callout below gains a line naming the missed date.
 - **End state** — read-only.
 
 ### AN-3 Start applying from a position
@@ -169,7 +169,7 @@ Anyone not signed in. The only routes they can use are `/positions`, `/positions
 
 ### Known open
 
-- `/positions` has no search, filter or sort — it renders every open position as a flat card list, so it degrades as the catalogue grows. `/applications` has the only filtering UI in the app.
+- `/positions` has no search, filter or sort — it renders every open position as a flat card list, so it degrades as the catalogue grows. `/manage/applications` has the only filtering UI in the app.
 
 ---
 
@@ -393,24 +393,31 @@ A user who manages at least one non-deleted position. Manager status is **derive
 ### PM-3 Create a position
 
 - **Trigger** — **New position** on `/manage/positions` or the dashboard.
-- **Happy path** — `PositionCreateDialog` → `createPosition`, guarded by `requireManagerOrAdmin`. Title is required; description defaults to empty so a draft can be created quickly; `opensAt`/`closesAt` are org-timezone day boundaries (`America/New_York`). The creator is auto-connected as a manager so they can edit it immediately. Toast **"Position created"** and the dialog routes to the new position's edit page.
+- **Happy path** — `PositionCreateDialog` → `createPosition`, guarded by `requireManagerOrAdmin`. Title is required; description defaults to empty so a draft can be created quickly; `opensAt`/`closesAt` are org-timezone day boundaries (`America/New_York`). The Status options are role-derived (`getStatusOptions`): a manager sees only **Draft** and **Closed**, with a hint below the select explaining that only an admin can open a position; an admin sees all three. The creator is auto-connected as a manager so they can edit it immediately. Toast **"Position created"** and the dialog routes to the new position's edit page.
 - **Failure / edge**
   - Missing title → "Title is required" inline.
   - Description over 10 000 characters, or an unparseable date ("Enter a valid date") → inline.
+  - `opensAt` before today → **"The open date must be today or later."**; `closesAt` before today → **"The close date must be today or later."** inline (both dates are new on create, so every date is checked). Today itself is always allowed for both fields.
+  - `opensAt` after `closesAt` → the existing ordering messages, unchanged.
   - Not a manager or admin → the action throws ([XC-4](#xc-4-denial-shape)); the affordance is not rendered in the first place.
+  - A manager posting `status: 'open'` anyway (stale tab, hand-made request) → `{ error: POSITION_OPEN_REQUIRES_ADMIN_ERROR }`: **"Only an admin can open a position. Ask an admin to publish it for you."**
 - **End state** — a `Position` at the chosen status with the creator as its only manager. A `draft` position is invisible to everyone else ([AN-2](#an-2-view-a-position)).
 
 ### PM-4 Edit position details
 
 - **Trigger** — **Edit** on `/positions/[id]`, or a managed position card (`/manage/positions/[id]/edit`, Details tab).
-- **Happy path** — the page loads the position, then `requireListedManagerOr404` against the already-loaded managers list. `PositionDetailsForm` submits `updatePosition`, which authenticates, checks existence, checks access, then checks editability. Toast **"Position updated"**; the position, its detail page, the dashboard, `/my-applications` and `/applications` are all revalidated because a status flip changes what every surface shows.
+- **Happy path** — the page loads the position, then `requireListedManagerOr404` against the already-loaded managers list. `PositionDetailsForm` submits `updatePosition`, which authenticates, checks existence, checks access, then checks editability. Toast **"Position updated"**; the position, its detail page, the dashboard, `/my-applications` and `/manage/applications` are all revalidated because a status flip changes what every surface shows. The Status select is role-derived, same as [PM-3](#pm-3-create-a-position): a manager on a `draft` or `closed` position sees only **Draft**/**Closed**, with the same hint; on an already-`open` position, **Open** stays selected and offered (dropping it would make the select empty), so a manager may still edit an open position's title, description and dates freely — only the move _to_ open is gated, never editing content once published.
 - **Failure / edge**
   - Position missing or soft-deleted → `notFound()`, checked **before** the access guard so both paths 404 identically.
   - Not a listed manager and not an admin → `notFound()`.
   - Archived (closed >30 days with no application status change since) and the caller is not an admin → the form is replaced by `PositionDetailsReadonly` under a warning callout ("This position is archived. It closed more than 30 days ago and no application status has changed since…"), plus a stalled-applications line and a **Review applications** link when the position still holds unresolved applications. A stale tab that posts anyway gets `ARCHIVED_POSITION_EDIT_ERROR`: **"This position is archived. Ask an admin if it still needs changes."** ([AD-2](#ad-2-edit-an-archived-position))
+  - A manager posting a transition **to** `open` from `draft` or `closed` (stale tab, hand-made request) → `{ error: POSITION_OPEN_REQUIRES_ADMIN_ERROR }`: **"Only an admin can open a position. Ask an admin to publish it for you."** The form keeps its values so they can pick Draft or Closed and resubmit.
+  - `opensAt` or `closesAt` **changed** to a date before today → the same past-date messages as [PM-3](#pm-3-create-a-position), checked against the position's own previous dates. An untouched past date on an already-open position saves normally — the rule only fires on a field the manager actually changed.
   - Deleted between render and submit → **"This position no longer exists."**
   - Unexpected throw → **"Something went wrong. Please try again."**
-- **End state** — the position's details, status and window are updated; a draft→open flip publishes it.
+  - Status `open` with a `closesAt` already past → below the Status field the form shows a warning callout ("Applicants see this position as Closed…"), naming the passed date and offering both remedies (extend `closesAt`, or set status to Closed); the Status select still shows Open — displaying anything else would misrepresent what's stored.
+  - Status `draft` with an `opensAt` or `closesAt` already past → the same spot below the Status field shows a warning callout ("This position was scheduled to open/close…"), naming the passed date and offering both remedies (move that date to the future, or set Status to Open to publish now). Mutually exclusive with the `open`-past-`closesAt` case above (they gate on different statuses), but both render from the same status-notice slot.
+- **End state** — the position's details, status and window are updated; only an admin's draft/closed→open flip publishes it, and a stale `open` or `draft` position past its relevant date keeps its warning callout until the date is moved forward or the status is changed.
 
 ### PM-5 Manage position questions
 
@@ -448,7 +455,7 @@ A user who manages at least one non-deleted position. Manager status is **derive
 
 ### PM-8 Work the application queue
 
-- **Trigger** — Applications under **Manage** (`/applications`), or the **Applications** button on a managed position, which pre-applies `?positionId=`.
+- **Trigger** — Applications under **Manage** (`/manage/applications`), or the **Applications** button on a managed position, which pre-applies `?positionId=`.
 - **Happy path** — `requireManagerOrAdminOr404` gates the role (the `(auth)` layout only gates profile completeness). Query params are parsed with `.catch(undefined)` per field, so one malformed param never sinks the rest. The toolbar offers a position filter ("All positions"), an applicant filter ("All applicants"), a status filter ("All statuses"), a debounced search over "Name, email, position, or date", **Clear filters**, and sortable columns (date, name, status). Results are scoped by `buildApplicationWhere(user, 'reviewable')` — a manager sees only their positions' applications; drafts and withdrawn rows are excluded. The position title in each row links to `/positions/[id]`. The applicant option list (`getReviewableApplicants`) is scoped the same way the results are, so a manager only ever sees applicants who applied to positions they manage. For the four unresolved statuses, each row's `⋯` opens the same `ApplicationStatusMenu` items as the detail page's caret ([PM-11](#pm-11-move-one-application-through-the-status-path)) with the next step as the first item instead of hoisted, ending in **See more** — no separator between the next step and Reject when the next step already is Accept (`reviewing`). `accepted`/`rejected` rows render no action control at all — the row returns `null`, mirroring the non-reviewable early return already in the same component; changing a final decision is detail-page only ([PM-14](#pm-14-override-a-status-undo-or-review-its-history)). Opening the dialog via **See more** calls the read-only `loadApplicationStatusHistory` action since the table has no pre-fetched history per row, showing the dialog's loading skeleton while the fetch is in flight.
 - **Failure / edge**
   - Not a manager or admin → `notFound()`.
@@ -460,8 +467,8 @@ A user who manages at least one non-deleted position. Manager status is **derive
 
 ### PM-9 Open an application for review
 
-- **Trigger** — a row on `/applications` (`/applications/[id]`).
-- **Happy path** — `getApplicationForReview(id, user)` uses the `listable` scope — withdrawn rows are kept, drafts are not — and `getApplicationStatusHistory(id, user)` fetches alongside it. The page shows a "Back to Applications" link, then a header row with the applicant's snapshotted name and status badge together, their email underneath, and a header action appropriate to status, right-aligned on that same row — a split button for the four unresolved statuses (its caret dropdown ends in **See more**, which opens the status dialog; there is no separate standalone `⋯` alongside it since that would duplicate the caret item), a `⋯` opening the dialog directly for non-reviewable statuses, or a **Change decision** button for terminal decisions; below it, a linked position title and the applied date, then an "Other applications" section (`getApplicantOtherApplications`) followed by the profile and position answer groups full width. The "Other applications" section lists this applicant's other applications platform-wide — including positions the viewer doesn't manage — with precise status, applied date, and the position title linked to `/positions/[id]`; a row links to `/applications/[id]` only when the viewer can actually open it (admin, or a manager of that position) — otherwise the row shows no link at all. Answers render by shape (short/single/multiple choice in a label-value row, long answers full-width as prose, files as a Download row) from the snapshotted `questionLabel`/`value`/`type` — never a live question lookup, so a question retyped or relabeled after submission still shows the original label and every stored value. See `PERMISSIONS.md` → "Cross-scope disclosure" for the authorization rule.
+- **Trigger** — a row on `/manage/applications` (`/manage/applications/[id]`).
+- **Happy path** — `getApplicationForReview(id, user)` uses the `listable` scope — withdrawn rows are kept, drafts are not — and `getApplicationStatusHistory(id, user)` fetches alongside it. The page shows a "Back to Applications" link, then a header row with the applicant's snapshotted name and status badge together, their email underneath, and a header action appropriate to status, right-aligned on that same row — a split button for the four unresolved statuses (its caret dropdown ends in **See more**, which opens the status dialog; there is no separate standalone `⋯` alongside it since that would duplicate the caret item), a `⋯` opening the dialog directly for non-reviewable statuses, or a **Change decision** button for terminal decisions; below it, a linked position title and the applied date, then an "Other applications" section (`getApplicantOtherApplications`) followed by the profile and position answer groups full width. The "Other applications" section lists this applicant's other applications platform-wide — including positions the viewer doesn't manage — with precise status, applied date, and the position title linked to `/positions/[id]`; a row links to `/manage/applications/[id]` only when the viewer can actually open it (admin, or a manager of that position) — otherwise the row shows no link at all. Answers render by shape (short/single/multiple choice in a label-value row, long answers full-width as prose, files as a Download row) from the snapshotted `questionLabel`/`value`/`type` — never a live question lookup, so a question retyped or relabeled after submission still shows the original label and every stored value. See `PERMISSIONS.md` → "Cross-scope disclosure" for the authorization rule.
 - **Failure / edge**
   - Outside the caller's scope, a draft, or missing → `notFound()`; unauthorized and missing are indistinguishable.
   - The applicant renamed themselves since submitting → the heading reads "<snapshotted name> (<current name>)".
@@ -475,7 +482,7 @@ A user who manages at least one non-deleted position. Manager status is **derive
 
 ### PM-10 Download an applicant's file answer
 
-- **Trigger** — the **Download** button on a file answer on `/applications/[id]`.
+- **Trigger** — the **Download** button on a file answer on `/manage/applications/[id]`.
 - **Happy path** — same action and same by-row authorization as [AP-12](#ap-12-download-your-own-file-answer); a reviewer qualifies through the position-manager branch of the scope rather than ownership.
 - **Failure / edge** — as [AP-12](#ap-12-download-your-own-file-answer). An application outside the reviewer's scope throws rather than returning a message.
 - **End state** — the file is on the reviewer's device; nothing is written.
@@ -490,11 +497,11 @@ A user who manages at least one non-deleted position. Manager status is **derive
   - The status changed between the check and the write → **"This application just changed. Refresh to see its current status."**
   - The application is outside the caller's reviewable scope → the action throws (IDOR-shaped, unreachable from the UI) → generic toast.
   - `draft` and `withdrawn` render the header's note copy plus `⋯` instead of a move control; `accepted`/`rejected` render the terminal-decision note plus a **Change decision** button — neither renders the split button.
-- **End state** — the new status, plus one `ApplicationStatusEvent` row recording it; `/applications` and the detail page are revalidated. `accepted`/`rejected` also remove the applicant's ability to withdraw ([AP-13](#ap-13-withdraw-an-application)).
+- **End state** — the new status, plus one `ApplicationStatusEvent` row recording it; `/manage/applications` and the detail page are revalidated. `accepted`/`rejected` also remove the applicant's ability to withdraw ([AP-13](#ap-13-withdraw-an-application)).
 
 ### PM-12 Move several applications at once
 
-- **Trigger** — selecting rows on `/applications`, then a target status in the bulk bar, behind a confirmation.
+- **Trigger** — selecting rows on `/manage/applications`, then a target status in the bulk bar, behind a confirmation.
 - **Happy path** — the target Select offers all six reviewer statuses. `updateApplicationStatuses` dedupes the ids, reads each eligible row's current status, then compare-and-swaps every row inside one transaction so the target set cannot drift mid-write, recording one `ApplicationStatusEvent` per row actually moved. Eligibility is any reviewer status but the target itself, excluding `draft`/`withdrawn` — the forward-only restriction is retired, so a backward move or a flip of a final decision both apply in bulk now. Before anything is written, the confirmation states the split computed by `summarizeBulkStatusChange` (`lib/utils.ts`, via `getApplicationStatusRank`): "N will move forward.", "M will move backward.", "K will change a final decision — it's currently Accepted or Rejected.", "J skipped — drafts, withdrawn, or already <Target>.", plus a line about applicant visibility: "Applicants will see this decision on their application." when the target itself is Accepted/Rejected; when the target isn't a decision but the batch reverses one, "Applicants whose decision is reversed will see this change; the rest still show as Applied."; only when the batch has no final-decision rows at all does it read "Applicants won't see this change — every in-review application shows as Applied to them." (`summary.applicantVisible`). Toast **"Updated N application(s)"**; deliberately no confetti here — bulk moves many rows at once with no single moment to animate ([PM-11](#pm-11-move-one-application-through-the-status-path) has the single-row burst).
 - **Failure / edge**
   - Some ids ineligible → **"Updated N of M applications"** with the description "N skipped — drafts, withdrawn, or already <Target>."
@@ -527,18 +534,18 @@ A user who manages at least one non-deleted position. Manager status is **derive
   - No events at all (an application created outside the app's own write paths, e.g. a fixture or seed) → "No status changes recorded yet." instead of an empty list.
   - The table row's history fetch fails → "Couldn't load the history. Close this and try again." plus an error toast.
   - Unexpected throw → generic toast.
-- **End state** — the dialog stays open after a successful change so the reviewer watches the new row land in the timeline; the header, `/applications`, and this page are all revalidated.
+- **End state** — the dialog stays open after a successful change so the reviewer watches the new row land in the timeline; the header, `/manage/applications`, and this page are all revalidated.
 
 ### Known open
 
-- `/applications` truncates at 100 rows with no pagination or cursor — the toolbar reports the truncation but there is no way to reach row 101 except by filtering.
+- `/manage/applications` truncates at 100 rows with no pagination or cursor — the toolbar reports the truncation but there is no way to reach row 101 except by filtering.
 - No notification of any kind is sent on a status change — an applicant learns their outcome only by revisiting `/my-applications`.
 
 ---
 
 ## Admin (AD)
 
-An admin is a **manager on every position**: every [Position manager](#position-manager-pm) workflow applies unchanged, with the scope widened from "positions I manage" to all of them (`buildReviewablePositionWhere`), and draft positions visible everywhere. Admins are exempt from the archived-position edit block ([PM-4](#pm-4-edit-position-details)) and from the self-removal rule ([PM-7](#pm-7-remove-a-manager)). This section covers only the admin-exclusive surfaces. The sidebar gains **Users** and **Global Questions** under Manage, alongside the **Manage Positions** and Applications a manager already sees ([PM intro](#position-manager-pm)).
+An admin is a **manager on every position**: every [Position manager](#position-manager-pm) workflow applies unchanged, with the scope widened from "positions I manage" to all of them (`buildReviewablePositionWhere`), and draft positions visible everywhere. Admins are exempt from the archived-position edit block ([PM-4](#pm-4-edit-position-details)) and from the self-removal rule ([PM-7](#pm-7-remove-a-manager)). Admins alone may set a position to `open`, from `draft` or `closed` ([PM-3](#pm-3-create-a-position), [PM-4](#pm-4-edit-position-details)) — publishing is a permission, not a workflow: no queue, no approve/reject, no notification back to the manager. This section covers only the admin-exclusive surfaces. The sidebar gains **Users** and **Global Questions** under Manage, alongside the **Manage Positions** and Applications a manager already sees ([PM intro](#position-manager-pm)).
 
 ### AD-1 See every position
 
