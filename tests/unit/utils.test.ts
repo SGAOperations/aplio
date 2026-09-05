@@ -11,6 +11,7 @@ import type {
 } from '@/lib/types';
 import {
   answerFieldIds,
+  buildApplicationsHref,
   canReviewPosition,
   displayUserName,
   findDivergingGlobalAnswers,
@@ -729,6 +730,37 @@ describe('formatPaginationSummary', () => {
         isFiltered: true,
       }),
     ).toBe('Showing 1–50 of 137 matching applications');
+  });
+});
+
+describe('buildApplicationsHref', () => {
+  it('returns the bare path with no filters or page', () => {
+    expect(buildApplicationsHref({})).toBe('/manage/applications');
+  });
+
+  it('round-trips every filter field', () => {
+    const href = buildApplicationsHref({
+      positionId: 'pos1',
+      status: 'draft',
+      userId: 'user1',
+      q: 'jane',
+      sort: { field: 'name', direction: 'asc' },
+    });
+    expect(href).toBe(
+      '/manage/applications?positionId=pos1&status=draft&userId=user1&q=jane&sort=name%3Aasc',
+    );
+  });
+
+  it('omits page=1', () => {
+    expect(buildApplicationsHref({ status: 'draft' }, 1)).toBe(
+      '/manage/applications?status=draft',
+    );
+  });
+
+  it('includes page when past 1', () => {
+    expect(buildApplicationsHref({ status: 'draft' }, 2)).toBe(
+      '/manage/applications?status=draft&page=2',
+    );
   });
 });
 

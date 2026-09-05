@@ -283,6 +283,26 @@ describe('getApplications / getApplicationsCount / getApplicationForReview / get
     ).toMatchObject({ id: applicationA1.id });
   });
 
+  it('still returns null for getApplicationForReview on a draft', async () => {
+    expect(
+      await getApplicationForReview(draftApplicationA.id, managerA),
+    ).toBeNull();
+    expect(
+      await getApplicationForReview(draftApplicationA.id, admin),
+    ).toBeNull();
+  });
+
+  it('a draft status filter never returns draft rows and the total matches the unfiltered query', async () => {
+    const draftFiltered = await getApplications(managerA, { status: 'draft' });
+    expect(draftFiltered.map((a) => a.id)).not.toContain(draftApplicationA.id);
+
+    const draftFilteredCount = await getApplicationsCount(managerA, {
+      status: 'draft',
+    });
+    const unfilteredCount = await getApplicationsCount(managerA, {});
+    expect(draftFilteredCount).toBe(unfilteredCount);
+  });
+
   it('scopes getReviewablePositions to the managing manager, admin sees both', async () => {
     const asManagerA = (await getReviewablePositions(managerA)).map(
       (p) => p.id,
