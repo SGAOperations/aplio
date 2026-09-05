@@ -678,9 +678,7 @@ export const POSITION_STATUS_OPTIONS: {
   label: POSITION_STATUS_LABELS[value],
 }));
 
-// A non-admin never gets 'open' to choose — except a position already open
-// must keep its own value selectable, or the Select renders empty and a
-// manager can't edit a live position at all.
+// Non-admins never get 'open' to choose, except to keep an already-open position selectable.
 export function getStatusOptions(
   isAdmin: boolean,
   currentStatus?: PositionStatus,

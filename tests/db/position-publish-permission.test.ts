@@ -1,4 +1,5 @@
 import {
+  TEST_PREFIX,
   cleanupFixtures,
   createTestPosition,
   createTestUser,
@@ -22,6 +23,7 @@ let manager: User;
 beforeAll(async () => {
   admin = await createTestUser({ isAdmin: true });
   manager = await createTestUser();
+  await createTestPosition(admin, { managers: [manager] });
 });
 
 afterAll(async () => {
@@ -38,7 +40,7 @@ describe('createPosition — status permission', () => {
   it('refuses a manager creating with status open', async () => {
     actAs(manager);
     const result = await createPosition({
-      title: 'manager-created-open',
+      title: `${TEST_PREFIX}manager-created-open`,
       description: '',
       status: 'open',
     });
@@ -48,7 +50,7 @@ describe('createPosition — status permission', () => {
   it('allows a manager creating with status draft', async () => {
     actAs(manager);
     const result = await createPosition({
-      title: 'manager-created-draft',
+      title: `${TEST_PREFIX}manager-created-draft`,
       description: '',
       status: 'draft',
     });
@@ -58,7 +60,7 @@ describe('createPosition — status permission', () => {
   it('allows a manager creating with status closed', async () => {
     actAs(manager);
     const result = await createPosition({
-      title: 'manager-created-closed',
+      title: `${TEST_PREFIX}manager-created-closed`,
       description: '',
       status: 'closed',
     });
@@ -69,7 +71,7 @@ describe('createPosition — status permission', () => {
     actAs(admin);
     for (const status of ['draft', 'open', 'closed'] as const) {
       const result = await createPosition({
-        title: `admin-created-${status}`,
+        title: `${TEST_PREFIX}admin-created-${status}`,
         description: '',
         status,
       });
