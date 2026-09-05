@@ -659,9 +659,8 @@ export const POSITION_OPENS_AT_PAST_ERROR =
 export const POSITION_CLOSES_AT_PAST_ERROR =
   'The close date must be today or later.';
 
-// Per field: empty/unset is always allowed (clearing a date), an unchanged
-// value is left alone (editing other fields on an already-open position),
-// and only a new or changed value is checked against today's org day.
+// Skips empty/unset and unchanged values; flags only a new or changed
+// date before today.
 export function positionPastDateIssues(
   data: { opensAt?: string; closesAt?: string },
   today: string,
@@ -686,7 +685,7 @@ export function positionPastDateIssues(
   return issues;
 }
 
-// Ordering (#527) plus past-date, for the client form and createPosition —
+// Ordering plus past-date, for the client form and createPosition —
 // updatePosition runs positionPastDateIssues directly against its loaded row.
 export function positionDatesRefinement(
   today: string,
