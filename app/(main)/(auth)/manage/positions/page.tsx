@@ -77,7 +77,7 @@ export default async function ManagePositionsPage() {
       <ManagedPositionsSection
         positions={managedPositions}
         statsByPosition={statsByPosition}
-        emptyDescription="Positions you manage appear here. A closed position drops off once it has been closed for 30 days with no application status changes."
+        emptyDescription="Positions you manage appear here. Create one to start accepting applications."
         emptyAction={<PositionCreateDialog isAdmin={user.isAdmin} />}
       />
     </div>
