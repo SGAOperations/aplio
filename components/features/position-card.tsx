@@ -195,7 +195,7 @@ export function PositionCard({
                     ) : (
                       <Button asChild variant="outline" size="sm">
                         <Link
-                          href={`/my-applications/${myApplication.id}`}
+                          href={`/applications/${myApplication.id}`}
                           aria-label={`View your application for ${position.title}`}
                         >
                           <ACTION_ICONS.goTo />
