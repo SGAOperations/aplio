@@ -88,7 +88,7 @@ Anyone not signed in. The only routes they can use are `/positions`, `/positions
 ### AN-1 Browse positions
 
 - **Trigger** — the logo, the Positions nav item, or a direct visit to `/positions`.
-- **Happy path** — `getOpenPositions()` and `getRecentlyClosedPositions()` run in parallel. The page renders an **Open Positions** section (always rendered, including positions the viewer manages — nothing is filtered out) and a **Recently Closed** section (omitted when empty; positions closed within `RECENTLY_CLOSED_WINDOW_DAYS` = 7). Every viewer — anonymous, applicant, manager or admin — sees the identical browse list; the manage workbench lives at its own route ([PM-2](#pm-2-see-the-positions-you-manage)). A signed-in viewer's own applications also mark the relevant cards ([AP-17](#ap-17-see-which-positions-youve-already-applied-to)). Each `PositionCard` links to the detail page.
+- **Happy path** — `getOpenPositions()` and `getRecentlyClosedPositions()` run in parallel. The page renders an **Open Positions** section (always rendered, including positions the viewer manages — nothing is filtered out), ordered by closing date soonest first, then positions with no closing date (by `opensAt`, most recently opened first), then title, and a **Recently Closed** section (omitted when empty; positions closed within `RECENTLY_CLOSED_WINDOW_DAYS` = 7). Every viewer — anonymous, applicant, manager or admin — sees the identical browse list; the manage workbench lives at its own route ([PM-2](#pm-2-see-the-positions-you-manage)). A signed-in viewer's own applications also mark the relevant cards ([AP-17](#ap-17-see-which-positions-youve-already-applied-to)). Each `PositionCard` links to the detail page.
 - **Failure / edge**
   - No open positions → `EmptyState` "No open positions" · "Check back later for open positions."; the page still renders.
   - Draft positions never appear — `PUBLISHED_POSITION_WHERE` excludes them.
@@ -180,7 +180,7 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 ### AP-1 See your dashboard
 
 - **Trigger** — signing in, the logo, or the Home nav item (`/`).
-- **Happy path** — `UserDashboard` renders "Welcome back, <first name>" and streams five independently-suspended sections: the profile-completeness banner, an application summary, the three most recent applications, three open positions, and an activity feed. Each has its own skeleton.
+- **Happy path** — `UserDashboard` renders "Welcome back, <first name>" and streams five independently-suspended sections: the profile-completeness banner, an application summary, the three most recent applications, the three open positions closing soonest, and an activity feed. Each has its own skeleton.
 - **Failure / edge**
   - Anonymous → `redirect('/positions')` — routing, not denial.
   - No name → [XC-2](#xc-2-name-gate).
