@@ -9,7 +9,7 @@ import {
 
 describe('sanitizeRedirectTo', () => {
   it('accepts a plain path', () => {
-    expect(sanitizeRedirectTo('/my-applications')).toBe('/my-applications');
+    expect(sanitizeRedirectTo('/applications')).toBe('/applications');
   });
 
   it('accepts a path with query and hash', () => {
@@ -109,8 +109,8 @@ describe('sanitizeRedirectTo', () => {
   });
 
   it('strips Next-internal params from the query', () => {
-    expect(sanitizeRedirectTo('/my-applications?_rsc=1a2b3c')).toBe(
-      '/my-applications',
+    expect(sanitizeRedirectTo('/applications?_rsc=1a2b3c')).toBe(
+      '/applications',
     );
     expect(sanitizeRedirectTo('/foo?tab=x&_rsc=abc')).toBe('/foo?tab=x');
   });
@@ -118,7 +118,7 @@ describe('sanitizeRedirectTo', () => {
 
 describe('safeRedirectTo', () => {
   it('returns the sanitized value when valid', () => {
-    expect(safeRedirectTo('/my-applications')).toBe('/my-applications');
+    expect(safeRedirectTo('/applications')).toBe('/applications');
   });
 
   it('falls back to the default when invalid', () => {
@@ -133,8 +133,8 @@ describe('safeRedirectTo', () => {
 
 describe('withRedirectTo', () => {
   it('attaches a sanitized destination', () => {
-    expect(withRedirectTo('/login', '/my-applications')).toBe(
-      '/login?redirectTo=%2Fmy-applications',
+    expect(withRedirectTo('/login', '/applications')).toBe(
+      '/login?redirectTo=%2Fapplications',
     );
   });
 
