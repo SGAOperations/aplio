@@ -3,7 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { REVIEWER_APPLICATION_STATUS_OPTIONS } from '@/lib/constants';
+import { APPLICATION_STATUS_OPTIONS } from '@/lib/constants';
 import { ACTION_ICONS } from '@/lib/icons';
 import type { ApplicationFilters, ReviewableApplicant } from '@/lib/types';
 import { displayUserName } from '@/lib/utils';
@@ -38,6 +38,9 @@ export function ApplicationsToolbar({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  // Drafts have no submittedAt, so buildDraftListWhere's q filter never searches by date.
+  const isDraftView = filters.status === 'draft';
 
   // Only ambiguous names get the disambiguating email suffix.
   const applicantLabels = useMemo(() => {
@@ -191,7 +194,7 @@ export function ApplicationsToolbar({
           <SelectContent>
             {/* "All statuses" clears the filter */}
             <SelectItem value="">All statuses</SelectItem>
-            {REVIEWER_APPLICATION_STATUS_OPTIONS.map((opt) => (
+            {APPLICATION_STATUS_OPTIONS.map((opt) => (
               <SelectItem key={opt.value} value={opt.value}>
                 {opt.label}
               </SelectItem>
@@ -209,7 +212,11 @@ export function ApplicationsToolbar({
           <Input
             id="filter-search"
             aria-label="Search applications"
-            placeholder="Name, email, position, or date"
+            placeholder={
+              isDraftView
+                ? 'Name, email, or position'
+                : 'Name, email, position, or date'
+            }
             value={searchValue}
             onChange={(e) => handleSearch(e.target.value)}
             className="w-full pr-12 md:pr-9"

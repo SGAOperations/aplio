@@ -4,6 +4,7 @@ import { Suspense } from 'react';
 import { z } from 'zod/v4';
 
 import {
+  getDraftApplicationsCount,
   getReviewableApplicants,
   getReviewablePositions,
 } from '@/prisma/data/applications';
@@ -12,13 +13,15 @@ import { requireManagerOrAdminOr404 } from '@/lib/auth/guards';
 import {
   APPLICATION_SORT_DIRECTIONS,
   APPLICATION_SORT_FIELDS,
-  REVIEWER_APPLICATION_STATUSES,
+  APPLICATION_STATUS_VALUES,
 } from '@/lib/constants';
 import type { ApplicationFilters } from '@/lib/types';
 
 import { ApplicationsResults } from '@/components/features/applications-results';
 import { ApplicationsTableSkeleton } from '@/components/features/applications-table-skeleton';
 import { ApplicationsToolbar } from '@/components/features/applications-toolbar';
+import { DraftApplicationsResults } from '@/components/features/draft-applications-results';
+import { DraftsInProgressNotice } from '@/components/features/drafts-in-progress-notice';
 import { PageHeader } from '@/components/layouts/page-header';
 
 export const metadata: Metadata = { title: 'Applications' };
@@ -32,7 +35,7 @@ interface ApplicationsPageProps {
 const searchParamsSchema = z.object({
   positionId: z.string().trim().min(1).max(64).optional().catch(undefined),
   userId: z.string().trim().min(1).max(64).optional().catch(undefined),
-  status: z.enum(REVIEWER_APPLICATION_STATUSES).optional().catch(undefined),
+  status: z.enum(APPLICATION_STATUS_VALUES).optional().catch(undefined),
   q: z.string().trim().min(1).max(200).optional().catch(undefined),
   sort: z
     .string()
@@ -75,10 +78,19 @@ export default async function ApplicationsPage({
     filters.q ||
     filters.sort
   );
+  const isDraftView = filters.status === 'draft';
+  // Excludes status — being in the drafts view isn't itself a filter to clear.
+  const hasActiveOtherFilters = !!(
+    filters.positionId ||
+    filters.userId ||
+    filters.q ||
+    filters.sort
+  );
 
-  const [positions, applicants] = await Promise.all([
+  const [positions, applicants, draftCount] = await Promise.all([
     getReviewablePositions(user),
     getReviewableApplicants(user),
+    getDraftApplicationsCount(user, { ...filters, status: undefined }),
   ]);
 
   return (
@@ -87,6 +99,10 @@ export default async function ApplicationsPage({
         title="Applications"
         description="Review and track submitted applications."
       />
+
+      {!isDraftView && (
+        <DraftsInProgressNotice count={draftCount} filters={filters} />
+      )}
 
       <ApplicationsToolbar
         positions={positions}
@@ -97,14 +113,23 @@ export default async function ApplicationsPage({
 
       <Suspense
         key={JSON.stringify({ ...filters, page })}
-        fallback={<ApplicationsTableSkeleton />}
+        fallback={<ApplicationsTableSkeleton showSelection={!isDraftView} />}
       >
-        <ApplicationsResults
-          user={user}
-          filters={filters}
-          page={page}
-          hasActiveFilters={hasActiveFilters}
-        />
+        {isDraftView ? (
+          <DraftApplicationsResults
+            user={user}
+            filters={filters}
+            page={page}
+            hasActiveFilters={hasActiveOtherFilters}
+          />
+        ) : (
+          <ApplicationsResults
+            user={user}
+            filters={filters}
+            page={page}
+            hasActiveFilters={hasActiveFilters}
+          />
+        )}
       </Suspense>
     </div>
   );

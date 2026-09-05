@@ -10,8 +10,8 @@ import type { $Enums, Prisma } from '@/prisma/client';
 import type {
   APPLICATION_SORT_DIRECTIONS,
   APPLICATION_SORT_FIELDS,
+  APPLICATION_STATUS_VALUES,
   PublicApplicationStatus,
-  REVIEWER_APPLICATION_STATUSES,
 } from '@/lib/constants';
 
 import type { BadgeVariant } from '@/components/ui/badge';
@@ -153,6 +153,18 @@ export type AdminApplicationListItem = Prisma.ApplicationGetPayload<{
   };
 }>;
 
+// Identity and timestamps only — no status, applicantName or answer relation,
+// so no answer/file/completion signal is reachable from a component using this.
+export type DraftApplicationListItem = Prisma.ApplicationGetPayload<{
+  select: {
+    id: true;
+    createdAt: true;
+    updatedAt: true;
+    position: { select: { id: true; title: true } };
+    user: { select: { id: true; name: true; email: true } };
+  };
+}>;
+
 // Structural, so the window helper needs no conversion at its call sites.
 export type PositionWindow = {
   status: PositionStatus;
@@ -243,8 +255,6 @@ export type PositionDeletionSummary = {
 // Minimal shape reviewer-scoped queries and guards need — spelled inline in 5+ signatures.
 export type Reviewer = { id: string; isAdmin: boolean };
 
-export type ReviewerStatus = (typeof REVIEWER_APPLICATION_STATUSES)[number];
-
 export type ApplicationSortField = (typeof APPLICATION_SORT_FIELDS)[number];
 export type ApplicationSortDirection =
   (typeof APPLICATION_SORT_DIRECTIONS)[number];
@@ -253,10 +263,15 @@ export type ApplicationSort = {
   direction: ApplicationSortDirection;
 };
 
-// status is ReviewerStatus so 'draft' can never be filtered for.
+export type ApplicationStatusFilter =
+  (typeof APPLICATION_STATUS_VALUES)[number];
+
+// status widened to ApplicationStatusFilter (includes 'draft') so the queue's
+// filter can select the drafts view; buildApplicationListWhere guards against
+// it ever overwriting listable's own status: { not: 'draft' }.
 export type ApplicationFilters = {
   positionId?: string;
-  status?: ReviewerStatus;
+  status?: ApplicationStatusFilter;
   userId?: string;
   q?: string;
   sort?: ApplicationSort;

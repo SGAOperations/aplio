@@ -353,7 +353,8 @@ export const APPLICATION_STATUS_BADGE_VARIANT: Record<
   withdrawn: 'outline',
 };
 
-// Excludes 'withdrawn': no consumer needs the unfiltered status list.
+// The /manage/applications queue's filter list — every status a manager can
+// filter for, including 'draft'. Excludes 'withdrawn': no consumer needs it.
 export const APPLICATION_STATUS_VALUES = [
   'draft',
   'applied',
@@ -485,7 +486,7 @@ export function isAllowedApplicationStatusTransition(
 }
 
 // Never a menu target — no status ever has 'applied' as its next path step
-// or a decision, but the Record must stay total over ReviewerStatus.
+// or a decision, but the Record must stay total over REVIEWER_APPLICATION_STATUSES.
 export const APPLICATION_STATUS_ACTION_LABELS: Record<
   (typeof REVIEWER_APPLICATION_STATUSES)[number],
   string

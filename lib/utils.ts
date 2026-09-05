@@ -13,6 +13,7 @@ import {
 import type {
   AnswerPartition,
   AnswerQuestion,
+  ApplicationFilters,
   ManagedPositionRow,
   PositionActivity,
   PositionAvailability,
@@ -533,6 +534,24 @@ export function formatPaginationSummary({
   if (rangeStart === 1 && rangeEnd === total)
     return `${total} ${matching}${nounLabel}`;
   return `Showing ${rangeStart}–${rangeEnd} of ${total} ${matching}${nounLabel}`;
+}
+
+/** `/manage/applications` link for a filter set + page; omits `page=1`. */
+export function buildApplicationsHref(
+  filters: ApplicationFilters,
+  page?: number,
+): string {
+  const params = new URLSearchParams();
+  if (filters.positionId) params.set('positionId', filters.positionId);
+  if (filters.status) params.set('status', filters.status);
+  if (filters.userId) params.set('userId', filters.userId);
+  if (filters.q) params.set('q', filters.q);
+  if (filters.sort)
+    params.set('sort', `${filters.sort.field}:${filters.sort.direction}`);
+  if (page && page > 1) params.set('page', String(page));
+
+  const qs = params.toString();
+  return qs ? `/manage/applications?${qs}` : '/manage/applications';
 }
 
 /** `m:ss`, always minutes-and-seconds (never a bare second count); negative clamps to `0:00`. */
