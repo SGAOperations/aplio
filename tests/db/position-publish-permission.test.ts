@@ -176,7 +176,7 @@ describe('updatePosition — status-transition permission', () => {
     actAs(manager);
     const result = await updatePosition({
       id: position.id,
-      title: 'manager-edited-title',
+      title: `${TEST_PREFIX}manager-edited-title`,
       description: '',
       status: 'open',
     });
@@ -187,7 +187,7 @@ describe('updatePosition — status-transition permission', () => {
       select: { status: true, title: true },
     });
     expect(row.status).toBe('open');
-    expect(row.title).toBe('manager-edited-title');
+    expect(row.title).toBe(`${TEST_PREFIX}manager-edited-title`);
   });
 
   it('allows an admin every transition, including to open', async () => {
