@@ -6,16 +6,19 @@ import {
   ANSWER_SHORT_MAX_LENGTH,
   NON_TERMINAL_APPLICATION_STATUSES,
   POSITION_CLOSES_AT_ORDER_ERROR,
+  POSITION_CLOSES_AT_PAST_ERROR,
   POSITION_OPENS_AT_ORDER_ERROR,
+  POSITION_OPENS_AT_PAST_ERROR,
   REVIEWER_APPLICATION_STATUSES,
   TERMINAL_DECISION_STATUSES,
   UNRESOLVED_APPLICATION_STATUSES,
   getAnswerBlurError,
   getAnswerValueError,
   getStatusOptions,
+  makePositionFormSchema,
   matchesShortAnswerFormat,
-  positionFormSchema,
 } from '@/lib/constants';
+import { toOrgDayString } from '@/lib/dates';
 
 const choiceQuestion = { options: ['a', 'b'], allowOther: false };
 const choiceQuestionWithOther = { options: ['a', 'b'], allowOther: true };
@@ -274,11 +277,13 @@ describe('status-set invariants', () => {
   });
 });
 
-describe('validatePositionDates (via positionFormSchema)', () => {
+describe('validatePositionDates / positionPastDateIssues (via makePositionFormSchema)', () => {
   const base = { title: 'Title', description: '', status: 'draft' } as const;
+  // Fixed reference day — every literal below is on or after it.
+  const today = '2026-01-01';
 
   it('accepts a valid pair', () => {
-    const result = positionFormSchema.safeParse({
+    const result = makePositionFormSchema(today).safeParse({
       ...base,
       opensAt: '2026-01-01',
       closesAt: '2026-01-31',
@@ -287,7 +292,7 @@ describe('validatePositionDates (via positionFormSchema)', () => {
   });
 
   it('rejects an inverted pair, naming both fields', () => {
-    const result = positionFormSchema.safeParse({
+    const result = makePositionFormSchema(today).safeParse({
       ...base,
       opensAt: '2026-01-31',
       closesAt: '2026-01-01',
@@ -308,7 +313,7 @@ describe('validatePositionDates (via positionFormSchema)', () => {
   });
 
   it('accepts the same day for both', () => {
-    const result = positionFormSchema.safeParse({
+    const result = makePositionFormSchema(today).safeParse({
       ...base,
       opensAt: '2026-01-01',
       closesAt: '2026-01-01',
@@ -317,7 +322,7 @@ describe('validatePositionDates (via positionFormSchema)', () => {
   });
 
   it('accepts opensAt alone', () => {
-    const result = positionFormSchema.safeParse({
+    const result = makePositionFormSchema(today).safeParse({
       ...base,
       opensAt: '2026-01-01',
       closesAt: '',
@@ -326,7 +331,7 @@ describe('validatePositionDates (via positionFormSchema)', () => {
   });
 
   it('accepts closesAt alone', () => {
-    const result = positionFormSchema.safeParse({
+    const result = makePositionFormSchema(today).safeParse({
       ...base,
       opensAt: '',
       closesAt: '2026-01-01',
@@ -335,7 +340,7 @@ describe('validatePositionDates (via positionFormSchema)', () => {
   });
 
   it('accepts neither date', () => {
-    const result = positionFormSchema.safeParse({
+    const result = makePositionFormSchema(today).safeParse({
       ...base,
       opensAt: '',
       closesAt: '',
@@ -344,7 +349,7 @@ describe('validatePositionDates (via positionFormSchema)', () => {
   });
 
   it('reports a field-level error for a malformed date without crashing', () => {
-    const result = positionFormSchema.safeParse({
+    const result = makePositionFormSchema(today).safeParse({
       ...base,
       opensAt: 'not-a-date',
       closesAt: '2026-01-01',
@@ -354,6 +359,82 @@ describe('validatePositionDates (via positionFormSchema)', () => {
     expect(
       result.error.issues.some((issue) => issue.path.join('.') === 'opensAt'),
     ).toBe(true);
+  });
+
+  it('rejects an opensAt before today', () => {
+    const result = makePositionFormSchema('2026-06-01').safeParse({
+      ...base,
+      opensAt: '2026-05-31',
+      closesAt: '',
+    });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues[0]?.message).toBe(POSITION_OPENS_AT_PAST_ERROR);
+  });
+
+  it('accepts an opensAt of today', () => {
+    const result = makePositionFormSchema('2026-06-01').safeParse({
+      ...base,
+      opensAt: '2026-06-01',
+      closesAt: '',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts an opensAt in the future', () => {
+    const result = makePositionFormSchema('2026-06-01').safeParse({
+      ...base,
+      opensAt: '2026-06-02',
+      closesAt: '',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a closesAt before today', () => {
+    const result = makePositionFormSchema('2026-06-01').safeParse({
+      ...base,
+      opensAt: '',
+      closesAt: '2026-05-31',
+    });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues[0]?.message).toBe(POSITION_CLOSES_AT_PAST_ERROR);
+  });
+
+  it('accepts a closesAt of today', () => {
+    const result = makePositionFormSchema('2026-06-01').safeParse({
+      ...base,
+      opensAt: '',
+      closesAt: '2026-06-01',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('leaves an unchanged past opensAt alone on edit', () => {
+    const result = makePositionFormSchema('2026-06-01', {
+      opensAt: '2026-05-01',
+    }).safeParse({ ...base, opensAt: '2026-05-01', closesAt: '' });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects opensAt changed to a past date on edit', () => {
+    const result = makePositionFormSchema('2026-06-01', {
+      opensAt: '2026-05-01',
+    }).safeParse({ ...base, opensAt: '2026-05-15', closesAt: '' });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues[0]?.message).toBe(POSITION_OPENS_AT_PAST_ERROR);
+  });
+
+  // Guards against a host-timezone regression: this asserts against the real
+  // "today" under TZ=Asia/Tokyo (the unit project's env), not a fixed literal.
+  it('derives today from toOrgDayString(new Date())', () => {
+    const result = makePositionFormSchema(toOrgDayString(new Date())).safeParse(
+      { ...base, opensAt: '2000-01-01', closesAt: '' },
+    );
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues[0]?.message).toBe(POSITION_OPENS_AT_PAST_ERROR);
   });
 });
 

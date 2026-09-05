@@ -17,12 +17,11 @@ import {
   ListOrdered,
   Underline,
 } from 'lucide-react';
-import type { z } from 'zod/v4';
 
 import {
   MARKDOWN_GUIDE_URL,
   POSITION_DESCRIPTION_MAX_LENGTH,
-  positionFormSchema,
+  type PositionFormValues,
 } from '@/lib/constants';
 import { markdownToPlainText } from '@/lib/utils';
 
@@ -44,8 +43,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-
-type PositionFormValues = z.infer<typeof positionFormSchema>;
 
 const COUNTER_THRESHOLD = Math.floor(POSITION_DESCRIPTION_MAX_LENGTH * 0.8);
 

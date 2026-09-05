@@ -1,20 +1,22 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import type { z } from 'zod/v4';
 
 import { updatePosition } from '@/prisma/actions/position-actions';
 import type { PositionStatus } from '@/prisma/client';
 
 import {
   POSITION_OPEN_REQUIRES_ADMIN_HINT,
+  type PositionFormValues,
   getStatusOptions,
-  positionFormSchema,
+  makePositionFormSchema,
 } from '@/lib/constants';
+import { toOrgDayString } from '@/lib/dates';
 import { ACTION_ICONS } from '@/lib/icons';
 
 import { MarkdownField } from '@/components/features/markdown-field';
@@ -52,8 +54,6 @@ interface PositionDetailsFormProps {
   statusNotice?: ReactNode;
 }
 
-type PositionFormValues = z.infer<typeof positionFormSchema>;
-
 // Always visible, not dialog-triggered: shadcn Form primitives directly, no FormDialog.
 export function PositionDetailsForm({
   position,
@@ -61,8 +61,17 @@ export function PositionDetailsForm({
   statusNotice,
 }: PositionDetailsFormProps) {
   const statusOptions = getStatusOptions(isAdmin, position.status);
+  const schema = useMemo(
+    () =>
+      makePositionFormSchema(toOrgDayString(new Date()), {
+        opensAt: position.opensAt ?? undefined,
+        closesAt: position.closesAt ?? undefined,
+      }),
+    [position.opensAt, position.closesAt],
+  );
+
   const form = useForm<PositionFormValues>({
-    resolver: zodResolver(positionFormSchema),
+    resolver: zodResolver(schema),
     defaultValues: {
       title: position.title,
       description: position.description,
