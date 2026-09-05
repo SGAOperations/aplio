@@ -104,7 +104,7 @@ Anyone not signed in. The only routes they can use are `/positions`, `/positions
   - Position is a `draft` and the viewer cannot manage it → `notFound()`, identical to missing ([XC-4](#xc-4-denial-shape)).
   - No description → "No description yet."
   - Window not open yet → the date under the title reads **Opens <date>**; already closed → **Closed <date>**. No Apply button in either case.
-  - A `draft` visible to its managers shows its planned window in future tense — **Opens <date>** or **Closes <date>**, never "Closed" — since a draft's dates are a plan, not a deadline.
+  - A `draft` visible to its managers shows its planned window in future tense — **Opens <date>** or **Closes <date>**, never "Closed" — since a draft's dates are a plan, not a deadline. Once that date has passed, the line reads **Was scheduled to open <date>** or **Was scheduled to close <date>** in the warning treatment instead, and the draft callout below gains a line naming the missed date.
 - **End state** — read-only.
 
 ### AN-3 Start applying from a position
@@ -412,7 +412,9 @@ A user who manages at least one non-deleted position. Manager status is **derive
   - A manager posting a transition **to** `open` from `draft` or `closed` (stale tab, hand-made request) → `{ error: POSITION_OPEN_REQUIRES_ADMIN_ERROR }`: **"Only an admin can open a position. Ask an admin to publish it for you."** The form keeps its values so they can pick Draft or Closed and resubmit.
   - Deleted between render and submit → **"This position no longer exists."**
   - Unexpected throw → **"Something went wrong. Please try again."**
-- **End state** — the position's details, status and window are updated; only an admin's draft/closed→open flip publishes it.
+  - Status `open` with a `closesAt` already past → below the Status field the form shows a warning callout ("Applicants see this position as Closed…"), naming the passed date and offering both remedies (extend `closesAt`, or set status to Closed); the Status select still shows Open — displaying anything else would misrepresent what's stored.
+  - Status `draft` with an `opensAt` or `closesAt` already past → the same spot below the Status field shows a warning callout ("This position was scheduled to open/close…"), naming the passed date and offering both remedies (move that date to the future, or set Status to Open to publish now). Mutually exclusive with the `open`-past-`closesAt` case above (they gate on different statuses), but both render from the same status-notice slot.
+- **End state** — the position's details, status and window are updated; only an admin's draft/closed→open flip publishes it, and a stale `open` or `draft` position past its relevant date keeps its warning callout until the date is moved forward or the status is changed.
 
 ### PM-5 Manage position questions
 

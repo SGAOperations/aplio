@@ -211,9 +211,14 @@ export type PositionAvailability =
   | 'unavailable';
 
 export type PositionDateInfo = {
-  label: 'Opens' | 'Closes' | 'Closed';
+  label:
+    | 'Opens'
+    | 'Closes'
+    | 'Closed'
+    | 'Was scheduled to open'
+    | 'Was scheduled to close';
   date: Date;
-  emphasis: 'live' | 'calm';
+  emphasis: 'live' | 'calm' | 'stale';
 };
 
 // Admin-gated contexts only.
