@@ -160,9 +160,7 @@ export type PositionWindow = {
   closesAt: Date | null;
 };
 
-// Minimal shape groupManagedPositions/orderManagedPositions (lib/utils.ts) sort
-// by. Satisfied by both ManagedPosition and ManagedPositionSummaryItem, so one
-// helper groups the full page and the dashboard widget's lean rows alike.
+// Minimal shape both grouping helpers sort by.
 export type ManagedPositionRow = PositionWindow & {
   title: string;
   updatedAt: Date;

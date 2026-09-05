@@ -53,13 +53,7 @@ function PositionGroup({
   );
 }
 
-// Server component — groups the caller's managed positions into Open, Closed
-// and Draft (groupManagedPositions, lib/utils.ts) and renders each as its own
-// h3 section, omitting empty ones. Closed nests the active/archived split
-// (isPositionActive, the single source of truth shared with #360's edit
-// freeze) behind the existing collapsed disclosure. ManagedPosition values
-// (updatedAt/_count) never cross into the client leaf — only rendered JSX
-// (children) does.
+// Groups by availability (lib/utils.ts); Closed nests the isPositionActive active/archived split.
 export function ManagedPositionsSection({
   positions,
   statsByPosition,

@@ -385,13 +385,7 @@ function compareDatesDesc(a: Date, b: Date): number {
   return b.getTime() - a.getTime();
 }
 
-/**
- * Groups by derived availability (open = accepting/upcoming, closed = status
- * 'closed' or open-past-`closesAt`, draft = status 'draft'), then sorts each
- * group: open by `closesAt` then `opensAt` then title; closed by
- * `closesAt ?? updatedAt` descending then title; draft by `opensAt` then
- * `updatedAt` descending then title.
- */
+// Grouping is by derived availability, not raw status.
 export function groupManagedPositions<T extends ManagedPositionRow>(
   positions: T[],
   now: Date = new Date(),
