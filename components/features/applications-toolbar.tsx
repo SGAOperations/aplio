@@ -39,6 +39,9 @@ export function ApplicationsToolbar({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  // Drafts have no submittedAt, so buildDraftListWhere's q filter never searches by date.
+  const isDraftView = filters.status === 'draft';
+
   // Only ambiguous names get the disambiguating email suffix.
   const applicantLabels = useMemo(() => {
     const nameCounts = new Map<string, number>();
@@ -209,7 +212,11 @@ export function ApplicationsToolbar({
           <Input
             id="filter-search"
             aria-label="Search applications"
-            placeholder="Name, email, position, or date"
+            placeholder={
+              isDraftView
+                ? 'Name, email, or position'
+                : 'Name, email, position, or date'
+            }
             value={searchValue}
             onChange={(e) => handleSearch(e.target.value)}
             className="w-full pr-12 md:pr-9"
