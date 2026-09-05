@@ -13,6 +13,7 @@ import {
 import type {
   AnswerPartition,
   AnswerQuestion,
+  ManagedPositionRow,
   PositionActivity,
   PositionAvailability,
   PositionDateInfo,
@@ -370,6 +371,67 @@ export function isPositionActive(
     position.lastStatusChangeAt !== null &&
     position.lastStatusChangeAt >= cutoff
   );
+}
+
+// A null date always sorts last, regardless of direction.
+function compareDatesAscNullsLast(a: Date | null, b: Date | null): number {
+  if (a === null && b === null) return 0;
+  if (a === null) return 1;
+  if (b === null) return -1;
+  return a.getTime() - b.getTime();
+}
+
+function compareDatesDesc(a: Date, b: Date): number {
+  return b.getTime() - a.getTime();
+}
+
+// Grouping is by derived availability, not raw status.
+export function groupManagedPositions<T extends ManagedPositionRow>(
+  positions: T[],
+  now: Date = new Date(),
+): { open: T[]; closed: T[]; draft: T[] } {
+  const open: T[] = [];
+  const closed: T[] = [];
+  const draft: T[] = [];
+
+  for (const position of positions) {
+    if (position.status === 'draft') draft.push(position);
+    else if (
+      position.status === 'closed' ||
+      getPositionAvailability(position, now) === 'closed_by_date'
+    )
+      closed.push(position);
+    else open.push(position);
+  }
+
+  open.sort(
+    (a, b) =>
+      compareDatesAscNullsLast(a.closesAt, b.closesAt) ||
+      compareDatesAscNullsLast(a.opensAt, b.opensAt) ||
+      a.title.localeCompare(b.title),
+  );
+  closed.sort(
+    (a, b) =>
+      compareDatesDesc(a.closesAt ?? a.updatedAt, b.closesAt ?? b.updatedAt) ||
+      a.title.localeCompare(b.title),
+  );
+  draft.sort(
+    (a, b) =>
+      compareDatesAscNullsLast(a.opensAt, b.opensAt) ||
+      compareDatesDesc(a.updatedAt, b.updatedAt) ||
+      a.title.localeCompare(b.title),
+  );
+
+  return { open, closed, draft };
+}
+
+/** Flattened open → closed → draft — the single ordering both `getManagedPositions` and `getManagedPositionsSummary` call, so they cannot drift. */
+export function orderManagedPositions<T extends ManagedPositionRow>(
+  positions: T[],
+  now?: Date,
+): T[] {
+  const { open, closed, draft } = groupManagedPositions(positions, now);
+  return [...open, ...closed, ...draft];
 }
 
 // Pure mirror of checkPositionAccess for rows already fetched. Compares ids

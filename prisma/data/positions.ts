@@ -23,6 +23,7 @@ import {
   getPositionAvailability,
   isAcceptingApplications,
   isPositionActive,
+  orderManagedPositions,
 } from '@/lib/utils';
 
 const positionWithQuestionsSelect = {
@@ -138,18 +139,19 @@ export async function getManagedPositions(
   const positions = await prisma.position.findMany({
     where: { managers: { some: { id: userId } }, deletedAt: null },
     select: { ...positionWithQuestionsSelect, ...positionActivitySelect },
-    // Enum order puts draft first, then open, then closed.
-    orderBy: [{ status: 'asc' }, { title: 'asc' }],
+    orderBy: { title: 'asc' },
   });
-  return positions.map(withPositionActivity);
+  return orderManagedPositions(positions.map(withPositionActivity));
 }
 
 // Manager dashboard's "My Positions" widget: lean rows, aggregate counts only.
+// `take` truncates a flat, Open-section-ordered list — applied after
+// orderManagedPositions so it can't cut off before the real order is known.
 export async function getManagedPositionsSummary(
   userId: string,
   take?: number,
 ): Promise<ManagedPositionSummaryItem[]> {
-  return prisma.position.findMany({
+  const positions = await prisma.position.findMany({
     where: { managers: { some: { id: userId } }, deletedAt: null },
     select: {
       id: true,
@@ -157,6 +159,7 @@ export async function getManagedPositionsSummary(
       status: true,
       opensAt: true,
       closesAt: true,
+      updatedAt: true,
       _count: {
         select: {
           applications: {
@@ -168,18 +171,20 @@ export async function getManagedPositionsSummary(
         },
       },
     },
-    // Enum order puts draft first, then open, then closed.
-    orderBy: [{ status: 'asc' }, { title: 'asc' }],
-    ...(take !== undefined ? { take } : {}),
+    orderBy: { title: 'asc' },
   });
+  const ordered = orderManagedPositions(positions);
+  return take !== undefined ? ordered.slice(0, take) : ordered;
 }
 
 // Cross-position data — admin-gated callers only. Closed stays while unresolved.
-export async function getAdminPositions(): Promise<PositionWithQuestions[]> {
+// Shares ManagedPosition's shape/ordering with getManagedPositions so admins get
+// the same Open/Closed/Draft grouping through ManagedPositionsSection.
+export async function getAdminPositions(): Promise<ManagedPosition[]> {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - MANAGED_POSITIONS_WINDOW_DAYS);
 
-  return prisma.position.findMany({
+  const positions = await prisma.position.findMany({
     where: {
       deletedAt: null,
       OR: [
@@ -197,9 +202,10 @@ export async function getAdminPositions(): Promise<PositionWithQuestions[]> {
         },
       ],
     },
-    select: positionWithQuestionsSelect,
+    select: { ...positionWithQuestionsSelect, ...positionActivitySelect },
     orderBy: { title: 'asc' },
   });
+  return orderManagedPositions(positions.map(withPositionActivity));
 }
 
 // Cached so generateMetadata and the page component share one round-trip per request.

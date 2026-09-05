@@ -383,11 +383,11 @@ A user who manages at least one non-deleted position. Manager status is **derive
 ### PM-2 See the positions you manage
 
 - **Trigger** — **Manage Positions** under **Manage** (`/manage/positions`).
-- **Happy path** — `requireManagerOrAdminOr404()` gates the route. `getManagedPositions(user.id)` plus per-position application stats render as an **Active** section first, then a collapsed **Archived (N)** disclosure for anything `!isPositionActive`. A **New position** action sits in the header, under "Manage Positions" · "Track applications and edit the positions you manage." Positions you manage also keep appearing in the Open Positions list on `/positions` ([AN-1](#an-1-browse-positions)) — the browse page never filters them out.
+- **Happy path** — `requireManagerOrAdminOr404()` gates the route. `getManagedPositions(user.id)` plus per-position application stats render as three sections, in order — **Open**, **Closed**, **Draft** — each with its own heading, omitted entirely when it has no positions. Grouping keys off derived availability (`groupManagedPositions`, `lib/utils.ts`): an `open` position past its `closesAt` lands under Closed, matching its "Closed" badge, not under Open. Within Open the soonest `closesAt` sorts first (nulls last); within Closed the most recently closed sorts first; within Draft, `opensAt` sorts first (nulls last). Closed nests the active/archived split — non-archived cards first, then a collapsed **Archived (N)** disclosure for anything `!isPositionActive`. A **New position** action sits in the header, under "Manage Positions" · "Track applications and edit the positions you manage." Positions you manage also keep appearing in the Open Positions list on `/positions` ([AN-1](#an-1-browse-positions)) — the browse page never filters them out.
 - **Failure / edge**
   - Not a manager or admin → `notFound()` ([XC-4](#xc-4-denial-shape)); the nav item is not rendered for them either.
-  - The active list is empty while some positions are archived → "No active positions" · "Every position you manage is archived — expand Archived below to see them."
-  - Managing nothing at all (defensive; `isManager` would already have 404'd) → "No active positions" · "Positions you manage appear here. A closed position drops off once it has been closed for 30 days with no application status changes."
+  - Closed has no non-archived positions but does have archived ones → "Nothing closed recently — expand Archived below to see older positions."
+  - Managing nothing at all (defensive; `isManager` would already have 404'd) → "No positions yet" · "Positions you manage appear here. Create one to start accepting applications."
 - **End state** — read-only.
 
 ### PM-3 Create a position
@@ -550,7 +550,7 @@ An admin is a **manager on every position**: every [Position manager](#position-
 ### AD-1 See every position
 
 - **Trigger** — **Manage Positions** under **Manage** (`/manage/positions`).
-- **Happy path** — admins get a distinct branch inside the same route: one flat list from `getAdminPositions()` — including drafts — with application stats on every card, under an "All Positions" heading and "Every position, with its application stats." There is no Active/Archived split.
+- **Happy path** — admins get the same `ManagedPositionsSection` Open/Closed/Draft grouping as [PM-2](#pm-2-see-the-positions-you-manage) (including its Archived disclosure and sort keys), but scoped to every position via `getAdminPositions()` instead of just the ones they manage — drafts included, with application stats on every card, under an "All Positions" heading and "Every position, with its application stats." description.
 - **Failure / edge**
   - No positions at all → `EmptyState` "No positions yet" · "Create your first position to start accepting applications." with the create action.
   - A draft position's detail page carries the callout "This position is a draft. Only its managers and admins can see this page. Set it to Open in Edit to make it visible to applicants."
