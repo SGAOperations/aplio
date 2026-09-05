@@ -1,7 +1,5 @@
 import type { Metadata } from 'next';
 
-import { Briefcase } from 'lucide-react';
-
 import { getPositionApplicationStats } from '@/prisma/data/applications';
 import {
   getAdminPositions,
@@ -12,10 +10,8 @@ import { requireManagerOrAdminOr404 } from '@/lib/auth/guards';
 import type { PositionApplicationStats } from '@/lib/types';
 
 import { ManagedPositionsSection } from '@/components/features/managed-positions-section';
-import { PositionCard } from '@/components/features/position-card';
 import { PositionCreateDialog } from '@/components/features/position-create-dialog';
 import { PageHeader } from '@/components/layouts/page-header';
-import { EmptyState } from '@/components/ui/empty-state';
 
 export const metadata: Metadata = { title: 'Manage Positions' };
 
@@ -37,26 +33,12 @@ export default async function ManagePositionsPage() {
           description="Every position, with its application stats."
           actions={<PositionCreateDialog isAdmin={user.isAdmin} />}
         />
-        {positions.length === 0 ? (
-          <EmptyState
-            icon={Briefcase}
-            title="No positions yet"
-            description="Create your first position to start accepting applications."
-            action={<PositionCreateDialog isAdmin={user.isAdmin} />}
-          />
-        ) : (
-          <div className="flex flex-col gap-4">
-            {positions.map((position) => (
-              <PositionCard
-                key={position.id}
-                position={position}
-                canManage={true}
-                isAuthenticated={true}
-                applicationStats={statsByPosition.get(position.id)}
-              />
-            ))}
-          </div>
-        )}
+        <ManagedPositionsSection
+          positions={positions}
+          statsByPosition={statsByPosition}
+          emptyDescription="Create your first position to start accepting applications."
+          emptyAction={<PositionCreateDialog isAdmin={user.isAdmin} />}
+        />
       </div>
     );
   }
@@ -77,7 +59,7 @@ export default async function ManagePositionsPage() {
       <ManagedPositionsSection
         positions={managedPositions}
         statsByPosition={statsByPosition}
-        emptyDescription="Positions you manage appear here. A closed position drops off once it has been closed for 30 days with no application status changes."
+        emptyDescription="Positions you manage appear here. Create one to start accepting applications."
         emptyAction={<PositionCreateDialog isAdmin={user.isAdmin} />}
       />
     </div>

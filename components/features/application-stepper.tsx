@@ -403,7 +403,7 @@ export function ApplicationStepper({
         );
         void fireConfetti();
         setIsRedirecting(true);
-        router.replace(`/my-applications/${application.id}`);
+        router.replace(`/applications/${application.id}`);
       }
     } catch (error) {
       console.error(error);

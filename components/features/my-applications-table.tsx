@@ -26,7 +26,7 @@ const COLUMNS: DataTableColumn<MyApplicationListItem>[] = [
     sortAccessor: (a) => a.position.title,
     cell: (a) => (
       <Link
-        href={`/my-applications/${a.id}`}
+        href={`/applications/${a.id}`}
         className="font-medium hover:underline"
       >
         {a.position.title}
@@ -96,7 +96,7 @@ export function MyApplicationsTable({
         <div className="flex flex-col gap-2 p-4">
           <div className="flex items-center justify-between gap-2">
             <Link
-              href={`/my-applications/${app.id}`}
+              href={`/applications/${app.id}`}
               className="font-medium hover:underline"
             >
               {app.position.title}

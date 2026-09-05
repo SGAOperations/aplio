@@ -4,7 +4,11 @@ import {
   MANAGED_POSITIONS_WINDOW_DAYS,
   OTP_RESEND_COOLDOWN_SECONDS,
 } from '@/lib/constants';
-import type { AnswerQuestion, PositionActivity } from '@/lib/types';
+import type {
+  AnswerQuestion,
+  ManagedPositionRow,
+  PositionActivity,
+} from '@/lib/types';
 import {
   answerFieldIds,
   canReviewPosition,
@@ -20,12 +24,14 @@ import {
   getUserName,
   getUserRoleRank,
   getUserRoleTokens,
+  groupManagedPositions,
   isAnswered,
   isBypassAllowed,
   isError,
   isOpenPastCloseDate,
   isPositionActive,
   isSameIdSet,
+  orderManagedPositions,
   partitionAnswerValue,
   resolveGlobalAnswerValues,
   splitOtherAnswer,
@@ -428,6 +434,135 @@ describe('isPositionActive', () => {
       lastStatusChangeAt: null,
     };
     expect(isPositionActive(position, NOW)).toBe(false);
+  });
+});
+
+function row(overrides: Partial<ManagedPositionRow> = {}): ManagedPositionRow {
+  return {
+    status: 'open',
+    opensAt: null,
+    closesAt: null,
+    updatedAt: NOW,
+    title: 'Untitled',
+    ...overrides,
+  };
+}
+
+describe('groupManagedPositions', () => {
+  it('groups an open position past its closesAt as closed, matching its badge', () => {
+    const closesAt = new Date(NOW.getTime() - 1);
+    const position = row({ status: 'open', closesAt });
+    const { open, closed, draft } = groupManagedPositions([position], NOW);
+    expect(open).toEqual([]);
+    expect(closed).toEqual([position]);
+    expect(draft).toEqual([]);
+  });
+
+  it('groups a draft with any dates as draft, never open or closed', () => {
+    const opensAt = new Date(NOW.getTime() - 1000);
+    const closesAt = new Date(NOW.getTime() + 1000);
+    const position = row({ status: 'draft', opensAt, closesAt });
+    const { open, closed, draft } = groupManagedPositions([position], NOW);
+    expect(open).toEqual([]);
+    expect(closed).toEqual([]);
+    expect(draft).toEqual([position]);
+  });
+
+  it('orders open by closesAt ascending, nulls last, then opensAt, then title', () => {
+    const soonest = row({
+      title: 'Soonest',
+      closesAt: new Date(NOW.getTime() + 1000),
+    });
+    const later = row({
+      title: 'Later',
+      closesAt: new Date(NOW.getTime() + 2000),
+    });
+    const noCloseA = row({ title: 'B no close' });
+    const noCloseB = row({ title: 'A no close' });
+    const { open } = groupManagedPositions(
+      [noCloseA, later, noCloseB, soonest],
+      NOW,
+    );
+    expect(open.map((p) => p.title)).toEqual([
+      'Soonest',
+      'Later',
+      'A no close',
+      'B no close',
+    ]);
+  });
+
+  it('orders closed by closesAt descending, falling back to updatedAt when closesAt is null', () => {
+    const recentClose = row({
+      status: 'closed',
+      title: 'Recent close',
+      closesAt: new Date(NOW.getTime() - 1000),
+    });
+    const olderClose = row({
+      status: 'closed',
+      title: 'Older close',
+      closesAt: new Date(NOW.getTime() - 2000),
+    });
+    const manuallyClosed = row({
+      status: 'closed',
+      title: 'Manually closed',
+      closesAt: null,
+      updatedAt: new Date(NOW.getTime() - 500),
+    });
+    const { closed } = groupManagedPositions(
+      [olderClose, manuallyClosed, recentClose],
+      NOW,
+    );
+    expect(closed.map((p) => p.title)).toEqual([
+      'Manually closed',
+      'Recent close',
+      'Older close',
+    ]);
+  });
+
+  it('orders draft by opensAt ascending, nulls last, then updatedAt descending', () => {
+    const soonest = row({
+      status: 'draft',
+      title: 'Soonest',
+      opensAt: new Date(NOW.getTime() + 1000),
+    });
+    const later = row({
+      status: 'draft',
+      title: 'Later',
+      opensAt: new Date(NOW.getTime() + 2000),
+    });
+    const noOpenNewer = row({
+      status: 'draft',
+      title: 'No open, newer',
+      updatedAt: new Date(NOW.getTime() + 100),
+    });
+    const noOpenOlder = row({
+      status: 'draft',
+      title: 'No open, older',
+      updatedAt: new Date(NOW.getTime() - 100),
+    });
+    const { draft } = groupManagedPositions(
+      [noOpenOlder, later, noOpenNewer, soonest],
+      NOW,
+    );
+    expect(draft.map((p) => p.title)).toEqual([
+      'Soonest',
+      'Later',
+      'No open, newer',
+      'No open, older',
+    ]);
+  });
+});
+
+describe('orderManagedPositions', () => {
+  it('never interleaves groups — flattens open, then closed, then draft', () => {
+    const openPosition = row({ status: 'open', title: 'Open' });
+    const closedPosition = row({ status: 'closed', title: 'Closed' });
+    const draftPosition = row({ status: 'draft', title: 'Draft' });
+    const result = orderManagedPositions(
+      [draftPosition, closedPosition, openPosition],
+      NOW,
+    );
+    expect(result).toEqual([openPosition, closedPosition, draftPosition]);
   });
 });
 

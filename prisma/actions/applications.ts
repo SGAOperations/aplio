@@ -178,7 +178,7 @@ export async function createDraftApplication(
         error.code === 'P2002'
       ) {
         revalidatePath(`/positions/${parsed.data.positionId}/apply`);
-        revalidatePath('/my-applications');
+        revalidatePath('/applications');
         revalidatePath('/');
         revalidatePath('/positions');
         return { error: 'You already have an application for this position.' };
@@ -190,7 +190,7 @@ export async function createDraftApplication(
   if (result && 'error' in result) return result;
 
   revalidatePath(`/positions/${parsed.data.positionId}/apply`);
-  revalidatePath('/my-applications');
+  revalidatePath('/applications');
   revalidatePath('/');
   revalidatePath('/positions');
 }
@@ -491,9 +491,9 @@ export async function submitApplication(
   revalidatePath('/manage/applications');
   revalidatePath('/positions', 'layout');
   revalidatePath('/manage/positions', 'layout');
-  // The draft leaves /my-applications' draft-state list once submitted.
-  revalidatePath('/my-applications');
-  revalidatePath(`/my-applications/${applicationId}`);
+  // The draft leaves /applications' draft-state list once submitted.
+  revalidatePath('/applications');
+  revalidatePath(`/applications/${applicationId}`);
 }
 
 const updateApplicationStatusSchema = z.object({
@@ -711,8 +711,8 @@ export async function withdrawApplication(
 
   if (result && 'error' in result) return result;
 
-  revalidatePath('/my-applications');
-  revalidatePath(`/my-applications/${applicationId}`);
+  revalidatePath('/applications');
+  revalidatePath(`/applications/${applicationId}`);
   revalidatePath('/manage/applications');
   revalidatePath('/positions', 'layout');
   revalidatePath('/manage/positions', 'layout');
@@ -745,8 +745,8 @@ export async function deleteDraftApplication(
 
   const { positionId } = deleted[0]!;
   revalidatePath(`/positions/${positionId}/apply`);
-  revalidatePath('/my-applications');
-  revalidatePath(`/my-applications/${id}`);
+  revalidatePath('/applications');
+  revalidatePath(`/applications/${id}`);
   revalidatePath('/');
   revalidatePath('/positions');
 }

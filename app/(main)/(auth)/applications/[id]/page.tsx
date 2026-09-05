@@ -61,7 +61,7 @@ export default async function MyApplicationDetailPage({
         <PageHeader
           title={application.position.title}
           description={STATUS_COPY[application.status]}
-          backHref="/my-applications"
+          backHref="/applications"
           backLabel="Back to My Applications"
           titleAdornment={
             <ApplicationStatusBadge status={application.status} />

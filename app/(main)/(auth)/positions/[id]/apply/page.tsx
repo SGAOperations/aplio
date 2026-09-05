@@ -120,10 +120,10 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
             </div>
             <div className="flex flex-wrap gap-2">
               <Button asChild className="w-fit">
-                <Link href="/my-applications">View my applications</Link>
+                <Link href="/applications">View my applications</Link>
               </Button>
               <Button asChild variant="ghost" className="w-fit">
-                <Link href={`/my-applications/${activeApplication.id}`}>
+                <Link href={`/applications/${activeApplication.id}`}>
                   View my answers
                 </Link>
               </Button>
@@ -149,9 +149,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
             </div>
             <div className="flex flex-wrap gap-2">
               <Button asChild className="w-fit">
-                <Link
-                  href={activeApplication ? '/my-applications' : '/positions'}
-                >
+                <Link href={activeApplication ? '/applications' : '/positions'}>
                   {activeApplication
                     ? 'View my applications'
                     : 'Browse positions'}

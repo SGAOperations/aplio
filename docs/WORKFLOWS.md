@@ -88,7 +88,7 @@ Anyone not signed in. The only routes they can use are `/positions`, `/positions
 ### AN-1 Browse positions
 
 - **Trigger** — the logo, the Positions nav item, or a direct visit to `/positions`.
-- **Happy path** — `getOpenPositions()` and `getRecentlyClosedPositions()` run in parallel. The page renders an **Open Positions** section (always rendered, including positions the viewer manages — nothing is filtered out) and a **Recently Closed** section (omitted when empty; positions closed within `RECENTLY_CLOSED_WINDOW_DAYS` = 7). Every viewer — anonymous, applicant, manager or admin — sees the identical browse list; the manage workbench lives at its own route ([PM-2](#pm-2-see-the-positions-you-manage)). A signed-in viewer's own applications also mark the relevant cards ([AP-17](#ap-17-see-which-positions-youve-already-applied-to)). Each `PositionCard` links to the detail page.
+- **Happy path** — `getOpenPositions()` and `getRecentlyClosedPositions()` run in parallel. The page renders an **Open Positions** section (always rendered, including positions the viewer manages — nothing is filtered out), ordered by closing date soonest first, then positions with no closing date (by `opensAt`, most recently opened first), then title, and a **Recently Closed** section (omitted when empty; positions closed within `RECENTLY_CLOSED_WINDOW_DAYS` = 7). Every viewer — anonymous, applicant, manager or admin — sees the identical browse list; the manage workbench lives at its own route ([PM-2](#pm-2-see-the-positions-you-manage)). A signed-in viewer's own applications also mark the relevant cards ([AP-17](#ap-17-see-which-positions-youve-already-applied-to)). Each `PositionCard` links to the detail page.
 - **Failure / edge**
   - No open positions → `EmptyState` "No open positions" · "Check back later for open positions."; the page still renders.
   - Draft positions never appear — `PUBLISHED_POSITION_WHERE` excludes them.
@@ -180,7 +180,7 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 ### AP-1 See your dashboard
 
 - **Trigger** — signing in, the logo, or the Home nav item (`/`).
-- **Happy path** — `UserDashboard` renders "Welcome back, <first name>" and streams five independently-suspended sections: the profile-completeness banner, an application summary, the three most recent applications, three open positions, and an activity feed. Each has its own skeleton.
+- **Happy path** — `UserDashboard` renders "Welcome back, <first name>" and streams five independently-suspended sections: the profile-completeness banner, an application summary, the three most recent applications, the three open positions closing soonest, and an activity feed. Each has its own skeleton.
 - **Failure / edge**
   - Anonymous → `redirect('/positions')` — routing, not denial.
   - No name → [XC-2](#xc-2-name-gate).
@@ -221,7 +221,7 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 
 ### AP-5 Start an application
 
-- **Trigger** — **Apply now** on `/positions/[id]`, or **Continue** on a draft row in `/my-applications`; both land on `/positions/[id]/apply`.
+- **Trigger** — **Apply now** on `/positions/[id]`, or **Continue** on a draft row in `/applications`; both land on `/positions/[id]/apply`.
 - **Happy path** — the page loads the position, the caller's profile data and any existing application in parallel. With no application yet it renders `StartApplicationCard`; its button calls `createDraftApplication`, which re-checks the window server-side and creates the `Application` at status `draft`, copying the caller's current `GlobalAnswer` values into `GlobalApplicationAnswer` rows in the same transaction. Toast **"Application started"** and the page re-renders as the stepper ([AP-6](#ap-6-answer-application-questions)).
 - **Failure / edge**
   - Position soft-deleted or still a draft → `redirect('/positions')` before anything renders — resource state, not denial.
@@ -275,7 +275,7 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 ### AP-9 Submit an application
 
 - **Trigger** — **Submit** at the end of the stepper on `/positions/[id]/apply`.
-- **Happy path** — the client validates the position fields and re-checks required globals, then waits for every pending autosave so the server reads a complete snapshot. `submitApplication` runs one transaction, read → validate → write: it re-checks ownership, status, soft-deletion and the application window, resolves every global question's value via `resolveGlobalAnswerValues` (an application row wins even when empty; no row falls back to the profile), verifies every required question with no write yet, then — only once validation passes — materializes a snapshot row for each question still missing one with a non-empty resolved value, and flips the status to `applied` with `submittedAt` and an `applicantName` snapshot. Toast **"Application submitted"**, a reduced-motion-aware confetti burst fires alongside it, and the browser replaces the URL with `/my-applications/[id]`.
+- **Happy path** — the client validates the position fields and re-checks required globals, then waits for every pending autosave so the server reads a complete snapshot. `submitApplication` runs one transaction, read → validate → write: it re-checks ownership, status, soft-deletion and the application window, resolves every global question's value via `resolveGlobalAnswerValues` (an application row wins even when empty; no row falls back to the profile), verifies every required question with no write yet, then — only once validation passes — materializes a snapshot row for each question still missing one with a non-empty resolved value, and flips the status to `applied` with `submittedAt` and an `applicantName` snapshot. Toast **"Application submitted"**, a reduced-motion-aware confetti burst fires alongside it, and the browser replaces the URL with `/applications/[id]`.
 - **Failure / edge**
   - Not applicant-editable (checked first, ahead of the window and answer checks) → **"This application has already been submitted. Withdraw it to make changes."**
   - Deleted in another tab since the draft was opened → **"You deleted this draft. Refresh the page to apply again with your answers."**
@@ -289,7 +289,7 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 
 ### AP-10 Track your applications
 
-- **Trigger** — the My Applications nav item (`/my-applications`).
+- **Trigger** — the My Applications nav item (`/applications`).
 - **Happy path** — `getMyApplications(user.id)` returns the caller's non-deleted applications on published positions, ordered by `submittedAt` (not `updatedAt` — [XC-8](#xc-8-applicant-facing-status-grouping)). The table sorts client-side by position, status or applied date, and collapses to stacked cards below `md`. Each row links to the detail page and carries its primary action and row action. Every status shown is the public one — `reached_out`/`interview_scheduled`/`reviewing` all read as **Applied**.
 - **Failure / edge**
   - Nothing yet → `EmptyState` "No applications yet" · "Browse open positions to start your first application." with a **Browse positions** button.
@@ -302,7 +302,7 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 
 ### AP-11 View one of your applications
 
-- **Trigger** — a position title link on `/my-applications`, or the redirect after submitting ([AP-9](#ap-9-submit-an-application)).
+- **Trigger** — a position title link on `/applications`, or the redirect after submitting ([AP-9](#ap-9-submit-an-application)).
 - **Happy path** — `getMyApplication(id, user.id)` is scoped to the caller with the same visibility as the list, and returns the public status ([XC-8](#xc-8-applicant-facing-status-grouping)). The header shows the position title with the status badge directly beside it, the status sentence underneath, and the primary/row actions (Continue, Edit & resubmit, Withdraw, Delete draft — whichever applies) right-aligned on that same header row; below it, "Applied <date>" (or "Draft · last saved <date>", from `lastSavedAt` — a draft's own `updatedAt`, never exposed for a submitted application) and a link to the position, then both answer groups — "Your profile answers" and "Your answers for this position" — full width. Answers render by shape (short/single/multiple choice in a label-value row, long answers full-width as prose, files as a Download row) from the snapshotted `questionLabel`/`value`/`type` — never a live question lookup, so a retyped or relabeled question still shows the original label and every stored value.
 - **Failure / edge**
   - Not the caller's, soft-deleted, or on an unpublished position → `notFound()`, so a bookmarked URL cannot outlive its list row.
@@ -313,7 +313,7 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 
 ### AP-12 Download your own file answer
 
-- **Trigger** — the **Download** button on a file answer, on `/my-applications/[id]` or `/profile`.
+- **Trigger** — the **Download** button on a file answer, on `/applications/[id]` or `/profile`.
 - **Happy path** — `downloadQuestionFileAnswer` authorizes **by row and caller, never by URL**, fetches the private blob and returns it base64-encoded; the client rebuilds a `Blob` and triggers the download. No route handler is involved.
 - **Failure / edge**
   - The answer row holds no URL, or the blob is gone → **"This file is no longer available."**
@@ -322,7 +322,7 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 
 ### AP-13 Withdraw an application
 
-- **Trigger** — **Withdraw** on a `/my-applications` row, behind a confirmation dialog ("Your application to '<title>' will be removed from review. You can edit and resubmit it later to put it back in the queue.").
+- **Trigger** — **Withdraw** on a `/applications` row, behind a confirmation dialog ("Your application to '<title>' will be removed from review. You can edit and resubmit it later to put it back in the queue.").
 - **Happy path** — `withdrawApplication` flips the status to `withdrawn` with one scoped `updateMany`. Toast **"Application withdrawn"**; the dialog closes and the row re-renders.
 - **Failure / edge**
   - Already `draft`, already `withdrawn`, or in a terminal decision state (`accepted` / `rejected`) → **"This application can no longer be withdrawn."** The button is not rendered for those statuses, so this is the stale-tab path.
@@ -331,7 +331,7 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 
 ### AP-14 Edit and resubmit a withdrawn application
 
-- **Trigger** — **Edit & resubmit** on a withdrawn row in `/my-applications`, which returns to `/positions/[id]/apply`.
+- **Trigger** — **Edit & resubmit** on a withdrawn row in `/applications`, which returns to `/positions/[id]/apply`.
 - **Happy path** — `withdrawn` is applicant-editable, so the stepper reopens with every answer intact and editable, files included, above an info callout: "This application is withdrawn — It's out of the review queue, but reviewers can still see your answers — including edits you make here. Resubmit to put it back in the queue." Submitting runs [AP-9](#ap-9-submit-an-application) and toasts **"Application resubmitted"**.
 - **Failure / edge**
   - The window closed while it was withdrawn → the row shows "Position closed" instead of the button, and the apply page renders "Applications are closed" ("This position stopped accepting applications, so this application can no longer be edited or submitted.").
@@ -340,12 +340,12 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 
 ### AP-15 Delete a draft
 
-- **Trigger** — **Delete** on a draft row in `/my-applications`, behind a confirmation dialog ("Your draft application to '<title>' will be removed from My Applications. If you apply to this position again, your answers come back.").
+- **Trigger** — **Delete** on a draft row in `/applications`, behind a confirmation dialog ("Your draft application to '<title>' will be removed from My Applications. If you apply to this position again, your answers come back.").
 - **Happy path** — `deleteDraftApplication` sets `deletedAt`/`deletedById` on the `Application` row in one scoped `updateMany`; neither answer table nor any uploaded file is touched. Toast **"Draft deleted"** with description "Apply to this position again to bring your answers back."
 - **Failure / edge**
   - Not the caller's, not `draft`, or already deleted → **"This draft can no longer be deleted."**
   - Unexpected throw → toast **"Something went wrong"**.
-- **End state** — the application is soft-deleted with every answer intact and disappears from `/my-applications`, every reviewer query, and every count. There is no permanent-delete path and no restore control — applying to the same position again ([AP-5](#ap-5-start-an-application)) is the only way back, and it brings the historical answers with it.
+- **End state** — the application is soft-deleted with every answer intact and disappears from `/applications`, every reviewer query, and every count. There is no permanent-delete path and no restore control — applying to the same position again ([AP-5](#ap-5-start-an-application)) is the only way back, and it brings the historical answers with it.
 
 ### AP-16 Sign out
 
@@ -360,7 +360,7 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 ### AP-17 See which positions you've already applied to
 
 - **Trigger** — landing on `/positions` while signed in.
-- **Happy path** — `getMyApplicationsByPosition(user.id)` returns the caller's applications keyed by position id; the browse page passes each card its matching entry via `myApplication`. A matched card shows the application's status badge — including `draft` — directly beside the title, left-aligned, while the position's availability badge stays on the right where it always sits; and swaps the applicant CTA: `draft` → **Continue application**, or `withdrawn` while the position still accepts → **Edit & resubmit** — both to the apply stepper; every other status, including a `withdrawn` application on a since-closed position, → **View application** to `/my-applications/[id]`, with no Apply button.
+- **Happy path** — `getMyApplicationsByPosition(user.id)` returns the caller's applications keyed by position id; the browse page passes each card its matching entry via `myApplication`. A matched card shows the application's status badge — including `draft` — directly beside the title, left-aligned, while the position's availability badge stays on the right where it always sits; and swaps the applicant CTA: `draft` → **Continue application**, or `withdrawn` while the position still accepts → **Edit & resubmit** — both to the apply stepper; every other status, including a `withdrawn` application on a since-closed position, → **View application** to `/applications/[id]`, with no Apply button.
 - **Failure / edge**
   - Anonymous viewer → no badge, no CTA change; the ordinary Apply/View Details pair renders.
   - A manager or admin browsing a position they manage still gets their own applicant card and marker here — the manage affordances live on [PM-2](#pm-2-see-the-positions-you-manage) and the detail page instead.
@@ -383,11 +383,11 @@ A user who manages at least one non-deleted position. Manager status is **derive
 ### PM-2 See the positions you manage
 
 - **Trigger** — **Manage Positions** under **Manage** (`/manage/positions`).
-- **Happy path** — `requireManagerOrAdminOr404()` gates the route. `getManagedPositions(user.id)` plus per-position application stats render as an **Active** section first, then a collapsed **Archived (N)** disclosure for anything `!isPositionActive`. A **New position** action sits in the header, under "Manage Positions" · "Track applications and edit the positions you manage." Positions you manage also keep appearing in the Open Positions list on `/positions` ([AN-1](#an-1-browse-positions)) — the browse page never filters them out.
+- **Happy path** — `requireManagerOrAdminOr404()` gates the route. `getManagedPositions(user.id)` plus per-position application stats render as three sections, in order — **Open**, **Closed**, **Draft** — each with its own heading, omitted entirely when it has no positions. Grouping keys off derived availability (`groupManagedPositions`, `lib/utils.ts`): an `open` position past its `closesAt` lands under Closed, matching its "Closed" badge, not under Open. Within Open the soonest `closesAt` sorts first (nulls last); within Closed the most recently closed sorts first; within Draft, `opensAt` sorts first (nulls last). Closed nests the active/archived split — non-archived cards first, then a collapsed **Archived (N)** disclosure for anything `!isPositionActive`. A **New position** action sits in the header, under "Manage Positions" · "Track applications and edit the positions you manage." Positions you manage also keep appearing in the Open Positions list on `/positions` ([AN-1](#an-1-browse-positions)) — the browse page never filters them out.
 - **Failure / edge**
   - Not a manager or admin → `notFound()` ([XC-4](#xc-4-denial-shape)); the nav item is not rendered for them either.
-  - The active list is empty while some positions are archived → "No active positions" · "Every position you manage is archived — expand Archived below to see them."
-  - Managing nothing at all (defensive; `isManager` would already have 404'd) → "No active positions" · "Positions you manage appear here. A closed position drops off once it has been closed for 30 days with no application status changes."
+  - Closed has no non-archived positions but does have archived ones → "Nothing closed recently — expand Archived below to see older positions."
+  - Managing nothing at all (defensive; `isManager` would already have 404'd) → "No positions yet" · "Positions you manage appear here. Create one to start accepting applications."
 - **End state** — read-only.
 
 ### PM-3 Create a position
@@ -406,7 +406,7 @@ A user who manages at least one non-deleted position. Manager status is **derive
 ### PM-4 Edit position details
 
 - **Trigger** — **Edit** on `/positions/[id]`, or a managed position card (`/manage/positions/[id]/edit`, Details tab).
-- **Happy path** — the page loads the position, then `requireListedManagerOr404` against the already-loaded managers list. `PositionDetailsForm` submits `updatePosition`, which authenticates, checks existence, checks access, then checks editability. Toast **"Position updated"**; the position, its detail page, the dashboard, `/my-applications` and `/manage/applications` are all revalidated because a status flip changes what every surface shows. The Status select is role-derived, same as [PM-3](#pm-3-create-a-position): a manager on a `draft` or `closed` position sees only **Draft**/**Closed**, with the same hint; on an already-`open` position, **Open** stays selected and offered (dropping it would make the select empty), so a manager may still edit an open position's title, description and dates freely — only the move _to_ open is gated, never editing content once published.
+- **Happy path** — the page loads the position, then `requireListedManagerOr404` against the already-loaded managers list. `PositionDetailsForm` submits `updatePosition`, which authenticates, checks existence, checks access, then checks editability. Toast **"Position updated"**; the position, its detail page, the dashboard, `/applications` and `/manage/applications` are all revalidated because a status flip changes what every surface shows. The Status select is role-derived, same as [PM-3](#pm-3-create-a-position): a manager on a `draft` or `closed` position sees only **Draft**/**Closed**, with the same hint; on an already-`open` position, **Open** stays selected and offered (dropping it would make the select empty), so a manager may still edit an open position's title, description and dates freely — only the move _to_ open is gated, never editing content once published.
 - **Failure / edge**
   - Position missing or soft-deleted → `notFound()`, checked **before** the access guard so both paths 404 identically.
   - Not a listed manager and not an admin → `notFound()`.
@@ -539,7 +539,7 @@ A user who manages at least one non-deleted position. Manager status is **derive
 ### Known open
 
 - `/manage/applications` truncates at 100 rows with no pagination or cursor — the toolbar reports the truncation but there is no way to reach row 101 except by filtering.
-- No notification of any kind is sent on a status change — an applicant learns their outcome only by revisiting `/my-applications`.
+- No notification of any kind is sent on a status change — an applicant learns their outcome only by revisiting `/applications`.
 
 ---
 
@@ -550,7 +550,7 @@ An admin is a **manager on every position**: every [Position manager](#position-
 ### AD-1 See every position
 
 - **Trigger** — **Manage Positions** under **Manage** (`/manage/positions`).
-- **Happy path** — admins get a distinct branch inside the same route: one flat list from `getAdminPositions()` — including drafts — with application stats on every card, under an "All Positions" heading and "Every position, with its application stats." There is no Active/Archived split.
+- **Happy path** — admins get the same `ManagedPositionsSection` Open/Closed/Draft grouping as [PM-2](#pm-2-see-the-positions-you-manage) (including its Archived disclosure and sort keys), but scoped to every position via `getAdminPositions()` instead of just the ones they manage — drafts included, with application stats on every card, under an "All Positions" heading and "Every position, with its application stats." description.
 - **Failure / edge**
   - No positions at all → `EmptyState` "No positions yet" · "Create your first position to start accepting applications." with the create action.
   - A draft position's detail page carries the callout "This position is a draft. Only its managers and admins can see this page. Set it to Open in Edit to make it visible to applicants."
@@ -572,7 +572,7 @@ An admin is a **manager on every position**: every [Position manager](#position-
   - Already deleted → **"This position no longer exists."**
   - Non-admin → `requireAdmin` throws; the card is not rendered for them at all.
   - Unexpected throw → **"Something went wrong. Please try again."**
-- **End state** — `deletedAt` set. The position, its detail page and its applications vanish from every surface — including `/my-applications` for anyone who had a draft on it.
+- **End state** — `deletedAt` set. The position, its detail page and its applications vanish from every surface — including `/applications` for anyone who had a draft on it.
 
 ### AD-4 Create a global question
 
