@@ -3,7 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { REVIEWER_APPLICATION_STATUS_OPTIONS } from '@/lib/constants';
+import { APPLICATION_STATUS_OPTIONS } from '@/lib/constants';
 import { ACTION_ICONS } from '@/lib/icons';
 import type { ApplicationFilters, ReviewableApplicant } from '@/lib/types';
 import { displayUserName } from '@/lib/utils';
@@ -191,7 +191,7 @@ export function ApplicationsToolbar({
           <SelectContent>
             {/* "All statuses" clears the filter */}
             <SelectItem value="">All statuses</SelectItem>
-            {REVIEWER_APPLICATION_STATUS_OPTIONS.map((opt) => (
+            {APPLICATION_STATUS_OPTIONS.map((opt) => (
               <SelectItem key={opt.value} value={opt.value}>
                 {opt.label}
               </SelectItem>

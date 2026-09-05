@@ -1,5 +1,9 @@
 import type { ApplicationFilters } from '@/lib/types';
-import { formatPaginationSummary, getPaginationRange } from '@/lib/utils';
+import {
+  buildApplicationsHref,
+  formatPaginationSummary,
+  getPaginationRange,
+} from '@/lib/utils';
 
 import {
   Pagination,
@@ -19,20 +23,7 @@ interface ApplicationsPaginationProps {
   rangeStart: number;
   rangeEnd: number;
   hasActiveFilters: boolean;
-}
-
-function buildHref(filters: ApplicationFilters, page: number): string {
-  const params = new URLSearchParams();
-  if (filters.positionId) params.set('positionId', filters.positionId);
-  if (filters.status) params.set('status', filters.status);
-  if (filters.userId) params.set('userId', filters.userId);
-  if (filters.q) params.set('q', filters.q);
-  if (filters.sort)
-    params.set('sort', `${filters.sort.field}:${filters.sort.direction}`);
-  if (page > 1) params.set('page', String(page));
-
-  const qs = params.toString();
-  return qs ? `/manage/applications?${qs}` : '/manage/applications';
+  noun?: string;
 }
 
 export function ApplicationsPagination({
@@ -43,6 +34,7 @@ export function ApplicationsPagination({
   rangeStart,
   rangeEnd,
   hasActiveFilters,
+  noun = 'application',
 }: ApplicationsPaginationProps) {
   if (total === 0) return null;
 
@@ -50,7 +42,7 @@ export function ApplicationsPagination({
     rangeStart,
     rangeEnd,
     total,
-    noun: 'application',
+    noun,
     isFiltered: hasActiveFilters,
   });
 
@@ -75,7 +67,11 @@ export function ApplicationsPagination({
         <PaginationContent>
           <PaginationItem>
             <PaginationPrevious
-              href={isFirst ? undefined : buildHref(filters, currentPage - 1)}
+              href={
+                isFirst
+                  ? undefined
+                  : buildApplicationsHref(filters, currentPage - 1)
+              }
               disabled={isFirst}
             />
           </PaginationItem>
@@ -97,7 +93,7 @@ export function ApplicationsPagination({
             ) : (
               <PaginationItem key={p} className="hidden sm:list-item">
                 <PaginationLink
-                  href={buildHref(filters, p)}
+                  href={buildApplicationsHref(filters, p)}
                   isActive={p === currentPage}
                   aria-label={`Go to page ${p}`}
                 >
@@ -109,7 +105,11 @@ export function ApplicationsPagination({
 
           <PaginationItem>
             <PaginationNext
-              href={isLast ? undefined : buildHref(filters, currentPage + 1)}
+              href={
+                isLast
+                  ? undefined
+                  : buildApplicationsHref(filters, currentPage + 1)
+              }
               disabled={isLast}
             />
           </PaginationItem>

@@ -179,6 +179,7 @@ export async function createDraftApplication(
       ) {
         revalidatePath(`/positions/${parsed.data.positionId}/apply`);
         revalidatePath('/applications');
+        revalidatePath('/manage/applications');
         revalidatePath('/');
         revalidatePath('/positions');
         return { error: 'You already have an application for this position.' };
@@ -191,6 +192,7 @@ export async function createDraftApplication(
 
   revalidatePath(`/positions/${parsed.data.positionId}/apply`);
   revalidatePath('/applications');
+  revalidatePath('/manage/applications');
   revalidatePath('/');
   revalidatePath('/positions');
 }
@@ -747,6 +749,7 @@ export async function deleteDraftApplication(
   revalidatePath(`/positions/${positionId}/apply`);
   revalidatePath('/applications');
   revalidatePath(`/applications/${id}`);
+  revalidatePath('/manage/applications');
   revalidatePath('/');
   revalidatePath('/positions');
 }

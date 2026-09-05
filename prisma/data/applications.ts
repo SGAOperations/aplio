@@ -7,6 +7,7 @@ import {
 } from '@/prisma/data/positions';
 
 import {
+  buildApplicationScopeWhere,
   buildApplicationWhere,
   buildReviewablePositionWhere,
 } from '@/lib/auth/scopes';
@@ -26,6 +27,7 @@ import {
   type ApplicationReviewAnswer,
   type ApplicationStatusHistoryEntry,
   type DraftApplication,
+  type DraftApplicationListItem,
   type MyApplicationDetail,
   type MyApplicationListItem,
   type MyPositionApplication,
@@ -481,7 +483,11 @@ function buildApplicationListWhere(
   return {
     ...baseWhere,
     ...(filters.positionId ? { positionId: filters.positionId } : {}),
-    ...(filters.status ? { status: filters.status } : {}),
+    // 'draft' is never applied here — it would overwrite baseWhere's own
+    // status: { not: 'draft' }. getDraftApplications is draft's only path.
+    ...(filters.status && filters.status !== 'draft'
+      ? { status: filters.status }
+      : {}),
     ...(filters.userId ? { userId: filters.userId } : {}),
     ...textWhere,
   };
@@ -536,6 +542,92 @@ export async function getApplicationsCount(
 ): Promise<number> {
   return prisma.application.count({
     where: buildApplicationListWhere(user, filters),
+  });
+}
+
+// Shared by getDraftApplications and getDraftApplicationsCount. No date
+// branch — a draft has no meaningful submittedAt to search on.
+function buildDraftListWhere(
+  user: Reviewer,
+  filters: ApplicationFilters,
+): Prisma.ApplicationWhereInput {
+  return {
+    ...buildApplicationScopeWhere(user),
+    status: 'draft',
+    ...(filters.positionId ? { positionId: filters.positionId } : {}),
+    ...(filters.userId ? { userId: filters.userId } : {}),
+    ...(filters.q
+      ? {
+          OR: [
+            {
+              user: {
+                OR: [
+                  {
+                    name: { contains: filters.q, mode: 'insensitive' as const },
+                  },
+                  {
+                    email: {
+                      contains: filters.q,
+                      mode: 'insensitive' as const,
+                    },
+                  },
+                ],
+              },
+            },
+            {
+              position: {
+                title: { contains: filters.q, mode: 'insensitive' as const },
+              },
+            },
+          ],
+        }
+      : {}),
+  };
+}
+
+function buildDraftListOrderBy(
+  sort: ApplicationFilters['sort'],
+): Prisma.ApplicationOrderByWithRelationInput[] {
+  if (sort?.field === 'name')
+    return [
+      { user: { name: sort.direction } },
+      { user: { email: sort.direction } },
+      { id: 'desc' },
+    ];
+  return [{ updatedAt: 'desc' }, { id: 'desc' }];
+}
+
+// Identity and timestamps only — no answers, files or status. The select is
+// the privacy contract: widening it to expose an answer relation is a
+// compile error against DraftApplicationListItem, not a review catch.
+export async function getDraftApplications(
+  user: Reviewer,
+  filters: ApplicationFilters,
+  page = 1,
+): Promise<DraftApplicationListItem[]> {
+  return prisma.application.findMany({
+    where: buildDraftListWhere(user, filters),
+    select: {
+      id: true,
+      createdAt: true,
+      updatedAt: true,
+      position: { select: { id: true, title: true } },
+      user: { select: { id: true, name: true, email: true } },
+    },
+    orderBy: buildDraftListOrderBy(filters.sort),
+    take: APPLICATIONS_PAGE_SIZE,
+    skip: (page - 1) * APPLICATIONS_PAGE_SIZE,
+  });
+}
+
+// Must share buildDraftListWhere with getDraftApplications — a divergent
+// count would leak the existence of drafts outside the caller's scope.
+export async function getDraftApplicationsCount(
+  user: Reviewer,
+  filters: ApplicationFilters,
+): Promise<number> {
+  return prisma.application.count({
+    where: buildDraftListWhere(user, filters),
   });
 }
 
