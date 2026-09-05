@@ -14,7 +14,6 @@ import { toOrgDayString } from '@/lib/dates';
 import { STATE_ICONS } from '@/lib/icons';
 import {
   getPositionDateInfo,
-  isDraftPastDate,
   isOpenPastCloseDate,
   isPositionActive,
 } from '@/lib/utils';
@@ -59,9 +58,11 @@ export default async function EditPositionPage({
   const staleCloseDate = isOpenPastCloseDate(position)
     ? position.closesAt
     : null;
-  const draftPastDate = isDraftPastDate(position)
-    ? getPositionDateInfo(position)
-    : null;
+  const dateInfo = getPositionDateInfo(position);
+  const draftPastDate =
+    position.status === 'draft' && dateInfo?.emphasis === 'stale'
+      ? dateInfo
+      : null;
   const draftPastOpenDate = draftPastDate?.label === 'Was scheduled to open';
 
   const deletionSummary = user.isAdmin
