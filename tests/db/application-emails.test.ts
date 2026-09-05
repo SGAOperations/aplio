@@ -166,6 +166,7 @@ describe('single decision dispatch', () => {
     await updateApplicationStatus({
       applicationId: application.id,
       status: 'reviewing',
+      override: true,
     });
     await flushAfter();
 
@@ -203,6 +204,7 @@ describe('single decision dispatch', () => {
       updateApplicationStatus({
         applicationId: application.id,
         status: 'reviewing',
+        override: true,
       }),
     ).resolves.toBeUndefined();
     await expect(flushAfter()).resolves.toBeUndefined();
@@ -246,6 +248,7 @@ describe('single decision dispatch', () => {
     await updateApplicationStatus({
       applicationId: application.id,
       status: 'reviewing',
+      override: true,
     });
     await flushAfter();
 
@@ -297,6 +300,7 @@ describe('single decision dispatch', () => {
     await updateApplicationStatus({
       applicationId: application.id,
       status: 'reviewing',
+      override: true,
     });
     await flushAfter();
 
