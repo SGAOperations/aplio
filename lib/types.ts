@@ -160,6 +160,14 @@ export type PositionWindow = {
   closesAt: Date | null;
 };
 
+// Minimal shape groupManagedPositions/orderManagedPositions (lib/utils.ts) sort
+// by. Satisfied by both ManagedPosition and ManagedPositionSummaryItem, so one
+// helper groups the full page and the dashboard widget's lean rows alike.
+export type ManagedPositionRow = PositionWindow & {
+  title: string;
+  updatedAt: Date;
+};
+
 // Minimal structural input for isPositionActive (lib/utils.ts). Extends PositionWindow
 // (not just status/closesAt) because isPositionActive delegates its "is this position
 // actually closed" check to getPositionAvailability, which also needs opensAt — a
@@ -178,6 +186,8 @@ export type PositionActivity = PositionWindow & {
 export type ManagedPosition = PositionWithQuestions & PositionActivity;
 
 // Lean per-position row for the manager dashboard's "My Positions" widget.
+// updatedAt feeds orderManagedPositions's closed-group fallback; never a
+// bespoke render field, so exposing it to this server-only row is safe.
 export type ManagedPositionSummaryItem = Prisma.PositionGetPayload<{
   select: {
     id: true;
@@ -185,6 +195,7 @@ export type ManagedPositionSummaryItem = Prisma.PositionGetPayload<{
     status: true;
     opensAt: true;
     closesAt: true;
+    updatedAt: true;
     _count: { select: { applications: true } };
   };
 }>;
