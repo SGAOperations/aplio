@@ -18,7 +18,7 @@ export const positionsNavItem: NavItem = {
 export const applyNavItems: NavItem[] = [
   positionsNavItem,
   {
-    href: '/my-applications',
+    href: '/applications',
     label: 'My Applications',
     icon: CONCEPT_ICONS.myApplication,
   },

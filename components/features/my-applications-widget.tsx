@@ -58,7 +58,7 @@ export async function MyApplicationsWidget({
       subtitle={summary || undefined}
       icon={CONCEPT_ICONS.myApplication}
       link={{
-        href: '/my-applications',
+        href: '/applications',
         label: 'See all',
         ariaLabel: 'See all applications',
       }}
@@ -97,7 +97,7 @@ function ApplicationList({
           className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3"
         >
           <Link
-            href={`/my-applications/${app.id}`}
+            href={`/applications/${app.id}`}
             className="min-w-0 flex-1 truncate text-sm font-medium hover:underline"
           >
             {app.position.title}
