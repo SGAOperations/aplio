@@ -597,9 +597,7 @@ function buildDraftListOrderBy(
   return [{ updatedAt: 'desc' }, { id: 'desc' }];
 }
 
-// Identity and timestamps only — no answers, files or status. The select is
-// the privacy contract: widening it to expose an answer relation is a
-// compile error against DraftApplicationListItem, not a review catch.
+// Identity/timestamps only — no answers/files/status; DraftApplicationListItem's select is the privacy contract.
 export async function getDraftApplications(
   user: Reviewer,
   filters: ApplicationFilters,
