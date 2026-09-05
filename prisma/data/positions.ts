@@ -84,11 +84,16 @@ export function withPositionActivity<
 }
 
 // Filtered post-fetch so isAcceptingApplications stays the single source of truth.
+// Soonest deadline first, undated positions last (by opensAt, most recent first).
 export async function getOpenPositions(): Promise<PositionWithQuestions[]> {
   const positions = await prisma.position.findMany({
     where: { status: 'open', deletedAt: null },
     select: positionWithQuestionsSelect,
-    orderBy: { title: 'asc' },
+    orderBy: [
+      { closesAt: { sort: 'asc', nulls: 'last' } },
+      { opensAt: { sort: 'desc', nulls: 'last' } },
+      { title: 'asc' },
+    ],
   });
   return positions.filter((p) => isAcceptingApplications(p));
 }
