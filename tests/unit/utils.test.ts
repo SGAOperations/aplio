@@ -22,6 +22,7 @@ import {
   getUserRoleTokens,
   isAnswered,
   isBypassAllowed,
+  isDraftPastDate,
   isError,
   isOpenPastCloseDate,
   isPositionActive,
@@ -271,6 +272,46 @@ describe('isOpenPastCloseDate', () => {
     closesAt.setDate(closesAt.getDate() - 5);
     expect(
       isOpenPastCloseDate({ status: 'draft', opensAt: null, closesAt }, NOW),
+    ).toBe(false);
+  });
+});
+
+describe('isDraftPastDate', () => {
+  it('is true for a draft with a past open date', () => {
+    const opensAt = new Date(NOW);
+    opensAt.setDate(opensAt.getDate() - 5);
+    expect(
+      isDraftPastDate({ status: 'draft', opensAt, closesAt: null }, NOW),
+    ).toBe(true);
+  });
+
+  it('is true for a draft with a past close date', () => {
+    const closesAt = new Date(NOW);
+    closesAt.setDate(closesAt.getDate() - 5);
+    expect(
+      isDraftPastDate({ status: 'draft', opensAt: null, closesAt }, NOW),
+    ).toBe(true);
+  });
+
+  it('is false for a draft with a future open date', () => {
+    const opensAt = new Date(NOW);
+    opensAt.setDate(opensAt.getDate() + 5);
+    expect(
+      isDraftPastDate({ status: 'draft', opensAt, closesAt: null }, NOW),
+    ).toBe(false);
+  });
+
+  it('is false for a draft with no dates', () => {
+    expect(
+      isDraftPastDate({ status: 'draft', opensAt: null, closesAt: null }, NOW),
+    ).toBe(false);
+  });
+
+  it('is false for an open position with a past close date', () => {
+    const closesAt = new Date(NOW);
+    closesAt.setDate(closesAt.getDate() - 5);
+    expect(
+      isDraftPastDate({ status: 'open', opensAt: null, closesAt }, NOW),
     ).toBe(false);
   });
 });

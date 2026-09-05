@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -46,6 +47,9 @@ interface PositionDetailsFormProps {
     closesAt: string | null;
   };
   isAdmin: boolean;
+  // Server-rendered warning callout(s) about a status/date divergence, shown
+  // right under the Status field so they read as one status-related section.
+  statusNotice?: ReactNode;
 }
 
 type PositionFormValues = z.infer<typeof positionFormSchema>;
@@ -54,6 +58,7 @@ type PositionFormValues = z.infer<typeof positionFormSchema>;
 export function PositionDetailsForm({
   position,
   isAdmin,
+  statusNotice,
 }: PositionDetailsFormProps) {
   const statusOptions = getStatusOptions(isAdmin, position.status);
   const form = useForm<PositionFormValues>({
@@ -143,6 +148,8 @@ export function PositionDetailsForm({
             </FormItem>
           )}
         />
+
+        {statusNotice}
 
         <div className="grid gap-2 sm:grid-cols-2">
           <FormField

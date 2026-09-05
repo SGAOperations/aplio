@@ -12,7 +12,12 @@ import { requireListedManagerOr404 } from '@/lib/auth/guards';
 import { UNRESOLVED_APPLICATION_STATUSES } from '@/lib/constants';
 import { toOrgDayString } from '@/lib/dates';
 import { STATE_ICONS } from '@/lib/icons';
-import { isOpenPastCloseDate, isPositionActive } from '@/lib/utils';
+import {
+  getPositionDateInfo,
+  isDraftPastDate,
+  isOpenPastCloseDate,
+  isPositionActive,
+} from '@/lib/utils';
 
 import { PositionDangerZone } from '@/components/features/position-danger-zone';
 import { PositionDetailsForm } from '@/components/features/position-details-form';
@@ -54,6 +59,10 @@ export default async function EditPositionPage({
   const staleCloseDate = isOpenPastCloseDate(position)
     ? position.closesAt
     : null;
+  const draftPastDate = isDraftPastDate(position)
+    ? getPositionDateInfo(position)
+    : null;
+  const draftPastOpenDate = draftPastDate?.label === 'Was scheduled to open';
 
   const deletionSummary = user.isAdmin
     ? await getPositionDeletionSummary(position.id)
@@ -108,39 +117,67 @@ export default async function EditPositionPage({
       <PositionEditTabs
         detailsContent={
           canEdit ? (
-            <div className="flex flex-col gap-4">
-              {staleCloseDate && (
-                <WarningCallout>
-                  <div className="flex flex-col gap-1">
-                    <p className="font-medium">
-                      Applicants see this position as Closed.
-                    </p>
-                    <p>
-                      Its close date passed on{' '}
-                      <LocalTime date={staleCloseDate} precision="date" />, so
-                      it stopped accepting applications even though its status
-                      is still Open. Change Closes At below to a future date to
-                      reopen it, or set Status to Closed to make that explicit.
-                    </p>
+            <PositionDetailsForm
+              position={{
+                id: position.id,
+                title: position.title,
+                description: position.description,
+                status: position.status,
+                opensAt: position.opensAt
+                  ? toOrgDayString(position.opensAt)
+                  : null,
+                closesAt: position.closesAt
+                  ? toOrgDayString(position.closesAt)
+                  : null,
+              }}
+              statusNotice={
+                (staleCloseDate || draftPastDate) && (
+                  <div className="flex flex-col gap-2">
+                    {staleCloseDate && (
+                      <WarningCallout>
+                        <div className="flex flex-col gap-1">
+                          <p className="font-medium">
+                            Applicants see this position as Closed.
+                          </p>
+                          <p>
+                            Its close date passed on{' '}
+                            <LocalTime date={staleCloseDate} precision="date" />
+                            , so it stopped accepting applications even though
+                            its status is still Open. Change Closes At below to
+                            a future date to reopen it, or set Status to Closed
+                            to make that explicit.
+                          </p>
+                        </div>
+                      </WarningCallout>
+                    )}
+                    {draftPastDate && (
+                      <WarningCallout>
+                        <div className="flex flex-col gap-1">
+                          <p className="font-medium">
+                            This position was scheduled to{' '}
+                            {draftPastOpenDate ? 'open' : 'close'}.
+                          </p>
+                          <p>
+                            Its {draftPastOpenDate ? 'open' : 'close'} date
+                            passed on{' '}
+                            <LocalTime
+                              date={draftPastDate.date}
+                              precision="date"
+                            />
+                            , but its status is still Draft, so applicants
+                            can&apos;t see it. Change{' '}
+                            {draftPastOpenDate ? 'Opens At' : 'Closes At'} below
+                            to a future date, or set Status to Open to publish
+                            it now.
+                          </p>
+                        </div>
+                      </WarningCallout>
+                    )}
                   </div>
-                </WarningCallout>
-              )}
-              <PositionDetailsForm
-                position={{
-                  id: position.id,
-                  title: position.title,
-                  description: position.description,
-                  status: position.status,
-                  opensAt: position.opensAt
-                    ? toOrgDayString(position.opensAt)
-                    : null,
-                  closesAt: position.closesAt
-                    ? toOrgDayString(position.closesAt)
-                    : null,
-                }}
-                isAdmin={user.isAdmin}
-              />
-            </div>
+                )
+              }
+              isAdmin={user.isAdmin}
+            />
           ) : (
             <PositionDetailsReadonly
               position={{

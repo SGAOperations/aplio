@@ -412,8 +412,9 @@ A user who manages at least one non-deleted position. Manager status is **derive
   - A manager posting a transition **to** `open` from `draft` or `closed` (stale tab, hand-made request) → `{ error: POSITION_OPEN_REQUIRES_ADMIN_ERROR }`: **"Only an admin can open a position. Ask an admin to publish it for you."** The form keeps its values so they can pick Draft or Closed and resubmit.
   - Deleted between render and submit → **"This position no longer exists."**
   - Unexpected throw → **"Something went wrong. Please try again."**
-  - Status `open` with a `closesAt` already past → the Details tab shows a warning callout above the form ("Applicants see this position as Closed…"), naming the passed date and offering both remedies (extend `closesAt`, or set status to Closed); the Status select still shows Open — displaying anything else would misrepresent what's stored.
-- **End state** — the position's details, status and window are updated; only an admin's draft/closed→open flip publishes it, and a stale `open` position past its `closesAt` keeps its warning callout until the date is extended or the status is changed to Closed.
+  - Status `open` with a `closesAt` already past → below the Status field the form shows a warning callout ("Applicants see this position as Closed…"), naming the passed date and offering both remedies (extend `closesAt`, or set status to Closed); the Status select still shows Open — displaying anything else would misrepresent what's stored.
+  - Status `draft` with an `opensAt` or `closesAt` already past → the same spot below the Status field shows a warning callout ("This position was scheduled to open/close…"), naming the passed date and offering both remedies (move that date to the future, or set Status to Open to publish now). Mutually exclusive with the `open`-past-`closesAt` case above (they gate on different statuses), but both render from the same status-notice slot.
+- **End state** — the position's details, status and window are updated; only an admin's draft/closed→open flip publishes it, and a stale `open` or `draft` position past its relevant date keeps its warning callout until the date is moved forward or the status is changed.
 
 ### PM-5 Manage position questions
 

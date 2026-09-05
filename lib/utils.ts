@@ -302,6 +302,15 @@ export function isOpenPastCloseDate(
   return getPositionAvailability(position, now) === 'closed_by_date';
 }
 
+// The draft-side counterpart: reuses getPositionDateInfo's own 'stale' classification
+// rather than re-deriving it, so the two never disagree on what counts as past-due.
+export function isDraftPastDate(position: PositionWindow, now?: Date): boolean {
+  return (
+    position.status === 'draft' &&
+    getPositionDateInfo(position, now)?.emphasis === 'stale'
+  );
+}
+
 export function getPositionDateInfo(
   position: PositionWindow,
   now: Date = new Date(),
