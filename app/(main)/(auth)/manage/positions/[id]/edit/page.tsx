@@ -117,6 +117,7 @@ export default async function EditPositionPage({
                   ? toOrgDayString(position.closesAt)
                   : null,
               }}
+              isAdmin={user.isAdmin}
             />
           ) : (
             <PositionDetailsReadonly

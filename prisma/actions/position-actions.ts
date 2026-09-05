@@ -18,6 +18,7 @@ import {
   POSITION_DELETE_BLOCKED_ERROR,
   POSITION_DESCRIPTION_MAX_LENGTH,
   POSITION_OPENS_AT_ORDER_ERROR,
+  POSITION_OPEN_REQUIRES_ADMIN_ERROR,
   validatePositionDates,
 } from '@/lib/constants';
 import { orgDayEnd, orgDayStart } from '@/lib/dates';
@@ -85,6 +86,9 @@ export async function createPosition(
 
   const { title, description, status, opensAt, closesAt } = parsed.data;
 
+  if (status === 'open' && !user.isAdmin)
+    return { error: POSITION_OPEN_REQUIRES_ADMIN_ERROR };
+
   // Creator is auto-assigned as a manager so they can immediately edit the position.
   const position = await prisma.position.create({
     data: {
@@ -117,16 +121,19 @@ export async function updatePosition(
   await getCurrentUser();
 
   // Before the access guard, so a stale link gives an actionable message.
-  const exists = await prisma.position.findFirst({
+  const current = await prisma.position.findFirst({
     where: { id, deletedAt: null },
-    select: { id: true },
+    select: { id: true, status: true },
   });
-  if (!exists) return { error: 'This position no longer exists.' };
+  if (!current) return { error: 'This position no longer exists.' };
 
   const user = await requirePositionAccess(id);
 
   if (!(await checkPositionEditable(id, user)))
     return { error: ARCHIVED_POSITION_EDIT_ERROR };
+
+  if (status === 'open' && current.status !== 'open' && !user.isAdmin)
+    return { error: POSITION_OPEN_REQUIRES_ADMIN_ERROR };
 
   await prisma.position.update({
     where: { id },

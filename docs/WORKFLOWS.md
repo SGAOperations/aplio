@@ -393,24 +393,26 @@ A user who manages at least one non-deleted position. Manager status is **derive
 ### PM-3 Create a position
 
 - **Trigger** — **New position** on `/manage/positions` or the dashboard.
-- **Happy path** — `PositionCreateDialog` → `createPosition`, guarded by `requireManagerOrAdmin`. Title is required; description defaults to empty so a draft can be created quickly; `opensAt`/`closesAt` are org-timezone day boundaries (`America/New_York`). The creator is auto-connected as a manager so they can edit it immediately. Toast **"Position created"** and the dialog routes to the new position's edit page.
+- **Happy path** — `PositionCreateDialog` → `createPosition`, guarded by `requireManagerOrAdmin`. Title is required; description defaults to empty so a draft can be created quickly; `opensAt`/`closesAt` are org-timezone day boundaries (`America/New_York`). The Status options are role-derived (`getStatusOptions`): a manager sees only **Draft** and **Closed**, with a hint below the select explaining that only an admin can open a position; an admin sees all three. The creator is auto-connected as a manager so they can edit it immediately. Toast **"Position created"** and the dialog routes to the new position's edit page.
 - **Failure / edge**
   - Missing title → "Title is required" inline.
   - Description over 10 000 characters, or an unparseable date ("Enter a valid date") → inline.
   - Not a manager or admin → the action throws ([XC-4](#xc-4-denial-shape)); the affordance is not rendered in the first place.
+  - A manager posting `status: 'open'` anyway (stale tab, hand-made request) → `{ error: POSITION_OPEN_REQUIRES_ADMIN_ERROR }`: **"Only an admin can open a position. Ask an admin to publish it for you."**
 - **End state** — a `Position` at the chosen status with the creator as its only manager. A `draft` position is invisible to everyone else ([AN-2](#an-2-view-a-position)).
 
 ### PM-4 Edit position details
 
 - **Trigger** — **Edit** on `/positions/[id]`, or a managed position card (`/manage/positions/[id]/edit`, Details tab).
-- **Happy path** — the page loads the position, then `requireListedManagerOr404` against the already-loaded managers list. `PositionDetailsForm` submits `updatePosition`, which authenticates, checks existence, checks access, then checks editability. Toast **"Position updated"**; the position, its detail page, the dashboard, `/my-applications` and `/manage/applications` are all revalidated because a status flip changes what every surface shows.
+- **Happy path** — the page loads the position, then `requireListedManagerOr404` against the already-loaded managers list. `PositionDetailsForm` submits `updatePosition`, which authenticates, checks existence, checks access, then checks editability. Toast **"Position updated"**; the position, its detail page, the dashboard, `/my-applications` and `/manage/applications` are all revalidated because a status flip changes what every surface shows. The Status select is role-derived, same as [PM-3](#pm-3-create-a-position): a manager on a `draft` or `closed` position sees only **Draft**/**Closed**, with the same hint; on an already-`open` position, **Open** stays selected and offered (dropping it would make the select empty), so a manager may still edit an open position's title, description and dates freely — only the move _to_ open is gated, never editing content once published.
 - **Failure / edge**
   - Position missing or soft-deleted → `notFound()`, checked **before** the access guard so both paths 404 identically.
   - Not a listed manager and not an admin → `notFound()`.
   - Archived (closed >30 days with no application status change since) and the caller is not an admin → the form is replaced by `PositionDetailsReadonly` under a warning callout ("This position is archived. It closed more than 30 days ago and no application status has changed since…"), plus a stalled-applications line and a **Review applications** link when the position still holds unresolved applications. A stale tab that posts anyway gets `ARCHIVED_POSITION_EDIT_ERROR`: **"This position is archived. Ask an admin if it still needs changes."** ([AD-2](#ad-2-edit-an-archived-position))
+  - A manager posting a transition **to** `open` from `draft` or `closed` (stale tab, hand-made request) → `{ error: POSITION_OPEN_REQUIRES_ADMIN_ERROR }`: **"Only an admin can open a position. Ask an admin to publish it for you."** The form keeps its values so they can pick Draft or Closed and resubmit.
   - Deleted between render and submit → **"This position no longer exists."**
   - Unexpected throw → **"Something went wrong. Please try again."**
-- **End state** — the position's details, status and window are updated; a draft→open flip publishes it.
+- **End state** — the position's details, status and window are updated; only an admin's draft/closed→open flip publishes it.
 
 ### PM-5 Manage position questions
 
@@ -538,7 +540,7 @@ A user who manages at least one non-deleted position. Manager status is **derive
 
 ## Admin (AD)
 
-An admin is a **manager on every position**: every [Position manager](#position-manager-pm) workflow applies unchanged, with the scope widened from "positions I manage" to all of them (`buildReviewablePositionWhere`), and draft positions visible everywhere. Admins are exempt from the archived-position edit block ([PM-4](#pm-4-edit-position-details)) and from the self-removal rule ([PM-7](#pm-7-remove-a-manager)). This section covers only the admin-exclusive surfaces. The sidebar gains **Users** and **Global Questions** under Manage, alongside the **Manage Positions** and Applications a manager already sees ([PM intro](#position-manager-pm)).
+An admin is a **manager on every position**: every [Position manager](#position-manager-pm) workflow applies unchanged, with the scope widened from "positions I manage" to all of them (`buildReviewablePositionWhere`), and draft positions visible everywhere. Admins are exempt from the archived-position edit block ([PM-4](#pm-4-edit-position-details)) and from the self-removal rule ([PM-7](#pm-7-remove-a-manager)). Admins alone may set a position to `open`, from `draft` or `closed` ([PM-3](#pm-3-create-a-position), [PM-4](#pm-4-edit-position-details)) — publishing is a permission, not a workflow: no queue, no approve/reject, no notification back to the manager. This section covers only the admin-exclusive surfaces. The sidebar gains **Users** and **Global Questions** under Manage, alongside the **Manage Positions** and Applications a manager already sees ([PM intro](#position-manager-pm)).
 
 ### AD-1 See every position
 

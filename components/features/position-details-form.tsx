@@ -9,7 +9,11 @@ import type { z } from 'zod/v4';
 import { updatePosition } from '@/prisma/actions/position-actions';
 import type { PositionStatus } from '@/prisma/client';
 
-import { POSITION_STATUS_OPTIONS, positionFormSchema } from '@/lib/constants';
+import {
+  POSITION_OPEN_REQUIRES_ADMIN_HINT,
+  getStatusOptions,
+  positionFormSchema,
+} from '@/lib/constants';
 import { ACTION_ICONS } from '@/lib/icons';
 
 import { MarkdownField } from '@/components/features/markdown-field';
@@ -41,12 +45,17 @@ interface PositionDetailsFormProps {
     opensAt: string | null;
     closesAt: string | null;
   };
+  isAdmin: boolean;
 }
 
 type PositionFormValues = z.infer<typeof positionFormSchema>;
 
 // Always visible, not dialog-triggered: shadcn Form primitives directly, no FormDialog.
-export function PositionDetailsForm({ position }: PositionDetailsFormProps) {
+export function PositionDetailsForm({
+  position,
+  isAdmin,
+}: PositionDetailsFormProps) {
+  const statusOptions = getStatusOptions(isAdmin, position.status);
   const form = useForm<PositionFormValues>({
     resolver: zodResolver(positionFormSchema),
     defaultValues: {
@@ -118,13 +127,18 @@ export function PositionDetailsForm({ position }: PositionDetailsFormProps) {
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {POSITION_STATUS_OPTIONS.map((opt) => (
+                  {statusOptions.map((opt) => (
                     <SelectItem key={opt.value} value={opt.value}>
                       {opt.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {!isAdmin && position.status !== 'open' && (
+                <FormDescription>
+                  {POSITION_OPEN_REQUIRES_ADMIN_HINT}
+                </FormDescription>
+              )}
               <FormMessage />
             </FormItem>
           )}
