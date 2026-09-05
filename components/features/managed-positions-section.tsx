@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 
-import { CONCEPT_ICONS } from '@/lib/icons';
+import type { LucideIcon } from 'lucide-react';
+
+import { CONCEPT_ICONS, POSITION_STATUS_ICONS } from '@/lib/icons';
 import type { ManagedPosition, PositionApplicationStats } from '@/lib/types';
 import { groupManagedPositions, isPositionActive } from '@/lib/utils';
 
@@ -18,6 +20,7 @@ interface ManagedPositionsSectionProps {
 interface PositionGroupProps {
   headingId: string;
   title: string;
+  icon: LucideIcon;
   positions: ManagedPosition[];
   statsByPosition: Map<string, PositionApplicationStats>;
   trailing?: ReactNode;
@@ -26,15 +29,20 @@ interface PositionGroupProps {
 function PositionGroup({
   headingId,
   title,
+  icon: Icon,
   positions,
   statsByPosition,
   trailing,
 }: PositionGroupProps) {
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-4">
-      <h3 id={headingId} className="text-sm font-medium">
+      <h2
+        id={headingId}
+        className="flex items-center gap-2 text-lg font-semibold"
+      >
+        <Icon className="text-muted-foreground size-4" />
         {title}
-      </h3>
+      </h2>
       {positions.length > 0 && (
         <div className="flex flex-col gap-4">
           {positions.map((position) => (
@@ -62,24 +70,12 @@ export function ManagedPositionsSection({
 }: ManagedPositionsSectionProps) {
   if (positions.length === 0)
     return (
-      <section
-        aria-labelledby="managed-positions-heading"
-        className="flex flex-col gap-4"
-      >
-        <h2
-          id="managed-positions-heading"
-          className="flex items-center gap-2 text-lg font-semibold"
-        >
-          <CONCEPT_ICONS.position className="text-muted-foreground size-4" />
-          My Managed Positions
-        </h2>
-        <EmptyState
-          icon={CONCEPT_ICONS.position}
-          title="No positions yet"
-          description={emptyDescription ?? 'Positions you manage appear here.'}
-          action={emptyAction}
-        />
-      </section>
+      <EmptyState
+        icon={CONCEPT_ICONS.position}
+        title="No positions yet"
+        description={emptyDescription ?? 'Positions you manage appear here.'}
+        action={emptyAction}
+      />
     );
 
   const { open, closed, draft } = groupManagedPositions(positions);
@@ -87,22 +83,12 @@ export function ManagedPositionsSection({
   const closedArchived = closed.filter((p) => !isPositionActive(p));
 
   return (
-    <section
-      aria-labelledby="managed-positions-heading"
-      className="flex flex-col gap-6"
-    >
-      <h2
-        id="managed-positions-heading"
-        className="flex items-center gap-2 text-lg font-semibold"
-      >
-        <CONCEPT_ICONS.position className="text-muted-foreground size-4" />
-        My Managed Positions
-      </h2>
-
+    <div className="flex flex-col gap-6">
       {open.length > 0 && (
         <PositionGroup
           headingId="managed-positions-open-heading"
           title="Open"
+          icon={POSITION_STATUS_ICONS.open}
           positions={open}
           statsByPosition={statsByPosition}
         />
@@ -112,6 +98,7 @@ export function ManagedPositionsSection({
         <PositionGroup
           headingId="managed-positions-closed-heading"
           title="Closed"
+          icon={POSITION_STATUS_ICONS.closed}
           positions={closedActive}
           statsByPosition={statsByPosition}
           trailing={
@@ -146,10 +133,11 @@ export function ManagedPositionsSection({
         <PositionGroup
           headingId="managed-positions-draft-heading"
           title="Draft"
+          icon={POSITION_STATUS_ICONS.draft}
           positions={draft}
           statsByPosition={statsByPosition}
         />
       )}
-    </section>
+    </div>
   );
 }

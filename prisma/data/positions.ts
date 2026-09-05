@@ -178,11 +178,13 @@ export async function getManagedPositionsSummary(
 }
 
 // Cross-position data — admin-gated callers only. Closed stays while unresolved.
-export async function getAdminPositions(): Promise<PositionWithQuestions[]> {
+// Shares ManagedPosition's shape/ordering with getManagedPositions so admins get
+// the same Open/Closed/Draft grouping through ManagedPositionsSection.
+export async function getAdminPositions(): Promise<ManagedPosition[]> {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - MANAGED_POSITIONS_WINDOW_DAYS);
 
-  return prisma.position.findMany({
+  const positions = await prisma.position.findMany({
     where: {
       deletedAt: null,
       OR: [
@@ -200,9 +202,10 @@ export async function getAdminPositions(): Promise<PositionWithQuestions[]> {
         },
       ],
     },
-    select: positionWithQuestionsSelect,
+    select: { ...positionWithQuestionsSelect, ...positionActivitySelect },
     orderBy: { title: 'asc' },
   });
+  return orderManagedPositions(positions.map(withPositionActivity));
 }
 
 // Cached so generateMetadata and the page component share one round-trip per request.
