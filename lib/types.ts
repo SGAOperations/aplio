@@ -305,6 +305,13 @@ export type ApplicationStatusHistoryEntry = {
   createdAt: Date;
 };
 
+// Derived from EmailLog, not the status event's timestamp. scheduledAt is the
+// real Resend send time, so the UI never has to guess from dialog-open time.
+export type DecisionEmailNoticeState =
+  | { status: 'scheduled'; scheduledAt: Date }
+  | { status: 'sent' }
+  | null;
+
 // Reviewer-only cross-scope row; canOpen is resolved server-side so no
 // manager identity crosses out of the query.
 export type ApplicantOtherApplication = {

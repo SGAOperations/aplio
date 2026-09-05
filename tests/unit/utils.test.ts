@@ -8,15 +8,21 @@ import type { AnswerQuestion, PositionActivity } from '@/lib/types';
 import {
   answerFieldIds,
   canReviewPosition,
+  classifyDecisionEmailStatus,
+  countBulkEmailRecipients,
   displayUserName,
   findDivergingGlobalAnswers,
   formatCountdown,
   formatPaginationSummary,
   formatTableCount,
   getApplicantName,
+  getBulkImmediateEmailWarning,
+  getDecisionEmailWarning,
+  getFirstName,
   getPaginationRange,
   getPositionAvailability,
   getPositionDateInfo,
+  getUndoDecisionEmailNotice,
   getUserName,
   getUserRoleRank,
   getUserRoleTokens,
@@ -1135,5 +1141,146 @@ describe('getApplicantName', () => {
     expect(
       getApplicantName({ applicantName: '', user: { name: null } }),
     ).toBeNull();
+  });
+});
+
+describe('getFirstName', () => {
+  it('returns the first word of a multi-word name', () => {
+    expect(getFirstName('Jane Doe')).toBe('Jane');
+  });
+
+  it('returns a single-word name as-is', () => {
+    expect(getFirstName('Cher')).toBe('Cher');
+  });
+
+  it('returns undefined for an empty string', () => {
+    expect(getFirstName('')).toBeUndefined();
+  });
+
+  it('returns undefined for null and undefined', () => {
+    expect(getFirstName(null)).toBeUndefined();
+    expect(getFirstName(undefined)).toBeUndefined();
+  });
+});
+
+describe('getDecisionEmailWarning', () => {
+  it('names the applicant when given', () => {
+    expect(getDecisionEmailWarning('Jane')).toBe(
+      'Jane will be emailed in 15 minutes. Undo before then and nothing is sent.',
+    );
+  });
+
+  it('falls back to "The applicant" with no name', () => {
+    expect(getDecisionEmailWarning()).toBe(
+      'The applicant will be emailed in 15 minutes. Undo before then and nothing is sent.',
+    );
+  });
+});
+
+describe('getBulkImmediateEmailWarning', () => {
+  it('uses singular copy for one recipient', () => {
+    const warning = getBulkImmediateEmailWarning(1);
+    expect(warning.lead).toBe('This email sends immediately.');
+    expect(warning.detail).toContain('the applicant has been told');
+  });
+
+  it('uses plural copy with the count for several recipients', () => {
+    const warning = getBulkImmediateEmailWarning(23);
+    expect(warning.lead).toBe('These 23 emails send immediately.');
+    expect(warning.detail).toContain('the applicants have been told');
+  });
+});
+
+describe('classifyDecisionEmailStatus', () => {
+  it('buckets scheduled as scheduled', () => {
+    expect(classifyDecisionEmailStatus('scheduled')).toBe('scheduled');
+  });
+
+  it('buckets every dispatched-or-later status as sent', () => {
+    for (const status of [
+      'sent',
+      'delivered',
+      'bounced',
+      'complained',
+      'suppressed',
+    ] as const)
+      expect(classifyDecisionEmailStatus(status)).toBe('sent');
+  });
+
+  it('buckets cancelled and failed as null', () => {
+    expect(classifyDecisionEmailStatus('cancelled')).toBeNull();
+    expect(classifyDecisionEmailStatus('failed')).toBeNull();
+  });
+});
+
+describe('getUndoDecisionEmailNotice', () => {
+  const scheduledAt = new Date('2026-08-15T15:42:00Z');
+
+  it('returns null when there is nothing to report', () => {
+    expect(getUndoDecisionEmailNotice(null, 'accepted', false)).toBeNull();
+  });
+
+  it('surfaces the real scheduledAt while still cancellable', () => {
+    expect(
+      getUndoDecisionEmailNotice(
+        { status: 'scheduled', scheduledAt },
+        'accepted',
+        false,
+      ),
+    ).toEqual({
+      lead: 'The acceptance email is scheduled to send at',
+      scheduledAt,
+    });
+    expect(
+      getUndoDecisionEmailNotice(
+        { status: 'scheduled', scheduledAt },
+        'rejected',
+        false,
+      ),
+    ).toEqual({
+      lead: 'The rejection email is scheduled to send at',
+      scheduledAt,
+    });
+  });
+
+  it('drops the timestamp once the window has expired', () => {
+    expect(
+      getUndoDecisionEmailNotice(
+        { status: 'scheduled', scheduledAt },
+        'accepted',
+        true,
+      ),
+    ).toEqual({
+      lead: "The acceptance email's undo window has passed — it may have already sent.",
+    });
+  });
+
+  it('reads "already been sent" once sent, regardless of window state', () => {
+    expect(
+      getUndoDecisionEmailNotice({ status: 'sent' }, 'accepted', false),
+    ).toEqual({ lead: 'The acceptance email has already been sent.' });
+    expect(
+      getUndoDecisionEmailNotice({ status: 'sent' }, 'rejected', true),
+    ).toEqual({ lead: 'The rejection email has already been sent.' });
+  });
+});
+
+describe('countBulkEmailRecipients', () => {
+  it('counts every row that is not skipped', () => {
+    const rows = [
+      { status: 'applied' as const },
+      { status: 'reviewing' as const },
+      { status: 'accepted' as const },
+      { status: 'withdrawn' as const },
+    ];
+    expect(countBulkEmailRecipients(rows, 'rejected')).toBe(3);
+  });
+
+  it('excludes rows already at the target status', () => {
+    const rows = [
+      { status: 'rejected' as const },
+      { status: 'applied' as const },
+    ];
+    expect(countBulkEmailRecipients(rows, 'rejected')).toBe(1);
   });
 });

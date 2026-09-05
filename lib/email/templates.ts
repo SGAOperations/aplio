@@ -141,3 +141,151 @@ export function otpEmail({
     text: textLines.join('\n'),
   };
 }
+
+export const APPLICANT_EMAIL_FOOTER =
+  'You&#39;re receiving this because you applied for a position through Aplio.';
+
+// Raw text — callers escapeHtml() the whole line for the html body; the text body uses it as-is.
+function greeting(firstName?: string): string {
+  return firstName ? `Hi ${firstName},` : 'Hi there,';
+}
+
+function primaryButton(url: string, label: string): string {
+  const safeUrl = escapeHtml(url);
+  return `
+    <div style="text-align:center;margin-bottom:24px;">
+      <a href="${safeUrl}" style="display:inline-block;background-color:#D41B2C;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:6px;font-size:14px;font-weight:600;letter-spacing:0.01em;">${label}</a>
+    </div>
+    <p style="margin:0 0 24px;font-size:12px;color:#71717a;">Button not working? Copy this link into your browser:<br /><span style="color:#09090b;word-break:break-all;">${safeUrl}</span></p>`;
+}
+
+export interface ApplicationReceivedEmailOptions {
+  firstName?: string;
+  positionTitle: string;
+  applicationId: string;
+}
+
+export function applicationReceivedEmail({
+  firstName,
+  positionTitle,
+  applicationId,
+}: ApplicationReceivedEmailOptions): EmailTemplate {
+  const applicationUrl = `${getBaseUrl()}/my-applications/${applicationId}`;
+  const safeGreeting = escapeHtml(greeting(firstName));
+  const safeTitle = escapeHtml(positionTitle);
+
+  const content = `
+    <p style="margin:0 0 16px;font-size:14px;color:#09090b;">${safeGreeting}</p>
+    <p style="margin:0 0 16px;font-size:14px;color:#71717a;">Your application for <strong>${safeTitle}</strong> has been received. Nothing further is needed from you right now.</p>
+    <p style="margin:0 0 24px;font-size:14px;color:#71717a;">You can review what you submitted at any time, and you can withdraw the application while it's still under consideration.</p>
+    ${primaryButton(applicationUrl, 'View my application')}
+    <p style="margin:0;font-size:14px;color:#71717a;">We'll email you when a decision has been made.</p>
+  `;
+
+  const text = [
+    greeting(firstName),
+    '',
+    `Your application for ${positionTitle} has been received. Nothing further is needed from you right now.`,
+    '',
+    "You can review what you submitted at any time, and you can withdraw the application while it's still under consideration.",
+    '',
+    `View your application: ${applicationUrl}`,
+    '',
+    "We'll email you when a decision has been made.",
+  ].join('\n');
+
+  return {
+    subject: `We received your application for ${positionTitle}`,
+    html: emailLayout({
+      title: 'Application received',
+      content,
+      footer: APPLICANT_EMAIL_FOOTER,
+    }),
+    text,
+  };
+}
+
+export interface ApplicationAcceptedEmailOptions {
+  firstName?: string;
+  positionTitle: string;
+  applicationId: string;
+}
+
+export function applicationAcceptedEmail({
+  firstName,
+  positionTitle,
+  applicationId,
+}: ApplicationAcceptedEmailOptions): EmailTemplate {
+  const applicationUrl = `${getBaseUrl()}/my-applications/${applicationId}`;
+  const safeGreeting = escapeHtml(greeting(firstName));
+  const safeTitle = escapeHtml(positionTitle);
+
+  const content = `
+    <p style="margin:0 0 16px;font-size:14px;color:#09090b;">${safeGreeting}</p>
+    <p style="margin:0 0 24px;font-size:14px;color:#71717a;">Good news — your application for <strong>${safeTitle}</strong> has been accepted.</p>
+    ${primaryButton(applicationUrl, 'View my application')}
+    <p style="margin:0;font-size:14px;color:#71717a;">Someone from student government will be in touch about next steps.</p>
+  `;
+
+  const text = [
+    greeting(firstName),
+    '',
+    `Good news — your application for ${positionTitle} has been accepted.`,
+    '',
+    `View your application: ${applicationUrl}`,
+    '',
+    'Someone from student government will be in touch about next steps.',
+  ].join('\n');
+
+  return {
+    subject: `Your application for ${positionTitle} was accepted`,
+    html: emailLayout({
+      title: 'Application accepted',
+      content,
+      footer: APPLICANT_EMAIL_FOOTER,
+    }),
+    text,
+  };
+}
+
+export interface ApplicationRejectedEmailOptions {
+  firstName?: string;
+  positionTitle: string;
+}
+
+// Subject is deliberately neutral — never contains the outcome. See docs/WORKFLOWS.md XC-9.
+export function applicationRejectedEmail({
+  firstName,
+  positionTitle,
+}: ApplicationRejectedEmailOptions): EmailTemplate {
+  const positionsUrl = `${getBaseUrl()}/positions`;
+  const safeGreeting = escapeHtml(greeting(firstName));
+  const safeTitle = escapeHtml(positionTitle);
+
+  const content = `
+    <p style="margin:0 0 16px;font-size:14px;color:#09090b;">${safeGreeting}</p>
+    <p style="margin:0 0 16px;font-size:14px;color:#71717a;">Thank you for applying for <strong>${safeTitle}</strong>. After review, we won't be moving forward with your application this time.</p>
+    <p style="margin:0 0 24px;font-size:14px;color:#71717a;">We know this is disappointing. Positions open throughout the year, and you're welcome to apply again.</p>
+    ${primaryButton(positionsUrl, 'View open positions')}
+  `;
+
+  const text = [
+    greeting(firstName),
+    '',
+    `Thank you for applying for ${positionTitle}. After review, we won't be moving forward with your application this time.`,
+    '',
+    "We know this is disappointing. Positions open throughout the year, and you're welcome to apply again.",
+    '',
+    `View open positions: ${positionsUrl}`,
+  ].join('\n');
+
+  return {
+    subject: `Update on your application for ${positionTitle}`,
+    html: emailLayout({
+      title: 'Application update',
+      content,
+      footer: APPLICANT_EMAIL_FOOTER,
+    }),
+    text,
+  };
+}
