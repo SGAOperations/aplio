@@ -81,7 +81,11 @@ export type PositionForEdit = Prisma.PositionGetPayload<{
     updatedAt: true;
     managers: { select: { id: true; name: true; email: true } };
   };
-}> & { questions: PositionQuestionForEdit[]; lastStatusChangeAt: Date | null };
+}> & {
+  questions: PositionQuestionForEdit[];
+  lastStatusChangeAt: Date | null;
+  hasApplications: boolean;
+};
 
 // Matches getApplicationForApply's query in prisma/data/applications.ts.
 // status is overridden to the public value — applicant-facing, never the

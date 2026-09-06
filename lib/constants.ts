@@ -738,6 +738,74 @@ export function getStatusOptions(
   return POSITION_STATUS_OPTIONS.filter((opt) => opt.value !== 'open');
 }
 
+// Single source of truth for legal position status moves — draft -> closed is
+// deliberately absent, the map's only structural gap (see the resolver below).
+export const POSITION_STATUS_TRANSITIONS = {
+  draft: ['open'],
+  open: ['draft', 'closed'],
+  closed: ['draft', 'open'],
+} as const satisfies Record<PositionStatus, readonly PositionStatus[]>;
+
+export const POSITION_CREATE_STATUSES = [
+  'draft',
+  'open',
+] as const satisfies PositionStatus[];
+
+export const POSITION_DRAFT_CLOSE_BLOCKED_ERROR =
+  'A draft has never accepted applications, so there is nothing to close. Publish it first, or leave it as a draft.';
+export const POSITION_UNPUBLISH_BLOCKED_ERROR =
+  'Someone has already started an application, so this position cannot go back to draft. Close it instead.';
+export const POSITION_REOPEN_PAST_CLOSE_ERROR =
+  "This position's close date has passed. Clear or extend the close date to reopen it.";
+
+// The Status select's FormDescription twins of the errors above.
+export const POSITION_DRAFT_CLOSE_HINT =
+  'A draft has nothing to close — publish it first.';
+export const POSITION_UNPUBLISH_BLOCKED_HINT =
+  'Someone has already started an application, so this position can no longer go back to Draft.';
+export const POSITION_REOPEN_PAST_CLOSE_HINT =
+  'Clear or extend Closes At to reopen this position.';
+
+// null = legal. from === to always passes; then the map; then the two conditional rules.
+export function getPositionStatusTransitionError(
+  from: PositionStatus,
+  to: PositionStatus,
+  ctx: { hasApplications: boolean; closesAtPast: boolean },
+): string | null {
+  if (from === to) return null;
+  if (
+    !(POSITION_STATUS_TRANSITIONS[from] as readonly PositionStatus[]).includes(
+      to,
+    )
+  )
+    return POSITION_DRAFT_CLOSE_BLOCKED_ERROR;
+  if (to === 'draft' && ctx.hasApplications)
+    return POSITION_UNPUBLISH_BLOCKED_ERROR;
+  if (from === 'closed' && to === 'open' && ctx.closesAtPast)
+    return POSITION_REOPEN_PAST_CLOSE_ERROR;
+  return null;
+}
+
+// getStatusOptions filtered to moves the resolver actually allows, so the
+// select never offers a transition the server will reject.
+export function getPositionStatusOptions(
+  isAdmin: boolean,
+  from: PositionStatus,
+  ctx: { hasApplications: boolean; closesAtPast: boolean },
+): typeof POSITION_STATUS_OPTIONS {
+  return getStatusOptions(isAdmin, from).filter(
+    (opt) => getPositionStatusTransitionError(from, opt.value, ctx) === null,
+  );
+}
+
+export function getPositionCreateStatusOptions(
+  isAdmin: boolean,
+): typeof POSITION_STATUS_OPTIONS {
+  return getStatusOptions(isAdmin).filter((opt) =>
+    (POSITION_CREATE_STATUSES as readonly PositionStatus[]).includes(opt.value),
+  );
+}
+
 export const POSITION_DESCRIPTION_MAX_LENGTH = 10000;
 export const MARKDOWN_GUIDE_URL = 'https://www.markdownguide.org/basic-syntax/';
 
