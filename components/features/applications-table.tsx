@@ -427,9 +427,7 @@ export function ApplicationsTable(props: ApplicationsTableProps) {
                   >
                     {app.position.title}
                   </Link>
-                  <span className="text-muted-foreground text-xs">
-                    <LocalTime date={app.updatedAt} precision="date" />
-                  </span>
+                  <span className="text-muted-foreground text-xs">–</span>
                 </div>
               </div>
             );
