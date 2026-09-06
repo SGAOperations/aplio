@@ -766,9 +766,7 @@ export const POSITION_UNPUBLISH_BLOCKED_HINT =
 export const POSITION_REOPEN_PAST_CLOSE_HINT =
   'Clear or extend Closes At to reopen this position.';
 
-// null means the move is legal. Order matters: from === to always passes
-// (editing other fields isn't a transition), then the map itself, then the
-// two conditional business rules.
+// null = legal. from === to always passes; then the map; then the two conditional rules.
 export function getPositionStatusTransitionError(
   from: PositionStatus,
   to: PositionStatus,
