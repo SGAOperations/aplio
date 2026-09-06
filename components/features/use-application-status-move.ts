@@ -8,12 +8,18 @@ import { updateApplicationStatus } from '@/prisma/actions/applications';
 import type { $Enums } from '@/prisma/client';
 
 import { fireConfetti } from '@/lib/confetti';
-import { APPLICATION_STATUS_LABELS } from '@/lib/constants';
+import {
+  APPLICATION_STATUS_LABELS,
+  DECISION_EMAIL_DELAY_SECONDS,
+} from '@/lib/constants';
 import { getDecisionEmailWarning } from '@/lib/utils';
 
 interface UseApplicationStatusMoveOptions {
   applicationId: string;
   applicantName?: string;
+  // Snapshot of the status before any move — lets a decision's success toast
+  // wire its Undo action straight back to it, no history re-fetch needed.
+  currentStatus?: $Enums.ApplicationStatus;
 }
 
 interface PerformMoveOptions {
@@ -26,24 +32,25 @@ const CONFIRM_COPY = {
     title: (name: string) => `Accept ${name}?`,
     description: (name?: string) =>
       `They'll see Accepted on their application and can no longer withdraw it. ${getDecisionEmailWarning(name)}`,
-    confirmLabel: 'Accept',
+    confirmLabel: 'Accept and Send Email',
     pendingLabel: 'Accepting…',
   },
   rejected: {
     title: (name: string) => `Reject ${name}?`,
     description: (name?: string) =>
       `They'll see Rejected on their application and can no longer withdraw it. ${getDecisionEmailWarning(name)}`,
-    confirmLabel: 'Reject',
+    confirmLabel: 'Reject and Send Email',
     pendingLabel: 'Rejecting…',
   },
 } as const;
 
 // Shared by the table row menu, the detail-page header actions, and the
-// status dialog's Select/Undo — one performMove + confirm-dialog rendering
-// so the three surfaces can't drift on toast copy or the Accept/Reject gate.
+// status dialog's Select — one performMove + confirm-dialog rendering so the
+// three surfaces can't drift on toast copy or the Accept/Reject gate.
 export function useApplicationStatusMove({
   applicationId,
   applicantName,
+  currentStatus,
 }: UseApplicationStatusMoveOptions) {
   const [isPending, startTransition] = useTransition();
   const [pendingTarget, setPendingTarget] =
@@ -72,7 +79,27 @@ export function useApplicationStatusMove({
           toast.error(result.error);
           return;
         }
-        toast.success(`Moved to ${APPLICATION_STATUS_LABELS[target]}`);
+
+        // Gmail-style safety net: only a decision schedules an email, so only
+        // a decision needs an immediate Undo — same revert-and-cancel flow
+        // (updateApplicationStatus + dispatchDecisionEmail's own cancel) the
+        // old dialog's "Undo — back to X" button used, just surfaced right
+        // where the action happened instead of behind another dialog open.
+        const revertTarget =
+          (target === 'accepted' || target === 'rejected') && currentStatus
+            ? currentStatus
+            : undefined;
+        toast.success(`Moved to ${APPLICATION_STATUS_LABELS[target]}`, {
+          duration: revertTarget
+            ? DECISION_EMAIL_DELAY_SECONDS * 1000
+            : undefined,
+          action: revertTarget
+            ? {
+                label: 'Undo',
+                onClick: () => performMove(revertTarget, { override: true }),
+              }
+            : undefined,
+        });
         if (target === 'accepted') void fireConfetti();
       } catch {
         toast.error('Something went wrong. Please try again.');

@@ -25,7 +25,6 @@ import {
   withdrawApplication,
 } from '@/prisma/actions/applications';
 import type { Position, User } from '@/prisma/client';
-import { getDecisionEmailNotice } from '@/prisma/data/applications';
 
 import { RESEND_BATCH_MAX_EMAILS } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
@@ -610,102 +609,5 @@ describe('submitApplication receipts', () => {
       },
     });
     expect(logs).toHaveLength(2);
-  });
-});
-
-describe('getDecisionEmailNotice', () => {
-  it('returns the real scheduledAt while a decision email is still pending', async () => {
-    mockSend.mockResolvedValueOnce({
-      data: { id: 'resend-notice-1' },
-      error: null,
-    });
-    const applicant = await createTestUser();
-    const application = await createTestApplication(applicant, position, {
-      status: 'applied',
-    });
-
-    actAs(admin);
-    await updateApplicationStatus({
-      applicationId: application.id,
-      status: 'accepted',
-    });
-    await flushAfter();
-
-    const log = await prisma.emailLog.findFirstOrThrow({
-      where: {
-        applicationId: application.id,
-        template: 'application_accepted',
-      },
-    });
-
-    const notice = await getDecisionEmailNotice(
-      application.id,
-      'accepted',
-      admin,
-    );
-    expect(notice).toEqual({
-      status: 'scheduled',
-      scheduledAt: log.scheduledAt,
-    });
-  });
-
-  it('returns sent once the email is delivered, with no timestamp', async () => {
-    const applicant = await createTestUser();
-    const application = await createTestApplication(applicant, position, {
-      status: 'rejected',
-    });
-    await prisma.emailLog.create({
-      data: {
-        to: applicant.email,
-        applicationId: application.id,
-        template: 'application_rejected',
-        subject: 'Subject',
-        status: 'delivered',
-      },
-    });
-
-    const notice = await getDecisionEmailNotice(
-      application.id,
-      'rejected',
-      admin,
-    );
-    expect(notice).toEqual({ status: 'sent' });
-  });
-
-  it('returns null once the pending send was cancelled', async () => {
-    const applicant = await createTestUser();
-    const application = await createTestApplication(applicant, position, {
-      status: 'reviewing',
-    });
-    await prisma.emailLog.create({
-      data: {
-        to: applicant.email,
-        applicationId: application.id,
-        template: 'application_accepted',
-        subject: 'Subject',
-        status: 'cancelled',
-      },
-    });
-
-    const notice = await getDecisionEmailNotice(
-      application.id,
-      'accepted',
-      admin,
-    );
-    expect(notice).toBeNull();
-  });
-
-  it('returns null for a status with no decision email', async () => {
-    const applicant = await createTestUser();
-    const application = await createTestApplication(applicant, position, {
-      status: 'reviewing',
-    });
-
-    const notice = await getDecisionEmailNotice(
-      application.id,
-      'reviewing',
-      admin,
-    );
-    expect(notice).toBeNull();
   });
 });

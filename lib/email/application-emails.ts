@@ -3,7 +3,7 @@ import 'server-only';
 import type { $Enums } from '@/prisma/client';
 
 import {
-  DECISION_EMAIL_DELAY_MINUTES,
+  DECISION_EMAIL_DELAY_SECONDS,
   DECISION_EMAIL_TEMPLATES,
 } from '@/lib/constants';
 import { getResend } from '@/lib/email/client';
@@ -169,7 +169,7 @@ export async function dispatchDecisionEmail({
 
     const { subject, html, text } = decisionEmailTemplate(status, recipient);
     const scheduledAt = new Date(
-      Date.now() + DECISION_EMAIL_DELAY_MINUTES * 60_000,
+      Date.now() + DECISION_EMAIL_DELAY_SECONDS * 1000,
     );
 
     await sendEmail({

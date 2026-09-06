@@ -13,7 +13,6 @@ import {
 } from '@/lib/auth/scopes';
 import {
   APPLICATIONS_PAGE_SIZE,
-  DECISION_EMAIL_TEMPLATES,
   PUBLIC_APPLICATION_STATUS,
   PUBLISHED_POSITION_WHERE,
   type PublicApplicationStatus,
@@ -30,7 +29,6 @@ import {
   type ApplicationSortDirection,
   type ApplicationStatusHistoryEntry,
   type ApplicationTableRow,
-  type DecisionEmailNoticeState,
   type DraftApplication,
   type DraftApplicationListItem,
   type MyApplicationDetail,
@@ -42,7 +40,6 @@ import {
 } from '@/lib/types';
 import {
   canReviewPosition,
-  classifyDecisionEmailStatus,
   displayUserName,
   getEmailLogOccurredAt,
   isPositionActive,
@@ -331,38 +328,6 @@ export async function getApplicationEmailHistory(
     bounceType: log.bounceType,
     occurredAt: getEmailLogOccurredAt(log),
   }));
-}
-
-// Read only, never the recipient address/provider id — the nested `application`
-// scope keeps this authorized on its own terms rather than trusting the caller.
-export async function getDecisionEmailNotice(
-  applicationId: string,
-  currentStatus: $Enums.ApplicationStatus,
-  user: Reviewer,
-): Promise<DecisionEmailNoticeState> {
-  if (currentStatus !== 'accepted' && currentStatus !== 'rejected') return null;
-
-  const log = await prisma.emailLog.findFirst({
-    where: {
-      applicationId,
-      template: DECISION_EMAIL_TEMPLATES[currentStatus],
-      application: buildApplicationWhere(user, 'listable'),
-    },
-    orderBy: { createdAt: 'desc' },
-    select: { status: true, scheduledAt: true },
-  });
-
-  if (!log) return null;
-
-  const bucket = classifyDecisionEmailStatus(log.status);
-  if (bucket === null) return null;
-  if (bucket === 'sent') return { status: 'sent' };
-
-  // Every scheduled decision email is created with scheduledAt set — a
-  // missing one here means the row was never a real decision send.
-  if (!log.scheduledAt)
-    throw new Error('Scheduled decision email is missing scheduledAt');
-  return { status: 'scheduled', scheduledAt: log.scheduledAt };
 }
 
 // Cross-scope by design (docs/PERMISSIONS.md) — step 2 deliberately drops buildReviewablePositionWhere.

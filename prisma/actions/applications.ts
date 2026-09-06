@@ -12,10 +12,7 @@ import type {
   GlobalQuestion,
   PositionApplicationAnswer,
 } from '@/prisma/client';
-import {
-  getApplicationStatusHistory,
-  getDecisionEmailNotice,
-} from '@/prisma/data/applications';
+import { getApplicationStatusHistory } from '@/prisma/data/applications';
 
 import { requireManagerOrAdmin, requireOwnership } from '@/lib/auth/guards';
 import {
@@ -47,7 +44,6 @@ import { prisma } from '@/lib/prisma';
 import {
   type AnswerQuestion,
   type ApplicationStatusHistoryEntry,
-  type DecisionEmailNoticeState,
 } from '@/lib/types';
 import {
   type ResponseType,
@@ -735,28 +731,6 @@ export async function loadApplicationStatusHistory(
   if (!parsed.success) return { error: 'Invalid input' };
 
   return getApplicationStatusHistory(parsed.data.applicationId, user);
-}
-
-const decisionEmailNoticeSchema = z.object({
-  applicationId: z.string().min(1),
-  currentStatus: z.enum(REVIEWER_APPLICATION_STATUSES),
-});
-
-// Read-only, same shape as loadApplicationStatusHistory — the table row's
-// dialog fetches this alongside history rather than the page pre-fetching it per row.
-export async function loadDecisionEmailNotice(
-  input: unknown,
-): Promise<ResponseType<DecisionEmailNoticeState>> {
-  const user = await requireManagerOrAdmin();
-
-  const parsed = decisionEmailNoticeSchema.safeParse(input);
-  if (!parsed.success) return { error: 'Invalid input' };
-
-  return getDecisionEmailNotice(
-    parsed.data.applicationId,
-    parsed.data.currentStatus,
-    user,
-  );
 }
 
 const WITHDRAW_NOT_ALLOWED_MESSAGE =

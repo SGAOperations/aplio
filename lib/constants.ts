@@ -552,12 +552,7 @@ export const TERMINAL_DECISION_STATUS_NOTES: Record<
 };
 
 // Single source for the single-decision scheduled-send window.
-export const DECISION_EMAIL_DELAY_MINUTES = 15;
-
-export const DECISION_EMAIL_NOUNS: Record<'accepted' | 'rejected', string> = {
-  accepted: 'acceptance',
-  rejected: 'rejection',
-};
+export const DECISION_EMAIL_DELAY_SECONDS = 10;
 
 export const DECISION_EMAIL_TEMPLATES: Record<
   'accepted' | 'rejected',
@@ -608,16 +603,6 @@ export function getApplicationStatusMenu(from: $Enums.ApplicationStatus): {
       ? (['accepted', 'rejected'] as const).filter((d) => d !== next)
       : [],
   };
-}
-
-// Null when there's nothing to undo: no events yet, the latest is the
-// backfill row (`from` null), or `from` is draft/withdrawn.
-export function getApplicationStatusUndoTarget(
-  latest: { from: $Enums.ApplicationStatus | null } | null | undefined,
-): $Enums.ApplicationStatus | null {
-  if (!latest || latest.from === null) return null;
-  if (isNonReviewableApplicationStatus(latest.from)) return null;
-  return latest.from;
 }
 
 // Positive list: a future enum value stays excluded until added — safer for this metric.

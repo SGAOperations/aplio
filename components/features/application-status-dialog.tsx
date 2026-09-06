@@ -1,24 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import type { $Enums } from '@/prisma/client';
 
 import {
-  APPLICATION_STATUS_LABELS,
   REVIEWER_APPLICATION_STATUS_OPTIONS,
-  getApplicationStatusUndoTarget,
   isNonReviewableApplicationStatus,
 } from '@/lib/constants';
 import { ACTION_ICONS } from '@/lib/icons';
-import type {
-  ApplicationStatusHistoryEntry,
-  DecisionEmailNoticeState,
-} from '@/lib/types';
+import type { ApplicationStatusHistoryEntry } from '@/lib/types';
 import {
   getApplicationStatusHistoryRowLabel,
   getDecisionEmailWarning,
-  getUndoDecisionEmailNotice,
 } from '@/lib/utils';
 
 import { useApplicationStatusMove } from '@/components/features/use-application-status-move';
@@ -42,24 +36,6 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const UNDO_NOTICE_ID = 'status-dialog-undo-notice';
-
-// Syncs with the wall clock so Undo disables itself the moment the window closes.
-function useDecisionEmailWindowExpired(scheduledAt?: Date): boolean {
-  const time = scheduledAt?.getTime();
-  const [expired, setExpired] = useState(false);
-
-  useEffect(() => {
-    const tick = () => setExpired(time !== undefined && Date.now() >= time);
-    tick();
-    if (time === undefined) return;
-    const timeout = setTimeout(tick, Math.max(time - Date.now(), 0));
-    return () => clearTimeout(timeout);
-  }, [time]);
-
-  return expired;
-}
-
 interface ApplicationStatusDialogProps {
   applicationId: string;
   applicantName: string;
@@ -69,7 +45,6 @@ interface ApplicationStatusDialogProps {
   // its pre-fetched history and leaves these unset.
   isHistoryLoading?: boolean;
   historyFailed?: boolean;
-  decisionEmailState: DecisionEmailNoticeState;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -81,37 +56,21 @@ export function ApplicationStatusDialog({
   history,
   isHistoryLoading = false,
   historyFailed = false,
-  decisionEmailState,
   open,
   onOpenChange,
 }: ApplicationStatusDialogProps) {
   const [selectedStatus, setSelectedStatus] = useState<
     $Enums.ApplicationStatus | ''
   >('');
-  const move = useApplicationStatusMove({ applicationId, applicantName });
+  const move = useApplicationStatusMove({
+    applicationId,
+    applicantName,
+    currentStatus,
+  });
 
   const canOverride = !isNonReviewableApplicationStatus(currentStatus);
-  const undoTarget = getApplicationStatusUndoTarget(history[0] ?? null);
   const selectingDecision =
     selectedStatus === 'accepted' || selectedStatus === 'rejected';
-  const scheduledAt =
-    decisionEmailState?.status === 'scheduled'
-      ? decisionEmailState.scheduledAt
-      : undefined;
-  const windowExpired = useDecisionEmailWindowExpired(scheduledAt);
-  const undoNotice =
-    (currentStatus === 'accepted' || currentStatus === 'rejected') && undoTarget
-      ? getUndoDecisionEmailNotice(
-          decisionEmailState,
-          currentStatus,
-          windowExpired,
-        )
-      : null;
-  // The window closing or the email actually sending must stop the click
-  // itself, not just change the copy next to it.
-  const undoLocked =
-    decisionEmailState?.status === 'sent' ||
-    (decisionEmailState?.status === 'scheduled' && windowExpired);
 
   function handleApply() {
     if (!selectedStatus) return;
@@ -128,7 +87,7 @@ export function ApplicationStatusDialog({
           <DialogHeader>
             <DialogTitle>Application status</DialogTitle>
             <DialogDescription>
-              Change the status, undo the last change, or review the history.
+              Change the status or review the history.
             </DialogDescription>
           </DialogHeader>
 
@@ -188,45 +147,6 @@ export function ApplicationStatusDialog({
                   Any status, including moves the normal flow doesn&apos;t
                   offer.
                 </p>
-              </div>
-            )}
-
-            {canOverride && undoTarget && (
-              <div className="flex flex-col items-start gap-1">
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="h-auto w-fit p-0"
-                  disabled={move.isPending || undoLocked}
-                  aria-describedby={undoNotice ? UNDO_NOTICE_ID : undefined}
-                  onClick={() =>
-                    move.selectTarget(undoTarget, { override: true })
-                  }
-                >
-                  {move.isPending && move.pendingTarget === undoTarget && (
-                    <ACTION_ICONS.pending className="animate-spin" />
-                  )}
-                  Undo — back to {APPLICATION_STATUS_LABELS[undoTarget]}
-                </Button>
-                {undoNotice && (
-                  <p
-                    id={UNDO_NOTICE_ID}
-                    role="status"
-                    className="text-muted-foreground text-xs"
-                  >
-                    {undoNotice.lead}
-                    {undoNotice.scheduledAt && (
-                      <>
-                        {' '}
-                        <LocalTime
-                          date={undoNotice.scheduledAt}
-                          precision="datetime"
-                        />
-                        {' — undo before then to cancel it.'}
-                      </>
-                    )}
-                  </p>
-                )}
               </div>
             )}
 

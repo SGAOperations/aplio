@@ -5,8 +5,7 @@ import type { $Enums } from '@/prisma/client';
 
 import {
   APPLICATION_STATUS_LABELS,
-  DECISION_EMAIL_DELAY_MINUTES,
-  DECISION_EMAIL_NOUNS,
+  DECISION_EMAIL_DELAY_SECONDS,
   EMAIL_STATUS_DESCRIPTIONS,
   MANAGED_POSITIONS_WINDOW_DAYS,
   USER_ROLE_FILTER_OPTIONS,
@@ -17,7 +16,6 @@ import type {
   AnswerPartition,
   AnswerQuestion,
   ApplicationFilters,
-  DecisionEmailNoticeState,
   ManagedPositionRow,
   PositionActivity,
   PositionAvailability,
@@ -697,7 +695,7 @@ export function getFirstName(name?: string | null): string | undefined {
 /** Shared by the single-decision confirm dialog and the override dialog's inline warning. */
 export function getDecisionEmailWarning(name?: string): string {
   const subject = name ?? 'The applicant';
-  return `${subject} will be emailed in ${DECISION_EMAIL_DELAY_MINUTES} minutes. Undo before then and nothing is sent.`;
+  return `${subject} will be emailed in ${DECISION_EMAIL_DELAY_SECONDS} seconds. Undo on the confirmation toast and nothing is sent.`;
 }
 
 export type BulkImmediateEmailWarning = {
@@ -715,12 +713,12 @@ export function getBulkImmediateEmailWarning(
     ? 'This email sends immediately.'
     : `These ${count} emails send immediately.`;
   const told = isSingular ? 'the applicant has' : 'the applicants have';
-  const detail = `There is no 15-minute delay and no undo — once you confirm, ${told} been told. Accepting or rejecting one at a time waits 15 minutes; this does not.`;
+  const detail = `There is no undo — once you confirm, ${told} been told. Accepting or rejecting one at a time gives a ${DECISION_EMAIL_DELAY_SECONDS}-second undo window; this does not.`;
   return { count, lead, detail };
 }
 
 /** Statuses meaning Resend has dispatched the email — the single bucket
- * getDecisionEmailNotice and the one-email-ever gate both classify against. */
+ * the one-email-ever gate classifies against. */
 export function classifyDecisionEmailStatus(
   status: $Enums.EmailStatus,
 ): 'scheduled' | 'sent' | null {
@@ -741,32 +739,6 @@ export function classifyDecisionEmailStatus(
       throw new Error(`Unhandled email status: ${JSON.stringify(exhaustive)}`);
     }
   }
-}
-
-export interface UndoDecisionEmailNotice {
-  lead: string;
-  /** Only set while still cancellable — renders as a real <LocalTime>, not relative-to-open-time text. */
-  scheduledAt?: Date;
-}
-
-/** Undo copy distinguishing a cancellable send from an expired window or one already sent; null renders nothing. */
-export function getUndoDecisionEmailNotice(
-  state: DecisionEmailNoticeState,
-  status: 'accepted' | 'rejected',
-  windowExpired: boolean,
-): UndoDecisionEmailNotice | null {
-  if (state === null) return null;
-  const noun = DECISION_EMAIL_NOUNS[status];
-  if (state.status === 'sent')
-    return { lead: `The ${noun} email has already been sent.` };
-  if (windowExpired)
-    return {
-      lead: `The ${noun} email's undo window has passed — it may have already sent.`,
-    };
-  return {
-    lead: `The ${noun} email is scheduled to send at`,
-    scheduledAt: state.scheduledAt,
-  };
 }
 
 /** Same predicate updateApplicationStatuses uses — right even when it differs from the bulk bar's coarser eligibleCount. */
