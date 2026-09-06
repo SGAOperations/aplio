@@ -1,6 +1,7 @@
 import 'server-only';
 
 import {
+  compareMergedApplicationRows,
   getAllApplications,
   getAllDraftApplications,
   getApplications,
@@ -141,12 +142,13 @@ export async function ApplicationsResults({
       getAllApplications(user, filters),
     ]);
 
-    // Both arrays are already ordered (updatedAt desc / submittedAt desc), so
-    // concatenating clusters drafts at the front without re-sorting.
+    // Merge first, then sort the combined set by filters.sort — concatenating
+    // two independently-sorted arrays would cluster drafts and applications
+    // as two separately-ordered blocks rather than one sorted list.
     const merged: ApplicationTableRow[] = [
       ...allDrafts.map((a) => ({ ...a, isDraft: true as const })),
       ...allApplications.map((a) => ({ ...a, isDraft: false as const })),
-    ];
+    ].sort(compareMergedApplicationRows(filters.sort));
 
     const { rows, total, totalPages, currentPage, rangeStart, rangeEnd } =
       paginateRows(merged, page);

@@ -25,7 +25,9 @@ import {
   type ApplicationFilters,
   type ApplicationForReview,
   type ApplicationReviewAnswer,
+  type ApplicationSortDirection,
   type ApplicationStatusHistoryEntry,
+  type ApplicationTableRow,
   type DraftApplication,
   type DraftApplicationListItem,
   type MyApplicationDetail,
@@ -509,6 +511,100 @@ function buildApplicationListOrderBy(
       { id: 'desc' },
     ];
   return [{ status: sort.direction }, { id: 'desc' }];
+}
+
+// Postgres's own per-direction null default: NULLS LAST for ASC, NULLS FIRST
+// for DESC. Shared by every field the in-memory merge below sorts on.
+function compareNullableByDirection<T>(
+  a: T | null,
+  b: T | null,
+  direction: ApplicationSortDirection,
+  compare: (a: T, b: T) => number,
+): number {
+  if (a === null && b === null) return 0;
+  if (a === null) return direction === 'asc' ? 1 : -1;
+  if (b === null) return direction === 'asc' ? -1 : 1;
+  const cmp = compare(a, b);
+  return direction === 'asc' ? cmp : -cmp;
+}
+
+function compareDates(a: Date, b: Date): number {
+  return a.getTime() - b.getTime();
+}
+
+function compareStrings(a: string, b: string): number {
+  if (a === b) return 0;
+  return a < b ? -1 : 1;
+}
+
+// Always id desc, regardless of the primary field's direction — mirrors
+// buildApplicationListOrderBy's own tiebreaker (uuid(7) ids are time-ordered).
+function compareByIdDesc(a: { id: string }, b: { id: string }): number {
+  return compareStrings(b.id, a.id);
+}
+
+// Mirrors buildApplicationListOrderBy's field/direction/tiebreak semantics for
+// the in-memory merge in the default (no status filter) view, so drafts and
+// admin rows sort as one list instead of two independently-sorted arrays laid
+// end to end. Draft rows have no submittedAt/status — they compare as
+// null/'draft', same as they would if a single query had produced this list.
+export function compareMergedApplicationRows(
+  sort: ApplicationFilters['sort'],
+): (a: ApplicationTableRow, b: ApplicationTableRow) => number {
+  if (sort?.field === 'name') {
+    const { direction } = sort;
+    return (a, b) =>
+      compareNullableByDirection(
+        a.user.name,
+        b.user.name,
+        direction,
+        compareStrings,
+      ) ||
+      compareNullableByDirection(
+        a.user.email,
+        b.user.email,
+        direction,
+        compareStrings,
+      ) ||
+      compareByIdDesc(a, b);
+  }
+
+  if (sort?.field === 'status') {
+    const { direction } = sort;
+    return (a, b) =>
+      compareNullableByDirection(
+        a.isDraft ? 'draft' : a.status,
+        b.isDraft ? 'draft' : b.status,
+        direction,
+        compareStrings,
+      ) || compareByIdDesc(a, b);
+  }
+
+  if (sort?.field === 'date') {
+    const { direction } = sort;
+    return (a, b) =>
+      compareNullableByDirection(
+        a.isDraft ? null : a.submittedAt,
+        b.isDraft ? null : b.submittedAt,
+        direction,
+        compareDates,
+      ) || compareByIdDesc(a, b);
+  }
+
+  // Unsorted default — submittedAt desc, nulls first, so drafts cluster at
+  // the front; among themselves they keep the updatedAt-desc order their own
+  // query already fetched them in, rather than an id tiebreak.
+  return (a, b) => {
+    const bySubmittedAt = compareNullableByDirection(
+      a.isDraft ? null : a.submittedAt,
+      b.isDraft ? null : b.submittedAt,
+      'desc',
+      compareDates,
+    );
+    if (bySubmittedAt !== 0) return bySubmittedAt;
+    if (a.isDraft && b.isDraft) return -compareDates(a.updatedAt, b.updatedAt);
+    return compareByIdDesc(a, b);
+  };
 }
 
 // Applicant identity — reviewer-gated callers only.
