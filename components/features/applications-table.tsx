@@ -293,12 +293,12 @@ export function ApplicationsTable(props: ApplicationsTableProps) {
       // recency signal, and matches this view's drafts-by-updatedAt sort.
       sortAccessor: (a) => (a.isDraft ? a.updatedAt : a.submittedAt),
       cellClassName: 'text-muted-foreground',
-      cell: (app) => (
-        <LocalTime
-          date={app.isDraft ? app.updatedAt : app.submittedAt}
-          precision="date"
-        />
-      ),
+      cell: (app) =>
+        app.isDraft ? (
+          '–'
+        ) : (
+          <LocalTime date={app.submittedAt} precision="date" />
+        ),
     },
   ];
 
