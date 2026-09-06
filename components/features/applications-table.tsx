@@ -7,14 +7,25 @@ import { useMemo, useState } from 'react';
 import type { $Enums } from '@/prisma/client';
 
 import { type DataTableColumn } from '@/lib/data-table';
-import { ACTION_ICONS, CONCEPT_ICONS, STATE_ICONS } from '@/lib/icons';
+import {
+  ACTION_ICONS,
+  APPLICATION_STATUS_ICONS,
+  CONCEPT_ICONS,
+  STATE_ICONS,
+} from '@/lib/icons';
 import type {
-  ApplicationListRow,
+  AdminApplicationListItem,
   ApplicationSort,
   ApplicationSortDirection,
   ApplicationSortField,
+  DraftApplicationListItem,
 } from '@/lib/types';
-import { getApplicantName, getDisplayName, getRenamedTo } from '@/lib/utils';
+import {
+  displayUserName,
+  getApplicantName,
+  getDisplayName,
+  getRenamedTo,
+} from '@/lib/utils';
 
 import { ApplicationStatusActions } from '@/components/features/application-status-actions';
 import { ApplicationsBulkBar } from '@/components/features/applications-bulk-bar';
@@ -25,17 +36,20 @@ import { DataTable } from '@/components/ui/data-table';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LocalTime } from '@/components/ui/local-time';
 
-interface ApplicationsTableProps {
-  applications: ApplicationListRow[];
+interface BaseApplicationsTableProps {
   hasActiveFilters: boolean;
   sort?: ApplicationSort;
 }
 
-export function ApplicationsTable({
-  applications,
-  hasActiveFilters,
-  sort,
-}: ApplicationsTableProps) {
+// Discriminated on isDraftView so `applications` narrows without a runtime check.
+type ApplicationsTableProps = BaseApplicationsTableProps &
+  (
+    | { isDraftView: true; applications: DraftApplicationListItem[] }
+    | { isDraftView?: false; applications: AdminApplicationListItem[] }
+  );
+
+export function ApplicationsTable(props: ApplicationsTableProps) {
+  const { hasActiveFilters, sort } = props;
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -45,26 +59,27 @@ export function ApplicationsTable({
     '',
   );
 
-  const allIds = applications.map((a) => a.id);
+  const allIds = props.isDraftView ? [] : props.applications.map((a) => a.id);
   const allSelected =
     allIds.length > 0 && allIds.every((id) => selectedIds.has(id));
   const someSelected = allIds.some((id) => selectedIds.has(id));
   const isIndeterminate = someSelected && !allSelected;
 
   // Drops ids no longer in the current view (e.g. after a filter change).
-  const selectedRows = applications.filter((a) => selectedIds.has(a.id));
+  const selectedRows = props.isDraftView
+    ? []
+    : props.applications.filter((a) => selectedIds.has(a.id));
 
-  // Derived once per row and reused across cells/mobileCard.
-  const displayInfo = useMemo(
-    () =>
-      new Map(
-        applications.map((app) => [
-          app.id,
-          { displayName: getDisplayName(app), renamedTo: getRenamedTo(app) },
-        ]),
-      ),
-    [applications],
-  );
+  // Derived per row; empty for drafts, which have no applicantName/renamed name.
+  const displayInfo = useMemo(() => {
+    if (props.isDraftView) return new Map();
+    return new Map(
+      props.applications.map((app) => [
+        app.id,
+        { displayName: getDisplayName(app), renamedTo: getRenamedTo(app) },
+      ]),
+    );
+  }, [props.applications, props.isDraftView]);
 
   function toggleAll() {
     if (allSelected) {
@@ -111,7 +126,51 @@ export function ApplicationsTable({
     }
   }
 
-  const COLUMNS: DataTableColumn<ApplicationListRow>[] = [
+  const DRAFT_COLUMNS: DataTableColumn<DraftApplicationListItem>[] = [
+    {
+      key: 'name',
+      header: 'Applicant',
+      sortAccessor: (a) => displayUserName(a.user),
+      cell: (app) => (
+        <>
+          <span className="font-medium">{displayUserName(app.user)}</span>
+          {app.user.name && (
+            <span className="text-muted-foreground block text-xs">
+              {app.user.email}
+            </span>
+          )}
+        </>
+      ),
+    },
+    {
+      key: 'position',
+      header: 'Position',
+      cellClassName: 'text-muted-foreground',
+      cell: (app) => (
+        <Link
+          href={`/positions/${app.position.id}`}
+          className="hover:underline"
+        >
+          {app.position.title}
+        </Link>
+      ),
+    },
+    {
+      key: 'started',
+      header: 'Started',
+      cellClassName: 'text-muted-foreground',
+      cell: (app) => <LocalTime date={app.createdAt} precision="date" />,
+    },
+    {
+      key: 'date',
+      header: 'Last updated',
+      sortAccessor: (a) => a.updatedAt,
+      cellClassName: 'text-muted-foreground',
+      cell: (app) => <LocalTime date={app.updatedAt} precision="date" />,
+    },
+  ];
+
+  const COLUMNS: DataTableColumn<AdminApplicationListItem>[] = [
     {
       key: 'select',
       header: (
@@ -203,6 +262,66 @@ export function ApplicationsTable({
       cell: (app) => <LocalTime date={app.submittedAt} precision="date" />,
     },
   ];
+
+  if (props.isDraftView) {
+    const { applications } = props;
+
+    const emptyState = hasActiveFilters ? (
+      <EmptyState
+        icon={STATE_ICONS.noResults}
+        title="No drafts match these filters"
+        description="Try adjusting or clearing your filters."
+        action={
+          <Button variant="outline" asChild>
+            <Link href="/manage/applications?status=draft">
+              <ACTION_ICONS.clearFilters />
+              Clear filters
+            </Link>
+          </Button>
+        }
+      />
+    ) : (
+      <EmptyState
+        icon={APPLICATION_STATUS_ICONS.draft}
+        title="No drafts in progress"
+        description="You'll see them here as soon as someone starts an application."
+      />
+    );
+
+    return (
+      <DataTable
+        rows={applications}
+        columns={DRAFT_COLUMNS}
+        getRowKey={(a) => a.id}
+        caption="Drafts"
+        emptyState={emptyState}
+        sort={sort ? { key: sort.field, direction: sort.direction } : undefined}
+        onSortToggle={(key) => toggleSort(key as ApplicationSortField)}
+        mobileCard={(app) => (
+          <div className="flex flex-col gap-1 p-4">
+            <span className="font-medium">{displayUserName(app.user)}</span>
+            {app.user.name && (
+              <span className="text-muted-foreground truncate text-xs">
+                {app.user.email}
+              </span>
+            )}
+            <Link
+              href={`/positions/${app.position.id}`}
+              className="text-muted-foreground w-fit text-sm hover:underline"
+            >
+              {app.position.title}
+            </Link>
+            <span className="text-muted-foreground text-xs">
+              Started <LocalTime date={app.createdAt} precision="date" /> ·
+              Updated <LocalTime date={app.updatedAt} precision="date" />
+            </span>
+          </div>
+        )}
+      />
+    );
+  }
+
+  const { applications } = props;
 
   const emptyState = hasActiveFilters ? (
     <EmptyState

@@ -20,8 +20,6 @@ import type { ApplicationFilters } from '@/lib/types';
 import { ApplicationsResults } from '@/components/features/applications-results';
 import { ApplicationsTableSkeleton } from '@/components/features/applications-table-skeleton';
 import { ApplicationsToolbar } from '@/components/features/applications-toolbar';
-import { DraftApplicationsResults } from '@/components/features/draft-applications-results';
-import { DraftsInProgressNotice } from '@/components/features/drafts-in-progress-notice';
 import { PageHeader } from '@/components/layouts/page-header';
 
 export const metadata: Metadata = { title: 'Applications' };
@@ -100,36 +98,27 @@ export default async function ApplicationsPage({
         description="Review and track submitted applications."
       />
 
-      {!isDraftView && (
-        <DraftsInProgressNotice count={draftCount} filters={filters} />
-      )}
-
       <ApplicationsToolbar
         positions={positions}
         applicants={applicants}
         filters={filters}
         hasActiveFilters={hasActiveFilters}
+        draftCount={draftCount}
       />
 
       <Suspense
         key={JSON.stringify({ ...filters, page })}
         fallback={<ApplicationsTableSkeleton showSelection={!isDraftView} />}
       >
-        {isDraftView ? (
-          <DraftApplicationsResults
-            user={user}
-            filters={filters}
-            page={page}
-            hasActiveFilters={hasActiveOtherFilters}
-          />
-        ) : (
-          <ApplicationsResults
-            user={user}
-            filters={filters}
-            page={page}
-            hasActiveFilters={hasActiveFilters}
-          />
-        )}
+        <ApplicationsResults
+          user={user}
+          filters={filters}
+          page={page}
+          hasActiveFilters={
+            isDraftView ? hasActiveOtherFilters : hasActiveFilters
+          }
+          isDraftView={isDraftView}
+        />
       </Suspense>
     </div>
   );
