@@ -4,6 +4,7 @@ import {
   ANSWER_LONG_MAX_LENGTH,
   ANSWER_OTHER_MAX_LENGTH,
   ANSWER_SHORT_MAX_LENGTH,
+  APPLICATION_STATUS_VALUES,
   NON_TERMINAL_APPLICATION_STATUSES,
   POSITION_CLOSES_AT_ORDER_ERROR,
   POSITION_CLOSES_AT_PAST_ERROR,
@@ -264,6 +265,11 @@ describe('status-set invariants', () => {
   it('REVIEWER_APPLICATION_STATUSES excludes draft and withdrawn', () => {
     expect(REVIEWER_APPLICATION_STATUSES).not.toContain('draft');
     expect(REVIEWER_APPLICATION_STATUSES).not.toContain('withdrawn');
+  });
+
+  it("APPLICATION_STATUS_VALUES (the queue's filter list) includes draft", () => {
+    expect(APPLICATION_STATUS_VALUES).toContain('draft');
+    expect(REVIEWER_APPLICATION_STATUSES).not.toContain('draft');
   });
 
   it('UNRESOLVED_APPLICATION_STATUSES is a subset of NON_TERMINAL_APPLICATION_STATUSES', () => {
