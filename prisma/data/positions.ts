@@ -327,10 +327,14 @@ export const getPositionForEdit = cache(async function getPositionForEdit(
 
   if (!position) return null;
 
+  // Read before withPositionActivity strips the relation — same rows
+  // positionActivitySelect already fetches, so this is free.
+  const hasApplications = position.applications.length > 0;
   const { questions, ...rest } = withPositionActivity(position);
 
   return {
     ...rest,
+    hasApplications,
     questions: questions.map(({ _count, ...question }) => ({
       ...question,
       answerCount: _count.answers,

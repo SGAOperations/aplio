@@ -96,11 +96,13 @@ Four principals, each derived rather than stored as a single role field:
 | `open → closed` (close)                      | yes         | Confirm first when unresolved applications exist               |
 | `closed → open` (reopen)                     | conditional | Admin only, and only when `closesAt` is null or in the future  |
 | `open → draft`, `closed → draft` (unpublish) | conditional | Blocked once any non-deleted application exists, at any status |
+| `draft → closed`                             | no          | A draft has never accepted applications — nothing to close     |
 | create as `closed`                           | no          | `createPosition` may only create `draft` or `open`             |
 
 - **Publishing is a permission, not a workflow.** There is no submit-for-approval step, no pending queue, no approve/reject with a reason, and no notification to the manager. A manager creates and shapes a draft; an admin performs the act of setting it `open`, from either `draft` or `closed`. Content edits after publishing stay unrestricted — approval gates the status change, not the position's fields.
 - **Reopening past `closesAt` is a silent no-op**, not a reopen — `getPositionAvailability` (`lib/utils.ts`) still returns `closed_by_date`, so the position reads Open and accepts nothing. Reject it: `{ error: "This position's close date has passed. Clear or extend the close date to reopen it." }`
 - **Unpublishing hides a position out from under applicants who already have work in it**, so the first application — including a draft nobody has submitted — is one-way out of `draft`: `{ error: 'Someone has already started an application, so this position cannot go back to draft. Close it instead.' }`
+- **A draft was never listed, so it has nothing to close.** `draft → closed` is rejected with `{ error: 'A draft has never accepted applications, so there is nothing to close. Publish it first, or leave it as a draft.' }` — a manager who wants a draft off the board leaves it as a draft, or publishes and closes it instead.
 - **Reopening changes nothing about existing applications.** Decisions stand; a reviewer reverses one through the application status control, not by reopening the position.
 - `Application` is unique on `[userId, positionId]` (`prisma/schema.prisma`), so a rejected or withdrawn applicant still cannot reapply to a reopened position. Known-open, not fixed by this policy.
 
@@ -115,7 +117,7 @@ Four principals, each derived rather than stored as a single role field:
 | Questions (add, edit, delete) | ✓              | ✓                         | ✓                         | ✗          |
 | Managers (add, remove others) | ✓              | ✓                         | ✓                         | ✓          |
 | Status → `open`               | ✗ (admin only) | ✓ (already open — no-op)  | ✗ (admin only)            | ✗          |
-| Status → `closed`             | ✓              | ✓                         | ✓ (no-op)                 | ✗          |
+| Status → `closed`             | ✗ (never)      | ✓                         | ✓ (no-op)                 | ✗          |
 | Status → `draft`              | ✓              | only with no applications | only with no applications | ✗          |
 | Delete the position           | admin only     | admin only                | admin only                | admin only |
 
@@ -189,8 +191,6 @@ The one place a manager is shown records outside `buildReviewablePositionWhere` 
 
 The policy constrains future transitions only, so nothing here needs a data migration.
 
-| Deviation                                                                                                                                                                                                                                                                        | Where                                | Owner |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ | ----- |
-| `updatePosition` accepts any status → any status: a manager can unpublish a position with live applications, or "reopen" one past its `closesAt` and get a silent no-op                                                                                                          | `prisma/actions/position-actions.ts` | #526  |
-| `createPositionSchema` accepts `status: 'closed'`                                                                                                                                                                                                                                | `prisma/actions/position-actions.ts` | #526  |
-| `WORKFLOWS.md` XC-3 describes a profile-completeness redirect gate in `app/(main)/(auth)/layout.tsx` that no longer exists — that layout now only does `getCurrentUser` + `requireName`; the only completeness check left is the apply page's "Complete your profile first" card | `docs/WORKFLOWS.md`                  | #567  |
+| Deviation                                                                                                                                                                                                                                                                        | Where               | Owner |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- | ----- |
+| `WORKFLOWS.md` XC-3 describes a profile-completeness redirect gate in `app/(main)/(auth)/layout.tsx` that no longer exists — that layout now only does `getCurrentUser` + `requireName`; the only completeness check left is the apply page's "Complete your profile first" card | `docs/WORKFLOWS.md` | #567  |
