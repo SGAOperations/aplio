@@ -27,7 +27,6 @@ interface ApplicationsToolbarProps {
   applicants: ReviewableApplicant[];
   filters: ApplicationFilters;
   hasActiveFilters: boolean;
-  draftCount: number;
 }
 
 export function ApplicationsToolbar({
@@ -35,7 +34,6 @@ export function ApplicationsToolbar({
   applicants,
   filters,
   hasActiveFilters,
-  draftCount,
 }: ApplicationsToolbarProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -199,7 +197,6 @@ export function ApplicationsToolbar({
             {APPLICATION_STATUS_OPTIONS.map((opt) => (
               <SelectItem key={opt.value} value={opt.value}>
                 {opt.label}
-                {opt.value === 'draft' && draftCount > 0 && ` (${draftCount})`}
               </SelectItem>
             ))}
           </SelectContent>

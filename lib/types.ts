@@ -169,6 +169,12 @@ export type DraftApplicationListItem = Prisma.ApplicationGetPayload<{
   };
 }>;
 
+// Per-row discriminant so ApplicationsTable can mix admin and draft rows on
+// one page instead of switching its whole column set between the two.
+export type ApplicationTableRow =
+  | ({ isDraft: false } & AdminApplicationListItem)
+  | ({ isDraft: true } & DraftApplicationListItem);
+
 // Structural, so the window helper needs no conversion at its call sites.
 export type PositionWindow = {
   status: PositionStatus;

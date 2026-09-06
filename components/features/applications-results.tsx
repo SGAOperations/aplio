@@ -1,6 +1,8 @@
 import 'server-only';
 
 import {
+  getAllApplications,
+  getAllDraftApplications,
   getApplications,
   getApplicationsCount,
   getDraftApplications,
@@ -9,7 +11,11 @@ import {
 
 import { APPLICATIONS_PAGE_SIZE } from '@/lib/constants';
 import { STATE_ICONS } from '@/lib/icons';
-import type { ApplicationFilters, Reviewer } from '@/lib/types';
+import type {
+  ApplicationFilters,
+  ApplicationTableRow,
+  Reviewer,
+} from '@/lib/types';
 
 import { ApplicationsPagination } from '@/components/features/applications-pagination';
 import { ApplicationsTable } from '@/components/features/applications-table';
@@ -61,6 +67,25 @@ async function fetchPage<T>(
   };
 }
 
+// Slices an already-merged, already-ordered in-memory array — the default
+// (no status filter) view has no single query to paginate at the DB level,
+// since it unions two purpose-built, differently-scoped queries.
+function paginateRows<T>(rows: T[], page: number) {
+  const total = rows.length;
+  const totalPages = Math.max(1, Math.ceil(total / APPLICATIONS_PAGE_SIZE));
+  const currentPage = total > 0 && page > totalPages ? totalPages : page;
+  const start = (currentPage - 1) * APPLICATIONS_PAGE_SIZE;
+
+  return {
+    rows: rows.slice(start, start + APPLICATIONS_PAGE_SIZE),
+    total,
+    totalPages,
+    currentPage,
+    rangeStart: total === 0 ? 0 : start + 1,
+    rangeEnd: Math.min(currentPage * APPLICATIONS_PAGE_SIZE, total),
+  };
+}
+
 export async function ApplicationsResults({
   user,
   filters,
@@ -106,13 +131,53 @@ export async function ApplicationsResults({
     );
   }
 
+  // No status filter (the default/"all" view) — merge drafts in with
+  // everything else rather than requiring the "Draft" filter to see them.
+  // Two purpose-built queries, same as the explicit-filter branches below;
+  // only the merge/sort/paginate happens here.
+  if (!filters.status) {
+    const [allDrafts, allApplications] = await Promise.all([
+      getAllDraftApplications(user, filters),
+      getAllApplications(user, filters),
+    ]);
+
+    // Both arrays are already ordered (updatedAt desc / submittedAt desc), so
+    // concatenating clusters drafts at the front without re-sorting.
+    const merged: ApplicationTableRow[] = [
+      ...allDrafts.map((a) => ({ ...a, isDraft: true as const })),
+      ...allApplications.map((a) => ({ ...a, isDraft: false as const })),
+    ];
+
+    const { rows, total, totalPages, currentPage, rangeStart, rangeEnd } =
+      paginateRows(merged, page);
+
+    return (
+      <div className="flex flex-col gap-3">
+        <ApplicationsTable
+          applications={rows}
+          hasActiveFilters={hasActiveFilters}
+          sort={filters.sort}
+        />
+        <ApplicationsPagination
+          filters={filters}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          total={total}
+          rangeStart={rangeStart}
+          rangeEnd={rangeEnd}
+          hasActiveFilters={hasActiveFilters}
+        />
+      </div>
+    );
+  }
+
   const { rows, total, totalPages, currentPage, rangeStart, rangeEnd } =
     await fetchPage(getApplicationsCount, getApplications, user, filters, page);
 
   return (
     <div className="flex flex-col gap-3">
       <ApplicationsTable
-        applications={rows}
+        applications={rows.map((a) => ({ ...a, isDraft: false as const }))}
         hasActiveFilters={hasActiveFilters}
         sort={filters.sort}
       />

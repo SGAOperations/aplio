@@ -545,6 +545,26 @@ export async function getApplicationsCount(
   });
 }
 
+// Unpaginated — only for merging with getAllDraftApplications in the default
+// (no status filter) view, where the merged array is paginated in memory.
+export async function getAllApplications(
+  user: Reviewer,
+  filters: ApplicationFilters,
+): Promise<AdminApplicationListItem[]> {
+  return prisma.application.findMany({
+    where: buildApplicationListWhere(user, filters),
+    select: {
+      id: true,
+      status: true,
+      submittedAt: true,
+      applicantName: true,
+      position: { select: { id: true, title: true } },
+      user: { select: { id: true, name: true, email: true } },
+    },
+    orderBy: buildApplicationListOrderBy(filters.sort),
+  });
+}
+
 // Shared by getDraftApplications and getDraftApplicationsCount. No date
 // branch — a draft has no meaningful submittedAt to search on.
 function buildDraftListWhere(
@@ -626,6 +646,25 @@ export async function getDraftApplicationsCount(
 ): Promise<number> {
   return prisma.application.count({
     where: buildDraftListWhere(user, filters),
+  });
+}
+
+// Unpaginated — only for merging with getAllApplications in the default (no
+// status filter) view, where the merged array is paginated in memory.
+export async function getAllDraftApplications(
+  user: Reviewer,
+  filters: ApplicationFilters,
+): Promise<DraftApplicationListItem[]> {
+  return prisma.application.findMany({
+    where: buildDraftListWhere(user, filters),
+    select: {
+      id: true,
+      createdAt: true,
+      updatedAt: true,
+      position: { select: { id: true, title: true } },
+      user: { select: { id: true, name: true, email: true } },
+    },
+    orderBy: buildDraftListOrderBy(filters.sort),
   });
 }
 

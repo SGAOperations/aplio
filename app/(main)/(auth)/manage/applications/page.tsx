@@ -4,7 +4,6 @@ import { Suspense } from 'react';
 import { z } from 'zod/v4';
 
 import {
-  getDraftApplicationsCount,
   getReviewableApplicants,
   getReviewablePositions,
 } from '@/prisma/data/applications';
@@ -85,10 +84,9 @@ export default async function ApplicationsPage({
     filters.sort
   );
 
-  const [positions, applicants, draftCount] = await Promise.all([
+  const [positions, applicants] = await Promise.all([
     getReviewablePositions(user),
     getReviewableApplicants(user),
-    getDraftApplicationsCount(user, { ...filters, status: undefined }),
   ]);
 
   return (
@@ -103,7 +101,6 @@ export default async function ApplicationsPage({
         applicants={applicants}
         filters={filters}
         hasActiveFilters={hasActiveFilters}
-        draftCount={draftCount}
       />
 
       <Suspense
