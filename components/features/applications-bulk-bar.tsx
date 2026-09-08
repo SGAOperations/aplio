@@ -91,6 +91,8 @@ export function ApplicationsBulkBar({
   const emailRecipientCount = isDecision
     ? countBulkEmailRecipients(selected, status)
     : 0;
+  // Same set for a decision — one number shown across title, trigger, and confirm.
+  const displayCount = isDecision ? emailRecipientCount : eligibleCount;
   const emailWarning = isDecision
     ? getBulkDecisionEmailWarning(emailRecipientCount, statusLabel)
     : null;
@@ -193,7 +195,7 @@ export function ApplicationsBulkBar({
           size="sm"
           variant={isRejecting ? 'destructive' : 'default'}
           onClick={() => setConfirmOpen(true)}
-          disabled={isPending || !status || eligibleCount === 0}
+          disabled={isPending || !status || displayCount === 0}
           aria-describedby={skippedLabel ? HINT_ID : undefined}
         >
           {isPending ? (
@@ -202,7 +204,7 @@ export function ApplicationsBulkBar({
               Applying...
             </>
           ) : (
-            `Apply to ${eligibleCount}`
+            `Apply to ${displayCount}`
           )}
         </Button>
       </div>
@@ -212,8 +214,8 @@ export function ApplicationsBulkBar({
         onOpenChange={setConfirmOpen}
         title={
           isRejecting
-            ? `Reject ${eligibleCount} ${applicationNoun(eligibleCount)}?`
-            : `Set ${eligibleCount} ${applicationNoun(eligibleCount)} to ${statusLabel}?`
+            ? `Reject ${displayCount} ${applicationNoun(displayCount)}?`
+            : `Set ${displayCount} ${applicationNoun(displayCount)} to ${statusLabel}?`
         }
         description={
           <div className="flex flex-col gap-2">
@@ -245,7 +247,7 @@ export function ApplicationsBulkBar({
         }
         confirmLabel={
           isDecision
-            ? `${isRejecting ? 'Reject' : 'Accept'} ${emailRecipientCount} and send email`
+            ? `${isRejecting ? 'Reject' : 'Accept'} ${displayCount} and send email`
             : `Set to ${statusLabel}`
         }
         pendingLabel={isRejecting ? 'Rejecting…' : 'Updating…'}

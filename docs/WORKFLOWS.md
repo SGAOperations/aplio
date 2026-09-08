@@ -498,7 +498,7 @@ A user who manages at least one non-deleted position. Manager status is **derive
   - The applicant has no other applications (the common case early on) → "No other applications" / "This is the only position this applicant has applied to recently."
   - No `EmailLog` row carries this application's id → "No emails yet" / "Nothing has been emailed to this applicant about this application."
   - A bounced row → a badge and sentence distinct from a delivered row, and further distinct by bounce type: "The address rejected it permanently — the applicant did not receive this." (`Permanent`) vs. "Temporarily undeliverable — the applicant did not receive this." (`Transient`, or anything else).
-  - A decision email queued by [PM-14](#pm-14-override-a-status-undo-or-review-its-history)'s ~15-minute delay, not yet sent → shown as **Scheduled**, with the sentence "Not sent yet. Changing this application's status again cancels it."
+  - A decision email queued by [PM-14](#pm-14-override-a-status-undo-or-review-its-history)'s ~10-second self-managed delay, not yet sent → shown as **Scheduled**, with the sentence "Not sent yet. Changing this application's status again cancels it."
 - **End state** — read-only until a transition is made.
 
 ### PM-10 Download an applicant's file answer

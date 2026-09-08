@@ -741,7 +741,7 @@ export function classifyDecisionEmailStatus(
   }
 }
 
-/** Same predicate updateApplicationStatuses uses — right even when it differs from the bulk bar's coarser eligibleCount. */
+/** Same predicate updateApplicationStatuses uses server-side. */
 export function countBulkEmailRecipients(
   rows: { status: $Enums.ApplicationStatus }[],
   target: $Enums.ApplicationStatus,
