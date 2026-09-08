@@ -21,7 +21,7 @@ import {
   formatPaginationSummary,
   formatTableCount,
   getApplicantName,
-  getBulkImmediateEmailWarning,
+  getBulkDecisionEmailWarning,
   getDecisionEmailWarning,
   getEmailLogDescription,
   getEmailLogOccurredAt,
@@ -1482,17 +1482,18 @@ describe('getDecisionEmailWarning', () => {
   });
 });
 
-describe('getBulkImmediateEmailWarning', () => {
+describe('getBulkDecisionEmailWarning', () => {
   it('uses singular copy for one recipient', () => {
-    const warning = getBulkImmediateEmailWarning(1);
-    expect(warning.lead).toBe('This email sends immediately.');
-    expect(warning.detail).toContain('the applicant has been told');
+    const warning = getBulkDecisionEmailWarning(1, 'Accepted');
+    expect(warning.lead).toBe('1 application will be emailed.');
+    expect(warning.detail).toContain('Accepted');
+    expect(warning.detail).toContain('Undo within 10 seconds to cancel.');
   });
 
   it('uses plural copy with the count for several recipients', () => {
-    const warning = getBulkImmediateEmailWarning(23);
-    expect(warning.lead).toBe('These 23 emails send immediately.');
-    expect(warning.detail).toContain('the applicants have been told');
+    const warning = getBulkDecisionEmailWarning(23, 'Rejected');
+    expect(warning.lead).toBe('23 applications will be emailed.');
+    expect(warning.detail).toContain('Rejected');
   });
 });
 

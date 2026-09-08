@@ -6,8 +6,13 @@ import {
   DECISION_EMAIL_DELAY_SECONDS,
   DECISION_EMAIL_TEMPLATES,
 } from '@/lib/constants';
-import { getResend } from '@/lib/email/client';
-import { sendEmail, sendEmailBatch } from '@/lib/email/resend';
+import { delay } from '@/lib/delay';
+import {
+  createScheduledEmailLog,
+  sendEmail,
+  sendScheduledEmailBatch,
+  sendScheduledEmailLog,
+} from '@/lib/email/resend';
 import {
   applicationAcceptedEmail,
   applicationReceivedEmail,
@@ -76,48 +81,19 @@ export async function sendApplicationReceipt(recipient: {
   }
 }
 
-// Returns the applicationIds whose pending send couldn't be verified
-// cancelled, so a caller never schedules a competing send on top of one
-// still live in Resend.
-export async function cancelPendingDecisionEmails(
+// Pure DB write — Resend is never told about a still-`scheduled` row until
+// the self-managed wait actually elapses, so there is nothing on the
+// provider side to cancel. Covers both the single-decision and bulk paths,
+// since both create their pending rows the same way.
+async function cancelPendingDecisionEmails(
   applicationIds: string[],
-): Promise<Set<string>> {
-  if (applicationIds.length === 0) return new Set();
+): Promise<void> {
+  if (applicationIds.length === 0) return;
 
-  const pending = await prisma.emailLog.findMany({
-    where: {
-      applicationId: { in: applicationIds },
-      status: 'scheduled',
-      providerMessageId: { not: null },
-    },
-    select: { id: true, applicationId: true, providerMessageId: true },
+  await prisma.emailLog.updateMany({
+    where: { applicationId: { in: applicationIds }, status: 'scheduled' },
+    data: { status: 'cancelled' },
   });
-
-  if (pending.length === 0) return new Set();
-
-  const resend = getResend();
-  const uncancelled = new Set<string>();
-  for (const row of pending) {
-    if (!row.providerMessageId) continue;
-    try {
-      const { error } = await resend.emails.cancel(row.providerMessageId);
-      if (error) throw new Error(error.message);
-      await prisma.emailLog.update({
-        where: { id: row.id },
-        data: { status: 'cancelled' },
-      });
-    } catch (err) {
-      if (row.applicationId) uncancelled.add(row.applicationId);
-      // Best-effort: the mail almost certainly already went out. Leave the row
-      // `scheduled` so a later delivered webhook can still upgrade it, and so
-      // the next status change on this application retries the cancel.
-      await prisma.emailLog.update({
-        where: { id: row.id },
-        data: { error: err instanceof Error ? err.message : String(err) },
-      });
-    }
-  }
-  return uncancelled;
 }
 
 // Applications with a decision email that has already left Resend's control —
@@ -144,6 +120,10 @@ async function applicationsWithDispatchedDecisionEmail(
 
 // Covers the quick actions, the override Select, and undo alike — cancel
 // first so a re-applied decision after a cancel is always a fresh schedule.
+// The delay is entirely ours: the row goes `scheduled` up front, this
+// function waits the window out in-process, then re-reads the row before
+// ever telling Resend about the email — undo during the wait is just the
+// cancel above flipping the row, no provider round-trip for either side to lose.
 export async function dispatchDecisionEmail({
   recipient,
   status,
@@ -152,15 +132,9 @@ export async function dispatchDecisionEmail({
   status: $Enums.ApplicationStatus;
 }): Promise<void> {
   try {
-    const uncancelled = await cancelPendingDecisionEmails([
-      recipient.applicationId,
-    ]);
+    await cancelPendingDecisionEmails([recipient.applicationId]);
 
     if (!isDecisionStatus(status)) return;
-
-    // A prior schedule that couldn't be verified cancelled may still fire in
-    // Resend — scheduling another here would double-send the applicant.
-    if (uncancelled.has(recipient.applicationId)) return;
 
     const dispatched = await applicationsWithDispatchedDecisionEmail([
       recipient.applicationId,
@@ -168,19 +142,29 @@ export async function dispatchDecisionEmail({
     if (dispatched.has(recipient.applicationId)) return;
 
     const { subject, html, text } = decisionEmailTemplate(status, recipient);
-    const scheduledAt = new Date(
-      Date.now() + DECISION_EMAIL_DELAY_SECONDS * 1000,
-    );
+    const logId = await createScheduledEmailLog({
+      to: recipient.to,
+      userId: recipient.userId,
+      applicationId: recipient.applicationId,
+      template: DECISION_EMAIL_TEMPLATES[status],
+      subject,
+      scheduledAt: new Date(Date.now() + DECISION_EMAIL_DELAY_SECONDS * 1000),
+    });
 
-    await sendEmail({
+    await delay(DECISION_EMAIL_DELAY_SECONDS * 1000);
+
+    const current = await prisma.emailLog.findUnique({
+      where: { id: logId },
+      select: { status: true },
+    });
+    if (current?.status !== 'scheduled') return; // undone during the wait
+
+    await sendScheduledEmailLog({
+      logId,
       to: recipient.to,
       subject,
       html,
       text,
-      template: DECISION_EMAIL_TEMPLATES[status],
-      userId: recipient.userId,
-      applicationId: recipient.applicationId,
-      scheduledAt,
     });
   } catch {
     // Already recorded as an EmailLog row — the status change must never be undone by a mail failure.
@@ -189,7 +173,8 @@ export async function dispatchDecisionEmail({
 
 // Eligibility isn't forward-only, so a bulk move can land on a row that still
 // holds a pending single-decision send — cancel first, same as
-// dispatchDecisionEmail, and skip anything that can't be verified cancelled.
+// dispatchDecisionEmail. Same self-managed wait as the single path, just one
+// shared wait for the whole batch and one resend.batch.send at the end of it.
 export async function dispatchBulkDecisionEmails({
   recipients,
   status,
@@ -201,29 +186,47 @@ export async function dispatchBulkDecisionEmails({
 
   try {
     const applicationIds = recipients.map((r) => r.applicationId);
-    const uncancelled = await cancelPendingDecisionEmails(applicationIds);
+    await cancelPendingDecisionEmails(applicationIds);
+
     const dispatched =
       await applicationsWithDispatchedDecisionEmail(applicationIds);
-    const eligible = recipients.filter(
-      (r) =>
-        !dispatched.has(r.applicationId) && !uncancelled.has(r.applicationId),
-    );
+    const eligible = recipients.filter((r) => !dispatched.has(r.applicationId));
     if (eligible.length === 0) return;
 
-    const entries = eligible.map((recipient) => {
-      const { subject, html, text } = decisionEmailTemplate(status, recipient);
-      return {
-        to: recipient.to,
-        subject,
-        html,
-        text,
-        template: DECISION_EMAIL_TEMPLATES[status],
-        userId: recipient.userId,
-        applicationId: recipient.applicationId,
-      };
-    });
+    const scheduledAt = new Date(
+      Date.now() + DECISION_EMAIL_DELAY_SECONDS * 1000,
+    );
+    const prepared = await Promise.all(
+      eligible.map(async (recipient) => {
+        const { subject, html, text } = decisionEmailTemplate(
+          status,
+          recipient,
+        );
+        const logId = await createScheduledEmailLog({
+          to: recipient.to,
+          userId: recipient.userId,
+          applicationId: recipient.applicationId,
+          template: DECISION_EMAIL_TEMPLATES[status],
+          subject,
+          scheduledAt,
+        });
+        return { logId, to: recipient.to, subject, html, text };
+      }),
+    );
 
-    await sendEmailBatch(entries);
+    await delay(DECISION_EMAIL_DELAY_SECONDS * 1000);
+
+    // Re-reads which rows survived the wait — an undo during it already
+    // flipped its row to `cancelled` via cancelPendingDecisionEmails.
+    const stillScheduled = await prisma.emailLog.findMany({
+      where: { id: { in: prepared.map((p) => p.logId) }, status: 'scheduled' },
+      select: { id: true },
+    });
+    const liveIds = new Set(stillScheduled.map((l) => l.id));
+    const toSend = prepared.filter((p) => liveIds.has(p.logId));
+    if (toSend.length === 0) return;
+
+    await sendScheduledEmailBatch(toSend);
   } catch {
     // Already recorded as EmailLog rows — a batch failure must never undo the status change.
   }

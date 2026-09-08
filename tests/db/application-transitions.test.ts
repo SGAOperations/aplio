@@ -305,7 +305,15 @@ describe('updateApplicationStatuses bulk mixed selections', () => {
       applicationIds: [appliedApp.id, acceptedApp.id],
       status: 'reviewing',
     });
-    expect(result).toEqual({ updated: 2, skipped: 0 });
+    if (isError(result)) throw new Error('expected success');
+    expect(result.updated).toBe(2);
+    expect(result.skipped).toBe(0);
+    expect(result.reversions).toEqual(
+      expect.arrayContaining([
+        { applicationId: appliedApp.id, status: 'applied' },
+        { applicationId: acceptedApp.id, status: 'accepted' },
+      ]),
+    );
 
     const updatedApplied = await prisma.application.findUniqueOrThrow({
       where: { id: appliedApp.id },
@@ -392,7 +400,15 @@ describe('updateApplicationStatuses bulk mixed selections', () => {
       applicationIds: [appliedApp.id, reachedOutApp.id],
       status: 'accepted',
     });
-    expect(result).toEqual({ updated: 2, skipped: 0 });
+    if (isError(result)) throw new Error('expected success');
+    expect(result.updated).toBe(2);
+    expect(result.skipped).toBe(0);
+    expect(result.reversions).toEqual(
+      expect.arrayContaining([
+        { applicationId: appliedApp.id, status: 'applied' },
+        { applicationId: reachedOutApp.id, status: 'reached_out' },
+      ]),
+    );
 
     const events = await prisma.applicationStatusEvent.findMany({
       where: { applicationId: { in: [appliedApp.id, reachedOutApp.id] } },
@@ -423,7 +439,15 @@ describe('updateApplicationStatuses bulk mixed selections', () => {
       applicationIds: [reachedOutApp.id, reviewingApp.id],
       status: 'applied',
     });
-    expect(result).toEqual({ updated: 2, skipped: 0 });
+    if (isError(result)) throw new Error('expected success');
+    expect(result.updated).toBe(2);
+    expect(result.skipped).toBe(0);
+    expect(result.reversions).toEqual(
+      expect.arrayContaining([
+        { applicationId: reachedOutApp.id, status: 'reached_out' },
+        { applicationId: reviewingApp.id, status: 'reviewing' },
+      ]),
+    );
 
     const updatedReachedOut = await prisma.application.findUniqueOrThrow({
       where: { id: reachedOutApp.id },
@@ -436,6 +460,52 @@ describe('updateApplicationStatuses bulk mixed selections', () => {
       select: { status: true },
     });
     expect(movedBackReviewing.status).toBe('applied');
+  });
+
+  it('reverts each row to its own individual prior status, not one target for the whole batch', async () => {
+    const appliedApplicant = await createTestUser();
+    const appliedApp = await createTestApplication(
+      appliedApplicant,
+      openPosition,
+      { status: 'applied' },
+    );
+    const reachedOutApplicant = await createTestUser();
+    const reachedOutApp = await createTestApplication(
+      reachedOutApplicant,
+      openPosition,
+      { status: 'reached_out' },
+    );
+
+    actAs(admin);
+    const result = await updateApplicationStatuses({
+      applicationIds: [appliedApp.id, reachedOutApp.id],
+      status: 'reviewing',
+    });
+    if (isError(result)) throw new Error('expected success');
+
+    // The client's undo loop: one updateApplicationStatus call per row,
+    // each back to its own reversions entry rather than a shared target.
+    await Promise.all(
+      result.reversions.map((r) =>
+        updateApplicationStatus({
+          applicationId: r.applicationId,
+          status: r.status,
+          override: true,
+        }),
+      ),
+    );
+
+    const revertedApplied = await prisma.application.findUniqueOrThrow({
+      where: { id: appliedApp.id },
+      select: { status: true },
+    });
+    expect(revertedApplied.status).toBe('applied');
+
+    const revertedReachedOut = await prisma.application.findUniqueOrThrow({
+      where: { id: reachedOutApp.id },
+      select: { status: true },
+    });
+    expect(revertedReachedOut.status).toBe('reached_out');
   });
 });
 

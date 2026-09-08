@@ -698,22 +698,22 @@ export function getDecisionEmailWarning(name?: string): string {
   return `${subject} will be emailed in ${DECISION_EMAIL_DELAY_SECONDS} seconds. Undo on the confirmation toast and nothing is sent.`;
 }
 
-export type BulkImmediateEmailWarning = {
+export type BulkDecisionEmailWarning = {
   count: number;
   lead: string;
   detail: string;
 };
 
-/** Bulk decisions have no window — always immediate, whatever the count. */
-export function getBulkImmediateEmailWarning(
+/** Bulk decisions get the same self-managed delay+undo as a single one now. */
+export function getBulkDecisionEmailWarning(
   count: number,
-): BulkImmediateEmailWarning {
+  statusLabel: string,
+): BulkDecisionEmailWarning {
   const isSingular = count === 1;
   const lead = isSingular
-    ? 'This email sends immediately.'
-    : `These ${count} emails send immediately.`;
-  const told = isSingular ? 'the applicant has' : 'the applicants have';
-  const detail = `There is no undo — once you confirm, ${told} been told. Accepting or rejecting one at a time gives a ${DECISION_EMAIL_DELAY_SECONDS}-second undo window; this does not.`;
+    ? '1 application will be emailed.'
+    : `${count} applications will be emailed.`;
+  const detail = `They'll see ${statusLabel} on their application and can no longer withdraw it. Undo within ${DECISION_EMAIL_DELAY_SECONDS} seconds to cancel.`;
   return { count, lead, detail };
 }
 

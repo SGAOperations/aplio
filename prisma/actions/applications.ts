@@ -7,6 +7,7 @@ import { z } from 'zod/v4';
 
 import { Prisma } from '@/prisma/client';
 import type {
+  $Enums,
   GlobalAnswer,
   GlobalApplicationAnswer,
   GlobalQuestion,
@@ -624,9 +625,17 @@ const updateApplicationStatusesSchema = z.object({
 });
 
 // Authorization in the updateMany where, so the target set can't drift mid-write.
-export async function updateApplicationStatuses(
-  input: unknown,
-): Promise<{ updated: number; skipped: number } | { error: string }> {
+export async function updateApplicationStatuses(input: unknown): Promise<
+  | {
+      updated: number;
+      skipped: number;
+      // Each updated row's status just before this move — the client's only
+      // way to revert a bulk move to where each application actually came
+      // from, since a batch can mix forward, backward, and final-decision rows.
+      reversions: { applicationId: string; status: $Enums.ApplicationStatus }[];
+    }
+  | { error: string }
+> {
   const user = await getCurrentUser();
 
   const parsed = updateApplicationStatusesSchema.safeParse(input);
@@ -636,56 +645,66 @@ export async function updateApplicationStatuses(
   const applicationIds = Array.from(new Set(parsed.data.applicationIds));
   const { status } = parsed.data;
 
-  const { eligible, updatedIds } = await prisma.$transaction(async (tx) => {
-    // Any reviewer status but the target itself is eligible — forward,
-    // backward, or a final decision; captured with its status for the event's `from`.
-    const eligible = await tx.application.findMany({
-      where: {
-        id: { in: applicationIds },
-        ...buildApplicationScopeWhere(user),
-        status: { notIn: [...NON_REVIEWABLE_APPLICATION_STATUSES, status] },
-      },
-      select: {
-        id: true,
-        status: true,
-        userId: true,
-        applicantName: true,
-        user: { select: { email: true } },
-        position: { select: { title: true } },
-      },
-    });
-
-    if (eligible.length === 0) return { eligible, updatedIds: [] };
-
-    // Per-row (id, status) pairs keep the CAS on the bulk path too — a
-    // concurrently-moved row is dropped rather than getting a wrong `from`.
-    const updated = await tx.application.updateManyAndReturn({
-      where: {
-        AND: [
-          buildApplicationScopeWhere(user),
-          {
-            OR: eligible.map(({ id, status: from }) => ({ id, status: from })),
-          },
-        ],
-      },
-      data: { status, updatedById: user.id },
-      select: { id: true },
-    });
-
-    if (updated.length > 0) {
-      const priorStatusById = new Map(eligible.map((a) => [a.id, a.status]));
-      await tx.applicationStatusEvent.createMany({
-        data: updated.map((a) => ({
-          applicationId: a.id,
-          from: priorStatusById.get(a.id)!,
-          to: status,
-          changedById: user.id,
-        })),
+  const { eligible, updatedIds, priorStatusById } = await prisma.$transaction(
+    async (tx) => {
+      // Any reviewer status but the target itself is eligible — forward,
+      // backward, or a final decision; captured with its status for the event's `from`.
+      const eligible = await tx.application.findMany({
+        where: {
+          id: { in: applicationIds },
+          ...buildApplicationScopeWhere(user),
+          status: { notIn: [...NON_REVIEWABLE_APPLICATION_STATUSES, status] },
+        },
+        select: {
+          id: true,
+          status: true,
+          userId: true,
+          applicantName: true,
+          user: { select: { email: true } },
+          position: { select: { title: true } },
+        },
       });
-    }
 
-    return { eligible, updatedIds: updated.map((a) => a.id) };
-  });
+      const priorStatusById = new Map(eligible.map((a) => [a.id, a.status]));
+
+      if (eligible.length === 0)
+        return { eligible, updatedIds: [], priorStatusById };
+
+      // Per-row (id, status) pairs keep the CAS on the bulk path too — a
+      // concurrently-moved row is dropped rather than getting a wrong `from`.
+      const updated = await tx.application.updateManyAndReturn({
+        where: {
+          AND: [
+            buildApplicationScopeWhere(user),
+            {
+              OR: eligible.map(({ id, status: from }) => ({
+                id,
+                status: from,
+              })),
+            },
+          ],
+        },
+        data: { status, updatedById: user.id },
+        select: { id: true },
+      });
+
+      if (updated.length > 0)
+        await tx.applicationStatusEvent.createMany({
+          data: updated.map((a) => ({
+            applicationId: a.id,
+            from: priorStatusById.get(a.id)!,
+            to: status,
+            changedById: user.id,
+          })),
+        });
+
+      return {
+        eligible,
+        updatedIds: updated.map((a) => a.id),
+        priorStatusById,
+      };
+    },
+  );
 
   if (eligible.length === 0)
     return {
@@ -717,6 +736,10 @@ export async function updateApplicationStatuses(
   return {
     updated: updatedIds.length,
     skipped: applicationIds.length - updatedIds.length,
+    reversions: updatedIds.map((id) => ({
+      applicationId: id,
+      status: priorStatusById.get(id)!,
+    })),
   };
 }
 

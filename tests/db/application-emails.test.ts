@@ -28,17 +28,14 @@ import type { Position, User } from '@/prisma/client';
 
 import { RESEND_BATCH_MAX_EMAILS } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
+import { isError } from '@/lib/utils';
 
 const mockSend = vi.fn();
-const mockCancel = vi.fn();
 const mockBatchSend = vi.fn();
 
 vi.mock('resend', () => ({
   Resend: class {
-    emails = {
-      send: (...args: unknown[]) => mockSend(...args),
-      cancel: (...args: unknown[]) => mockCancel(...args),
-    };
+    emails = { send: (...args: unknown[]) => mockSend(...args) };
     batch = { send: (...args: unknown[]) => mockBatchSend(...args) };
   },
 }));
@@ -62,7 +59,30 @@ async function flushAfter(): Promise<void> {
   await Promise.all(tasks.map((task) => task()));
 }
 
-const { sendEmailBatch } = await import('@/lib/email/resend');
+// Real by default (resolves immediately, see tests/stubs/delay.ts) — overridden
+// per test below to pause dispatch mid-wait for the undo-races-the-send cases.
+const mockDelay = vi.fn<(ms: number) => Promise<void>>(() => Promise.resolve());
+vi.mock('@/lib/delay', () => ({ delay: (ms: number) => mockDelay(ms) }));
+
+// Resolves once `delay()` has actually been called — i.e. every DB write
+// before the wait (the scheduled row, the eligibility checks) has already
+// happened — and returns a `release` to let the paused dispatch continue.
+function pauseDelay(): { called: Promise<void>; release: () => void } {
+  let notifyCalled: (() => void) | undefined;
+  const called = new Promise<void>((resolve) => {
+    notifyCalled = resolve;
+  });
+  let release: (() => void) | undefined;
+  mockDelay.mockImplementationOnce(() => {
+    notifyCalled?.();
+    return new Promise<void>((resolve) => {
+      release = resolve;
+    });
+  });
+  return { called, release: () => release?.() };
+}
+
+const { sendScheduledEmailBatch } = await import('@/lib/email/resend');
 
 let admin: User;
 let manager: User;
@@ -83,13 +103,14 @@ afterAll(async () => {
 
 beforeEach(() => {
   mockSend.mockReset();
-  mockCancel.mockReset();
   mockBatchSend.mockReset();
+  mockDelay.mockReset();
+  mockDelay.mockImplementation(() => Promise.resolve());
   afterCallbacks.length = 0;
 });
 
 describe('single decision dispatch', () => {
-  it('schedules exactly one email on a single accept', async () => {
+  it('writes the row scheduled immediately, then sends once the wait elapses', async () => {
     mockSend.mockResolvedValueOnce({
       data: { id: 'resend-scheduled-1' },
       error: null,
@@ -107,18 +128,23 @@ describe('single decision dispatch', () => {
     expect(result).toBeUndefined();
     await flushAfter();
 
+    // Resend is only ever asked to send once the wait is over — not a
+    // scheduled-send call, hence no scheduledAt argument reaching it.
+    expect(mockSend).toHaveBeenCalledTimes(1);
+    expect(mockSend).toHaveBeenCalledWith(
+      expect.not.objectContaining({ scheduledAt: expect.anything() }),
+    );
+
     const logs = await prisma.emailLog.findMany({
       where: { applicationId: application.id },
     });
     expect(logs).toHaveLength(1);
     expect(logs[0]).toMatchObject({
-      status: 'scheduled',
+      status: 'sent',
       template: 'application_accepted',
       providerMessageId: 'resend-scheduled-1',
       applicationId: application.id,
     });
-    expect(logs[0]?.scheduledAt).not.toBeNull();
-    expect(mockSend).toHaveBeenCalledTimes(1);
   });
 
   it('sends nothing for an in-group move', async () => {
@@ -141,26 +167,32 @@ describe('single decision dispatch', () => {
     expect(mockSend).not.toHaveBeenCalled();
   });
 
-  it('cancels the pending send when undone inside the window', async () => {
-    mockSend.mockResolvedValueOnce({
-      data: { id: 'resend-scheduled-2' },
-      error: null,
-    });
-    mockCancel.mockResolvedValueOnce({
-      data: { id: 'resend-scheduled-2' },
-      error: null,
-    });
+  it('cancels the pending send when undone inside the window, with no provider round-trip at all', async () => {
     const applicant = await createTestUser();
     const application = await createTestApplication(applicant, position, {
       status: 'applied',
     });
+
+    const paused = pauseDelay();
 
     actAs(admin);
     await updateApplicationStatus({
       applicationId: application.id,
       status: 'accepted',
     });
-    await flushAfter();
+    const firstDispatch = flushAfter();
+    await paused.called;
+
+    // Row is `scheduled` and Resend has never been contacted — undo during
+    // this window is a pure DB flip, nothing to race.
+    const midWait = await prisma.emailLog.findFirstOrThrow({
+      where: {
+        applicationId: application.id,
+        template: 'application_accepted',
+      },
+    });
+    expect(midWait.status).toBe('scheduled');
+    expect(midWait.providerMessageId).toBeNull();
 
     await updateApplicationStatus({
       applicationId: application.id,
@@ -169,8 +201,10 @@ describe('single decision dispatch', () => {
     });
     await flushAfter();
 
-    expect(mockCancel).toHaveBeenCalledTimes(1);
-    expect(mockCancel).toHaveBeenCalledWith('resend-scheduled-2');
+    paused.release();
+    await firstDispatch;
+
+    expect(mockSend).not.toHaveBeenCalled();
 
     const log = await prisma.emailLog.findFirstOrThrow({
       where: {
@@ -179,57 +213,12 @@ describe('single decision dispatch', () => {
       },
     });
     expect(log.status).toBe('cancelled');
+    expect(log.providerMessageId).toBeNull();
   });
 
-  it('leaves the row scheduled with an error when cancel fails, and does not throw', async () => {
+  it('schedules exactly one live email through accept -> undo (inside window) -> accept again', async () => {
     mockSend.mockResolvedValueOnce({
-      data: { id: 'resend-scheduled-3' },
-      error: null,
-    });
-    mockCancel.mockRejectedValueOnce(new Error('already delivered'));
-    const applicant = await createTestUser();
-    const application = await createTestApplication(applicant, position, {
-      status: 'applied',
-    });
-
-    actAs(admin);
-    await updateApplicationStatus({
-      applicationId: application.id,
-      status: 'accepted',
-    });
-    await flushAfter();
-
-    await expect(
-      updateApplicationStatus({
-        applicationId: application.id,
-        status: 'reviewing',
-        override: true,
-      }),
-    ).resolves.toBeUndefined();
-    await expect(flushAfter()).resolves.toBeUndefined();
-
-    const log = await prisma.emailLog.findFirstOrThrow({
-      where: {
-        applicationId: application.id,
-        template: 'application_accepted',
-      },
-    });
-    expect(log.status).toBe('scheduled');
-    expect(log.error).toBe('already delivered');
-  });
-
-  it('schedules exactly one live email through accept -> undo -> accept again', async () => {
-    mockSend
-      .mockResolvedValueOnce({
-        data: { id: 'resend-scheduled-4a' },
-        error: null,
-      })
-      .mockResolvedValueOnce({
-        data: { id: 'resend-scheduled-4b' },
-        error: null,
-      });
-    mockCancel.mockResolvedValueOnce({
-      data: { id: 'resend-scheduled-4a' },
+      data: { id: 'resend-scheduled-4b' },
       error: null,
     });
     const applicant = await createTestUser();
@@ -237,12 +226,15 @@ describe('single decision dispatch', () => {
       status: 'applied',
     });
 
+    const paused = pauseDelay();
+
     actAs(admin);
     await updateApplicationStatus({
       applicationId: application.id,
       status: 'accepted',
     });
-    await flushAfter();
+    const firstDispatch = flushAfter();
+    await paused.called;
 
     await updateApplicationStatus({
       applicationId: application.id,
@@ -251,14 +243,17 @@ describe('single decision dispatch', () => {
     });
     await flushAfter();
 
+    paused.release();
+    await firstDispatch;
+
     await updateApplicationStatus({
       applicationId: application.id,
       status: 'accepted',
     });
     await flushAfter();
 
-    expect(mockSend).toHaveBeenCalledTimes(2);
-    expect(mockCancel).toHaveBeenCalledTimes(1);
+    // Only the second accept ever reaches Resend — the cancelled one never did.
+    expect(mockSend).toHaveBeenCalledTimes(1);
 
     const logs = await prisma.emailLog.findMany({
       where: {
@@ -270,60 +265,11 @@ describe('single decision dispatch', () => {
     expect(logs).toHaveLength(2);
     expect(logs[0]).toMatchObject({
       status: 'cancelled',
-      providerMessageId: 'resend-scheduled-4a',
+      providerMessageId: null,
     });
     expect(logs[1]).toMatchObject({
-      status: 'scheduled',
+      status: 'sent',
       providerMessageId: 'resend-scheduled-4b',
-    });
-  });
-
-  it('does not schedule a second email when the prior cancel fails, avoiding a double send', async () => {
-    mockSend.mockResolvedValueOnce({
-      data: { id: 'resend-scheduled-5' },
-      error: null,
-    });
-    mockCancel.mockRejectedValue(new Error('already delivered'));
-    const applicant = await createTestUser();
-    const application = await createTestApplication(applicant, position, {
-      status: 'applied',
-    });
-
-    actAs(admin);
-    await updateApplicationStatus({
-      applicationId: application.id,
-      status: 'accepted',
-    });
-    await flushAfter();
-
-    await updateApplicationStatus({
-      applicationId: application.id,
-      status: 'reviewing',
-      override: true,
-    });
-    await flushAfter();
-
-    await updateApplicationStatus({
-      applicationId: application.id,
-      status: 'accepted',
-    });
-    await flushAfter();
-
-    // Only the original send — a second one would leave two live schedules
-    // in Resend, exactly the bug this gate prevents.
-    expect(mockSend).toHaveBeenCalledTimes(1);
-
-    const logs = await prisma.emailLog.findMany({
-      where: {
-        applicationId: application.id,
-        template: 'application_accepted',
-      },
-    });
-    expect(logs).toHaveLength(1);
-    expect(logs[0]).toMatchObject({
-      status: 'scheduled',
-      providerMessageId: 'resend-scheduled-5',
-      error: 'already delivered',
     });
   });
 
@@ -344,7 +290,7 @@ describe('single decision dispatch', () => {
     });
     await flushAfter();
 
-    // Simulates the delivery webhook upgrading the row past `scheduled`.
+    // Simulates the delivery webhook upgrading the row past `sent`.
     await prisma.emailLog.updateMany({
       where: {
         applicationId: application.id,
@@ -374,7 +320,6 @@ describe('single decision dispatch', () => {
     await flushAfter();
 
     expect(mockSend).toHaveBeenCalledTimes(1);
-    expect(mockCancel).not.toHaveBeenCalled();
 
     const logs = await prisma.emailLog.findMany({
       where: { applicationId: application.id },
@@ -445,7 +390,9 @@ describe('bulk decision dispatch', () => {
         applicationIds: [app1.id, app2.id],
         status: 'accepted',
       });
-      expect(result).toEqual({ updated: 2, skipped: 0 });
+      if (isError(result)) throw new Error('expected success');
+      expect(result.updated).toBe(2);
+      expect(result.skipped).toBe(0);
       await flushAfter();
 
       expect(mockBatchSend).toHaveBeenCalledTimes(1);
@@ -456,7 +403,6 @@ describe('bulk decision dispatch', () => {
       expect(logs).toHaveLength(2);
       for (const log of logs) {
         expect(log.status).toBe('sent');
-        expect(log.scheduledAt).toBeNull();
         expect(log.providerMessageId).not.toBeNull();
       }
       expect(new Set(logs.map((l) => l.providerMessageId))).toEqual(
@@ -464,6 +410,55 @@ describe('bulk decision dispatch', () => {
       );
     },
   );
+
+  it('cancels a bulk-scheduled send undone inside the window, with no provider round-trip', async () => {
+    const applicant1 = await createTestUser();
+    const applicant2 = await createTestUser();
+    const app1 = await createTestApplication(applicant1, position, {
+      status: 'applied',
+    });
+    const app2 = await createTestApplication(applicant2, position, {
+      status: 'applied',
+    });
+
+    const paused = pauseDelay();
+
+    actAs(admin);
+    const result = await updateApplicationStatuses({
+      applicationIds: [app1.id, app2.id],
+      status: 'accepted',
+    });
+    if (isError(result)) throw new Error('expected success');
+    const bulkDispatch = flushAfter();
+    await paused.called;
+
+    // Undo everything before the wait elapses — same single-move action per
+    // row, using the reversions the bulk action returned.
+    await Promise.all(
+      result.reversions.map((r) =>
+        updateApplicationStatus({
+          applicationId: r.applicationId,
+          status: r.status,
+          override: true,
+        }),
+      ),
+    );
+    await flushAfter();
+
+    paused.release();
+    await bulkDispatch;
+
+    expect(mockBatchSend).not.toHaveBeenCalled();
+
+    const logs = await prisma.emailLog.findMany({
+      where: { applicationId: { in: [app1.id, app2.id] } },
+    });
+    expect(logs).toHaveLength(2);
+    for (const log of logs) {
+      expect(log.status).toBe('cancelled');
+      expect(log.providerMessageId).toBeNull();
+    }
+  });
 
   it('skips a recipient whose decision email already reached sent, but still emails the rest', async () => {
     mockBatchSend.mockImplementationOnce((payload: unknown[]) =>
@@ -501,7 +496,9 @@ describe('bulk decision dispatch', () => {
       applicationIds: [app1.id, app2.id],
       status: 'rejected',
     });
-    expect(result).toEqual({ updated: 2, skipped: 0 });
+    if (isError(result)) throw new Error('expected success');
+    expect(result.updated).toBe(2);
+    expect(result.skipped).toBe(0);
     await flushAfter();
 
     expect(mockBatchSend).toHaveBeenCalledTimes(1);
@@ -533,15 +530,27 @@ describe('bulk decision dispatch', () => {
       }),
     );
 
-    const entries = Array.from({ length: RESEND_BATCH_MAX_EMAILS + 1 }, () => ({
-      to: `${TEST_PREFIX}${randomUUID()}@example.com`,
+    const rows = await Promise.all(
+      Array.from({ length: RESEND_BATCH_MAX_EMAILS + 1 }, () =>
+        prisma.emailLog.create({
+          data: {
+            to: `${TEST_PREFIX}${randomUUID()}@example.com`,
+            template: 'application_accepted',
+            subject: 'Subject',
+            status: 'scheduled',
+          },
+        }),
+      ),
+    );
+    const entries = rows.map((row) => ({
+      logId: row.id,
+      to: row.to,
       subject: 'Subject',
       html: '<p>hi</p>',
       text: 'hi',
-      template: 'application_accepted' as const,
     }));
 
-    await sendEmailBatch(entries);
+    await sendScheduledEmailBatch(entries);
 
     expect(mockBatchSend).toHaveBeenCalledTimes(2);
   });
@@ -555,18 +564,30 @@ describe('bulk decision dispatch', () => {
       error: null,
     });
 
-    const entries = [0, 1, 2].map((i) => ({
-      to: `${TEST_PREFIX}${randomUUID()}@example.com`,
+    const rows = await Promise.all(
+      [0, 1, 2].map((i) =>
+        prisma.emailLog.create({
+          data: {
+            to: `${TEST_PREFIX}${randomUUID()}@example.com`,
+            template: 'application_rejected',
+            subject: `Subject ${i}`,
+            status: 'scheduled',
+          },
+        }),
+      ),
+    );
+    const entries = rows.map((row, i) => ({
+      logId: row.id,
+      to: row.to,
       subject: `Subject ${i}`,
       html: '<p>hi</p>',
       text: 'hi',
-      template: 'application_rejected' as const,
     }));
 
-    await sendEmailBatch(entries);
+    await sendScheduledEmailBatch(entries);
 
     const logs = await prisma.emailLog.findMany({
-      where: { to: { in: entries.map((e) => e.to) } },
+      where: { id: { in: rows.map((r) => r.id) } },
       orderBy: { subject: 'asc' },
     });
     expect(logs).toHaveLength(3);

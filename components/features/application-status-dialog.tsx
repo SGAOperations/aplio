@@ -39,6 +39,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 interface ApplicationStatusDialogProps {
   applicationId: string;
   applicantName: string;
+  applicantEmail?: string;
   currentStatus: $Enums.ApplicationStatus;
   history: ApplicationStatusHistoryEntry[];
   // Only the table row's dialog fetches on open — the detail page passes
@@ -52,6 +53,7 @@ interface ApplicationStatusDialogProps {
 export function ApplicationStatusDialog({
   applicationId,
   applicantName,
+  applicantEmail,
   currentStatus,
   history,
   isHistoryLoading = false,
@@ -65,6 +67,7 @@ export function ApplicationStatusDialog({
   const move = useApplicationStatusMove({
     applicationId,
     applicantName,
+    applicantEmail,
     currentStatus,
   });
 

@@ -12,11 +12,11 @@ import {
   APPLICATION_STATUS_LABELS,
   DECISION_EMAIL_DELAY_SECONDS,
 } from '@/lib/constants';
-import { getDecisionEmailWarning } from '@/lib/utils';
 
 interface UseApplicationStatusMoveOptions {
   applicationId: string;
   applicantName?: string;
+  applicantEmail?: string;
   // Snapshot of the status before any move — lets a decision's success toast
   // wire its Undo action straight back to it, no history re-fetch needed.
   currentStatus?: $Enums.ApplicationStatus;
@@ -30,15 +30,15 @@ interface PerformMoveOptions {
 const CONFIRM_COPY = {
   accepted: {
     title: (name: string) => `Accept ${name}?`,
-    description: (name?: string) =>
-      `They'll see Accepted on their application and can no longer withdraw it. ${getDecisionEmailWarning(name)}`,
+    description: (name: string, email?: string) =>
+      `Are you sure you want to accept ${name}? They'll see Accepted on their application and can no longer withdraw it. An email will be sent to ${email ?? 'their email address'}. Undo within ${DECISION_EMAIL_DELAY_SECONDS} seconds to cancel.`,
     confirmLabel: 'Accept and Send Email',
     pendingLabel: 'Accepting…',
   },
   rejected: {
     title: (name: string) => `Reject ${name}?`,
-    description: (name?: string) =>
-      `They'll see Rejected on their application and can no longer withdraw it. ${getDecisionEmailWarning(name)}`,
+    description: (name: string, email?: string) =>
+      `Are you sure you want to reject ${name}? They'll see Rejected on their application and can no longer withdraw it. An email will be sent to ${email ?? 'their email address'}. Undo within ${DECISION_EMAIL_DELAY_SECONDS} seconds to cancel.`,
     confirmLabel: 'Reject and Send Email',
     pendingLabel: 'Rejecting…',
   },
@@ -50,6 +50,7 @@ const CONFIRM_COPY = {
 export function useApplicationStatusMove({
   applicationId,
   applicantName,
+  applicantEmail,
   currentStatus,
 }: UseApplicationStatusMoveOptions) {
   const [isPending, startTransition] = useTransition();
@@ -139,7 +140,7 @@ export function useApplicationStatusMove({
     open: confirmOpen,
     onOpenChange: setConfirmOpen,
     title: confirmCopy.title(displayName),
-    description: confirmCopy.description(applicantName),
+    description: confirmCopy.description(displayName, applicantEmail),
     confirmLabel: confirmCopy.confirmLabel,
     pendingLabel: confirmCopy.pendingLabel,
     destructive: confirmTarget === 'rejected',
