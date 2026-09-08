@@ -21,9 +21,12 @@ export function PositionStatCircles({ stats }: PositionStatCirclesProps) {
       <div
         role="region"
         aria-label="Application stats"
-        className="w-fit shrink-0"
+        className="flex w-fit shrink-0 items-start gap-2"
       >
-        <div className="flex justify-center gap-1.5">
+        <p className="text-muted-foreground flex min-h-11 items-center text-[11px] whitespace-nowrap">
+          Total: <span className="tabular-nums">{stats.total}</span>
+        </p>
+        <div className="flex gap-1.5">
           {POSITION_STAT_BUCKETS.map((bucket) => {
             const count = bucket.statuses.reduce(
               (sum, status) => sum + (stats.counts[status] ?? 0),
@@ -61,9 +64,6 @@ export function PositionStatCircles({ stats }: PositionStatCirclesProps) {
             );
           })}
         </div>
-        <p className="text-muted-foreground mt-1 text-center text-[11px]">
-          Total: <span className="tabular-nums">{stats.total}</span>
-        </p>
       </div>
     </TooltipProvider>
   );
