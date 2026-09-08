@@ -1044,8 +1044,6 @@ export const EMAIL_FAILURE_STATUSES = [
 ] as const satisfies $Enums.EmailStatus[];
 
 // Buckets partition every status getPositionApplicationStats counts, so circles sum to Total.
-// fillClassName is the circle's non-zero fill; unlike badge variants, "in progress" isn't
-// one (violet reads better than amber at 16px semibold white text — see PR #685 discussion).
 export const POSITION_STAT_BUCKETS = [
   {
     key: 'applied',
