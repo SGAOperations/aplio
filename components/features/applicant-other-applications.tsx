@@ -1,7 +1,5 @@
 import Link from 'next/link';
 
-import { FileStack } from 'lucide-react';
-
 import { getApplicantOtherApplications } from '@/prisma/data/applications';
 
 import { type ApplicantOtherApplication, type Reviewer } from '@/lib/types';
@@ -28,11 +26,7 @@ export async function ApplicantOtherApplications({
       subtitle="All other positions this applicant has applied to."
     >
       {applications.length === 0 ? (
-        <SectionCardEmpty
-          icon={FileStack}
-          title="No other applications"
-          description="This is the only position this applicant has applied to recently."
-        />
+        <SectionCardEmpty variant="compact" message="No other applications." />
       ) : (
         <OtherApplicationList applications={applications} />
       )}
