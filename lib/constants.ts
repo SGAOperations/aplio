@@ -1053,9 +1053,7 @@ export const STATUS_BADGE_VARIANT_TO_FILL: Record<BadgeVariant, string> = {
   outline: 'bg-background text-foreground',
 };
 
-// Reading order (top-left to bottom-right) in the position card's stat
-// circles. Buckets partition every status getPositionApplicationStats counts
-// (everything but draft/withdrawn) so the circles sum to Total.
+// Buckets partition every status getPositionApplicationStats counts, so circles sum to Total.
 export const POSITION_STAT_BUCKETS = [
   { key: 'applied', label: 'Applied', variant: 'info', statuses: ['applied'] },
   {
