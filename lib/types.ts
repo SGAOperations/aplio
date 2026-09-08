@@ -349,6 +349,16 @@ export type ApplicantOtherApplication = {
   canOpen: boolean;
 };
 
+// Recipient address, provider message id and raw provider error are
+// deliberately withheld — never crosses to a client component.
+export type ApplicationEmailEntry = {
+  id: string;
+  subject: string;
+  status: $Enums.EmailStatus;
+  bounceType: string | null;
+  occurredAt: Date;
+};
+
 // Kept in sync with lib/constants.ts#questionFileTargetSchema.
 export type QuestionFileTarget =
   | { scope: 'profile'; questionId: string }

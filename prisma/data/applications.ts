@@ -22,6 +22,7 @@ import { prisma } from '@/lib/prisma';
 import {
   type AdminApplicationListItem,
   type ApplicantOtherApplication,
+  type ApplicationEmailEntry,
   type ApplicationFilters,
   type ApplicationForReview,
   type ApplicationReviewAnswer,
@@ -40,6 +41,7 @@ import {
 import {
   canReviewPosition,
   displayUserName,
+  getEmailLogOccurredAt,
   isPositionActive,
 } from '@/lib/utils';
 
@@ -292,6 +294,39 @@ export async function getApplicationStatusHistory(
     to: event.to,
     createdAt: event.createdAt,
     changedByName: displayUserName(event.changedBy),
+  }));
+}
+
+// listable scope via the relation — an applicationId equality filter also
+// excludes OTP rows for free, since those are written with applicationId: null.
+export async function getApplicationEmailHistory(
+  applicationId: string,
+  user: Reviewer,
+): Promise<ApplicationEmailEntry[]> {
+  const logs = await prisma.emailLog.findMany({
+    where: {
+      applicationId,
+      application: buildApplicationWhere(user, 'listable'),
+    },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    select: {
+      id: true,
+      subject: true,
+      status: true,
+      bounceType: true,
+      scheduledAt: true,
+      sentAt: true,
+      deliveredAt: true,
+      createdAt: true,
+    },
+  });
+
+  return logs.map((log) => ({
+    id: log.id,
+    subject: log.subject,
+    status: log.status,
+    bounceType: log.bounceType,
+    occurredAt: getEmailLogOccurredAt(log),
   }));
 }
 
