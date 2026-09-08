@@ -83,19 +83,24 @@ export function SectionCard({
   );
 }
 
-interface SectionCardEmptyProps {
-  icon: LucideIcon;
-  title?: string;
-  description?: string;
-  action?: ReactNode;
-}
+type SectionCardEmptyProps =
+  | {
+      variant?: 'default';
+      icon: LucideIcon;
+      title?: string;
+      description?: string;
+      action?: ReactNode;
+    }
+  | { variant: 'compact'; message: string };
 
-export function SectionCardEmpty({
-  icon: Icon,
-  title,
-  description,
-  action,
-}: SectionCardEmptyProps) {
+export function SectionCardEmpty(props: SectionCardEmptyProps) {
+  if (props.variant === 'compact')
+    return (
+      <p className="text-muted-foreground px-4 py-3 text-sm">{props.message}</p>
+    );
+
+  const { icon: Icon, title, description, action } = props;
+
   return (
     <div className="flex flex-col items-center gap-3 py-10 text-center">
       <Icon className="text-muted-foreground size-10" />

@@ -114,7 +114,7 @@ Every async surface ships **all three states** — loading, error, empty. A feat
   - **`throw`** — unexpected / internal / not user-actionable: a failed auth or authorization check (shouldn't happen behind a gated UI), a record that _should_ exist but doesn't, DB / network / third-party failures, an unreachable `default:`/invariant, or anything whose message would leak internals. → generic toast (during an action) or global boundary (during render/data-fetch).
   - **Gray area — "not found":** reachable normally (a stale link to a deleted item) → `return { error: 'No longer available' }`; not reachable for this caller (an IDOR-style miss) → **throw**.
 
-- **Empty:** zero-item lists render a designed empty state (icon, one-line explanation, primary action), not a blank container.
+- **Empty:** zero-item lists render a designed empty state (icon, one-line explanation, primary action), not a blank container. (A secondary card on a detail page may opt into `SectionCardEmpty`'s compact variant — one muted line — instead; the default stays the roomy form.)
 
 ```tsx
 <Suspense fallback={<ApplicationListSkeleton />}>

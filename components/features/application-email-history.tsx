@@ -1,5 +1,3 @@
-import { Mail } from 'lucide-react';
-
 import { getApplicationEmailHistory } from '@/prisma/data/applications';
 
 import { type ApplicationEmailEntry, type Reviewer } from '@/lib/types';
@@ -27,11 +25,7 @@ export async function ApplicationEmailHistory({
       subtitle="Emails sent to this applicant about this application."
     >
       {entries.length === 0 ? (
-        <SectionCardEmpty
-          icon={Mail}
-          title="No emails yet"
-          description="Nothing has been emailed to this applicant about this application."
-        />
+        <SectionCardEmpty variant="compact" message="No emails sent yet." />
       ) : (
         <EmailHistoryList entries={entries} />
       )}

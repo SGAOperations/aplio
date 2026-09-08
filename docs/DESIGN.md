@@ -63,7 +63,7 @@ Any change to a brand/status token must keep ≥4.5:1 contrast against its paire
 - **Compose shadcn primitives from `@/components/ui`** — don't rebuild buttons, inputs, dialogs, etc. Add new ones with the shadcn CLI so they pick up the configured tokens. Icons from `lucide-react`.
 - **Buttons:** primary = `primary`; secondary/cancel = `secondary` or `variant="outline"`; destructive = `variant="destructive"`. One primary action per view.
 - **Forms:** use the shadcn `Form`/`FieldGroup` primitives with `FormLabel`; every input has an associated label; surface validation with `data-invalid` / inline `FormMessage`, not ad-hoc text. (Form wiring rules: `ENGINEERING.md` §4.)
-- **State surfaces:** all three required (`ENGINEERING.md` §4) — `<Suspense>` + skeleton for loading, `error.tsx`/inline error for failure, a designed empty state (icon + one line + primary action) for zero items.
+- **State surfaces:** all three required (`ENGINEERING.md` §4) — `<Suspense>` + skeleton for loading, `error.tsx`/inline error for failure, a designed empty state (icon + one line + primary action) for zero items. Secondary cards on a detail page may opt into `SectionCardEmpty`'s compact variant (one muted line, no icon/action) instead — the roomy form stays the default for dashboards.
 - **Focus & overlays:** never `outline-none` without a visible replacement; rely on Radix focus trapping in dialogs/sheets — don't break it with custom wrappers.
 
 ## 6. Iconography
