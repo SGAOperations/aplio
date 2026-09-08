@@ -357,6 +357,47 @@ describe('single decision dispatch', () => {
     });
     expect(log.status).toBe('failed');
   });
+
+  it('records different templates for an acceptance and a rejection, with identical subjects', async () => {
+    mockSend.mockResolvedValue({
+      data: { id: 'resend-divergence' },
+      error: null,
+    });
+    const acceptedApplicant = await createTestUser();
+    const rejectedApplicant = await createTestUser();
+    const acceptedApplication = await createTestApplication(
+      acceptedApplicant,
+      position,
+      { status: 'applied' },
+    );
+    const rejectedApplication = await createTestApplication(
+      rejectedApplicant,
+      position,
+      { status: 'applied' },
+    );
+
+    actAs(admin);
+    await updateApplicationStatus({
+      applicationId: acceptedApplication.id,
+      status: 'accepted',
+    });
+    await updateApplicationStatus({
+      applicationId: rejectedApplication.id,
+      status: 'rejected',
+    });
+    await flushAfter();
+
+    const acceptedLog = await prisma.emailLog.findFirstOrThrow({
+      where: { applicationId: acceptedApplication.id },
+    });
+    const rejectedLog = await prisma.emailLog.findFirstOrThrow({
+      where: { applicationId: rejectedApplication.id },
+    });
+
+    expect(acceptedLog.template).toBe('application_accepted');
+    expect(rejectedLog.template).toBe('application_rejected');
+    expect(acceptedLog.subject).toBe(rejectedLog.subject);
+  });
 });
 
 describe('bulk decision dispatch', () => {

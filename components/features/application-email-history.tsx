@@ -1,7 +1,6 @@
-import { Mail } from 'lucide-react';
-
 import { getApplicationEmailHistory } from '@/prisma/data/applications';
 
+import { EMAIL_TEMPLATE_LABELS } from '@/lib/constants';
 import { type ApplicationEmailEntry, type Reviewer } from '@/lib/types';
 import { getEmailLogDescription } from '@/lib/utils';
 
@@ -27,11 +26,7 @@ export async function ApplicationEmailHistory({
       subtitle="Emails sent to this applicant about this application."
     >
       {entries.length === 0 ? (
-        <SectionCardEmpty
-          icon={Mail}
-          title="No emails yet"
-          description="Nothing has been emailed to this applicant about this application."
-        />
+        <SectionCardEmpty variant="compact" message="No emails sent yet." />
       ) : (
         <EmailHistoryList entries={entries} />
       )}
@@ -53,6 +48,7 @@ function EmailHistoryList({ entries }: { entries: ApplicationEmailEntry[] }) {
               <EmailStatusBadge status={entry.status} />
             </div>
             <p className="text-muted-foreground mt-1 text-xs">
+              {EMAIL_TEMPLATE_LABELS[entry.template]} ·{' '}
               <LocalTime date={entry.occurredAt} precision="datetime" />
               {description && <> · {description}</>}
             </p>

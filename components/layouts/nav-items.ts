@@ -34,8 +34,8 @@ export const manageReviewerNavItems: NavItem[] = [
   },
 ];
 
-// Shown to admins only — Users, Global Questions and Email Log are admin-only.
-export const manageAdminNavItems: NavItem[] = [
+// Settings group: admin-only platform administration, not day-to-day review.
+export const settingsNavItems: NavItem[] = [
   { href: '/users', label: 'Users', icon: CONCEPT_ICONS.user },
   {
     href: '/global-questions',

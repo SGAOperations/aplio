@@ -118,9 +118,15 @@ describe('getApplicationEmailHistory', () => {
     expect(rows).toEqual([]);
   });
 
-  it('returns the rows for an admin', async () => {
+  it('returns the rows for an admin, including each row’s template', async () => {
     const rows = await getApplicationEmailHistory(appOnA.id, admin);
     expect(rows).toHaveLength(2);
+    expect(rows.find((r) => r.id === deliveredId)?.template).toBe(
+      'application_accepted',
+    );
+    expect(rows.find((r) => r.id === sentId)?.template).toBe(
+      'application_received',
+    );
   });
 
   it('never includes an OTP row', async () => {
