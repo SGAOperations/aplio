@@ -97,7 +97,7 @@ export default async function MyApplicationDetailPage({
 
       <div className="flex flex-col gap-4">
         <SectionCard
-          title="Your profile answers"
+          title="Your Profile Answers"
           icon={CONCEPT_ICONS.profile}
           titleAs="h2"
         >
@@ -111,7 +111,7 @@ export default async function MyApplicationDetailPage({
         {(application.hasPositionQuestions ||
           application.positionAnswers.length > 0) && (
           <SectionCard
-            title="Your answers for this position"
+            title="Your Answers for This Position"
             icon={CONCEPT_ICONS.position}
             titleAs="h2"
           >

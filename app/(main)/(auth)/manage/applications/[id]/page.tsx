@@ -101,7 +101,7 @@ export default async function ApplicationDetailPage({
         </Suspense>
 
         <SectionCard
-          title="Profile answers"
+          title="Profile Answers"
           icon={CONCEPT_ICONS.profile}
           titleAs="h2"
         >
@@ -115,7 +115,7 @@ export default async function ApplicationDetailPage({
         {(application.hasPositionQuestions ||
           application.positionAnswers.length > 0) && (
           <SectionCard
-            title="Position answers"
+            title="Position Answers"
             icon={CONCEPT_ICONS.position}
             titleAs="h2"
           >
