@@ -17,9 +17,10 @@ import type {
   ApplicationTableRow,
   Reviewer,
 } from '@/lib/types';
+import { buildApplicationsHref, getPaginationBounds } from '@/lib/utils';
 
-import { ApplicationsPagination } from '@/components/features/applications-pagination';
 import { ApplicationsTable } from '@/components/features/applications-table';
+import { TablePagination } from '@/components/ui/table-pagination';
 
 interface ApplicationsResultsProps {
   user: Reviewer;
@@ -41,31 +42,24 @@ async function fetchPage<T>(
   filters: ApplicationFilters,
   page: number,
 ) {
-  let currentPage = page;
   const [total, initialRows] = await Promise.all([
     getCount(user, filters),
-    getRows(user, filters, currentPage),
+    getRows(user, filters, page),
   ]);
-  const totalPages = Math.max(1, Math.ceil(total / APPLICATIONS_PAGE_SIZE));
+  const bounds = getPaginationBounds({
+    total,
+    page,
+    pageSize: APPLICATIONS_PAGE_SIZE,
+  });
 
   let rows = initialRows;
 
   // Stale/bookmarked ?page= past the last page (e.g. rows removed since) —
   // clamp to the last page instead of rendering a blank table.
-  if (total > 0 && rows.length === 0 && currentPage > totalPages) {
-    currentPage = totalPages;
-    rows = await getRows(user, filters, currentPage);
-  }
+  if (total > 0 && rows.length === 0 && bounds.currentPage !== page)
+    rows = await getRows(user, filters, bounds.currentPage);
 
-  return {
-    rows,
-    total,
-    totalPages,
-    currentPage,
-    rangeStart:
-      total === 0 ? 0 : (currentPage - 1) * APPLICATIONS_PAGE_SIZE + 1,
-    rangeEnd: Math.min(currentPage * APPLICATIONS_PAGE_SIZE, total),
-  };
+  return { rows, total, ...bounds };
 }
 
 // Slices an already-merged, already-ordered in-memory array — the default
@@ -73,17 +67,17 @@ async function fetchPage<T>(
 // since it unions two purpose-built, differently-scoped queries.
 function paginateRows<T>(rows: T[], page: number) {
   const total = rows.length;
-  const totalPages = Math.max(1, Math.ceil(total / APPLICATIONS_PAGE_SIZE));
-  const currentPage = total > 0 && page > totalPages ? totalPages : page;
-  const start = (currentPage - 1) * APPLICATIONS_PAGE_SIZE;
+  const bounds = getPaginationBounds({
+    total,
+    page,
+    pageSize: APPLICATIONS_PAGE_SIZE,
+  });
+  const start = (bounds.currentPage - 1) * APPLICATIONS_PAGE_SIZE;
 
   return {
     rows: rows.slice(start, start + APPLICATIONS_PAGE_SIZE),
     total,
-    totalPages,
-    currentPage,
-    rangeStart: total === 0 ? 0 : start + 1,
-    rangeEnd: Math.min(currentPage * APPLICATIONS_PAGE_SIZE, total),
+    ...bounds,
   };
 }
 
@@ -118,14 +112,14 @@ export async function ApplicationsResults({
           hasActiveFilters={hasActiveFilters}
           sort={filters.sort}
         />
-        <ApplicationsPagination
-          filters={filters}
+        <TablePagination
+          buildHref={(p) => buildApplicationsHref(filters, p)}
           currentPage={currentPage}
           totalPages={totalPages}
           total={total}
           rangeStart={rangeStart}
           rangeEnd={rangeEnd}
-          hasActiveFilters={hasActiveFilters}
+          isFiltered={hasActiveFilters}
           noun="draft"
         />
       </div>
@@ -160,14 +154,14 @@ export async function ApplicationsResults({
           hasActiveFilters={hasActiveFilters}
           sort={filters.sort}
         />
-        <ApplicationsPagination
-          filters={filters}
+        <TablePagination
+          buildHref={(p) => buildApplicationsHref(filters, p)}
           currentPage={currentPage}
           totalPages={totalPages}
           total={total}
           rangeStart={rangeStart}
           rangeEnd={rangeEnd}
-          hasActiveFilters={hasActiveFilters}
+          isFiltered={hasActiveFilters}
         />
       </div>
     );
@@ -183,14 +177,14 @@ export async function ApplicationsResults({
         hasActiveFilters={hasActiveFilters}
         sort={filters.sort}
       />
-      <ApplicationsPagination
-        filters={filters}
+      <TablePagination
+        buildHref={(p) => buildApplicationsHref(filters, p)}
         currentPage={currentPage}
         totalPages={totalPages}
         total={total}
         rangeStart={rangeStart}
         rangeEnd={rangeEnd}
-        hasActiveFilters={hasActiveFilters}
+        isFiltered={hasActiveFilters}
       />
     </div>
   );

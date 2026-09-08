@@ -12,6 +12,7 @@ import {
 } from '@/lib/constants';
 import {
   APPLICATION_STATUS_ICONS,
+  EMAIL_STATUS_ICONS,
   POSITION_AVAILABILITY_ICONS,
   POSITION_STATUS_ICONS,
 } from '@/lib/icons';
@@ -41,8 +42,10 @@ interface EmailStatusBadgeProps {
 }
 
 export function EmailStatusBadge({ status }: EmailStatusBadgeProps) {
+  const Icon = EMAIL_STATUS_ICONS[status];
   return (
     <Badge variant={EMAIL_STATUS_BADGE_VARIANT[status]}>
+      <Icon />
       {EMAIL_STATUS_LABELS[status]}
     </Badge>
   );

@@ -16,6 +16,7 @@ import type {
   AnswerPartition,
   AnswerQuestion,
   ApplicationFilters,
+  EmailLogFilters,
   ManagedPositionRow,
   PositionActivity,
   PositionAvailability,
@@ -596,6 +597,98 @@ export function buildApplicationsHref(
 
   const qs = params.toString();
   return qs ? `/manage/applications?${qs}` : '/manage/applications';
+}
+
+/** `/emails` link for a filter set + page; omits `page=1`. */
+export function buildEmailLogHref(filters: EmailLogFilters, page?: number) {
+  const params = new URLSearchParams();
+  if (filters.q) params.set('q', filters.q);
+  if (filters.status) params.set('status', filters.status);
+  if (filters.template) params.set('template', filters.template);
+  if (page && page > 1) params.set('page', String(page));
+
+  const qs = params.toString();
+  return qs ? `/emails?${qs}` : '/emails';
+}
+
+interface PaginationBoundsInput {
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+interface PaginationBounds {
+  totalPages: number;
+  currentPage: number;
+  rangeStart: number;
+  rangeEnd: number;
+}
+
+/**
+ * Clamps a stale `?page=` to the last page (`totalPages` floors at 1) and
+ * derives the "showing X–Y of Z" range — the math `applications-results.tsx`
+ * used to duplicate across its default and filtered views.
+ */
+export function getPaginationBounds({
+  total,
+  page,
+  pageSize,
+}: PaginationBoundsInput): PaginationBounds {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const currentPage = total > 0 && page > totalPages ? totalPages : page;
+
+  return {
+    totalPages,
+    currentPage,
+    rangeStart: total === 0 ? 0 : (currentPage - 1) * pageSize + 1,
+    rangeEnd: Math.min(currentPage * pageSize, total),
+  };
+}
+
+const EMAIL_TIMESTAMP_LABELS = {
+  delivered: 'Delivered',
+  scheduled: 'Scheduled for',
+  sent: 'Sent',
+  bounced: 'Sent',
+  complained: 'Sent',
+  suppressed: 'Sent',
+  failed: 'Attempted',
+  cancelled: 'Cancelled',
+} as const satisfies Record<$Enums.EmailStatus, string>;
+
+/** The one instant worth showing for a row's status, and its label. */
+export function getEmailLogTimestamp(row: {
+  status: $Enums.EmailStatus;
+  scheduledAt: Date | null;
+  sentAt: Date | null;
+  deliveredAt: Date | null;
+  createdAt: Date;
+}): { date: Date; label: string } {
+  const label = EMAIL_TIMESTAMP_LABELS[row.status];
+
+  switch (row.status) {
+    case 'delivered':
+      return { date: row.deliveredAt ?? row.sentAt ?? row.createdAt, label };
+    case 'scheduled':
+      return { date: row.scheduledAt ?? row.createdAt, label };
+    case 'sent':
+    case 'bounced':
+    case 'complained':
+    case 'suppressed':
+      return { date: row.sentAt ?? row.createdAt, label };
+    case 'failed':
+    case 'cancelled':
+      return { date: row.createdAt, label };
+    default: {
+      const _exhaustive: never = row.status;
+      throw new Error(`Unhandled email status: ${_exhaustive}`);
+    }
+  }
+}
+
+/** `Permanent`/`Transient` as-is; any other provider string passes through; blank/null → `null`. */
+export function formatBounceType(bounceType: string | null): string | null {
+  return bounceType?.trim() || null;
 }
 
 /** `m:ss`, always minutes-and-seconds (never a bare second count); negative clamps to `0:00`. */

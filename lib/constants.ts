@@ -996,3 +996,83 @@ export const POSITION_CARD_STAT_STATUSES = [
   'accepted',
   'rejected',
 ] as const satisfies $Enums.ApplicationStatus[];
+
+export const EMAIL_STATUS_VALUES = [
+  'scheduled',
+  'sent',
+  'delivered',
+  'bounced',
+  'complained',
+  'suppressed',
+  'failed',
+  'cancelled',
+] as const satisfies $Enums.EmailStatus[];
+
+export const EMAIL_TEMPLATE_VALUES = [
+  'otp',
+  'application_received',
+  'application_accepted',
+  'application_rejected',
+  'manager_digest',
+] as const satisfies $Enums.EmailTemplateKey[];
+
+export const EMAIL_STATUS_LABELS: Record<$Enums.EmailStatus, string> = {
+  scheduled: 'Scheduled',
+  sent: 'Sent',
+  delivered: 'Delivered',
+  bounced: 'Bounced',
+  complained: 'Complained',
+  suppressed: 'Suppressed',
+  failed: 'Failed',
+  cancelled: 'Cancelled',
+};
+
+// 'sent' is deliberately not 'success' — acceptance by Resend is not receipt.
+export const EMAIL_STATUS_BADGE_VARIANT: Record<
+  $Enums.EmailStatus,
+  BadgeVariant
+> = {
+  scheduled: 'outline',
+  sent: 'secondary',
+  delivered: 'success',
+  bounced: 'destructive',
+  complained: 'destructive',
+  suppressed: 'warning',
+  failed: 'destructive',
+  cancelled: 'outline',
+};
+
+export const EMAIL_TEMPLATE_LABELS: Record<$Enums.EmailTemplateKey, string> = {
+  otp: 'Sign-in code',
+  application_received: 'Application received',
+  application_accepted: 'Application accepted',
+  application_rejected: 'Application rejected',
+  manager_digest: 'Manager digest',
+};
+
+export const EMAIL_STATUS_OPTIONS: {
+  value: $Enums.EmailStatus;
+  label: string;
+}[] = EMAIL_STATUS_VALUES.map((value) => ({
+  value,
+  label: EMAIL_STATUS_LABELS[value],
+}));
+
+export const EMAIL_TEMPLATE_OPTIONS: {
+  value: $Enums.EmailTemplateKey;
+  label: string;
+}[] = EMAIL_TEMPLATE_VALUES.map((value) => ({
+  value,
+  label: EMAIL_TEMPLATE_LABELS[value],
+}));
+
+export const EMAIL_LOG_PAGE_SIZE = 50;
+
+export const EMAIL_FAILURE_WINDOW_DAYS = 7;
+
+// The failure strip's three — 'suppressed' is filterable in the table but not one of these.
+export const EMAIL_FAILURE_STATUSES = [
+  'bounced',
+  'complained',
+  'failed',
+] as const satisfies $Enums.EmailStatus[];
