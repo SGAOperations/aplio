@@ -4,6 +4,7 @@ import {
   ANSWER_LONG_MAX_LENGTH,
   ANSWER_OTHER_MAX_LENGTH,
   ANSWER_SHORT_MAX_LENGTH,
+  APPLICATION_STATUS_LABELS,
   APPLICATION_STATUS_VALUES,
   EMAIL_STATUS_BADGE_VARIANT,
   EMAIL_STATUS_DESCRIPTIONS,
@@ -18,6 +19,7 @@ import {
   POSITION_CLOSES_AT_PAST_ERROR,
   POSITION_OPENS_AT_ORDER_ERROR,
   POSITION_OPENS_AT_PAST_ERROR,
+  POSITION_STAT_BUCKETS,
   REVIEWER_APPLICATION_STATUSES,
   TERMINAL_DECISION_STATUSES,
   UNRESOLVED_APPLICATION_STATUSES,
@@ -288,6 +290,19 @@ describe('status-set invariants', () => {
   it('TERMINAL_DECISION_STATUSES is disjoint from UNRESOLVED_APPLICATION_STATUSES', () => {
     for (const status of TERMINAL_DECISION_STATUSES)
       expect(UNRESOLVED_APPLICATION_STATUSES).not.toContain(status);
+  });
+
+  it('POSITION_STAT_BUCKETS statuses union to every status but draft/withdrawn', () => {
+    const bucketed = POSITION_STAT_BUCKETS.flatMap((bucket) => bucket.statuses);
+    const expected = Object.keys(APPLICATION_STATUS_LABELS).filter(
+      (status) => status !== 'draft' && status !== 'withdrawn',
+    );
+    expect(bucketed.sort()).toEqual(expected.sort());
+  });
+
+  it('POSITION_STAT_BUCKETS statuses are pairwise disjoint', () => {
+    const bucketed = POSITION_STAT_BUCKETS.flatMap((bucket) => bucket.statuses);
+    expect(new Set(bucketed).size).toBe(bucketed.length);
   });
 });
 

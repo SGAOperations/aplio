@@ -963,14 +963,6 @@ export const STATUS_BADGE_VARIANT_TO_DOT: Record<BadgeVariant, string> = {
   outline: 'bg-border',
 };
 
-// Order is meaningful — rendered left to right on position cards.
-export const POSITION_CARD_STAT_STATUSES = [
-  'applied',
-  'interview_scheduled',
-  'accepted',
-  'rejected',
-] as const satisfies $Enums.ApplicationStatus[];
-
 export const EMAIL_STATUS_VALUES = [
   'scheduled',
   'sent',
@@ -1050,3 +1042,43 @@ export const EMAIL_FAILURE_STATUSES = [
   'complained',
   'failed',
 ] as const satisfies $Enums.EmailStatus[];
+
+export const STATUS_BADGE_VARIANT_TO_FILL: Record<BadgeVariant, string> = {
+  info: 'bg-info text-info-foreground',
+  warning: 'bg-warning text-warning-foreground',
+  success: 'bg-success text-success-foreground',
+  destructive: 'bg-destructive text-destructive-foreground',
+  secondary: 'bg-secondary text-secondary-foreground',
+  default: 'bg-primary text-primary-foreground',
+  outline: 'bg-background text-foreground',
+};
+
+// Reading order (top-left to bottom-right) in the position card's stat
+// circles. Buckets partition every status getPositionApplicationStats counts
+// (everything but draft/withdrawn) so the circles sum to Total.
+export const POSITION_STAT_BUCKETS = [
+  { key: 'applied', label: 'Applied', variant: 'info', statuses: ['applied'] },
+  {
+    key: 'in_progress',
+    label: 'In progress',
+    variant: 'warning',
+    statuses: ['reached_out', 'interview_scheduled', 'reviewing'],
+  },
+  {
+    key: 'accepted',
+    label: 'Accepted',
+    variant: 'success',
+    statuses: ['accepted'],
+  },
+  {
+    key: 'rejected',
+    label: 'Rejected',
+    variant: 'destructive',
+    statuses: ['rejected'],
+  },
+] as const satisfies {
+  key: string;
+  label: string;
+  variant: BadgeVariant;
+  statuses: readonly $Enums.ApplicationStatus[];
+}[];
