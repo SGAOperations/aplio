@@ -96,14 +96,16 @@ export function EmailLogToolbar({
       >
         <Select
           value={filters.status ?? ''}
-          onValueChange={(v) => updateParam('status', v || undefined)}
+          onValueChange={(v) =>
+            updateParam('status', v === 'all' ? undefined : v)
+          }
         >
           <SelectTrigger id="filter-status" className="w-full">
             <SelectValue placeholder="All statuses" />
           </SelectTrigger>
           <SelectContent>
             {/* "All statuses" clears the filter */}
-            <SelectItem value="">All statuses</SelectItem>
+            <SelectItem value="all">All statuses</SelectItem>
             {EMAIL_STATUS_OPTIONS.map((opt) => (
               <SelectItem key={opt.value} value={opt.value}>
                 {opt.label}
@@ -120,14 +122,16 @@ export function EmailLogToolbar({
       >
         <Select
           value={filters.template ?? ''}
-          onValueChange={(v) => updateParam('template', v || undefined)}
+          onValueChange={(v) =>
+            updateParam('template', v === 'all' ? undefined : v)
+          }
         >
           <SelectTrigger id="filter-template" className="w-full">
             <SelectValue placeholder="All templates" />
           </SelectTrigger>
           <SelectContent>
             {/* "All templates" clears the filter */}
-            <SelectItem value="">All templates</SelectItem>
+            <SelectItem value="all">All templates</SelectItem>
             {EMAIL_TEMPLATE_OPTIONS.map((opt) => (
               <SelectItem key={opt.value} value={opt.value}>
                 {opt.label}
