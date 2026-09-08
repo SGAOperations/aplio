@@ -2,9 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   APPLICANT_EMAIL_FOOTER,
-  applicationAcceptedEmail,
+  applicationDecisionEmail,
   applicationReceivedEmail,
-  applicationRejectedEmail,
   emailLayout,
   escapeHtml,
   otpEmail,
@@ -114,61 +113,65 @@ describe('applicationReceivedEmail', () => {
   });
 });
 
-describe('applicationAcceptedEmail', () => {
-  it('renders the exact subject with the raw position title', () => {
-    const result = applicationAcceptedEmail({
+describe('applicationDecisionEmail', () => {
+  it('renders the exact neutral subject with the raw position title', () => {
+    const result = applicationDecisionEmail({
       firstName: 'Jane',
       positionTitle: DANGEROUS_TITLE,
       applicationId: 'app-1',
     });
     expect(result.subject).toBe(
-      `Your application for ${DANGEROUS_TITLE} was accepted`,
+      `Update on your application for ${DANGEROUS_TITLE}`,
     );
   });
 
-  it('escapes the position title in the html', () => {
-    const result = applicationAcceptedEmail({
+  it('never reveals the outcome in the subject, html, or text', () => {
+    const result = applicationDecisionEmail({
       firstName: 'Jane',
-      positionTitle: DANGEROUS_TITLE,
-      applicationId: 'app-1',
-    });
-    expect(result.html).toContain(escapeHtml(DANGEROUS_TITLE));
-    expect(result.html).not.toContain(DANGEROUS_TITLE);
-  });
-
-  it('includes the applicant footer', () => {
-    const result = applicationAcceptedEmail({
       positionTitle: 'Treasurer',
       applicationId: 'app-1',
     });
-    expect(result.html).toContain(APPLICANT_EMAIL_FOOTER);
-  });
-});
-
-describe('applicationRejectedEmail', () => {
-  it('never reveals the outcome in the subject', () => {
-    const result = applicationRejectedEmail({
-      firstName: 'Jane',
-      positionTitle: 'Treasurer',
-    });
-    expect(result.subject).toBe('Update on your application for Treasurer');
-    expect(result.subject.toLowerCase()).not.toContain('reject');
+    expect(result.subject).not.toMatch(/accept|reject/i);
+    expect(result.html).not.toMatch(/accept|reject/i);
+    expect(result.text).not.toMatch(/accept|reject/i);
   });
 
-  it('escapes the position title in the html but leaves it raw in the subject', () => {
-    const result = applicationRejectedEmail({
+  it('escapes the position title in the html but leaves it raw in the subject and text', () => {
+    const result = applicationDecisionEmail({
       firstName: 'Jane',
       positionTitle: DANGEROUS_TITLE,
+      applicationId: 'app-1',
     });
     expect(result.subject).toBe(
       `Update on your application for ${DANGEROUS_TITLE}`,
     );
     expect(result.html).toContain(escapeHtml(DANGEROUS_TITLE));
     expect(result.html).not.toContain(DANGEROUS_TITLE);
+    expect(result.text).toContain(DANGEROUS_TITLE);
   });
 
-  it('includes the applicant footer', () => {
-    const result = applicationRejectedEmail({ positionTitle: 'Treasurer' });
+  it('greets by first name, falling back to "Hi there," with none', () => {
+    expect(
+      applicationDecisionEmail({
+        positionTitle: 'Treasurer',
+        applicationId: 'app-1',
+      }).text,
+    ).toContain('Hi there,');
+    expect(
+      applicationDecisionEmail({
+        firstName: 'Jane',
+        positionTitle: 'Treasurer',
+        applicationId: 'app-1',
+      }).text,
+    ).toContain('Hi Jane,');
+  });
+
+  it("links to the applicant's own application and includes the applicant footer", () => {
+    const result = applicationDecisionEmail({
+      positionTitle: 'Treasurer',
+      applicationId: 'app-1',
+    });
+    expect(result.html).toContain('/my-applications/app-1');
     expect(result.html).toContain(APPLICANT_EMAIL_FOOTER);
   });
 });
