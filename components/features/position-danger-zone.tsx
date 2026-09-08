@@ -46,7 +46,7 @@ export function PositionDangerZone({
   return (
     <Card className="border-destructive/50">
       <CardHeader>
-        <CardTitle className="text-destructive">Delete position</CardTitle>
+        <CardTitle className="text-destructive">Delete Position</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <p className="text-muted-foreground text-sm">

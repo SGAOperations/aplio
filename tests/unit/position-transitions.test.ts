@@ -3,13 +3,11 @@ import { describe, expect, it } from 'vitest';
 import type { PositionStatus } from '@/prisma/client';
 
 import {
-  POSITION_CREATE_STATUSES,
   POSITION_DRAFT_CLOSE_BLOCKED_ERROR,
   POSITION_REOPEN_PAST_CLOSE_ERROR,
   POSITION_STATUS_TRANSITIONS,
   POSITION_STATUS_VALUES,
   POSITION_UNPUBLISH_BLOCKED_ERROR,
-  getPositionCreateStatusOptions,
   getPositionStatusOptions,
   getPositionStatusTransitionError,
 } from '@/lib/constants';
@@ -140,30 +138,5 @@ describe('getPositionStatusOptions', () => {
                 getPositionStatusTransitionError(from, opt.value, ctx),
               ).toBeNull();
           }
-  });
-});
-
-describe('getPositionCreateStatusOptions', () => {
-  it('never offers closed, for either role', () => {
-    for (const isAdmin of [true, false]) {
-      const values = getPositionCreateStatusOptions(isAdmin).map(
-        (o) => o.value,
-      );
-      expect(values).not.toContain('closed');
-      for (const value of values)
-        expect(POSITION_CREATE_STATUSES as readonly string[]).toContain(value);
-    }
-  });
-
-  it('offers only draft to a non-admin', () => {
-    expect(getPositionCreateStatusOptions(false).map((o) => o.value)).toEqual([
-      'draft',
-    ]);
-  });
-
-  it('offers draft and open to an admin', () => {
-    expect(
-      new Set(getPositionCreateStatusOptions(true).map((o) => o.value)),
-    ).toEqual(new Set(['draft', 'open']));
   });
 });

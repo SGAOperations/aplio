@@ -25,7 +25,7 @@ interface ActivityFeedListProps {
 function ActivityFeedList({ items, emptyDescription }: ActivityFeedListProps) {
   return (
     <SectionCard
-      title="Recent activity"
+      title="Recent Activity"
       icon={CONCEPT_ICONS.activity}
       sectionLabel="Recent activity"
     >
