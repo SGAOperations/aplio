@@ -48,7 +48,7 @@ export function StartApplicationCard({
         <div>
           <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
             <CONCEPT_ICONS.myApplication className="text-muted-foreground size-4" />
-            Start your application
+            Start Your Application
           </h2>
           <p className="text-muted-foreground mt-2 text-sm">
             {hasDeletedDraft

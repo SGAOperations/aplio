@@ -128,7 +128,7 @@ export default async function PublicPositionDetailPage({
         <div className="max-w-2xl">
           <h2 className="mb-3 flex items-center gap-2 text-base font-medium">
             <CONCEPT_ICONS.question className="text-muted-foreground size-4" />
-            Application questions
+            Application Questions
           </h2>
           {position.questions.length > 0 ? (
             <ul className="text-muted-foreground list-inside list-disc space-y-1 text-sm">
