@@ -8,6 +8,7 @@ import {
 
 import { requireManagerOrAdminOr404 } from '@/lib/auth/guards';
 import type { PositionApplicationStats } from '@/lib/types';
+import { displayUserName } from '@/lib/utils';
 
 import { ManagedPositionsSection } from '@/components/features/managed-positions-section';
 import { PositionCreateDialog } from '@/components/features/position-create-dialog';
@@ -18,6 +19,10 @@ export const metadata: Metadata = { title: 'Manage Positions' };
 export default async function ManagePositionsPage() {
   // The (auth) layout only gates profile completeness, so this gates the role.
   const user = await requireManagerOrAdminOr404();
+  const currentUser = {
+    displayName: displayUserName(user),
+    primaryEmail: user.email,
+  };
 
   if (user.isAdmin) {
     const positions = await getAdminPositions();
@@ -31,13 +36,23 @@ export default async function ManagePositionsPage() {
         <PageHeader
           title="All Positions"
           description="Every position, with its application stats."
-          actions={<PositionCreateDialog isAdmin={user.isAdmin} />}
+          actions={
+            <PositionCreateDialog
+              isAdmin={user.isAdmin}
+              currentUser={currentUser}
+            />
+          }
         />
         <ManagedPositionsSection
           positions={positions}
           statsByPosition={statsByPosition}
           emptyDescription="Create your first position to start accepting applications."
-          emptyAction={<PositionCreateDialog isAdmin={user.isAdmin} />}
+          emptyAction={
+            <PositionCreateDialog
+              isAdmin={user.isAdmin}
+              currentUser={currentUser}
+            />
+          }
         />
       </div>
     );
@@ -54,13 +69,23 @@ export default async function ManagePositionsPage() {
       <PageHeader
         title="Manage Positions"
         description="Track applications and edit the positions you manage."
-        actions={<PositionCreateDialog isAdmin={user.isAdmin} />}
+        actions={
+          <PositionCreateDialog
+            isAdmin={user.isAdmin}
+            currentUser={currentUser}
+          />
+        }
       />
       <ManagedPositionsSection
         positions={managedPositions}
         statsByPosition={statsByPosition}
         emptyDescription="Positions you manage appear here. Create one to start accepting applications."
-        emptyAction={<PositionCreateDialog isAdmin={user.isAdmin} />}
+        emptyAction={
+          <PositionCreateDialog
+            isAdmin={user.isAdmin}
+            currentUser={currentUser}
+          />
+        }
       />
     </div>
   );

@@ -766,11 +766,6 @@ export const POSITION_STATUS_TRANSITIONS = {
   closed: ['draft', 'open'],
 } as const satisfies Record<PositionStatus, readonly PositionStatus[]>;
 
-export const POSITION_CREATE_STATUSES = [
-  'draft',
-  'open',
-] as const satisfies PositionStatus[];
-
 export const POSITION_DRAFT_CLOSE_BLOCKED_ERROR =
   'A draft has never accepted applications, so there is nothing to close. Publish it first, or leave it as a draft.';
 export const POSITION_UNPUBLISH_BLOCKED_ERROR =
@@ -818,24 +813,18 @@ export function getPositionStatusOptions(
   );
 }
 
-export function getPositionCreateStatusOptions(
-  isAdmin: boolean,
-): typeof POSITION_STATUS_OPTIONS {
-  return getStatusOptions(isAdmin).filter((opt) =>
-    (POSITION_CREATE_STATUSES as readonly PositionStatus[]).includes(opt.value),
-  );
-}
-
 export const POSITION_DESCRIPTION_MAX_LENGTH = 10000;
 export const MARKDOWN_GUIDE_URL = 'https://www.markdownguide.org/basic-syntax/';
 
-// Mirrors createPositionSchema/updatePositionSchema — keep the shapes in sync.
+// Mirrors updatePositionSchema — keep the shapes in sync.
 const orgDayInputSchema = z.union([z.iso.date(), z.literal('')], {
   error: 'Enter a valid date',
 });
 
+export const positionTitleSchema = z.string().min(1, 'Title is required');
+
 const positionFormShape = {
-  title: z.string().min(1, 'Title is required'),
+  title: positionTitleSchema,
   description: z
     .string()
     .max(
@@ -859,6 +848,24 @@ export function makePositionFormSchema(
 }
 
 export type PositionFormValues = z.infer<z.ZodObject<typeof positionFormShape>>;
+
+// Returned by createPosition when managerEmails is empty — validated client and
+// server so the two never disagree about what an orphaned position looks like.
+export const POSITION_MANAGERS_REQUIRED_ERROR =
+  'Choose at least one manager for this position.';
+
+export const positionManagerEmailsSchema = z
+  .array(z.string().trim().email())
+  .min(1, POSITION_MANAGERS_REQUIRED_ERROR);
+
+const createPositionShape = {
+  title: positionTitleSchema,
+  managerEmails: positionManagerEmailsSchema,
+};
+
+export const createPositionFormSchema = z.object(createPositionShape);
+
+export type CreatePositionFormValues = z.infer<typeof createPositionFormSchema>;
 
 export const POSITION_STATUS_BADGE_VARIANT: Record<
   PositionStatus,
