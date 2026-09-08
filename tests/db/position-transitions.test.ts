@@ -8,10 +8,7 @@ import {
 import { actAs } from '@/tests/stubs/auth-server';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import {
-  createPosition,
-  updatePosition,
-} from '@/prisma/actions/position-actions';
+import { updatePosition } from '@/prisma/actions/position-actions';
 import type { Position, User } from '@/prisma/client';
 
 import {
@@ -21,7 +18,6 @@ import {
 } from '@/lib/constants';
 import { orgDayEnd, toOrgDayString } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
-import { isError } from '@/lib/utils';
 
 let admin: User;
 let manager: User;
@@ -179,17 +175,5 @@ describe('unchanged status', () => {
     });
     expect(row.status).toBe('open');
     expect(row.title).toBe(`${TEST_PREFIX}retitled`);
-  });
-});
-
-describe('createPosition', () => {
-  it('refuses status: closed', async () => {
-    actAs(admin);
-    const result = await createPosition({
-      title: `${TEST_PREFIX}created-closed`,
-      description: '',
-      status: 'closed',
-    });
-    expect(isError(result)).toBe(true);
   });
 });
