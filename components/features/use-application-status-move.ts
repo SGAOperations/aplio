@@ -81,11 +81,7 @@ export function useApplicationStatusMove({
           return;
         }
 
-        // Gmail-style safety net: only a decision schedules an email, so only
-        // a decision needs an immediate Undo — same revert-and-cancel flow
-        // (updateApplicationStatus + dispatchDecisionEmail's own cancel) the
-        // old dialog's "Undo — back to X" button used, just surfaced right
-        // where the action happened instead of behind another dialog open.
+        // Gmail-style Undo: revert to the pre-decision status via the same override path.
         const revertTarget =
           (target === 'accepted' || target === 'rejected') && currentStatus
             ? currentStatus
