@@ -88,7 +88,7 @@ function AnswerValue({
 }
 
 function isFullWidthAnswer(answer: ApplicationReviewAnswer) {
-  return answer.type === 'long_answer' && answer.value.length <= 1;
+  return answer.type === 'long_answer' && answer.value.length === 1;
 }
 
 export function ApplicationAnswersList({
@@ -97,7 +97,9 @@ export function ApplicationAnswersList({
   applicationId,
 }: ApplicationAnswersListProps) {
   if (answers.length === 0)
-    return <p className="text-muted-foreground text-sm">{emptyMessage}</p>;
+    return (
+      <p className="text-muted-foreground px-4 py-3 text-sm">{emptyMessage}</p>
+    );
 
   return (
     <dl className="divide-y">

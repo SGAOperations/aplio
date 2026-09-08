@@ -107,14 +107,72 @@ const applicationAnswersSelect = {
   },
 } as const;
 
+// Same shape/convention as positionWithQuestionsSelect (prisma/data/positions.ts).
+const positionQuestionsSelect = {
+  questions: {
+    where: { deletedAt: null },
+    orderBy: { order: 'asc' },
+    select: { id: true, label: true, type: true },
+  },
+} as const;
+
 type ApplicationAnswersPayload = Prisma.ApplicationGetPayload<{
   select: typeof applicationAnswersSelect;
 }>;
 
-function normalizeApplicationAnswers(application: ApplicationAnswersPayload): {
+type PositionQuestionSummary = Prisma.PositionQuestionGetPayload<{
+  select: typeof positionQuestionsSelect.questions.select;
+}>;
+
+// Merges the position's live questions with the application's saved answers,
+// ordered by PositionQuestion.order; an answer to a since-deleted question
+// still renders, appended after the live questions.
+function normalizeApplicationAnswers(
+  application: ApplicationAnswersPayload,
+  positionQuestions: PositionQuestionSummary[],
+): {
   globalAnswers: ApplicationReviewAnswer[];
   positionAnswers: ApplicationReviewAnswer[];
 } {
+  const answersByQuestionId = new Map(
+    application.positionAnswers.map((a) => [a.positionQuestionId, a]),
+  );
+  const liveQuestionIds = new Set(positionQuestions.map((q) => q.id));
+
+  const liveQuestionAnswers: ApplicationReviewAnswer[] = positionQuestions.map(
+    (question) => {
+      const answer = answersByQuestionId.get(question.id);
+      if (answer)
+        return {
+          id: answer.id,
+          questionId: question.id,
+          questionLabel: answer.questionLabel,
+          value: answer.value,
+          type: answer.questionType,
+          isGlobal: false,
+        };
+      return {
+        id: `placeholder-${question.id}`, // render key only, not an answer-row id
+        questionId: question.id,
+        questionLabel: question.label,
+        value: [],
+        type: question.type,
+        isGlobal: false,
+      };
+    },
+  );
+
+  const orphanedAnswers: ApplicationReviewAnswer[] = application.positionAnswers
+    .filter((a) => !liveQuestionIds.has(a.positionQuestionId))
+    .map((a) => ({
+      id: a.id,
+      questionId: a.positionQuestionId,
+      questionLabel: a.questionLabel,
+      value: a.value,
+      type: a.questionType,
+      isGlobal: false,
+    }));
+
   return {
     globalAnswers: application.globalAnswers.map((a) => ({
       id: a.id,
@@ -124,14 +182,7 @@ function normalizeApplicationAnswers(application: ApplicationAnswersPayload): {
       type: a.questionType,
       isGlobal: true,
     })),
-    positionAnswers: application.positionAnswers.map((a) => ({
-      id: a.id,
-      questionId: a.positionQuestionId,
-      questionLabel: a.questionLabel,
-      value: a.value,
-      type: a.questionType,
-      isGlobal: false,
-    })),
+    positionAnswers: [...liveQuestionAnswers, ...orphanedAnswers],
   };
 }
 
@@ -208,7 +259,7 @@ export async function getMyApplication(
       position: {
         select: {
           ...applicationSelect.position.select,
-          _count: { select: { questions: { where: { deletedAt: null } } } },
+          ...positionQuestionsSelect,
         },
       },
       ...applicationAnswersSelect,
@@ -218,13 +269,13 @@ export async function getMyApplication(
   if (!application) return null;
 
   const { position, ...rest } = application;
-  const { _count, ...positionRest } = position;
+  const { questions, ...positionRest } = position;
 
   return {
     ...toPublicApplication(rest),
     position: positionRest,
-    hasPositionQuestions: _count.questions > 0,
-    ...normalizeApplicationAnswers(application),
+    hasPositionQuestions: questions.length > 0,
+    ...normalizeApplicationAnswers(application, questions),
   };
 }
 
@@ -242,11 +293,7 @@ export async function getApplicationForReview(
       applicantName: true,
       user: { select: { name: true, email: true } },
       position: {
-        select: {
-          id: true,
-          title: true,
-          _count: { select: { questions: { where: { deletedAt: null } } } },
-        },
+        select: { id: true, title: true, ...positionQuestionsSelect },
       },
       ...applicationAnswersSelect,
     },
@@ -255,13 +302,13 @@ export async function getApplicationForReview(
   if (!application) return null;
 
   const { position, ...rest } = application;
-  const { _count, ...positionRest } = position;
+  const { questions, ...positionRest } = position;
 
   return {
     ...rest,
     position: positionRest,
-    hasPositionQuestions: _count.questions > 0,
-    ...normalizeApplicationAnswers(application),
+    hasPositionQuestions: questions.length > 0,
+    ...normalizeApplicationAnswers(application, questions),
   };
 }
 
