@@ -43,6 +43,7 @@ Any change to a brand/status token must keep ≥4.5:1 contrast against its paire
 
 - Font family comes from `--font-sans` (set in the root layout) — use the `font-sans` utility; never name a font in a component.
 - Hierarchy with Tailwind scale: page title `text-2xl font-semibold`, section `text-lg font-semibold`, body `text-sm`, helper/caption `text-xs text-muted-foreground`. Keep headings hierarchical (`h1`→`h2`, no skips).
+- **Heading capitalisation: Title Case.** Applies to `PageHeader` `title`, `SectionCard` `title`, `<h2>`/`<h3>` that name a section, and `CardTitle` used as a section label. Capitalise the first and last word plus every major word; lowercase, when internal only, articles (`a`, `an`, `the`), coordinating conjunctions (`and`, `but`, `or`, `nor`, `so`, `yet`), and prepositions of four letters or fewer (`at`, `by`, `for`, `in`, `of`, `on`, `to`, `up`, `via`, `with`). Determiners and pronouns are major words — hence "Your Answers for This Position". Does **not** apply to (all sentence case): dialog/sheet/popover titles, buttons, dropdown and nav items, form labels and placeholders, `EmptyState` / `SectionCardEmpty` titles and descriptions, `SectionCard` `subtitle`, helper text, toasts, and table filter labels (table column headers are already Title Case and stay so). A heading that is a statement or question to the user, not a label, stays sentence case (e.g. "You've already applied"). Do it in the string literal — never `capitalize` / `uppercase` in CSS.
 
 ## 4. Radius, spacing, layout
 
@@ -87,6 +88,7 @@ The vocabulary lives in `lib/icons.ts` as five separately-exported `Record<Enum,
 - ✅ `text-success` / `bg-warning` ❌ `text-green-600` / `bg-amber-500`
 - ✅ icons via `@/lib/icons` ❌ importing `lucide-react` directly outside `lib/icons.ts` / shadcn output
 - ✅ verify both themes ❌ values that only work in light mode
+- ✅ Title Case section heading ❌ `className="capitalize"`
 
 ## 8. Responsive
 
