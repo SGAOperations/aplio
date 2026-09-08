@@ -5,6 +5,7 @@ import type { $Enums } from '@/prisma/client';
 
 import {
   APPLICATION_STATUS_LABELS,
+  DECISION_EMAIL_DELAY_SECONDS,
   EMAIL_STATUS_DESCRIPTIONS,
   MANAGED_POSITIONS_WINDOW_DAYS,
   USER_ROLE_FILTER_OPTIONS,
@@ -683,4 +684,69 @@ export function summarizeBulkStatusChange(
     applicantVisible:
       target === 'accepted' || target === 'rejected' || finalDecisionCount > 0,
   };
+}
+
+/** First word of a name, or undefined for empty/missing — greeting fallback lives at the call site. */
+export function getFirstName(name?: string | null): string | undefined {
+  const trimmed = name?.trim();
+  return trimmed ? trimmed.split(/\s+/)[0] : undefined;
+}
+
+/** Shared by the single-decision confirm dialog and the override dialog's inline warning. */
+export function getDecisionEmailWarning(name?: string): string {
+  const subject = name ?? 'The applicant';
+  return `${subject} will be emailed in ${DECISION_EMAIL_DELAY_SECONDS} seconds. Undo on the confirmation toast and nothing is sent.`;
+}
+
+export type BulkDecisionEmailWarning = {
+  count: number;
+  lead: string;
+  detail: string;
+};
+
+/** Bulk decisions get the same self-managed delay+undo as a single one now. */
+export function getBulkDecisionEmailWarning(
+  count: number,
+  statusLabel: string,
+): BulkDecisionEmailWarning {
+  const isSingular = count === 1;
+  const lead = isSingular
+    ? '1 application will be emailed.'
+    : `${count} applications will be emailed.`;
+  const detail = `They'll see ${statusLabel} on their application and can no longer withdraw it. Undo within ${DECISION_EMAIL_DELAY_SECONDS} seconds to cancel.`;
+  return { count, lead, detail };
+}
+
+/** Statuses meaning Resend has dispatched the email — the single bucket
+ * the one-email-ever gate classifies against. */
+export function classifyDecisionEmailStatus(
+  status: $Enums.EmailStatus,
+): 'scheduled' | 'sent' | null {
+  switch (status) {
+    case 'scheduled':
+      return 'scheduled';
+    case 'sent':
+    case 'delivered':
+    case 'bounced':
+    case 'complained':
+    case 'suppressed':
+      return 'sent';
+    case 'cancelled':
+    case 'failed':
+      return null;
+    default: {
+      const exhaustive: never = status;
+      throw new Error(`Unhandled email status: ${JSON.stringify(exhaustive)}`);
+    }
+  }
+}
+
+/** Same predicate updateApplicationStatuses uses server-side. */
+export function countBulkEmailRecipients(
+  rows: { status: $Enums.ApplicationStatus }[],
+  target: $Enums.ApplicationStatus,
+): number {
+  return rows.filter(
+    (r) => !isNonReviewableApplicationStatus(r.status) && r.status !== target,
+  ).length;
 }

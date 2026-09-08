@@ -30,6 +30,7 @@ interface ApplicationStatusHeaderActionsProps {
   applicationId: string;
   currentStatus: $Enums.ApplicationStatus;
   applicantName: string;
+  applicantEmail: string;
   history: ApplicationStatusHistoryEntry[];
 }
 
@@ -42,10 +43,16 @@ export function ApplicationStatusHeaderActions({
   applicationId,
   currentStatus,
   applicantName,
+  applicantEmail,
   history,
 }: ApplicationStatusHeaderActionsProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const move = useApplicationStatusMove({ applicationId, applicantName });
+  const move = useApplicationStatusMove({
+    applicationId,
+    applicantName,
+    applicantEmail,
+    currentStatus,
+  });
 
   const moreButton = (
     <Button
@@ -75,6 +82,7 @@ export function ApplicationStatusHeaderActions({
     <ApplicationStatusDialog
       applicationId={applicationId}
       applicantName={applicantName}
+      applicantEmail={applicantEmail}
       currentStatus={currentStatus}
       history={history}
       open={dialogOpen}

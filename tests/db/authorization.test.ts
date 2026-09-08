@@ -539,7 +539,7 @@ describe('updateApplicationStatuses', () => {
       applicationIds: [inScopeApp.id, outScopeApp.id],
       status: 'reviewing',
     });
-    expect(result).toEqual({ updated: 1, skipped: 1 });
+    expect(result).toEqual(expect.objectContaining({ updated: 1, skipped: 1 }));
 
     const updated = await prisma.application.findUniqueOrThrow({
       where: { id: inScopeApp.id },
@@ -585,7 +585,7 @@ describe('updateApplicationStatuses', () => {
       applicationIds: [withdrawnApp.id, reviewableApp.id],
       status: 'reviewing',
     });
-    expect(result).toEqual({ updated: 1, skipped: 1 });
+    expect(result).toEqual(expect.objectContaining({ updated: 1, skipped: 1 }));
 
     const stillWithdrawn = await prisma.application.findUniqueOrThrow({
       where: { id: withdrawnApp.id },

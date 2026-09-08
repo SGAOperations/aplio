@@ -5,14 +5,15 @@ import { useState } from 'react';
 import type { $Enums } from '@/prisma/client';
 
 import {
-  APPLICATION_STATUS_LABELS,
   REVIEWER_APPLICATION_STATUS_OPTIONS,
-  getApplicationStatusUndoTarget,
   isNonReviewableApplicationStatus,
 } from '@/lib/constants';
 import { ACTION_ICONS } from '@/lib/icons';
 import type { ApplicationStatusHistoryEntry } from '@/lib/types';
-import { getApplicationStatusHistoryRowLabel } from '@/lib/utils';
+import {
+  getApplicationStatusHistoryRowLabel,
+  getDecisionEmailWarning,
+} from '@/lib/utils';
 
 import { useApplicationStatusMove } from '@/components/features/use-application-status-move';
 import { Button } from '@/components/ui/button';
@@ -38,6 +39,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 interface ApplicationStatusDialogProps {
   applicationId: string;
   applicantName: string;
+  applicantEmail?: string;
   currentStatus: $Enums.ApplicationStatus;
   history: ApplicationStatusHistoryEntry[];
   // Only the table row's dialog fetches on open — the detail page passes
@@ -51,6 +53,7 @@ interface ApplicationStatusDialogProps {
 export function ApplicationStatusDialog({
   applicationId,
   applicantName,
+  applicantEmail,
   currentStatus,
   history,
   isHistoryLoading = false,
@@ -61,10 +64,16 @@ export function ApplicationStatusDialog({
   const [selectedStatus, setSelectedStatus] = useState<
     $Enums.ApplicationStatus | ''
   >('');
-  const move = useApplicationStatusMove({ applicationId, applicantName });
+  const move = useApplicationStatusMove({
+    applicationId,
+    applicantName,
+    applicantEmail,
+    currentStatus,
+  });
 
   const canOverride = !isNonReviewableApplicationStatus(currentStatus);
-  const undoTarget = getApplicationStatusUndoTarget(history[0] ?? null);
+  const selectingDecision =
+    selectedStatus === 'accepted' || selectedStatus === 'rejected';
 
   function handleApply() {
     if (!selectedStatus) return;
@@ -81,7 +90,7 @@ export function ApplicationStatusDialog({
           <DialogHeader>
             <DialogTitle>Application status</DialogTitle>
             <DialogDescription>
-              Change the status, undo the last change, or review the history.
+              Change the status or review the history.
             </DialogDescription>
           </DialogHeader>
 
@@ -129,6 +138,11 @@ export function ApplicationStatusDialog({
                     Apply
                   </Button>
                 </div>
+                {selectingDecision && (
+                  <p role="status" className="text-muted-foreground text-xs">
+                    {getDecisionEmailWarning(applicantName)}
+                  </p>
+                )}
                 <p
                   id="status-dialog-select-hint"
                   className="text-muted-foreground text-xs"
@@ -137,23 +151,6 @@ export function ApplicationStatusDialog({
                   offer.
                 </p>
               </div>
-            )}
-
-            {canOverride && undoTarget && (
-              <Button
-                variant="link"
-                size="sm"
-                className="h-auto w-fit p-0"
-                disabled={move.isPending}
-                onClick={() =>
-                  move.selectTarget(undoTarget, { override: true })
-                }
-              >
-                {move.isPending && move.pendingTarget === undoTarget && (
-                  <ACTION_ICONS.pending className="animate-spin" />
-                )}
-                Undo — back to {APPLICATION_STATUS_LABELS[undoTarget]}
-              </Button>
             )}
 
             <div className="flex flex-col gap-2">

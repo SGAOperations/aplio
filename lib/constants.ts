@@ -551,6 +551,17 @@ export const TERMINAL_DECISION_STATUS_NOTES: Record<
   rejected: 'Rejected. The applicant can no longer withdraw this application.',
 };
 
+// Single source for the single-decision scheduled-send window.
+export const DECISION_EMAIL_DELAY_SECONDS = 10;
+
+export const DECISION_EMAIL_TEMPLATES: Record<
+  'accepted' | 'rejected',
+  $Enums.EmailTemplateKey
+> = { accepted: 'application_accepted', rejected: 'application_rejected' };
+
+// Resend's batch cap — chunk sendEmailBatch at this size regardless of the caller's own cap.
+export const RESEND_BATCH_MAX_EMAILS = 100;
+
 // States a reviewer may not act *on* — distinct from REVIEWER_APPLICATION_STATUSES (may set *to*).
 export const NON_REVIEWABLE_APPLICATION_STATUSES = [
   'draft',
@@ -592,16 +603,6 @@ export function getApplicationStatusMenu(from: $Enums.ApplicationStatus): {
       ? (['accepted', 'rejected'] as const).filter((d) => d !== next)
       : [],
   };
-}
-
-// Null when there's nothing to undo: no events yet, the latest is the
-// backfill row (`from` null), or `from` is draft/withdrawn.
-export function getApplicationStatusUndoTarget(
-  latest: { from: $Enums.ApplicationStatus | null } | null | undefined,
-): $Enums.ApplicationStatus | null {
-  if (!latest || latest.from === null) return null;
-  if (isNonReviewableApplicationStatus(latest.from)) return null;
-  return latest.from;
 }
 
 // Positive list: a future enum value stays excluded until added — safer for this metric.

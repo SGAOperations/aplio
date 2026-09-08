@@ -67,6 +67,7 @@ export default async function ApplicationDetailPage({
               applicationId={application.id}
               currentStatus={application.status}
               applicantName={applicantName}
+              applicantEmail={application.user.email}
               history={history}
             />
           }

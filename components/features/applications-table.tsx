@@ -281,6 +281,7 @@ export function ApplicationsTable(props: ApplicationsTableProps) {
               applicationId={app.id}
               currentStatus={app.status}
               applicantName={displayName}
+              applicantEmail={app.user.email}
             />
           </div>
         );
@@ -464,6 +465,7 @@ export function ApplicationsTable(props: ApplicationsTableProps) {
                       applicationId={app.id}
                       currentStatus={app.status}
                       applicantName={displayName}
+                      applicantEmail={app.user.email}
                     />
                   </div>
                 </div>

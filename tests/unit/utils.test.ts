@@ -13,14 +13,19 @@ import {
   answerFieldIds,
   buildApplicationsHref,
   canReviewPosition,
+  classifyDecisionEmailStatus,
+  countBulkEmailRecipients,
   displayUserName,
   findDivergingGlobalAnswers,
   formatCountdown,
   formatPaginationSummary,
   formatTableCount,
   getApplicantName,
+  getBulkDecisionEmailWarning,
+  getDecisionEmailWarning,
   getEmailLogDescription,
   getEmailLogOccurredAt,
+  getFirstName,
   getPaginationRange,
   getPositionAvailability,
   getPositionDateInfo,
@@ -1441,5 +1446,95 @@ describe('getEmailLogOccurredAt', () => {
         createdAt,
       }),
     ).toBe(createdAt);
+  });
+});
+
+describe('getFirstName', () => {
+  it('returns the first word of a multi-word name', () => {
+    expect(getFirstName('Jane Doe')).toBe('Jane');
+  });
+
+  it('returns a single-word name as-is', () => {
+    expect(getFirstName('Cher')).toBe('Cher');
+  });
+
+  it('returns undefined for an empty string', () => {
+    expect(getFirstName('')).toBeUndefined();
+  });
+
+  it('returns undefined for null and undefined', () => {
+    expect(getFirstName(null)).toBeUndefined();
+    expect(getFirstName(undefined)).toBeUndefined();
+  });
+});
+
+describe('getDecisionEmailWarning', () => {
+  it('names the applicant when given', () => {
+    expect(getDecisionEmailWarning('Jane')).toBe(
+      'Jane will be emailed in 10 seconds. Undo on the confirmation toast and nothing is sent.',
+    );
+  });
+
+  it('falls back to "The applicant" with no name', () => {
+    expect(getDecisionEmailWarning()).toBe(
+      'The applicant will be emailed in 10 seconds. Undo on the confirmation toast and nothing is sent.',
+    );
+  });
+});
+
+describe('getBulkDecisionEmailWarning', () => {
+  it('uses singular copy for one recipient', () => {
+    const warning = getBulkDecisionEmailWarning(1, 'Accepted');
+    expect(warning.lead).toBe('1 application will be emailed.');
+    expect(warning.detail).toContain('Accepted');
+    expect(warning.detail).toContain('Undo within 10 seconds to cancel.');
+  });
+
+  it('uses plural copy with the count for several recipients', () => {
+    const warning = getBulkDecisionEmailWarning(23, 'Rejected');
+    expect(warning.lead).toBe('23 applications will be emailed.');
+    expect(warning.detail).toContain('Rejected');
+  });
+});
+
+describe('classifyDecisionEmailStatus', () => {
+  it('buckets scheduled as scheduled', () => {
+    expect(classifyDecisionEmailStatus('scheduled')).toBe('scheduled');
+  });
+
+  it('buckets every dispatched-or-later status as sent', () => {
+    for (const status of [
+      'sent',
+      'delivered',
+      'bounced',
+      'complained',
+      'suppressed',
+    ] as const)
+      expect(classifyDecisionEmailStatus(status)).toBe('sent');
+  });
+
+  it('buckets cancelled and failed as null', () => {
+    expect(classifyDecisionEmailStatus('cancelled')).toBeNull();
+    expect(classifyDecisionEmailStatus('failed')).toBeNull();
+  });
+});
+
+describe('countBulkEmailRecipients', () => {
+  it('counts every row that is not skipped', () => {
+    const rows = [
+      { status: 'applied' as const },
+      { status: 'reviewing' as const },
+      { status: 'accepted' as const },
+      { status: 'withdrawn' as const },
+    ];
+    expect(countBulkEmailRecipients(rows, 'rejected')).toBe(3);
+  });
+
+  it('excludes rows already at the target status', () => {
+    const rows = [
+      { status: 'rejected' as const },
+      { status: 'applied' as const },
+    ];
+    expect(countBulkEmailRecipients(rows, 'rejected')).toBe(1);
   });
 });
