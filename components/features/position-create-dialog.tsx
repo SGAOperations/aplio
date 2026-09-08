@@ -26,7 +26,6 @@ import {
 } from '@/components/ui/form';
 import { FormDialog } from '@/components/ui/form-dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 
 const defaultValues: CreatePositionFormValues = {
   title: '',
@@ -36,14 +35,9 @@ const defaultValues: CreatePositionFormValues = {
 const MANAGERS_INPUT_ID = 'create-position-managers';
 const MANAGERS_ERROR_ID = 'create-position-managers-error';
 
-interface CurrentUser {
-  displayName: string;
-  primaryEmail: string;
-}
-
 interface PositionFormFieldsProps {
   isAdmin: boolean;
-  currentUser: CurrentUser;
+  currentUser: UserSearchResult;
 }
 
 // FormDialog wraps children in FormProvider, so isSubmitting comes from
@@ -97,7 +91,7 @@ function PositionFormFields({ isAdmin, currentUser }: PositionFormFieldsProps) {
       />
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor={MANAGERS_INPUT_ID}>Managers</Label>
+        <p className="text-sm font-medium">Managers</p>
         <p className="text-muted-foreground text-sm">
           Managers can edit this position and review its applications.
         </p>
@@ -179,7 +173,7 @@ function PositionFormFields({ isAdmin, currentUser }: PositionFormFieldsProps) {
 
 interface PositionCreateDialogProps {
   isAdmin: boolean;
-  currentUser: CurrentUser;
+  currentUser: UserSearchResult;
 }
 
 // Dialog-triggered, so it uses FormDialog directly, as GlobalQuestionDialog does.
