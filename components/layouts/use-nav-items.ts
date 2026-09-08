@@ -8,8 +8,8 @@ import {
   anonymousNavItems,
   applyNavItems,
   homeNavItem,
-  manageAdminNavItems,
   manageReviewerNavItems,
+  settingsNavItems,
 } from '@/components/layouts/nav-items';
 
 interface UseNavItemsOptions {
@@ -33,20 +33,25 @@ export function useNavItems({
 }: UseNavItemsOptions): UseNavItemsResult {
   const pathname = usePathname();
 
-  const manageItems = [
-    ...(canReviewApplications ? manageReviewerNavItems : []),
-    ...(isAdmin ? manageAdminNavItems : []),
-  ];
-
-  // Apply items sit directly under Home, ungrouped — only Manage gets a heading.
+  // Apply items sit ungrouped under Home; Manage and Settings each get a heading.
   const topLevelItems = identity
     ? [homeNavItem, ...applyNavItems]
     : anonymousNavItems;
 
-  const groups: NavGroup[] =
-    identity && manageItems.length > 0
-      ? [{ id: 'nav-group-manage', label: 'Manage', items: manageItems }]
-      : [];
+  const groups: NavGroup[] = identity
+    ? [
+        {
+          id: 'nav-group-manage',
+          label: 'Manage',
+          items: canReviewApplications ? manageReviewerNavItems : [],
+        },
+        {
+          id: 'nav-group-settings',
+          label: 'Settings',
+          items: isAdmin ? settingsNavItems : [],
+        },
+      ].filter((group) => group.items.length > 0)
+    : [];
 
   // Anonymous visitors land on /positions; authenticated users go to the dashboard.
   const logoHref = identity ? '/' : '/positions';
