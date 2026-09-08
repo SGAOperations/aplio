@@ -1,6 +1,7 @@
 import { getApplicationEmailHistory } from '@/prisma/data/applications';
 
 import { EMAIL_TEMPLATE_LABELS } from '@/lib/constants';
+import { CONCEPT_ICONS } from '@/lib/icons';
 import { type ApplicationEmailEntry, type Reviewer } from '@/lib/types';
 import { getEmailLogDescription } from '@/lib/utils';
 
@@ -21,9 +22,10 @@ export async function ApplicationEmailHistory({
 
   return (
     <SectionCard
-      title="Email history"
+      title="Email History"
       titleAs="h2"
       subtitle="Emails sent to this applicant about this application."
+      icon={CONCEPT_ICONS.email}
     >
       {entries.length === 0 ? (
         <SectionCardEmpty variant="compact" message="No emails sent yet." />

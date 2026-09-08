@@ -2,6 +2,7 @@ import Link from 'next/link';
 
 import { getApplicantOtherApplications } from '@/prisma/data/applications';
 
+import { CONCEPT_ICONS } from '@/lib/icons';
 import { type ApplicantOtherApplication, type Reviewer } from '@/lib/types';
 
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
@@ -21,9 +22,10 @@ export async function ApplicantOtherApplications({
 
   return (
     <SectionCard
-      title="Other applications"
+      title="Other Applications"
       titleAs="h2"
       subtitle="All other positions this applicant has applied to."
+      icon={CONCEPT_ICONS.application}
     >
       {applications.length === 0 ? (
         <SectionCardEmpty variant="compact" message="No other applications." />

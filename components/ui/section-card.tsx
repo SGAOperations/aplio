@@ -21,7 +21,7 @@ interface SectionCardLink {
 interface SectionCardProps {
   title: string;
   subtitle?: string;
-  icon?: LucideIcon;
+  icon: LucideIcon;
   link?: SectionCardLink;
   sectionLabel?: string;
   titleAs?: 'h2' | 'h3';
@@ -52,7 +52,7 @@ export function SectionCard({
       <CardHeader className={HEADER_CLASS}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            {Icon && <Icon className="text-muted-foreground size-4 shrink-0" />}
+            <Icon className="text-muted-foreground size-4 shrink-0" />
             <div>
               {titleContent}
               {subtitle && (
@@ -143,9 +143,12 @@ export function SectionCardSkeleton({
     <Card className="gap-0 overflow-hidden p-0">
       <CardHeader className={HEADER_CLASS}>
         <div className="flex items-center justify-between">
-          <div className="flex flex-col gap-2">
-            <Skeleton className="h-5 w-36" />
-            {hasSubtitle && <Skeleton className="h-4 w-48" />}
+          <div className="flex items-center gap-2">
+            <Skeleton className="size-4 shrink-0 rounded-sm" />
+            <div className="flex flex-col gap-2">
+              <Skeleton className="h-5 w-36" />
+              {hasSubtitle && <Skeleton className="h-4 w-48" />}
+            </div>
           </div>
           {hasLink && <Skeleton className="h-4 w-16" />}
         </div>
