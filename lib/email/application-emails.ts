@@ -14,9 +14,8 @@ import {
   sendScheduledEmailLog,
 } from '@/lib/email/resend';
 import {
-  applicationAcceptedEmail,
+  applicationDecisionEmail,
   applicationReceivedEmail,
-  applicationRejectedEmail,
 } from '@/lib/email/templates';
 import { prisma } from '@/lib/prisma';
 import { classifyDecisionEmailStatus, getFirstName } from '@/lib/utils';
@@ -35,23 +34,6 @@ export interface DecisionEmailRecipient {
   to: string;
   name?: string;
   positionTitle: string;
-}
-
-function decisionEmailTemplate(
-  status: DecisionStatus,
-  recipient: DecisionEmailRecipient,
-) {
-  const firstName = getFirstName(recipient.name);
-  return status === 'accepted'
-    ? applicationAcceptedEmail({
-        firstName,
-        positionTitle: recipient.positionTitle,
-        applicationId: recipient.applicationId,
-      })
-    : applicationRejectedEmail({
-        firstName,
-        positionTitle: recipient.positionTitle,
-      });
 }
 
 export async function sendApplicationReceipt(recipient: {
@@ -141,7 +123,11 @@ export async function dispatchDecisionEmail({
     ]);
     if (dispatched.has(recipient.applicationId)) return;
 
-    const { subject, html, text } = decisionEmailTemplate(status, recipient);
+    const { subject, html, text } = applicationDecisionEmail({
+      firstName: getFirstName(recipient.name),
+      positionTitle: recipient.positionTitle,
+      applicationId: recipient.applicationId,
+    });
     const logId = await createScheduledEmailLog({
       to: recipient.to,
       userId: recipient.userId,
@@ -198,10 +184,11 @@ export async function dispatchBulkDecisionEmails({
     );
     const prepared = await Promise.all(
       eligible.map(async (recipient) => {
-        const { subject, html, text } = decisionEmailTemplate(
-          status,
-          recipient,
-        );
+        const { subject, html, text } = applicationDecisionEmail({
+          firstName: getFirstName(recipient.name),
+          positionTitle: recipient.positionTitle,
+          applicationId: recipient.applicationId,
+        });
         const logId = await createScheduledEmailLog({
           to: recipient.to,
           userId: recipient.userId,

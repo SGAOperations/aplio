@@ -1,5 +1,6 @@
 import { getApplicationEmailHistory } from '@/prisma/data/applications';
 
+import { EMAIL_TEMPLATE_LABELS } from '@/lib/constants';
 import { type ApplicationEmailEntry, type Reviewer } from '@/lib/types';
 import { getEmailLogDescription } from '@/lib/utils';
 
@@ -47,6 +48,7 @@ function EmailHistoryList({ entries }: { entries: ApplicationEmailEntry[] }) {
               <EmailStatusBadge status={entry.status} />
             </div>
             <p className="text-muted-foreground mt-1 text-xs">
+              {EMAIL_TEMPLATE_LABELS[entry.template]} ·{' '}
               <LocalTime date={entry.occurredAt} precision="datetime" />
               {description && <> · {description}</>}
             </p>

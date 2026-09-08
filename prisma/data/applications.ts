@@ -313,6 +313,7 @@ export async function getApplicationEmailHistory(
       id: true,
       subject: true,
       status: true,
+      template: true,
       bounceType: true,
       scheduledAt: true,
       sentAt: true,
@@ -325,6 +326,7 @@ export async function getApplicationEmailHistory(
     id: log.id,
     subject: log.subject,
     status: log.status,
+    template: log.template,
     bounceType: log.bounceType,
     occurredAt: getEmailLogOccurredAt(log),
   }));

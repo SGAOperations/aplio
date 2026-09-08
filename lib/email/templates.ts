@@ -205,78 +205,37 @@ export function applicationReceivedEmail({
   };
 }
 
-export interface ApplicationAcceptedEmailOptions {
+export interface ApplicationDecisionEmailOptions {
   firstName?: string;
   positionTitle: string;
   applicationId: string;
 }
 
-export function applicationAcceptedEmail({
+// Subject and body never state the decision — the EmailLog template does (docs/WORKFLOWS.md XC-9).
+export function applicationDecisionEmail({
   firstName,
   positionTitle,
   applicationId,
-}: ApplicationAcceptedEmailOptions): EmailTemplate {
+}: ApplicationDecisionEmailOptions): EmailTemplate {
   const applicationUrl = `${getBaseUrl()}/my-applications/${applicationId}`;
   const safeGreeting = escapeHtml(greeting(firstName));
   const safeTitle = escapeHtml(positionTitle);
 
   const content = `
     <p style="margin:0 0 16px;font-size:14px;color:#09090b;">${safeGreeting}</p>
-    <p style="margin:0 0 24px;font-size:14px;color:#71717a;">Good news — your application for <strong>${safeTitle}</strong> has been accepted.</p>
+    <p style="margin:0 0 16px;font-size:14px;color:#71717a;">There's an update on your application for <strong>${safeTitle}</strong>.</p>
+    <p style="margin:0 0 24px;font-size:14px;color:#71717a;">Open your application to see its current status.</p>
     ${primaryButton(applicationUrl, 'View my application')}
-    <p style="margin:0;font-size:14px;color:#71717a;">Someone from student government will be in touch about next steps.</p>
   `;
 
   const text = [
     greeting(firstName),
     '',
-    `Good news — your application for ${positionTitle} has been accepted.`,
+    `There's an update on your application for ${positionTitle}.`,
+    '',
+    'Open your application to see its current status.',
     '',
     `View your application: ${applicationUrl}`,
-    '',
-    'Someone from student government will be in touch about next steps.',
-  ].join('\n');
-
-  return {
-    subject: `Your application for ${positionTitle} was accepted`,
-    html: emailLayout({
-      title: 'Application accepted',
-      content,
-      footer: APPLICANT_EMAIL_FOOTER,
-    }),
-    text,
-  };
-}
-
-export interface ApplicationRejectedEmailOptions {
-  firstName?: string;
-  positionTitle: string;
-}
-
-// Subject is deliberately neutral — never contains the outcome. See docs/WORKFLOWS.md XC-9.
-export function applicationRejectedEmail({
-  firstName,
-  positionTitle,
-}: ApplicationRejectedEmailOptions): EmailTemplate {
-  const positionsUrl = `${getBaseUrl()}/positions`;
-  const safeGreeting = escapeHtml(greeting(firstName));
-  const safeTitle = escapeHtml(positionTitle);
-
-  const content = `
-    <p style="margin:0 0 16px;font-size:14px;color:#09090b;">${safeGreeting}</p>
-    <p style="margin:0 0 16px;font-size:14px;color:#71717a;">Thank you for applying for <strong>${safeTitle}</strong>. After review, we won't be moving forward with your application this time.</p>
-    <p style="margin:0 0 24px;font-size:14px;color:#71717a;">We know this is disappointing. Positions open throughout the year, and you're welcome to apply again.</p>
-    ${primaryButton(positionsUrl, 'View open positions')}
-  `;
-
-  const text = [
-    greeting(firstName),
-    '',
-    `Thank you for applying for ${positionTitle}. After review, we won't be moving forward with your application this time.`,
-    '',
-    "We know this is disappointing. Positions open throughout the year, and you're welcome to apply again.",
-    '',
-    `View open positions: ${positionsUrl}`,
   ].join('\n');
 
   return {
