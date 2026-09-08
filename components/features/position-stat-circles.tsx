@@ -1,9 +1,6 @@
 'use client';
 
-import {
-  POSITION_STAT_BUCKETS,
-  STATUS_BADGE_VARIANT_TO_FILL,
-} from '@/lib/constants';
+import { POSITION_STAT_BUCKETS } from '@/lib/constants';
 import type { PositionApplicationStats } from '@/lib/types';
 
 import {
@@ -41,7 +38,7 @@ export function PositionStatCircles({ stats }: PositionStatCirclesProps) {
                     <button
                       type="button"
                       aria-label={`${bucket.label}: ${count}`}
-                      className={`focus-visible:ring-ring/50 relative flex h-11 min-w-11 items-center justify-center rounded-full px-2.5 text-base font-semibold tabular-nums transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] outline-none hover:z-10 hover:scale-110 focus-visible:z-10 focus-visible:scale-110 focus-visible:ring-[3px] motion-reduce:transition-none ${isDimmed ? 'bg-muted text-foreground' : STATUS_BADGE_VARIANT_TO_FILL[bucket.variant]}`}
+                      className={`focus-visible:ring-ring/50 relative flex h-11 min-w-11 items-center justify-center rounded-full px-2.5 text-base font-semibold tabular-nums transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] outline-none hover:z-10 hover:scale-110 focus-visible:z-10 focus-visible:scale-110 focus-visible:ring-[3px] motion-reduce:transition-none ${isDimmed ? 'bg-muted text-foreground' : bucket.fillClassName}`}
                     >
                       {count}
                     </button>

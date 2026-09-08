@@ -1043,40 +1043,37 @@ export const EMAIL_FAILURE_STATUSES = [
   'failed',
 ] as const satisfies $Enums.EmailStatus[];
 
-export const STATUS_BADGE_VARIANT_TO_FILL: Record<BadgeVariant, string> = {
-  info: 'bg-info text-info-foreground',
-  warning: 'bg-warning text-warning-foreground',
-  success: 'bg-success text-success-foreground',
-  destructive: 'bg-destructive text-destructive-foreground',
-  secondary: 'bg-secondary text-secondary-foreground',
-  default: 'bg-primary text-primary-foreground',
-  outline: 'bg-background text-foreground',
-};
-
 // Buckets partition every status getPositionApplicationStats counts, so circles sum to Total.
+// fillClassName is the circle's non-zero fill; unlike badge variants, "in progress" isn't
+// one (violet reads better than amber at 16px semibold white text — see PR #685 discussion).
 export const POSITION_STAT_BUCKETS = [
-  { key: 'applied', label: 'Applied', variant: 'info', statuses: ['applied'] },
+  {
+    key: 'applied',
+    label: 'Applied',
+    fillClassName: 'bg-info text-info-foreground',
+    statuses: ['applied'],
+  },
   {
     key: 'in_progress',
     label: 'In progress',
-    variant: 'warning',
+    fillClassName: 'bg-progress text-progress-foreground',
     statuses: ['reached_out', 'interview_scheduled', 'reviewing'],
   },
   {
     key: 'accepted',
     label: 'Accepted',
-    variant: 'success',
+    fillClassName: 'bg-success text-success-foreground',
     statuses: ['accepted'],
   },
   {
     key: 'rejected',
     label: 'Rejected',
-    variant: 'destructive',
+    fillClassName: 'bg-destructive text-destructive-foreground',
     statuses: ['rejected'],
   },
 ] as const satisfies {
   key: string;
   label: string;
-  variant: BadgeVariant;
+  fillClassName: string;
   statuses: readonly $Enums.ApplicationStatus[];
 }[];
