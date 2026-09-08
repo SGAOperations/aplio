@@ -358,6 +358,7 @@ export type ApplicationEmailEntry = {
   id: string;
   subject: string;
   status: $Enums.EmailStatus;
+  template: $Enums.EmailTemplateKey;
   bounceType: string | null;
   occurredAt: Date;
 };
