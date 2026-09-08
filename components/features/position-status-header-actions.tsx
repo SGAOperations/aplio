@@ -35,10 +35,7 @@ interface PositionStatusHeaderActionsProps {
   unresolvedApplicationCount: number;
 }
 
-// Mirrors ApplicationStatusHeaderActions: a split button whose primary target
-// is the first legal move (POSITION_STATUS_TRANSITIONS' priority order), the
-// rest behind a caret. No legal move at all renders a muted explanation
-// instead — never a disabled button that leaves the reason unstated.
+// No legal move renders a muted explanation instead of a disabled button that leaves the reason unstated.
 export function PositionStatusHeaderActions({
   positionId,
   currentStatus,

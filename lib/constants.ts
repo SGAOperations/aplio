@@ -759,10 +759,7 @@ export function getStatusOptions(
   return POSITION_STATUS_OPTIONS.filter((opt) => opt.value !== 'open');
 }
 
-// Single source of truth for legal position status moves — draft -> closed is
-// deliberately absent, the map's only structural gap (see the resolver below).
-// Order is header-action priority: the first legal target is the primary
-// split-button action, the rest fall behind its caret.
+// Legal position status moves — draft -> closed is deliberately absent.
 export const POSITION_STATUS_TRANSITIONS = {
   draft: ['open'],
   open: ['closed', 'draft'],
@@ -806,10 +803,7 @@ export function getPositionStatusTransitionError(
   return null;
 }
 
-// The header actions' legal targets, in split-button priority order (first =
-// primary). `from` is never in the result. Folds in the admin-only `-> open`
-// rule on top of getPositionStatusTransitionError, since that resolver only
-// knows the transition graph, not who's allowed to publish.
+// Folds the admin-only `-> open` rule on top of the transition graph above.
 export function getPositionTransitionTargets(
   isAdmin: boolean,
   from: PositionStatus,

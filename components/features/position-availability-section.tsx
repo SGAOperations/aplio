@@ -39,10 +39,7 @@ interface PositionAvailabilitySectionProps {
   warnings?: ReactNode;
 }
 
-// No zodResolver — the pair saves together, so validation runs inside the
-// commit handler against the loaded row's previous values, mirroring
-// validatePositionDates/positionPastDateIssues (lib/constants.ts) rather than
-// a schema built for a single combined submit.
+// No zodResolver — the pair saves together, so validation runs inside the commit handler instead.
 export function PositionAvailabilitySection({
   positionId,
   opensAt,

@@ -103,10 +103,7 @@ type PositionEditRow = {
   closesAt: Date | null;
 };
 
-// Shared by every field-save action below: authenticate, check existence
-// (before the access guard, so a stale link gives an actionable message),
-// check access, then check editability. Returns the loaded row so callers
-// don't re-fetch it.
+// Existence check runs before the access guard so a stale link gives an actionable message.
 async function authorizePositionEdit(
   id: string,
 ): Promise<{ position: PositionEditRow; user: User } | { error: string }> {
@@ -152,10 +149,12 @@ export async function updatePositionTitle(
   const auth = await authorizePositionEdit(parsed.data.id);
   if ('error' in auth) return auth;
 
-  await prisma.position.update({
-    where: { id: parsed.data.id },
+  const updateResult = await prisma.position.updateMany({
+    where: { id: parsed.data.id, deletedAt: null },
     data: { title: parsed.data.title, updatedById: auth.user.id },
   });
+  if (updateResult.count === 0)
+    return { error: 'This position no longer exists.' };
 
   revalidatePositionSurfaces(parsed.data.id);
 }
@@ -174,10 +173,12 @@ export async function updatePositionDescription(
   const auth = await authorizePositionEdit(parsed.data.id);
   if ('error' in auth) return auth;
 
-  await prisma.position.update({
-    where: { id: parsed.data.id },
+  const updateResult = await prisma.position.updateMany({
+    where: { id: parsed.data.id, deletedAt: null },
     data: { description: parsed.data.description, updatedById: auth.user.id },
   });
+  if (updateResult.count === 0)
+    return { error: 'This position no longer exists.' };
 
   revalidatePositionSurfaces(parsed.data.id);
 }
@@ -219,14 +220,16 @@ export async function updatePositionSchedule(
   if (pastDateIssues.length > 0)
     return { error: pastDateIssues[0]?.message ?? 'Invalid input' };
 
-  await prisma.position.update({
-    where: { id },
+  const updateResult = await prisma.position.updateMany({
+    where: { id, deletedAt: null },
     data: {
       opensAt: opensAt ? orgDayStart(opensAt) : null,
       closesAt: closesAt ? orgDayEnd(closesAt) : null,
       updatedById: user.id,
     },
   });
+  if (updateResult.count === 0)
+    return { error: 'This position no longer exists.' };
 
   revalidatePositionSurfaces(id);
 }

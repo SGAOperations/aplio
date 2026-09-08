@@ -18,11 +18,7 @@ interface UseAutosaveResult<T> {
   setSaved: (value: T) => void;
 }
 
-// Generic field-level autosave: commits only a changed value, serializes
-// writes through a per-instance promise chain so a fast second commit can't
-// land before the first, and never advances the saved ref on failure so a
-// retry re-sends. `save` should throw ActionError for a user-facing message
-// (surfaced as `error`) — anything else reads as the generic failure.
+// Serializes writes through a per-instance promise chain so a fast second commit can't outrace the first.
 export function useAutosave<T>({
   initialValue,
   save,
