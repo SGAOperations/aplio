@@ -29,6 +29,8 @@ let appOnB: Application;
 
 let deliveredId: string;
 let sentId: string;
+let deliveredAt: Date;
+let sentAt: Date;
 
 beforeAll(async () => {
   admin = await createTestUser({ isAdmin: true });
@@ -51,6 +53,7 @@ beforeAll(async () => {
 
   const to = testAddress();
 
+  sentAt = new Date(Date.now() - 60_000);
   const sent = await prisma.emailLog.create({
     data: {
       to,
@@ -59,12 +62,13 @@ beforeAll(async () => {
       template: 'application_received',
       subject: 'Application received',
       status: 'sent',
-      sentAt: new Date(Date.now() - 60_000),
-      createdAt: new Date(Date.now() - 60_000),
+      sentAt,
+      createdAt: sentAt,
     },
   });
   sentId = sent.id;
 
+  deliveredAt = new Date(Date.now() - 20_000);
   const delivered = await prisma.emailLog.create({
     data: {
       to,
@@ -74,7 +78,7 @@ beforeAll(async () => {
       subject: 'Application accepted',
       status: 'delivered',
       sentAt: new Date(Date.now() - 30_000),
-      deliveredAt: new Date(Date.now() - 20_000),
+      deliveredAt,
       createdAt: new Date(Date.now() - 30_000),
     },
   });
@@ -150,7 +154,7 @@ describe('getApplicationEmailHistory', () => {
     const rows = await getApplicationEmailHistory(appOnA.id, managerA);
     const delivered = rows.find((r) => r.id === deliveredId);
     const sent = rows.find((r) => r.id === sentId);
-    expect(delivered?.occurredAt).toBeInstanceOf(Date);
-    expect(sent?.occurredAt).toBeInstanceOf(Date);
+    expect(delivered?.occurredAt).toEqual(deliveredAt);
+    expect(sent?.occurredAt).toEqual(sentAt);
   });
 });
