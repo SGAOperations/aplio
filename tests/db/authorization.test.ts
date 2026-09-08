@@ -283,6 +283,26 @@ describe('getApplications / getApplicationsCount / getApplicationForReview / get
     ).toMatchObject({ id: applicationA1.id });
   });
 
+  it('still returns null for getApplicationForReview on a draft', async () => {
+    expect(
+      await getApplicationForReview(draftApplicationA.id, managerA),
+    ).toBeNull();
+    expect(
+      await getApplicationForReview(draftApplicationA.id, admin),
+    ).toBeNull();
+  });
+
+  it('a draft status filter never returns draft rows and the total matches the unfiltered query', async () => {
+    const draftFiltered = await getApplications(managerA, { status: 'draft' });
+    expect(draftFiltered.map((a) => a.id)).not.toContain(draftApplicationA.id);
+
+    const draftFilteredCount = await getApplicationsCount(managerA, {
+      status: 'draft',
+    });
+    const unfilteredCount = await getApplicationsCount(managerA, {});
+    expect(draftFilteredCount).toBe(unfilteredCount);
+  });
+
   it('scopes getReviewablePositions to the managing manager, admin sees both', async () => {
     const asManagerA = (await getReviewablePositions(managerA)).map(
       (p) => p.id,
@@ -519,7 +539,7 @@ describe('updateApplicationStatuses', () => {
       applicationIds: [inScopeApp.id, outScopeApp.id],
       status: 'reviewing',
     });
-    expect(result).toEqual({ updated: 1, skipped: 1 });
+    expect(result).toEqual(expect.objectContaining({ updated: 1, skipped: 1 }));
 
     const updated = await prisma.application.findUniqueOrThrow({
       where: { id: inScopeApp.id },
@@ -565,7 +585,7 @@ describe('updateApplicationStatuses', () => {
       applicationIds: [withdrawnApp.id, reviewableApp.id],
       status: 'reviewing',
     });
-    expect(result).toEqual({ updated: 1, skipped: 1 });
+    expect(result).toEqual(expect.objectContaining({ updated: 1, skipped: 1 }));
 
     const stillWithdrawn = await prisma.application.findUniqueOrThrow({
       where: { id: withdrawnApp.id },

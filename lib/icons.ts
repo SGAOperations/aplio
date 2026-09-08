@@ -67,7 +67,8 @@ type Concept =
   | 'question'
   | 'profile'
   | 'activity'
-  | 'deadline';
+  | 'deadline'
+  | 'email';
 
 export const CONCEPT_ICONS: Record<Concept, LucideIcon> = {
   home: House,
@@ -79,6 +80,7 @@ export const CONCEPT_ICONS: Record<Concept, LucideIcon> = {
   profile: UserPen,
   activity: Activity,
   deadline: CalendarClock,
+  email: Mail,
 };
 
 export const APPLICATION_STATUS_ICONS: Record<
@@ -107,6 +109,17 @@ export const POSITION_AVAILABILITY_ICONS: Record<
 
 export const POSITION_STATUS_ICONS: Record<$Enums.PositionStatus, LucideIcon> =
   { draft: FilePen, open: CircleDot, closed: CircleSlash };
+
+export const EMAIL_STATUS_ICONS: Record<$Enums.EmailStatus, LucideIcon> = {
+  scheduled: CalendarClock,
+  sent: Send,
+  delivered: CircleCheck,
+  bounced: OctagonAlert,
+  complained: TriangleAlert,
+  suppressed: ShieldOff,
+  failed: CircleX,
+  cancelled: CircleSlash,
+};
 
 type Action =
   | 'create'

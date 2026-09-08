@@ -10,7 +10,6 @@ import {
   getAllowedApplicationStatusTransitions,
   getApplicationStatusMenu,
   getApplicationStatusRank,
-  getApplicationStatusUndoTarget,
   getNextApplicationStatus,
   isAllowedApplicationStatusTransition,
 } from '@/lib/constants';
@@ -196,31 +195,6 @@ describe('getApplicationStatusMenu', () => {
       expect(decisions).not.toContain('interview_scheduled');
       expect(decisions).not.toContain('reviewing');
     }
-  });
-});
-
-describe('getApplicationStatusUndoTarget', () => {
-  it('is null with no events', () => {
-    expect(getApplicationStatusUndoTarget(null)).toBeNull();
-    expect(getApplicationStatusUndoTarget(undefined)).toBeNull();
-  });
-
-  it('is null for the backfill row (from: null)', () => {
-    expect(getApplicationStatusUndoTarget({ from: null })).toBeNull();
-  });
-
-  it('is null when the prior status is draft or withdrawn', () => {
-    expect(getApplicationStatusUndoTarget({ from: 'draft' })).toBeNull();
-    expect(getApplicationStatusUndoTarget({ from: 'withdrawn' })).toBeNull();
-  });
-
-  it('returns the prior status otherwise', () => {
-    expect(getApplicationStatusUndoTarget({ from: 'reviewing' })).toBe(
-      'reviewing',
-    );
-    expect(getApplicationStatusUndoTarget({ from: 'accepted' })).toBe(
-      'accepted',
-    );
   });
 });
 

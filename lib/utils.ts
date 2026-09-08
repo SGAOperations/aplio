@@ -5,6 +5,8 @@ import type { $Enums } from '@/prisma/client';
 
 import {
   APPLICATION_STATUS_LABELS,
+  DECISION_EMAIL_DELAY_SECONDS,
+  EMAIL_STATUS_DESCRIPTIONS,
   MANAGED_POSITIONS_WINDOW_DAYS,
   USER_ROLE_FILTER_OPTIONS,
   getApplicationStatusRank,
@@ -13,6 +15,8 @@ import {
 import type {
   AnswerPartition,
   AnswerQuestion,
+  ApplicationFilters,
+  EmailLogFilters,
   ManagedPositionRow,
   PositionActivity,
   PositionAvailability,
@@ -75,6 +79,48 @@ export function getApplicationStatusHistoryRowLabel(entry: {
   if (entry.from === null)
     return `Status recorded as ${APPLICATION_STATUS_LABELS[entry.to]}`;
   return `${APPLICATION_STATUS_LABELS[entry.from]} → ${APPLICATION_STATUS_LABELS[entry.to]}`;
+}
+
+/** The one sentence for a row's status; `bounced` branches on `bounceType`. */
+export function getEmailLogDescription(entry: {
+  status: $Enums.EmailStatus;
+  bounceType: string | null;
+}): string | null {
+  if (entry.status !== 'bounced')
+    return EMAIL_STATUS_DESCRIPTIONS[entry.status];
+
+  if (entry.bounceType === 'Permanent')
+    return 'The address rejected it permanently — the applicant did not receive this.';
+  if (entry.bounceType === 'Transient')
+    return 'Temporarily undeliverable — the applicant did not receive this.';
+  return 'This could not be delivered.';
+}
+
+/** The one timestamp a status actually means — never the raw `createdAt` when a truer column exists. */
+export function getEmailLogOccurredAt(entry: {
+  status: $Enums.EmailStatus;
+  scheduledAt: Date | null;
+  sentAt: Date | null;
+  deliveredAt: Date | null;
+  createdAt: Date;
+}): Date {
+  switch (entry.status) {
+    case 'scheduled':
+      return entry.scheduledAt ?? entry.createdAt;
+    case 'delivered':
+      return entry.deliveredAt ?? entry.sentAt ?? entry.createdAt;
+    case 'sent':
+    case 'bounced':
+    case 'complained':
+    case 'suppressed':
+    case 'failed':
+    case 'cancelled':
+      return entry.sentAt ?? entry.createdAt;
+    default: {
+      const exhaustiveCheck: never = entry.status;
+      return exhaustiveCheck;
+    }
+  }
 }
 
 export type ErrorType = { error: string };
@@ -535,6 +581,112 @@ export function formatPaginationSummary({
   return `Showing ${rangeStart}–${rangeEnd} of ${total} ${matching}${nounLabel}`;
 }
 
+/** `/manage/applications` link for a filter set + page; omits `page=1`. */
+export function buildApplicationsHref(
+  filters: ApplicationFilters,
+  page?: number,
+): string {
+  const params = new URLSearchParams();
+  if (filters.positionId) params.set('positionId', filters.positionId);
+  if (filters.status) params.set('status', filters.status);
+  if (filters.userId) params.set('userId', filters.userId);
+  if (filters.q) params.set('q', filters.q);
+  if (filters.sort)
+    params.set('sort', `${filters.sort.field}:${filters.sort.direction}`);
+  if (page && page > 1) params.set('page', String(page));
+
+  const qs = params.toString();
+  return qs ? `/manage/applications?${qs}` : '/manage/applications';
+}
+
+/** `/emails` link for a filter set + page; omits `page=1`. */
+export function buildEmailLogHref(filters: EmailLogFilters, page?: number) {
+  const params = new URLSearchParams();
+  if (filters.q) params.set('q', filters.q);
+  if (filters.status) params.set('status', filters.status);
+  if (filters.template) params.set('template', filters.template);
+  if (page && page > 1) params.set('page', String(page));
+
+  const qs = params.toString();
+  return qs ? `/emails?${qs}` : '/emails';
+}
+
+interface PaginationBoundsInput {
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+interface PaginationBounds {
+  totalPages: number;
+  currentPage: number;
+  rangeStart: number;
+  rangeEnd: number;
+}
+
+/** Clamps a stale `?page=` to the last page (`totalPages` floors at 1) and derives the range. */
+export function getPaginationBounds({
+  total,
+  page,
+  pageSize,
+}: PaginationBoundsInput): PaginationBounds {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const currentPage = total > 0 && page > totalPages ? totalPages : page;
+
+  return {
+    totalPages,
+    currentPage,
+    rangeStart: total === 0 ? 0 : (currentPage - 1) * pageSize + 1,
+    rangeEnd: Math.min(currentPage * pageSize, total),
+  };
+}
+
+const EMAIL_TIMESTAMP_LABELS = {
+  delivered: 'Delivered',
+  scheduled: 'Scheduled for',
+  sent: 'Sent',
+  bounced: 'Sent',
+  complained: 'Sent',
+  suppressed: 'Sent',
+  failed: 'Attempted',
+  cancelled: 'Cancelled',
+} as const satisfies Record<$Enums.EmailStatus, string>;
+
+/** The one instant worth showing for a row's status, and its label. */
+export function getEmailLogTimestamp(row: {
+  status: $Enums.EmailStatus;
+  scheduledAt: Date | null;
+  sentAt: Date | null;
+  deliveredAt: Date | null;
+  createdAt: Date;
+}): { date: Date; label: string } {
+  const label = EMAIL_TIMESTAMP_LABELS[row.status];
+
+  switch (row.status) {
+    case 'delivered':
+      return { date: row.deliveredAt ?? row.sentAt ?? row.createdAt, label };
+    case 'scheduled':
+      return { date: row.scheduledAt ?? row.createdAt, label };
+    case 'sent':
+    case 'bounced':
+    case 'complained':
+    case 'suppressed':
+      return { date: row.sentAt ?? row.createdAt, label };
+    case 'failed':
+    case 'cancelled':
+      return { date: row.createdAt, label };
+    default: {
+      const _exhaustive: never = row.status;
+      throw new Error(`Unhandled email status: ${_exhaustive}`);
+    }
+  }
+}
+
+/** `Permanent`/`Transient` as-is; any other provider string passes through; blank/null → `null`. */
+export function formatBounceType(bounceType: string | null): string | null {
+  return bounceType?.trim() || null;
+}
+
 /** `m:ss`, always minutes-and-seconds (never a bare second count); negative clamps to `0:00`. */
 export function formatCountdown(seconds: number): string {
   const clamped = Math.max(0, Math.ceil(seconds));
@@ -621,4 +773,69 @@ export function summarizeBulkStatusChange(
     applicantVisible:
       target === 'accepted' || target === 'rejected' || finalDecisionCount > 0,
   };
+}
+
+/** First word of a name, or undefined for empty/missing — greeting fallback lives at the call site. */
+export function getFirstName(name?: string | null): string | undefined {
+  const trimmed = name?.trim();
+  return trimmed ? trimmed.split(/\s+/)[0] : undefined;
+}
+
+/** Shared by the single-decision confirm dialog and the override dialog's inline warning. */
+export function getDecisionEmailWarning(name?: string): string {
+  const subject = name ?? 'The applicant';
+  return `${subject} will be emailed in ${DECISION_EMAIL_DELAY_SECONDS} seconds. Undo on the confirmation toast and nothing is sent.`;
+}
+
+export type BulkDecisionEmailWarning = {
+  count: number;
+  lead: string;
+  detail: string;
+};
+
+/** Bulk decisions get the same self-managed delay+undo as a single one now. */
+export function getBulkDecisionEmailWarning(
+  count: number,
+  statusLabel: string,
+): BulkDecisionEmailWarning {
+  const isSingular = count === 1;
+  const lead = isSingular
+    ? '1 application will be emailed.'
+    : `${count} applications will be emailed.`;
+  const detail = `They'll see ${statusLabel} on their application and can no longer withdraw it. Undo within ${DECISION_EMAIL_DELAY_SECONDS} seconds to cancel.`;
+  return { count, lead, detail };
+}
+
+/** Statuses meaning Resend has dispatched the email — the single bucket
+ * the one-email-ever gate classifies against. */
+export function classifyDecisionEmailStatus(
+  status: $Enums.EmailStatus,
+): 'scheduled' | 'sent' | null {
+  switch (status) {
+    case 'scheduled':
+      return 'scheduled';
+    case 'sent':
+    case 'delivered':
+    case 'bounced':
+    case 'complained':
+    case 'suppressed':
+      return 'sent';
+    case 'cancelled':
+    case 'failed':
+      return null;
+    default: {
+      const exhaustive: never = status;
+      throw new Error(`Unhandled email status: ${JSON.stringify(exhaustive)}`);
+    }
+  }
+}
+
+/** Same predicate updateApplicationStatuses uses server-side. */
+export function countBulkEmailRecipients(
+  rows: { status: $Enums.ApplicationStatus }[],
+  target: $Enums.ApplicationStatus,
+): number {
+  return rows.filter(
+    (r) => !isNonReviewableApplicationStatus(r.status) && r.status !== target,
+  ).length;
 }

@@ -10,8 +10,11 @@ import type { $Enums, Prisma } from '@/prisma/client';
 import type {
   APPLICATION_SORT_DIRECTIONS,
   APPLICATION_SORT_FIELDS,
+  APPLICATION_STATUS_VALUES,
+  EMAIL_FAILURE_STATUSES,
+  EMAIL_STATUS_VALUES,
+  EMAIL_TEMPLATE_VALUES,
   PublicApplicationStatus,
-  REVIEWER_APPLICATION_STATUSES,
 } from '@/lib/constants';
 
 import type { BadgeVariant } from '@/components/ui/badge';
@@ -81,7 +84,11 @@ export type PositionForEdit = Prisma.PositionGetPayload<{
     updatedAt: true;
     managers: { select: { id: true; name: true; email: true } };
   };
-}> & { questions: PositionQuestionForEdit[]; lastStatusChangeAt: Date | null };
+}> & {
+  questions: PositionQuestionForEdit[];
+  lastStatusChangeAt: Date | null;
+  hasApplications: boolean;
+};
 
 // Matches getApplicationForApply's query in prisma/data/applications.ts.
 // status is overridden to the public value — applicant-facing, never the
@@ -152,6 +159,24 @@ export type AdminApplicationListItem = Prisma.ApplicationGetPayload<{
     user: { select: { id: true; name: true; email: true } };
   };
 }>;
+
+// Identity and timestamps only — no status, applicantName or answer relation,
+// so no answer/file/completion signal is reachable from a component using this.
+export type DraftApplicationListItem = Prisma.ApplicationGetPayload<{
+  select: {
+    id: true;
+    createdAt: true;
+    updatedAt: true;
+    position: { select: { id: true; title: true } };
+    user: { select: { id: true; name: true; email: true } };
+  };
+}>;
+
+// Per-row discriminant so ApplicationsTable can mix admin and draft rows on
+// one page instead of switching its whole column set between the two.
+export type ApplicationTableRow =
+  | ({ isDraft: false } & AdminApplicationListItem)
+  | ({ isDraft: true } & DraftApplicationListItem);
 
 // Structural, so the window helper needs no conversion at its call sites.
 export type PositionWindow = {
@@ -243,8 +268,6 @@ export type PositionDeletionSummary = {
 // Minimal shape reviewer-scoped queries and guards need — spelled inline in 5+ signatures.
 export type Reviewer = { id: string; isAdmin: boolean };
 
-export type ReviewerStatus = (typeof REVIEWER_APPLICATION_STATUSES)[number];
-
 export type ApplicationSortField = (typeof APPLICATION_SORT_FIELDS)[number];
 export type ApplicationSortDirection =
   (typeof APPLICATION_SORT_DIRECTIONS)[number];
@@ -253,10 +276,15 @@ export type ApplicationSort = {
   direction: ApplicationSortDirection;
 };
 
-// status is ReviewerStatus so 'draft' can never be filtered for.
+export type ApplicationStatusFilter =
+  (typeof APPLICATION_STATUS_VALUES)[number];
+
+// status widened to ApplicationStatusFilter (includes 'draft') so the queue's
+// filter can select the drafts view; buildApplicationListWhere guards against
+// it ever overwriting listable's own status: { not: 'draft' }.
 export type ApplicationFilters = {
   positionId?: string;
-  status?: ReviewerStatus;
+  status?: ApplicationStatusFilter;
   userId?: string;
   q?: string;
   sort?: ApplicationSort;
@@ -322,6 +350,16 @@ export type ApplicantOtherApplication = {
   submittedAt: Date;
   position: { id: string; title: string };
   canOpen: boolean;
+};
+
+// Recipient address, provider message id and raw provider error are
+// deliberately withheld — never crosses to a client component.
+export type ApplicationEmailEntry = {
+  id: string;
+  subject: string;
+  status: $Enums.EmailStatus;
+  bounceType: string | null;
+  occurredAt: Date;
 };
 
 // Kept in sync with lib/constants.ts#questionFileTargetSchema.
@@ -413,3 +451,34 @@ export interface NavGroup {
   label: string;
   items: NavItem[];
 }
+
+export type EmailStatusFilter = (typeof EMAIL_STATUS_VALUES)[number];
+export type EmailTemplateFilter = (typeof EMAIL_TEMPLATE_VALUES)[number];
+
+export type EmailLogFilters = {
+  q?: string;
+  status?: EmailStatusFilter;
+  template?: EmailTemplateFilter;
+};
+
+// Exposes recipient addresses and provider errors — admin-gated contexts
+// only. Matches prisma/data/emails.ts#emailLogSelect.
+export type EmailLogListItem = Prisma.EmailLogGetPayload<{
+  select: {
+    id: true;
+    to: true;
+    subject: true;
+    template: true;
+    status: true;
+    bounceType: true;
+    error: true;
+    scheduledAt: true;
+    sentAt: true;
+    deliveredAt: true;
+    createdAt: true;
+    user: { select: { id: true; name: true } };
+  };
+}>;
+
+export type EmailFailureStatus = (typeof EMAIL_FAILURE_STATUSES)[number];
+export type EmailFailureCounts = Record<EmailFailureStatus, number>;

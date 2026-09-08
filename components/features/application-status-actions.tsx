@@ -30,6 +30,7 @@ interface ApplicationStatusActionsProps {
   applicationId: string;
   currentStatus: $Enums.ApplicationStatus;
   applicantName?: string;
+  applicantEmail?: string;
 }
 
 // Table row `⋯` menu only — the detail page's header actions live in
@@ -38,10 +39,16 @@ export function ApplicationStatusActions({
   applicationId,
   currentStatus,
   applicantName,
+  applicantEmail,
 }: ApplicationStatusActionsProps) {
   const displayName = applicantName ?? 'this application';
   const { isPending, selectTarget, confirmDialogProps } =
-    useApplicationStatusMove({ applicationId, applicantName });
+    useApplicationStatusMove({
+      applicationId,
+      applicantName,
+      applicantEmail,
+      currentStatus,
+    });
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [history, setHistory] = useState<ApplicationStatusHistoryEntry[]>([]);
@@ -65,9 +72,9 @@ export function ApplicationStatusActions({
         if (isError(result)) {
           setHistoryFailed(true);
           toast.error(result.error);
-          return;
+        } else {
+          setHistory(result);
         }
-        setHistory(result);
       } catch {
         if (requestId !== requestIdRef.current) return;
         setHistoryFailed(true);
@@ -103,6 +110,7 @@ export function ApplicationStatusActions({
       <ApplicationStatusDialog
         applicationId={applicationId}
         applicantName={displayName}
+        applicantEmail={applicantEmail}
         currentStatus={currentStatus}
         history={history}
         isHistoryLoading={isHistoryLoading}

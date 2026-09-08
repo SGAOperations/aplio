@@ -4,17 +4,25 @@ import { useState, useTransition } from 'react';
 
 import { toast } from 'sonner';
 
-import { updateApplicationStatuses } from '@/prisma/actions/applications';
+import {
+  updateApplicationStatus,
+  updateApplicationStatuses,
+} from '@/prisma/actions/applications';
 import type { $Enums } from '@/prisma/client';
 
 import {
   APPLICATION_STATUS_LABELS,
+  DECISION_EMAIL_DELAY_SECONDS,
   REVIEWER_APPLICATION_STATUS_OPTIONS,
   isNonReviewableApplicationStatus,
 } from '@/lib/constants';
 import { ACTION_ICONS } from '@/lib/icons';
 import type { ApplicationListRow } from '@/lib/types';
-import { summarizeBulkStatusChange } from '@/lib/utils';
+import {
+  countBulkEmailRecipients,
+  getBulkDecisionEmailWarning,
+  summarizeBulkStatusChange,
+} from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -26,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { WarningCallout } from '@/components/ui/warning-callout';
 
 interface ApplicationsBulkBarProps {
   selected: ApplicationListRow[];
@@ -38,6 +47,26 @@ const HINT_ID = 'bulk-status-hint';
 
 function applicationNoun(count: number): string {
   return count === 1 ? 'application' : 'applications';
+}
+
+// Reverts each row to its own individual prior status — a bulk move can pull
+// applications forward from different starting points, so one shared target
+// would be wrong for every row but the ones that happened to start alike.
+// Reuses the single-decision action per row: same CAS, audit trail, and
+// decision-email cancel (a pure DB flip, see lib/email/application-emails.ts)
+// that undoing a single move already relies on.
+function undoBulkMove(
+  reversions: { applicationId: string; status: $Enums.ApplicationStatus }[],
+): Promise<unknown> {
+  return Promise.all(
+    reversions.map((r) =>
+      updateApplicationStatus({
+        applicationId: r.applicationId,
+        status: r.status,
+        override: true,
+      }),
+    ),
+  );
 }
 
 export function ApplicationsBulkBar({
@@ -59,6 +88,14 @@ export function ApplicationsBulkBar({
   const isDecision = status === 'accepted' || status === 'rejected';
   const statusLabel = status ? APPLICATION_STATUS_LABELS[status] : '';
   const finalDecisionCount = summary?.finalDecisionCount ?? 0;
+  const emailRecipientCount = isDecision
+    ? countBulkEmailRecipients(selected, status)
+    : 0;
+  // Same set for a decision — one number shown across title, trigger, and confirm.
+  const displayCount = isDecision ? emailRecipientCount : eligibleCount;
+  const emailWarning = isDecision
+    ? getBulkDecisionEmailWarning(emailRecipientCount, statusLabel)
+    : null;
 
   function handleConfirm() {
     if (!status) return;
@@ -73,17 +110,32 @@ export function ApplicationsBulkBar({
           return;
         }
 
-        const { updated, skipped } = result;
-        if (skipped === 0) {
-          toast.success(`Updated ${updated} ${applicationNoun(updated)}`);
-        } else {
-          toast.success(
-            `Updated ${updated} of ${updated + skipped} applications`,
-            {
-              description: `${skipped} skipped — drafts, withdrawn, or already ${statusLabel}.`,
-            },
-          );
-        }
+        const { updated, skipped, reversions } = result;
+        // Gmail-style safety net, same as the single-move toast — only a
+        // decision has an email to undo.
+        const canUndo = isDecision && reversions.length > 0;
+        const successMessage =
+          skipped === 0
+            ? `Updated ${updated} ${applicationNoun(updated)}`
+            : `Updated ${updated} of ${updated + skipped} applications`;
+
+        toast.success(successMessage, {
+          description:
+            skipped > 0
+              ? `${skipped} skipped — drafts, withdrawn, or already ${statusLabel}.`
+              : undefined,
+          duration: canUndo ? DECISION_EMAIL_DELAY_SECONDS * 1000 : undefined,
+          action: canUndo
+            ? {
+                label: 'Undo',
+                onClick: () => {
+                  void undoBulkMove(reversions).catch(() =>
+                    toast.error('Something went wrong. Please try again.'),
+                  );
+                },
+              }
+            : undefined,
+        });
 
         setConfirmOpen(false);
         onApplied(
@@ -143,7 +195,7 @@ export function ApplicationsBulkBar({
           size="sm"
           variant={isRejecting ? 'destructive' : 'default'}
           onClick={() => setConfirmOpen(true)}
-          disabled={isPending || !status || eligibleCount === 0}
+          disabled={isPending || !status || displayCount === 0}
           aria-describedby={skippedLabel ? HINT_ID : undefined}
         >
           {isPending ? (
@@ -152,7 +204,7 @@ export function ApplicationsBulkBar({
               Applying...
             </>
           ) : (
-            `Apply to ${eligibleCount}`
+            `Apply to ${displayCount}`
           )}
         </Button>
       </div>
@@ -162,11 +214,18 @@ export function ApplicationsBulkBar({
         onOpenChange={setConfirmOpen}
         title={
           isRejecting
-            ? `Reject ${eligibleCount} ${applicationNoun(eligibleCount)}?`
-            : `Set ${eligibleCount} ${applicationNoun(eligibleCount)} to ${statusLabel}?`
+            ? `Reject ${displayCount} ${applicationNoun(displayCount)}?`
+            : `Set ${displayCount} ${applicationNoun(displayCount)} to ${statusLabel}?`
         }
         description={
           <div className="flex flex-col gap-2">
+            {emailWarning && (
+              <WarningCallout>
+                <p>
+                  <strong>{emailWarning.lead}</strong> {emailWarning.detail}
+                </p>
+              </WarningCallout>
+            )}
             {summary && summary.forwardCount > 0 && (
               <p>{summary.forwardCount} will move forward.</p>
             )}
@@ -177,18 +236,18 @@ export function ApplicationsBulkBar({
               <p>{`${finalDecisionCount} will change a final decision — it's currently Accepted or Rejected.`}</p>
             )}
             {skippedLabel && <p>{skippedLabel}</p>}
-            <p>
-              {isDecision
-                ? 'Applicants will see this decision on their application.'
-                : summary?.applicantVisible
+            {!isDecision && (
+              <p>
+                {summary?.applicantVisible
                   ? 'Applicants whose decision is reversed will see this change; the rest still show as Applied.'
                   : "Applicants won't see this change — every in-review application shows as Applied to them."}
-            </p>
+              </p>
+            )}
           </div>
         }
         confirmLabel={
-          isRejecting
-            ? `Reject ${eligibleCount} ${applicationNoun(eligibleCount)}`
+          isDecision
+            ? `${isRejecting ? 'Reject' : 'Accept'} ${displayCount} and send email`
             : `Set to ${statusLabel}`
         }
         pendingLabel={isRejecting ? 'Rejecting…' : 'Updating…'}

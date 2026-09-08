@@ -118,7 +118,8 @@ type SectionCardSkeletonRowShape =
   | 'meta'
   | 'badge-meta'
   | 'stacked-action'
-  | 'timeline';
+  | 'timeline'
+  | 'badge-stacked';
 
 interface SectionCardSkeletonProps {
   rows?: number;
@@ -196,6 +197,16 @@ function SectionCardSkeletonRow({
           <Skeleton className="size-2 shrink-0 rounded-full" />
           <Skeleton className="h-4 flex-1" />
           <Skeleton className="h-3 w-12" />
+        </div>
+      );
+    case 'badge-stacked':
+      return (
+        <div className="border-b px-4 py-3 last:border-0">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-4 flex-1" />
+            <Skeleton className="h-5 w-20 rounded-md" />
+          </div>
+          <Skeleton className="mt-1.5 h-3 w-48" />
         </div>
       );
     default: {

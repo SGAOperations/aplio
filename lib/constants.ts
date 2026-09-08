@@ -353,7 +353,8 @@ export const APPLICATION_STATUS_BADGE_VARIANT: Record<
   withdrawn: 'outline',
 };
 
-// Excludes 'withdrawn': no consumer needs the unfiltered status list.
+// The /manage/applications queue's filter list — every status a manager can
+// filter for, including 'draft'. Excludes 'withdrawn': no consumer needs it.
 export const APPLICATION_STATUS_VALUES = [
   'draft',
   'applied',
@@ -405,6 +406,24 @@ export const PUBLIC_APPLICATION_STATUS = {
 
 export type PublicApplicationStatus =
   (typeof PUBLIC_APPLICATION_STATUS)[keyof typeof PUBLIC_APPLICATION_STATUS];
+
+// 'delivered' is null — the badge and timestamp already say it. 'bounced' is
+// null — getEmailLogDescription branches on bounceType for that one.
+export const EMAIL_STATUS_DESCRIPTIONS: Record<
+  $Enums.EmailStatus,
+  string | null
+> = {
+  scheduled:
+    "Not sent yet. Changing this application's status again cancels it.",
+  sent: 'Handed off to the email provider — delivery not confirmed yet.',
+  delivered: null,
+  bounced: null,
+  complained: 'The applicant marked this as spam.',
+  suppressed:
+    "Blocked before sending because the address is on the provider's suppression list.",
+  failed: 'This was never sent.',
+  cancelled: 'Cancelled before it was sent.',
+};
 
 // Array order is rank order — also drives getUserRoleRank's fallback.
 export const USER_ROLE_FILTER_OPTIONS: {
@@ -485,7 +504,7 @@ export function isAllowedApplicationStatusTransition(
 }
 
 // Never a menu target — no status ever has 'applied' as its next path step
-// or a decision, but the Record must stay total over ReviewerStatus.
+// or a decision, but the Record must stay total over REVIEWER_APPLICATION_STATUSES.
 export const APPLICATION_STATUS_ACTION_LABELS: Record<
   (typeof REVIEWER_APPLICATION_STATUSES)[number],
   string
@@ -505,6 +524,17 @@ export const TERMINAL_DECISION_STATUS_NOTES: Record<
   accepted: 'Accepted. The applicant can no longer withdraw this application.',
   rejected: 'Rejected. The applicant can no longer withdraw this application.',
 };
+
+// Single source for the single-decision scheduled-send window.
+export const DECISION_EMAIL_DELAY_SECONDS = 10;
+
+export const DECISION_EMAIL_TEMPLATES: Record<
+  'accepted' | 'rejected',
+  $Enums.EmailTemplateKey
+> = { accepted: 'application_accepted', rejected: 'application_rejected' };
+
+// Resend's batch cap — chunk sendEmailBatch at this size regardless of the caller's own cap.
+export const RESEND_BATCH_MAX_EMAILS = 100;
 
 // States a reviewer may not act *on* — distinct from REVIEWER_APPLICATION_STATUSES (may set *to*).
 export const NON_REVIEWABLE_APPLICATION_STATUSES = [
@@ -547,16 +577,6 @@ export function getApplicationStatusMenu(from: $Enums.ApplicationStatus): {
       ? (['accepted', 'rejected'] as const).filter((d) => d !== next)
       : [],
   };
-}
-
-// Null when there's nothing to undo: no events yet, the latest is the
-// backfill row (`from` null), or `from` is draft/withdrawn.
-export function getApplicationStatusUndoTarget(
-  latest: { from: $Enums.ApplicationStatus | null } | null | undefined,
-): $Enums.ApplicationStatus | null {
-  if (!latest || latest.from === null) return null;
-  if (isNonReviewableApplicationStatus(latest.from)) return null;
-  return latest.from;
 }
 
 // Positive list: a future enum value stays excluded until added — safer for this metric.
@@ -738,6 +758,74 @@ export function getStatusOptions(
   return POSITION_STATUS_OPTIONS.filter((opt) => opt.value !== 'open');
 }
 
+// Single source of truth for legal position status moves — draft -> closed is
+// deliberately absent, the map's only structural gap (see the resolver below).
+export const POSITION_STATUS_TRANSITIONS = {
+  draft: ['open'],
+  open: ['draft', 'closed'],
+  closed: ['draft', 'open'],
+} as const satisfies Record<PositionStatus, readonly PositionStatus[]>;
+
+export const POSITION_CREATE_STATUSES = [
+  'draft',
+  'open',
+] as const satisfies PositionStatus[];
+
+export const POSITION_DRAFT_CLOSE_BLOCKED_ERROR =
+  'A draft has never accepted applications, so there is nothing to close. Publish it first, or leave it as a draft.';
+export const POSITION_UNPUBLISH_BLOCKED_ERROR =
+  'Someone has already started an application, so this position cannot go back to draft. Close it instead.';
+export const POSITION_REOPEN_PAST_CLOSE_ERROR =
+  "This position's close date has passed. Clear or extend the close date to reopen it.";
+
+// The Status select's FormDescription twins of the errors above.
+export const POSITION_DRAFT_CLOSE_HINT =
+  'A draft has nothing to close — publish it first.';
+export const POSITION_UNPUBLISH_BLOCKED_HINT =
+  'Someone has already started an application, so this position can no longer go back to Draft.';
+export const POSITION_REOPEN_PAST_CLOSE_HINT =
+  'Clear or extend Closes At to reopen this position.';
+
+// null = legal. from === to always passes; then the map; then the two conditional rules.
+export function getPositionStatusTransitionError(
+  from: PositionStatus,
+  to: PositionStatus,
+  ctx: { hasApplications: boolean; closesAtPast: boolean },
+): string | null {
+  if (from === to) return null;
+  if (
+    !(POSITION_STATUS_TRANSITIONS[from] as readonly PositionStatus[]).includes(
+      to,
+    )
+  )
+    return POSITION_DRAFT_CLOSE_BLOCKED_ERROR;
+  if (to === 'draft' && ctx.hasApplications)
+    return POSITION_UNPUBLISH_BLOCKED_ERROR;
+  if (from === 'closed' && to === 'open' && ctx.closesAtPast)
+    return POSITION_REOPEN_PAST_CLOSE_ERROR;
+  return null;
+}
+
+// getStatusOptions filtered to moves the resolver actually allows, so the
+// select never offers a transition the server will reject.
+export function getPositionStatusOptions(
+  isAdmin: boolean,
+  from: PositionStatus,
+  ctx: { hasApplications: boolean; closesAtPast: boolean },
+): typeof POSITION_STATUS_OPTIONS {
+  return getStatusOptions(isAdmin, from).filter(
+    (opt) => getPositionStatusTransitionError(from, opt.value, ctx) === null,
+  );
+}
+
+export function getPositionCreateStatusOptions(
+  isAdmin: boolean,
+): typeof POSITION_STATUS_OPTIONS {
+  return getStatusOptions(isAdmin).filter((opt) =>
+    (POSITION_CREATE_STATUSES as readonly PositionStatus[]).includes(opt.value),
+  );
+}
+
 export const POSITION_DESCRIPTION_MAX_LENGTH = 10000;
 export const MARKDOWN_GUIDE_URL = 'https://www.markdownguide.org/basic-syntax/';
 
@@ -882,3 +970,83 @@ export const POSITION_CARD_STAT_STATUSES = [
   'accepted',
   'rejected',
 ] as const satisfies $Enums.ApplicationStatus[];
+
+export const EMAIL_STATUS_VALUES = [
+  'scheduled',
+  'sent',
+  'delivered',
+  'bounced',
+  'complained',
+  'suppressed',
+  'failed',
+  'cancelled',
+] as const satisfies $Enums.EmailStatus[];
+
+export const EMAIL_TEMPLATE_VALUES = [
+  'otp',
+  'application_received',
+  'application_accepted',
+  'application_rejected',
+  'manager_digest',
+] as const satisfies $Enums.EmailTemplateKey[];
+
+export const EMAIL_STATUS_LABELS: Record<$Enums.EmailStatus, string> = {
+  scheduled: 'Scheduled',
+  sent: 'Sent',
+  delivered: 'Delivered',
+  bounced: 'Bounced',
+  complained: 'Complained',
+  suppressed: 'Suppressed',
+  failed: 'Failed',
+  cancelled: 'Cancelled',
+};
+
+// 'sent' is deliberately not 'success' — acceptance by Resend is not receipt.
+export const EMAIL_STATUS_BADGE_VARIANT: Record<
+  $Enums.EmailStatus,
+  BadgeVariant
+> = {
+  scheduled: 'outline',
+  sent: 'secondary',
+  delivered: 'success',
+  bounced: 'destructive',
+  complained: 'destructive',
+  suppressed: 'warning',
+  failed: 'destructive',
+  cancelled: 'outline',
+};
+
+export const EMAIL_TEMPLATE_LABELS: Record<$Enums.EmailTemplateKey, string> = {
+  otp: 'Sign-in code',
+  application_received: 'Application received',
+  application_accepted: 'Application accepted',
+  application_rejected: 'Application rejected',
+  manager_digest: 'Manager digest',
+};
+
+export const EMAIL_STATUS_OPTIONS: {
+  value: $Enums.EmailStatus;
+  label: string;
+}[] = EMAIL_STATUS_VALUES.map((value) => ({
+  value,
+  label: EMAIL_STATUS_LABELS[value],
+}));
+
+export const EMAIL_TEMPLATE_OPTIONS: {
+  value: $Enums.EmailTemplateKey;
+  label: string;
+}[] = EMAIL_TEMPLATE_VALUES.map((value) => ({
+  value,
+  label: EMAIL_TEMPLATE_LABELS[value],
+}));
+
+export const EMAIL_LOG_PAGE_SIZE = 50;
+
+export const EMAIL_FAILURE_WINDOW_DAYS = 7;
+
+// The failure strip's three — 'suppressed' is filterable in the table but not one of these.
+export const EMAIL_FAILURE_STATUSES = [
+  'bounced',
+  'complained',
+  'failed',
+] as const satisfies $Enums.EmailStatus[];

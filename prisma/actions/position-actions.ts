@@ -16,11 +16,14 @@ import {
   ARCHIVED_POSITION_EDIT_ERROR,
   POSITION_CLOSES_AT_ORDER_ERROR,
   POSITION_CLOSES_AT_PAST_ERROR,
+  POSITION_CREATE_STATUSES,
   POSITION_DELETE_BLOCKED_ERROR,
   POSITION_DESCRIPTION_MAX_LENGTH,
   POSITION_OPENS_AT_ORDER_ERROR,
   POSITION_OPENS_AT_PAST_ERROR,
   POSITION_OPEN_REQUIRES_ADMIN_ERROR,
+  POSITION_UNPUBLISH_BLOCKED_ERROR,
+  getPositionStatusTransitionError,
   positionDatesRefinement,
   positionPastDateIssues,
   validatePositionDates,
@@ -30,7 +33,8 @@ import { prisma } from '@/lib/prisma';
 import type { PositionManager, UserSearchResult } from '@/lib/types';
 import { type ResponseType, displayUserName } from '@/lib/utils';
 
-// description defaults to '' so a draft can be created quickly.
+// description defaults to '' so a draft can be created quickly. status is
+// narrowed to draft|open — a position can never be born closed.
 const createPositionSchema = (today: string) =>
   z
     .object({
@@ -40,7 +44,7 @@ const createPositionSchema = (today: string) =>
         .max(POSITION_DESCRIPTION_MAX_LENGTH)
         .optional()
         .default(''),
-      status: z.enum(['draft', 'open', 'closed']),
+      status: z.enum(POSITION_CREATE_STATUSES),
       opensAt: z.iso.date().optional(),
       closesAt: z.iso.date().optional(),
     })
@@ -158,8 +162,34 @@ export async function updatePosition(
   if (pastDateIssues.length > 0)
     return { error: pastDateIssues[0]?.message ?? 'Invalid input' };
 
-  await prisma.position.update({
-    where: { id },
+  const isUnpublishing = status === 'draft' && existing.status !== 'draft';
+  if (status !== existing.status) {
+    const hasApplications =
+      status === 'draft'
+        ? (await prisma.application.count({
+            where: { positionId: id, deletedAt: null },
+          })) > 0
+        : false;
+    const closesAtPast = !!closesAt && closesAt < toOrgDayString(new Date());
+
+    const transitionError = getPositionStatusTransitionError(
+      existing.status,
+      status,
+      { hasApplications, closesAtPast },
+    );
+    if (transitionError) return { error: transitionError };
+  }
+
+  // Folded into the where (not a separate count) so a concurrent first
+  // application can't slip past the check above — same shape as deletePosition.
+  const updateResult = await prisma.position.updateMany({
+    where: {
+      id,
+      deletedAt: null,
+      ...(isUnpublishing
+        ? { applications: { none: { deletedAt: null } } }
+        : {}),
+    },
     data: {
       title,
       description,
@@ -169,6 +199,18 @@ export async function updatePosition(
       updatedById: user.id,
     },
   });
+
+  if (updateResult.count === 0) {
+    const stillExists = await prisma.position.findFirst({
+      where: { id, deletedAt: null },
+      select: { id: true },
+    });
+    return {
+      error: stillExists
+        ? POSITION_UNPUBLISH_BLOCKED_ERROR
+        : 'This position no longer exists.',
+    };
+  }
 
   revalidatePath('/positions');
   revalidatePath('/manage/positions');

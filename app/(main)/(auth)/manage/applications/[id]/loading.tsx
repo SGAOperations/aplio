@@ -32,6 +32,12 @@ export default function ApplicationDetailLoading() {
         />
         <AnswersCardSkeleton titleWidth="w-32" />
         <AnswersCardSkeleton titleWidth="w-36" />
+        <SectionCardSkeleton
+          rowShape="badge-stacked"
+          hasSubtitle
+          hasLink={false}
+          rows={2}
+        />
       </div>
     </div>
   );

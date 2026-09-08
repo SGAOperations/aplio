@@ -11,7 +11,7 @@ import { createPosition } from '@/prisma/actions/position-actions';
 import {
   POSITION_OPEN_REQUIRES_ADMIN_HINT,
   type PositionFormValues,
-  getStatusOptions,
+  getPositionCreateStatusOptions,
   makePositionFormSchema,
 } from '@/lib/constants';
 import { toOrgDayString } from '@/lib/dates';
@@ -54,7 +54,7 @@ interface PositionFormFieldsProps {
 function PositionFormFields({ isAdmin }: PositionFormFieldsProps) {
   const { formState } = useFormContext<PositionFormValues>();
   const isSubmitting = formState.isSubmitting;
-  const statusOptions = getStatusOptions(isAdmin);
+  const statusOptions = getPositionCreateStatusOptions(isAdmin);
 
   return (
     <>

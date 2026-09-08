@@ -69,16 +69,13 @@ export default async function EditPositionPage({
     ? await getPositionDeletionSummary(position.id)
     : null;
 
-  // Only the archived branch needs this — a single groupBy, not run on the happy path.
-  let unresolvedTotal = 0;
-  if (!canEdit) {
-    const stats = await getPositionApplicationStats([position.id]);
-    const counts = stats.get(position.id)?.counts ?? {};
-    unresolvedTotal = UNRESOLVED_APPLICATION_STATUSES.reduce(
-      (sum, status) => sum + (counts[status] ?? 0),
-      0,
-    );
-  }
+  // One groupBy, reused by the archived callout and the close confirmation.
+  const stats = await getPositionApplicationStats([position.id]);
+  const counts = stats.get(position.id)?.counts ?? {};
+  const unresolvedTotal = UNRESOLVED_APPLICATION_STATUSES.reduce(
+    (sum, status) => sum + (counts[status] ?? 0),
+    0,
+  );
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
@@ -178,6 +175,8 @@ export default async function EditPositionPage({
                 )
               }
               isAdmin={user.isAdmin}
+              hasApplications={position.hasApplications}
+              unresolvedApplicationCount={unresolvedTotal}
             />
           ) : (
             <PositionDetailsReadonly

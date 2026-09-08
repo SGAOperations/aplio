@@ -12,7 +12,7 @@ import { requireManagerOrAdminOr404 } from '@/lib/auth/guards';
 import {
   APPLICATION_SORT_DIRECTIONS,
   APPLICATION_SORT_FIELDS,
-  REVIEWER_APPLICATION_STATUSES,
+  APPLICATION_STATUS_VALUES,
 } from '@/lib/constants';
 import type { ApplicationFilters } from '@/lib/types';
 
@@ -32,7 +32,7 @@ interface ApplicationsPageProps {
 const searchParamsSchema = z.object({
   positionId: z.string().trim().min(1).max(64).optional().catch(undefined),
   userId: z.string().trim().min(1).max(64).optional().catch(undefined),
-  status: z.enum(REVIEWER_APPLICATION_STATUSES).optional().catch(undefined),
+  status: z.enum(APPLICATION_STATUS_VALUES).optional().catch(undefined),
   q: z.string().trim().min(1).max(200).optional().catch(undefined),
   sort: z
     .string()
@@ -75,6 +75,14 @@ export default async function ApplicationsPage({
     filters.q ||
     filters.sort
   );
+  const isDraftView = filters.status === 'draft';
+  // Excludes status — being in the drafts view isn't itself a filter to clear.
+  const hasActiveOtherFilters = !!(
+    filters.positionId ||
+    filters.userId ||
+    filters.q ||
+    filters.sort
+  );
 
   const [positions, applicants] = await Promise.all([
     getReviewablePositions(user),
@@ -97,13 +105,16 @@ export default async function ApplicationsPage({
 
       <Suspense
         key={JSON.stringify({ ...filters, page })}
-        fallback={<ApplicationsTableSkeleton />}
+        fallback={<ApplicationsTableSkeleton showSelection={!isDraftView} />}
       >
         <ApplicationsResults
           user={user}
           filters={filters}
           page={page}
-          hasActiveFilters={hasActiveFilters}
+          hasActiveFilters={
+            isDraftView ? hasActiveOtherFilters : hasActiveFilters
+          }
+          isDraftView={isDraftView}
         />
       </Suspense>
     </div>

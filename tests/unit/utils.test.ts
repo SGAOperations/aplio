@@ -11,13 +11,25 @@ import type {
 } from '@/lib/types';
 import {
   answerFieldIds,
+  buildApplicationsHref,
+  buildEmailLogHref,
   canReviewPosition,
+  classifyDecisionEmailStatus,
+  countBulkEmailRecipients,
   displayUserName,
   findDivergingGlobalAnswers,
+  formatBounceType,
   formatCountdown,
   formatPaginationSummary,
   formatTableCount,
   getApplicantName,
+  getBulkDecisionEmailWarning,
+  getDecisionEmailWarning,
+  getEmailLogDescription,
+  getEmailLogOccurredAt,
+  getEmailLogTimestamp,
+  getFirstName,
+  getPaginationBounds,
   getPaginationRange,
   getPositionAvailability,
   getPositionDateInfo,
@@ -732,6 +744,219 @@ describe('formatPaginationSummary', () => {
   });
 });
 
+describe('buildApplicationsHref', () => {
+  it('returns the bare path with no filters or page', () => {
+    expect(buildApplicationsHref({})).toBe('/manage/applications');
+  });
+
+  it('round-trips every filter field', () => {
+    const href = buildApplicationsHref({
+      positionId: 'pos1',
+      status: 'draft',
+      userId: 'user1',
+      q: 'jane',
+      sort: { field: 'name', direction: 'asc' },
+    });
+    expect(href).toBe(
+      '/manage/applications?positionId=pos1&status=draft&userId=user1&q=jane&sort=name%3Aasc',
+    );
+  });
+
+  it('omits page=1', () => {
+    expect(buildApplicationsHref({ status: 'draft' }, 1)).toBe(
+      '/manage/applications?status=draft',
+    );
+  });
+
+  it('includes page when past 1', () => {
+    expect(buildApplicationsHref({ status: 'draft' }, 2)).toBe(
+      '/manage/applications?status=draft&page=2',
+    );
+  });
+});
+
+describe('buildEmailLogHref', () => {
+  it('returns the bare path with no filters or page', () => {
+    expect(buildEmailLogHref({})).toBe('/emails');
+  });
+
+  it('round-trips every filter field', () => {
+    const href = buildEmailLogHref({
+      q: 'jane@example.com',
+      status: 'bounced',
+      template: 'otp',
+    });
+    expect(href).toBe(
+      '/emails?q=jane%40example.com&status=bounced&template=otp',
+    );
+  });
+
+  it('omits page=1', () => {
+    expect(buildEmailLogHref({ status: 'bounced' }, 1)).toBe(
+      '/emails?status=bounced',
+    );
+  });
+
+  it('includes page when past 1', () => {
+    expect(buildEmailLogHref({ status: 'bounced' }, 2)).toBe(
+      '/emails?status=bounced&page=2',
+    );
+  });
+});
+
+describe('getPaginationBounds', () => {
+  it('floors totalPages at 1 for an empty set', () => {
+    const bounds = getPaginationBounds({ total: 0, page: 1, pageSize: 50 });
+    expect(bounds).toEqual({
+      totalPages: 1,
+      currentPage: 1,
+      rangeStart: 0,
+      rangeEnd: 0,
+    });
+  });
+
+  it('clamps a stale page past the last page', () => {
+    const bounds = getPaginationBounds({ total: 55, page: 999, pageSize: 50 });
+    expect(bounds.currentPage).toBe(2);
+    expect(bounds.totalPages).toBe(2);
+    expect(bounds.rangeStart).toBe(51);
+    expect(bounds.rangeEnd).toBe(55);
+  });
+
+  it('reports the range for a mid-set page', () => {
+    const bounds = getPaginationBounds({ total: 120, page: 2, pageSize: 50 });
+    expect(bounds).toEqual({
+      totalPages: 3,
+      currentPage: 2,
+      rangeStart: 51,
+      rangeEnd: 100,
+    });
+  });
+});
+
+describe('getEmailLogTimestamp', () => {
+  const scheduledAt = new Date('2026-01-01T00:00:00Z');
+  const sentAt = new Date('2026-01-02T00:00:00Z');
+  const deliveredAt = new Date('2026-01-03T00:00:00Z');
+  const createdAt = new Date('2025-12-31T00:00:00Z');
+
+  it('delivered prefers deliveredAt, falling back to sentAt then createdAt', () => {
+    expect(
+      getEmailLogTimestamp({
+        status: 'delivered',
+        scheduledAt: null,
+        sentAt,
+        deliveredAt,
+        createdAt,
+      }),
+    ).toEqual({ date: deliveredAt, label: 'Delivered' });
+    expect(
+      getEmailLogTimestamp({
+        status: 'delivered',
+        scheduledAt: null,
+        sentAt,
+        deliveredAt: null,
+        createdAt,
+      }),
+    ).toEqual({ date: sentAt, label: 'Delivered' });
+    expect(
+      getEmailLogTimestamp({
+        status: 'delivered',
+        scheduledAt: null,
+        sentAt: null,
+        deliveredAt: null,
+        createdAt,
+      }),
+    ).toEqual({ date: createdAt, label: 'Delivered' });
+  });
+
+  it('scheduled prefers scheduledAt, falling back to createdAt', () => {
+    expect(
+      getEmailLogTimestamp({
+        status: 'scheduled',
+        scheduledAt,
+        sentAt: null,
+        deliveredAt: null,
+        createdAt,
+      }),
+    ).toEqual({ date: scheduledAt, label: 'Scheduled for' });
+    expect(
+      getEmailLogTimestamp({
+        status: 'scheduled',
+        scheduledAt: null,
+        sentAt: null,
+        deliveredAt: null,
+        createdAt,
+      }),
+    ).toEqual({ date: createdAt, label: 'Scheduled for' });
+  });
+
+  it.each(['sent', 'bounced', 'complained', 'suppressed'] as const)(
+    '%s prefers sentAt, falling back to createdAt',
+    (status) => {
+      expect(
+        getEmailLogTimestamp({
+          status,
+          scheduledAt: null,
+          sentAt,
+          deliveredAt: null,
+          createdAt,
+        }),
+      ).toEqual({ date: sentAt, label: 'Sent' });
+      expect(
+        getEmailLogTimestamp({
+          status,
+          scheduledAt: null,
+          sentAt: null,
+          deliveredAt: null,
+          createdAt,
+        }),
+      ).toEqual({ date: createdAt, label: 'Sent' });
+    },
+  );
+
+  it('failed always uses createdAt, labeled Attempted', () => {
+    expect(
+      getEmailLogTimestamp({
+        status: 'failed',
+        scheduledAt: null,
+        sentAt,
+        deliveredAt: null,
+        createdAt,
+      }),
+    ).toEqual({ date: createdAt, label: 'Attempted' });
+  });
+
+  it('cancelled always uses createdAt', () => {
+    expect(
+      getEmailLogTimestamp({
+        status: 'cancelled',
+        scheduledAt: null,
+        sentAt,
+        deliveredAt: null,
+        createdAt,
+      }),
+    ).toEqual({ date: createdAt, label: 'Cancelled' });
+  });
+});
+
+describe('formatBounceType', () => {
+  it('passes Permanent and Transient through', () => {
+    expect(formatBounceType('Permanent')).toBe('Permanent');
+    expect(formatBounceType('Transient')).toBe('Transient');
+  });
+
+  it('passes an unknown provider string through verbatim', () => {
+    expect(formatBounceType('Undetermined')).toBe('Undetermined');
+  });
+
+  it('returns null for null or blank', () => {
+    expect(formatBounceType(null)).toBeNull();
+    expect(formatBounceType('')).toBeNull();
+    expect(formatBounceType('   ')).toBeNull();
+  });
+});
+
 const shortAnswerQuestion: AnswerQuestion = {
   id: 'q1',
   label: 'Q',
@@ -1270,5 +1495,232 @@ describe('getApplicantName', () => {
     expect(
       getApplicantName({ applicantName: '', user: { name: null } }),
     ).toBeNull();
+  });
+});
+
+describe('getEmailLogDescription', () => {
+  it('describes a permanent bounce', () => {
+    expect(
+      getEmailLogDescription({ status: 'bounced', bounceType: 'Permanent' }),
+    ).toBe(
+      'The address rejected it permanently — the applicant did not receive this.',
+    );
+  });
+
+  it('describes a transient bounce', () => {
+    expect(
+      getEmailLogDescription({ status: 'bounced', bounceType: 'Transient' }),
+    ).toBe('Temporarily undeliverable — the applicant did not receive this.');
+  });
+
+  it('describes a bounce with no bounceType', () => {
+    expect(
+      getEmailLogDescription({ status: 'bounced', bounceType: null }),
+    ).toBe('This could not be delivered.');
+  });
+
+  it('returns the scheduled sentence', () => {
+    expect(
+      getEmailLogDescription({ status: 'scheduled', bounceType: null }),
+    ).toBe(
+      "Not sent yet. Changing this application's status again cancels it.",
+    );
+  });
+
+  it('returns the sent sentence', () => {
+    expect(getEmailLogDescription({ status: 'sent', bounceType: null })).toBe(
+      'Handed off to the email provider — delivery not confirmed yet.',
+    );
+  });
+
+  it('returns the cancelled sentence', () => {
+    expect(
+      getEmailLogDescription({ status: 'cancelled', bounceType: null }),
+    ).toBe('Cancelled before it was sent.');
+  });
+
+  it('returns null for delivered', () => {
+    expect(
+      getEmailLogDescription({ status: 'delivered', bounceType: null }),
+    ).toBeNull();
+  });
+});
+
+describe('getEmailLogOccurredAt', () => {
+  const scheduledAt = new Date('2026-01-01T00:00:00Z');
+  const sentAt = new Date('2026-01-02T00:00:00Z');
+  const deliveredAt = new Date('2026-01-03T00:00:00Z');
+  const createdAt = new Date('2025-12-31T00:00:00Z');
+
+  it('picks scheduledAt for scheduled', () => {
+    expect(
+      getEmailLogOccurredAt({
+        status: 'scheduled',
+        scheduledAt,
+        sentAt: null,
+        deliveredAt: null,
+        createdAt,
+      }),
+    ).toBe(scheduledAt);
+  });
+
+  it('picks deliveredAt for delivered', () => {
+    expect(
+      getEmailLogOccurredAt({
+        status: 'delivered',
+        scheduledAt: null,
+        sentAt,
+        deliveredAt,
+        createdAt,
+      }),
+    ).toBe(deliveredAt);
+  });
+
+  it('picks sentAt for sent', () => {
+    expect(
+      getEmailLogOccurredAt({
+        status: 'sent',
+        scheduledAt: null,
+        sentAt,
+        deliveredAt: null,
+        createdAt,
+      }),
+    ).toBe(sentAt);
+  });
+
+  it('picks createdAt for failed', () => {
+    expect(
+      getEmailLogOccurredAt({
+        status: 'failed',
+        scheduledAt: null,
+        sentAt: null,
+        deliveredAt: null,
+        createdAt,
+      }),
+    ).toBe(createdAt);
+  });
+
+  it('picks createdAt for cancelled', () => {
+    expect(
+      getEmailLogOccurredAt({
+        status: 'cancelled',
+        scheduledAt: null,
+        sentAt: null,
+        deliveredAt: null,
+        createdAt,
+      }),
+    ).toBe(createdAt);
+  });
+
+  it('falls back to createdAt when the preferred column is null', () => {
+    expect(
+      getEmailLogOccurredAt({
+        status: 'scheduled',
+        scheduledAt: null,
+        sentAt: null,
+        deliveredAt: null,
+        createdAt,
+      }),
+    ).toBe(createdAt);
+
+    expect(
+      getEmailLogOccurredAt({
+        status: 'delivered',
+        scheduledAt: null,
+        sentAt: null,
+        deliveredAt: null,
+        createdAt,
+      }),
+    ).toBe(createdAt);
+  });
+});
+
+describe('getFirstName', () => {
+  it('returns the first word of a multi-word name', () => {
+    expect(getFirstName('Jane Doe')).toBe('Jane');
+  });
+
+  it('returns a single-word name as-is', () => {
+    expect(getFirstName('Cher')).toBe('Cher');
+  });
+
+  it('returns undefined for an empty string', () => {
+    expect(getFirstName('')).toBeUndefined();
+  });
+
+  it('returns undefined for null and undefined', () => {
+    expect(getFirstName(null)).toBeUndefined();
+    expect(getFirstName(undefined)).toBeUndefined();
+  });
+});
+
+describe('getDecisionEmailWarning', () => {
+  it('names the applicant when given', () => {
+    expect(getDecisionEmailWarning('Jane')).toBe(
+      'Jane will be emailed in 10 seconds. Undo on the confirmation toast and nothing is sent.',
+    );
+  });
+
+  it('falls back to "The applicant" with no name', () => {
+    expect(getDecisionEmailWarning()).toBe(
+      'The applicant will be emailed in 10 seconds. Undo on the confirmation toast and nothing is sent.',
+    );
+  });
+});
+
+describe('getBulkDecisionEmailWarning', () => {
+  it('uses singular copy for one recipient', () => {
+    const warning = getBulkDecisionEmailWarning(1, 'Accepted');
+    expect(warning.lead).toBe('1 application will be emailed.');
+    expect(warning.detail).toContain('Accepted');
+    expect(warning.detail).toContain('Undo within 10 seconds to cancel.');
+  });
+
+  it('uses plural copy with the count for several recipients', () => {
+    const warning = getBulkDecisionEmailWarning(23, 'Rejected');
+    expect(warning.lead).toBe('23 applications will be emailed.');
+    expect(warning.detail).toContain('Rejected');
+  });
+});
+
+describe('classifyDecisionEmailStatus', () => {
+  it('buckets scheduled as scheduled', () => {
+    expect(classifyDecisionEmailStatus('scheduled')).toBe('scheduled');
+  });
+
+  it('buckets every dispatched-or-later status as sent', () => {
+    for (const status of [
+      'sent',
+      'delivered',
+      'bounced',
+      'complained',
+      'suppressed',
+    ] as const)
+      expect(classifyDecisionEmailStatus(status)).toBe('sent');
+  });
+
+  it('buckets cancelled and failed as null', () => {
+    expect(classifyDecisionEmailStatus('cancelled')).toBeNull();
+    expect(classifyDecisionEmailStatus('failed')).toBeNull();
+  });
+});
+
+describe('countBulkEmailRecipients', () => {
+  it('counts every row that is not skipped', () => {
+    const rows = [
+      { status: 'applied' as const },
+      { status: 'reviewing' as const },
+      { status: 'accepted' as const },
+      { status: 'withdrawn' as const },
+    ];
+    expect(countBulkEmailRecipients(rows, 'rejected')).toBe(3);
+  });
+
+  it('excludes rows already at the target status', () => {
+    const rows = [
+      { status: 'rejected' as const },
+      { status: 'applied' as const },
+    ];
+    expect(countBulkEmailRecipients(rows, 'rejected')).toBe(1);
   });
 });

@@ -4,6 +4,15 @@ import {
   ANSWER_LONG_MAX_LENGTH,
   ANSWER_OTHER_MAX_LENGTH,
   ANSWER_SHORT_MAX_LENGTH,
+  APPLICATION_STATUS_VALUES,
+  EMAIL_STATUS_BADGE_VARIANT,
+  EMAIL_STATUS_DESCRIPTIONS,
+  EMAIL_STATUS_LABELS,
+  EMAIL_STATUS_OPTIONS,
+  EMAIL_STATUS_VALUES,
+  EMAIL_TEMPLATE_LABELS,
+  EMAIL_TEMPLATE_OPTIONS,
+  EMAIL_TEMPLATE_VALUES,
   NON_TERMINAL_APPLICATION_STATUSES,
   POSITION_CLOSES_AT_ORDER_ERROR,
   POSITION_CLOSES_AT_PAST_ERROR,
@@ -266,6 +275,11 @@ describe('status-set invariants', () => {
     expect(REVIEWER_APPLICATION_STATUSES).not.toContain('withdrawn');
   });
 
+  it("APPLICATION_STATUS_VALUES (the queue's filter list) includes draft", () => {
+    expect(APPLICATION_STATUS_VALUES).toContain('draft');
+    expect(REVIEWER_APPLICATION_STATUSES).not.toContain('draft');
+  });
+
   it('UNRESOLVED_APPLICATION_STATUSES is a subset of NON_TERMINAL_APPLICATION_STATUSES', () => {
     for (const status of UNRESOLVED_APPLICATION_STATUSES)
       expect(NON_TERMINAL_APPLICATION_STATUSES).toContain(status);
@@ -274,6 +288,47 @@ describe('status-set invariants', () => {
   it('TERMINAL_DECISION_STATUSES is disjoint from UNRESOLVED_APPLICATION_STATUSES', () => {
     for (const status of TERMINAL_DECISION_STATUSES)
       expect(UNRESOLVED_APPLICATION_STATUSES).not.toContain(status);
+  });
+});
+
+describe('EMAIL_STATUS_* maps', () => {
+  it('has a description entry for every EmailStatus member', () => {
+    for (const status of EMAIL_STATUS_VALUES)
+      expect(EMAIL_STATUS_DESCRIPTIONS).toHaveProperty(status);
+  });
+});
+
+describe('email vocabulary', () => {
+  it('EMAIL_STATUS_LABELS is total over EMAIL_STATUS_VALUES', () => {
+    for (const status of EMAIL_STATUS_VALUES)
+      expect(EMAIL_STATUS_LABELS[status]).toBeTruthy();
+  });
+
+  it('EMAIL_STATUS_BADGE_VARIANT is total over EMAIL_STATUS_VALUES', () => {
+    for (const status of EMAIL_STATUS_VALUES)
+      expect(EMAIL_STATUS_BADGE_VARIANT[status]).toBeTruthy();
+  });
+
+  it("'sent' is not mapped to the 'success' badge variant", () => {
+    expect(EMAIL_STATUS_BADGE_VARIANT.sent).not.toBe('success');
+    expect(EMAIL_STATUS_BADGE_VARIANT.delivered).toBe('success');
+  });
+
+  it('EMAIL_TEMPLATE_LABELS is total over EMAIL_TEMPLATE_VALUES', () => {
+    for (const template of EMAIL_TEMPLATE_VALUES)
+      expect(EMAIL_TEMPLATE_LABELS[template]).toBeTruthy();
+  });
+
+  it('EMAIL_STATUS_OPTIONS matches EMAIL_STATUS_VALUES', () => {
+    expect(EMAIL_STATUS_OPTIONS.map((o) => o.value)).toEqual([
+      ...EMAIL_STATUS_VALUES,
+    ]);
+  });
+
+  it('EMAIL_TEMPLATE_OPTIONS matches EMAIL_TEMPLATE_VALUES', () => {
+    expect(EMAIL_TEMPLATE_OPTIONS.map((o) => o.value)).toEqual([
+      ...EMAIL_TEMPLATE_VALUES,
+    ]);
   });
 });
 

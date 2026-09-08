@@ -1,4 +1,3 @@
-import type { ApplicationFilters } from '@/lib/types';
 import { formatPaginationSummary, getPaginationRange } from '@/lib/utils';
 
 import {
@@ -11,47 +10,35 @@ import {
   PaginationPrevious,
 } from '@/components/ui/pagination';
 
-interface ApplicationsPaginationProps {
-  filters: ApplicationFilters;
+interface TablePaginationProps {
+  buildHref: (page: number) => string;
   currentPage: number;
   totalPages: number;
   total: number;
   rangeStart: number;
   rangeEnd: number;
-  hasActiveFilters: boolean;
+  isFiltered: boolean;
+  noun?: string;
 }
 
-function buildHref(filters: ApplicationFilters, page: number): string {
-  const params = new URLSearchParams();
-  if (filters.positionId) params.set('positionId', filters.positionId);
-  if (filters.status) params.set('status', filters.status);
-  if (filters.userId) params.set('userId', filters.userId);
-  if (filters.q) params.set('q', filters.q);
-  if (filters.sort)
-    params.set('sort', `${filters.sort.field}:${filters.sort.direction}`);
-  if (page > 1) params.set('page', String(page));
-
-  const qs = params.toString();
-  return qs ? `/manage/applications?${qs}` : '/manage/applications';
-}
-
-export function ApplicationsPagination({
-  filters,
+export function TablePagination({
+  buildHref,
   currentPage,
   totalPages,
   total,
   rangeStart,
   rangeEnd,
-  hasActiveFilters,
-}: ApplicationsPaginationProps) {
+  isFiltered,
+  noun = 'application',
+}: TablePaginationProps) {
   if (total === 0) return null;
 
   const summary = formatPaginationSummary({
     rangeStart,
     rangeEnd,
     total,
-    noun: 'application',
-    isFiltered: hasActiveFilters,
+    noun,
+    isFiltered,
   });
 
   if (totalPages === 1)
@@ -75,7 +62,7 @@ export function ApplicationsPagination({
         <PaginationContent>
           <PaginationItem>
             <PaginationPrevious
-              href={isFirst ? undefined : buildHref(filters, currentPage - 1)}
+              href={isFirst ? undefined : buildHref(currentPage - 1)}
               disabled={isFirst}
             />
           </PaginationItem>
@@ -97,7 +84,7 @@ export function ApplicationsPagination({
             ) : (
               <PaginationItem key={p} className="hidden sm:list-item">
                 <PaginationLink
-                  href={buildHref(filters, p)}
+                  href={buildHref(p)}
                   isActive={p === currentPage}
                   aria-label={`Go to page ${p}`}
                 >
@@ -109,7 +96,7 @@ export function ApplicationsPagination({
 
           <PaginationItem>
             <PaginationNext
-              href={isLast ? undefined : buildHref(filters, currentPage + 1)}
+              href={isLast ? undefined : buildHref(currentPage + 1)}
               disabled={isLast}
             />
           </PaginationItem>

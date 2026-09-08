@@ -1,11 +1,13 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 
 import { z } from 'zod/v4';
 
 import { Prisma } from '@/prisma/client';
 import type {
+  $Enums,
   GlobalAnswer,
   GlobalApplicationAnswer,
   GlobalQuestion,
@@ -33,6 +35,12 @@ import {
   isApplicantEditableApplicationStatus,
   matchesShortAnswerFormat,
 } from '@/lib/constants';
+import {
+  type DecisionEmailRecipient,
+  dispatchBulkDecisionEmails,
+  dispatchDecisionEmail,
+  sendApplicationReceipt,
+} from '@/lib/email/application-emails';
 import { prisma } from '@/lib/prisma';
 import {
   type AnswerQuestion,
@@ -179,6 +187,7 @@ export async function createDraftApplication(
       ) {
         revalidatePath(`/positions/${parsed.data.positionId}/apply`);
         revalidatePath('/applications');
+        revalidatePath('/manage/applications');
         revalidatePath('/');
         revalidatePath('/positions');
         return { error: 'You already have an application for this position.' };
@@ -191,6 +200,7 @@ export async function createDraftApplication(
 
   revalidatePath(`/positions/${parsed.data.positionId}/apply`);
   revalidatePath('/applications');
+  revalidatePath('/manage/applications');
   revalidatePath('/');
   revalidatePath('/positions');
 }
@@ -342,6 +352,10 @@ export async function submitApplication(
   const parsed = submitApplicationSchema.safeParse({ applicationId });
   if (!parsed.success) return { error: 'Invalid input' };
 
+  // Set inside the transaction once ownership is confirmed; read again after
+  // it commits, for the receipt email — after() runs outside the tx.
+  let positionTitle: string | undefined;
+
   // Snapshot materialization and the status update must land atomically, or
   // two tabs could race the write.
   const result = await prisma.$transaction(async (tx) => {
@@ -352,6 +366,7 @@ export async function submitApplication(
         positionAnswers: true,
         position: {
           select: {
+            title: true,
             deletedAt: true,
             status: true,
             opensAt: true,
@@ -363,6 +378,7 @@ export async function submitApplication(
     });
 
     requireOwnership(application, currentUser.id);
+    positionTitle = application.position.title;
 
     // Status check first — wins over the window/required-answer checks below.
     if (!isApplicantEditableApplicationStatus(application.status))
@@ -488,6 +504,17 @@ export async function submitApplication(
 
   if (isError(result)) return result;
 
+  // Fires on withdrawn -> applied too, since resubmission runs this same path.
+  after(() =>
+    sendApplicationReceipt({
+      applicationId: parsed.data.applicationId,
+      userId: currentUser.id,
+      to: currentUser.email,
+      name: currentUser.name ?? undefined,
+      positionTitle: positionTitle!,
+    }),
+  );
+
   revalidatePath('/manage/applications');
   revalidatePath('/positions', 'layout');
   revalidatePath('/manage/positions', 'layout');
@@ -514,6 +541,10 @@ export async function updateApplicationStatus(
 
   const { applicationId, status, override } = parsed.data;
 
+  // Set inside the transaction on a successful write; read again after it
+  // commits, for the decision email dispatch — after() runs outside the tx.
+  let recipient: DecisionEmailRecipient | undefined;
+
   const result = await prisma.$transaction(async (tx) => {
     // Authorization folded into the query, as in getApplicationForReview.
     const application = await tx.application.findFirst({
@@ -521,7 +552,14 @@ export async function updateApplicationStatus(
         id: applicationId,
         ...buildApplicationWhere(user, 'reviewable'),
       },
-      select: { id: true, status: true },
+      select: {
+        id: true,
+        status: true,
+        userId: true,
+        applicantName: true,
+        user: { select: { email: true } },
+        position: { select: { title: true } },
+      },
     });
 
     // IDOR-style miss, unreachable from the UI — throw, don't return.
@@ -562,9 +600,20 @@ export async function updateApplicationStatus(
         changedById: user.id,
       },
     });
+
+    recipient = {
+      applicationId,
+      userId: application.userId,
+      to: application.user.email,
+      name: application.applicantName ?? undefined,
+      positionTitle: application.position.title,
+    };
   });
 
   if (result && 'error' in result) return result;
+
+  // Covers the quick actions, the override Select, and undo alike.
+  after(() => dispatchDecisionEmail({ recipient: recipient!, status }));
 
   revalidatePath(`/manage/applications/${applicationId}`);
   revalidatePath('/manage/applications');
@@ -576,9 +625,17 @@ const updateApplicationStatusesSchema = z.object({
 });
 
 // Authorization in the updateMany where, so the target set can't drift mid-write.
-export async function updateApplicationStatuses(
-  input: unknown,
-): Promise<{ updated: number; skipped: number } | { error: string }> {
+export async function updateApplicationStatuses(input: unknown): Promise<
+  | {
+      updated: number;
+      skipped: number;
+      // Each updated row's status just before this move — the client's only
+      // way to revert a bulk move to where each application actually came
+      // from, since a batch can mix forward, backward, and final-decision rows.
+      reversions: { applicationId: string; status: $Enums.ApplicationStatus }[];
+    }
+  | { error: string }
+> {
   const user = await getCurrentUser();
 
   const parsed = updateApplicationStatusesSchema.safeParse(input);
@@ -588,54 +645,89 @@ export async function updateApplicationStatuses(
   const applicationIds = Array.from(new Set(parsed.data.applicationIds));
   const { status } = parsed.data;
 
-  const { eligible, updatedIds } = await prisma.$transaction(async (tx) => {
-    // Any reviewer status but the target itself is eligible — forward,
-    // backward, or a final decision; captured with its status for the event's `from`.
-    const eligible = await tx.application.findMany({
-      where: {
-        id: { in: applicationIds },
-        ...buildApplicationScopeWhere(user),
-        status: { notIn: [...NON_REVIEWABLE_APPLICATION_STATUSES, status] },
-      },
-      select: { id: true, status: true },
-    });
-
-    if (eligible.length === 0) return { eligible, updatedIds: [] };
-
-    // Per-row (id, status) pairs keep the CAS on the bulk path too — a
-    // concurrently-moved row is dropped rather than getting a wrong `from`.
-    const updated = await tx.application.updateManyAndReturn({
-      where: {
-        AND: [
-          buildApplicationScopeWhere(user),
-          {
-            OR: eligible.map(({ id, status: from }) => ({ id, status: from })),
-          },
-        ],
-      },
-      data: { status, updatedById: user.id },
-      select: { id: true },
-    });
-
-    if (updated.length > 0) {
-      const priorStatusById = new Map(eligible.map((a) => [a.id, a.status]));
-      await tx.applicationStatusEvent.createMany({
-        data: updated.map((a) => ({
-          applicationId: a.id,
-          from: priorStatusById.get(a.id)!,
-          to: status,
-          changedById: user.id,
-        })),
+  const { eligible, updatedIds, priorStatusById } = await prisma.$transaction(
+    async (tx) => {
+      // Any reviewer status but the target itself is eligible — forward,
+      // backward, or a final decision; captured with its status for the event's `from`.
+      const eligible = await tx.application.findMany({
+        where: {
+          id: { in: applicationIds },
+          ...buildApplicationScopeWhere(user),
+          status: { notIn: [...NON_REVIEWABLE_APPLICATION_STATUSES, status] },
+        },
+        select: {
+          id: true,
+          status: true,
+          userId: true,
+          applicantName: true,
+          user: { select: { email: true } },
+          position: { select: { title: true } },
+        },
       });
-    }
 
-    return { eligible, updatedIds: updated.map((a) => a.id) };
-  });
+      const priorStatusById = new Map(eligible.map((a) => [a.id, a.status]));
+
+      if (eligible.length === 0)
+        return { eligible, updatedIds: [], priorStatusById };
+
+      // Per-row (id, status) pairs keep the CAS on the bulk path too — a
+      // concurrently-moved row is dropped rather than getting a wrong `from`.
+      const updated = await tx.application.updateManyAndReturn({
+        where: {
+          AND: [
+            buildApplicationScopeWhere(user),
+            {
+              OR: eligible.map(({ id, status: from }) => ({
+                id,
+                status: from,
+              })),
+            },
+          ],
+        },
+        data: { status, updatedById: user.id },
+        select: { id: true },
+      });
+
+      if (updated.length > 0)
+        await tx.applicationStatusEvent.createMany({
+          data: updated.map((a) => ({
+            applicationId: a.id,
+            from: priorStatusById.get(a.id)!,
+            to: status,
+            changedById: user.id,
+          })),
+        });
+
+      return {
+        eligible,
+        updatedIds: updated.map((a) => a.id),
+        priorStatusById,
+      };
+    },
+  );
 
   if (eligible.length === 0)
     return {
       error: `None of the selected applications can move to ${APPLICATION_STATUS_LABELS[status]} — they're already there, or they're drafts or withdrawn.`,
     };
+
+  // No role check: the caller already passed buildApplicationScopeWhere(user)
+  // for every row above. Same set for everyone, admin or manager.
+  const updatedSet = new Set(updatedIds);
+  after(() =>
+    dispatchBulkDecisionEmails({
+      recipients: eligible
+        .filter((a) => updatedSet.has(a.id))
+        .map((a) => ({
+          applicationId: a.id,
+          userId: a.userId,
+          to: a.user.email,
+          name: a.applicantName ?? undefined,
+          positionTitle: a.position.title,
+        })),
+      status,
+    }),
+  );
 
   revalidatePath('/manage/applications');
   // Wildcard segment: a bulk update has no individual positionIds to hand.
@@ -644,6 +736,10 @@ export async function updateApplicationStatuses(
   return {
     updated: updatedIds.length,
     skipped: applicationIds.length - updatedIds.length,
+    reversions: updatedIds.map((id) => ({
+      applicationId: id,
+      status: priorStatusById.get(id)!,
+    })),
   };
 }
 
@@ -747,6 +843,7 @@ export async function deleteDraftApplication(
   revalidatePath(`/positions/${positionId}/apply`);
   revalidatePath('/applications');
   revalidatePath(`/applications/${id}`);
+  revalidatePath('/manage/applications');
   revalidatePath('/');
   revalidatePath('/positions');
 }
