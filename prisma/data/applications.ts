@@ -124,9 +124,7 @@ type PositionQuestionSummary = Prisma.PositionQuestionGetPayload<{
   select: typeof positionQuestionsSelect.questions.select;
 }>;
 
-// Merges the position's live questions with the application's saved answers,
-// ordered by PositionQuestion.order; an answer to a since-deleted question
-// still renders, appended after the live questions.
+// Merges live questions with saved answers, ordered by PositionQuestion.order; orphaned answers render after.
 function normalizeApplicationAnswers(
   application: ApplicationAnswersPayload,
   positionQuestions: PositionQuestionSummary[],
