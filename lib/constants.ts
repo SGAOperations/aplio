@@ -1048,30 +1048,30 @@ export const POSITION_STAT_BUCKETS = [
   {
     key: 'applied',
     label: 'Applied',
-    fillClassName: 'bg-info text-info-foreground',
+    ringClassName: 'border-info',
     statuses: ['applied'],
   },
   {
     key: 'in_progress',
     label: 'In progress',
-    fillClassName: 'bg-progress text-progress-foreground',
+    ringClassName: 'border-warning',
     statuses: ['reached_out', 'interview_scheduled', 'reviewing'],
   },
   {
     key: 'accepted',
     label: 'Accepted',
-    fillClassName: 'bg-success text-success-foreground',
+    ringClassName: 'border-success',
     statuses: ['accepted'],
   },
   {
     key: 'rejected',
     label: 'Rejected',
-    fillClassName: 'bg-destructive text-destructive-foreground',
+    ringClassName: 'border-destructive',
     statuses: ['rejected'],
   },
 ] as const satisfies {
   key: string;
   label: string;
-  fillClassName: string;
+  ringClassName: string;
   statuses: readonly $Enums.ApplicationStatus[];
 }[];

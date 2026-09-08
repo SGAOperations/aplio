@@ -14,7 +14,7 @@ interface PositionStatCirclesProps {
   stats: PositionApplicationStats;
 }
 
-// Zero-count circles are dimmed rather than hidden, so the grid keeps a stable shape.
+// Zero-count circles are dimmed rather than hidden, so the row keeps a stable shape.
 export function PositionStatCircles({ stats }: PositionStatCirclesProps) {
   return (
     <TooltipProvider delayDuration={300}>
@@ -23,7 +23,7 @@ export function PositionStatCircles({ stats }: PositionStatCirclesProps) {
         aria-label="Application stats"
         className="w-fit shrink-0"
       >
-        <div className="grid grid-cols-2 justify-items-center gap-0 pointer-coarse:gap-3">
+        <div className="flex justify-center gap-1.5">
           {POSITION_STAT_BUCKETS.map((bucket) => {
             const count = bucket.statuses.reduce(
               (sum, status) => sum + (stats.counts[status] ?? 0),
@@ -38,9 +38,13 @@ export function PositionStatCircles({ stats }: PositionStatCirclesProps) {
                     <button
                       type="button"
                       aria-label={`${bucket.label}: ${count}`}
-                      className={`focus-visible:ring-ring/50 relative flex h-11 min-w-11 items-center justify-center rounded-full px-2.5 text-base font-semibold tabular-nums transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] outline-none hover:z-10 hover:scale-110 focus-visible:z-10 focus-visible:scale-110 focus-visible:ring-[3px] motion-reduce:transition-none ${isDimmed ? 'bg-muted text-foreground' : bucket.fillClassName}`}
+                      className="group focus-visible:ring-ring/50 relative flex min-h-11 min-w-11 items-center justify-center outline-none hover:z-10 focus-visible:z-10 focus-visible:ring-[3px]"
                     >
-                      {count}
+                      <span
+                        className={`flex size-7 items-center justify-center rounded-full border-2 text-xs font-semibold tabular-nums transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] group-hover:scale-110 group-focus-visible:scale-110 motion-reduce:transition-none ${isDimmed ? 'border-border text-muted-foreground' : `${bucket.ringClassName} text-foreground`}`}
+                      >
+                        {count}
+                      </span>
                     </button>
                   </TooltipTrigger>
                   <TooltipContent>
@@ -49,7 +53,7 @@ export function PositionStatCircles({ stats }: PositionStatCirclesProps) {
                 </Tooltip>
                 <span
                   aria-hidden="true"
-                  className="text-muted-foreground hidden text-[11px] leading-tight pointer-coarse:block"
+                  className="text-muted-foreground hidden max-w-11 text-center text-[10px] leading-tight break-words pointer-coarse:block"
                 >
                   {bucket.label}
                 </span>
@@ -57,7 +61,7 @@ export function PositionStatCircles({ stats }: PositionStatCirclesProps) {
             );
           })}
         </div>
-        <p className="text-muted-foreground mt-2 text-center text-xs">
+        <p className="text-muted-foreground mt-1 text-center text-[11px]">
           Total: <span className="tabular-nums">{stats.total}</span>
         </p>
       </div>
