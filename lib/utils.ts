@@ -624,11 +624,7 @@ interface PaginationBounds {
   rangeEnd: number;
 }
 
-/**
- * Clamps a stale `?page=` to the last page (`totalPages` floors at 1) and
- * derives the "showing X–Y of Z" range — the math `applications-results.tsx`
- * used to duplicate across its default and filtered views.
- */
+/** Clamps a stale `?page=` to the last page (`totalPages` floors at 1) and derives the range. */
 export function getPaginationBounds({
   total,
   page,

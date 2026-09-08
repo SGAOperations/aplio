@@ -125,7 +125,6 @@ export function EmailLogTable({
       getRowKey={(row) => row.id}
       caption="Email log"
       emptyState={emptyState}
-      noMatchMessage="No emails match your filters."
       mobileCard={(row) => {
         const { date, label } = getEmailLogTimestamp(row);
         const bounceType = formatBounceType(row.bounceType);

@@ -83,6 +83,7 @@ export function EmailLogToolbar({
 
   function clearFilters() {
     setSearchValue('');
+    clearTimeout(debounceTimer.current);
     router.push(pathname);
   }
 
