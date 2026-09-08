@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 
 import { EMAIL_TEMPLATE_LABELS } from '@/lib/constants';
