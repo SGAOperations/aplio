@@ -17,16 +17,14 @@ export default function EditPositionLoading() {
         <Skeleton className="h-4 w-24" />
       </div>
 
-      {/* Details */}
-      <SectionCardSkeleton rowShape="form-field" rows={2} hasLink={false} />
-      {/* Availability */}
-      <SectionCardSkeleton rowShape="form-field" rows={2} hasLink={false} />
-      {/* Managers */}
-      <SectionCardSkeleton rowShape="form-field" rows={1} hasLink={false} />
-      {/* Applications summary */}
-      <SectionCardSkeleton rowShape="form-field" rows={1} hasSubtitle hasLink />
-      {/* Questions */}
-      <SectionCardSkeleton rowShape="form-field" rows={3} hasLink={false} />
+      {/* Details + Availability merged card */}
+      <SectionCardSkeleton rowShape="form-field" rows={4} hasLink={false} />
+
+      {/* Managers / Questions grid */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <SectionCardSkeleton rowShape="form-field" rows={1} hasLink={false} />
+        <SectionCardSkeleton rowShape="form-field" rows={3} hasLink={false} />
+      </div>
 
       {/* Danger zone skeleton — compact, admin-only, shown speculatively to avoid layout shift */}
       <div className="flex flex-col gap-2 rounded-xl border p-4">

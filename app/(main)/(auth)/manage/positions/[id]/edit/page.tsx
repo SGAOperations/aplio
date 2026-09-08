@@ -11,7 +11,7 @@ import {
 import { requireListedManagerOr404 } from '@/lib/auth/guards';
 import { UNRESOLVED_APPLICATION_STATUSES } from '@/lib/constants';
 import { toOrgDayString } from '@/lib/dates';
-import { STATE_ICONS } from '@/lib/icons';
+import { CONCEPT_ICONS, STATE_ICONS } from '@/lib/icons';
 import {
   getPositionDateInfo,
   isOpenPastCloseDate,
@@ -170,7 +170,7 @@ export default async function EditPositionPage({
         </WarningCallout>
       )}
 
-      <SectionCard title="Details" titleAs="h2">
+      <SectionCard title="Details" icon={CONCEPT_ICONS.position} titleAs="h2">
         <div className="flex flex-col gap-4 p-4">
           {canEdit && availabilityWarnings}
           {canEdit ? (
@@ -236,7 +236,7 @@ export default async function EditPositionPage({
       </SectionCard>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <SectionCard title="Managers" titleAs="h2">
+        <SectionCard title="Managers" icon={CONCEPT_ICONS.user} titleAs="h2">
           <div className="p-4">
             {canEdit ? (
               <PositionManagersSection
@@ -251,7 +251,11 @@ export default async function EditPositionPage({
           </div>
         </SectionCard>
 
-        <SectionCard title="Questions" titleAs="h2">
+        <SectionCard
+          title="Questions"
+          icon={CONCEPT_ICONS.question}
+          titleAs="h2"
+        >
           <div className="p-4">
             {canEdit ? (
               <PositionQuestionsSection
