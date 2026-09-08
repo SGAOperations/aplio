@@ -16,15 +16,15 @@ import {
   ARCHIVED_POSITION_EDIT_ERROR,
   POSITION_CLOSES_AT_ORDER_ERROR,
   POSITION_CLOSES_AT_PAST_ERROR,
-  POSITION_CREATE_STATUSES,
   POSITION_DELETE_BLOCKED_ERROR,
   POSITION_DESCRIPTION_MAX_LENGTH,
+  POSITION_MANAGERS_REQUIRED_ERROR,
   POSITION_OPENS_AT_ORDER_ERROR,
   POSITION_OPENS_AT_PAST_ERROR,
   POSITION_OPEN_REQUIRES_ADMIN_ERROR,
   POSITION_UNPUBLISH_BLOCKED_ERROR,
+  createPositionFormSchema,
   getPositionStatusTransitionError,
-  positionDatesRefinement,
   positionPastDateIssues,
   validatePositionDates,
 } from '@/lib/constants';
@@ -32,23 +32,6 @@ import { orgDayEnd, orgDayStart, toOrgDayString } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
 import type { PositionManager, UserSearchResult } from '@/lib/types';
 import { type ResponseType, displayUserName } from '@/lib/utils';
-
-// description defaults to '' so a draft can be created quickly. status is
-// narrowed to draft|open — a position can never be born closed.
-const createPositionSchema = (today: string) =>
-  z
-    .object({
-      title: z.string().min(1),
-      description: z
-        .string()
-        .max(POSITION_DESCRIPTION_MAX_LENGTH)
-        .optional()
-        .default(''),
-      status: z.enum(POSITION_CREATE_STATUSES),
-      opensAt: z.iso.date().optional(),
-      closesAt: z.iso.date().optional(),
-    })
-    .superRefine(positionDatesRefinement(today));
 
 // Past-date check runs separately in updatePosition, against the loaded row's
 // previous dates — the schema itself stays ordering-only.
@@ -74,7 +57,8 @@ const parseError = (error: z.ZodError) =>
       issue.message === POSITION_OPENS_AT_ORDER_ERROR ||
       issue.message === POSITION_CLOSES_AT_ORDER_ERROR ||
       issue.message === POSITION_OPENS_AT_PAST_ERROR ||
-      issue.message === POSITION_CLOSES_AT_PAST_ERROR,
+      issue.message === POSITION_CLOSES_AT_PAST_ERROR ||
+      issue.message === POSITION_MANAGERS_REQUIRED_ERROR,
   )?.message ?? 'Invalid input';
 
 const deletePositionSchema = z.object({ id: z.string().min(1) });
@@ -94,33 +78,34 @@ export async function createPosition(
 ): Promise<{ id: string } | { error: string }> {
   const user = await requireManagerOrAdmin();
 
-  const parsed = createPositionSchema(toOrgDayString(new Date())).safeParse(
-    input,
-  );
+  const parsed = createPositionFormSchema.safeParse(input);
   if (!parsed.success) return { error: parseError(parsed.error) };
 
-  const { title, description, status, opensAt, closesAt } = parsed.data;
+  const { title, managerEmails } = parsed.data;
 
-  if (status === 'open' && !user.isAdmin)
-    return { error: POSITION_OPEN_REQUIRES_ADMIN_ERROR };
+  const managerUsers = await prisma.user.findMany({
+    where: { email: { in: [...new Set(managerEmails)] }, deletedAt: null },
+    select: { id: true },
+  });
+  if (managerUsers.length !== new Set(managerEmails).size)
+    return { error: 'One of the selected users is no longer available.' };
 
-  // Creator is auto-assigned as a manager so they can immediately edit the position.
   const position = await prisma.position.create({
     data: {
       title,
-      description,
-      status,
-      opensAt: opensAt ? orgDayStart(opensAt) : null,
-      closesAt: closesAt ? orgDayEnd(closesAt) : null,
+      description: '',
+      status: 'draft',
       createdById: user.id,
       updatedById: user.id,
-      managers: { connect: { id: user.id } },
+      managers: { connect: managerUsers.map((u) => ({ id: u.id })) },
     },
     select: { id: true },
   });
 
   revalidatePath('/positions');
   revalidatePath('/manage/positions');
+  revalidatePath('/users');
+  revalidatePath('/');
   return { id: position.id };
 }
 
