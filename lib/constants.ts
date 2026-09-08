@@ -407,6 +407,50 @@ export const PUBLIC_APPLICATION_STATUS = {
 export type PublicApplicationStatus =
   (typeof PUBLIC_APPLICATION_STATUS)[keyof typeof PUBLIC_APPLICATION_STATUS];
 
+export const EMAIL_STATUS_LABELS: Record<$Enums.EmailStatus, string> = {
+  scheduled: 'Scheduled',
+  sent: 'Sent',
+  delivered: 'Delivered',
+  bounced: 'Bounced',
+  complained: 'Spam complaint',
+  suppressed: 'Blocked',
+  failed: 'Failed',
+  cancelled: 'Cancelled',
+};
+
+// 'sent' is deliberately not 'success' — a sent row is handed off, not delivered.
+export const EMAIL_STATUS_BADGE_VARIANT: Record<
+  $Enums.EmailStatus,
+  BadgeVariant
+> = {
+  delivered: 'success',
+  scheduled: 'info',
+  sent: 'secondary',
+  cancelled: 'outline',
+  bounced: 'destructive',
+  complained: 'destructive',
+  suppressed: 'destructive',
+  failed: 'destructive',
+};
+
+// 'delivered' is null — the badge and timestamp already say it. 'bounced' is
+// null — getEmailLogDescription branches on bounceType for that one.
+export const EMAIL_STATUS_DESCRIPTIONS: Record<
+  $Enums.EmailStatus,
+  string | null
+> = {
+  scheduled:
+    "Not sent yet. Changing this application's status again cancels it.",
+  sent: 'Handed off to the email provider — delivery not confirmed yet.',
+  delivered: null,
+  bounced: null,
+  complained: 'The applicant marked this as spam.',
+  suppressed:
+    "Blocked before sending because the address is on the provider's suppression list.",
+  failed: 'This was never sent.',
+  cancelled: 'Cancelled before it was sent.',
+};
+
 // Array order is rank order — also drives getUserRoleRank's fallback.
 export const USER_ROLE_FILTER_OPTIONS: {
   value: UserRoleFilter;

@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
+import { $Enums } from '@/prisma/client';
+
 import {
   ANSWER_LONG_MAX_LENGTH,
   ANSWER_OTHER_MAX_LENGTH,
   ANSWER_SHORT_MAX_LENGTH,
   APPLICATION_STATUS_VALUES,
+  EMAIL_STATUS_BADGE_VARIANT,
+  EMAIL_STATUS_DESCRIPTIONS,
+  EMAIL_STATUS_LABELS,
   NON_TERMINAL_APPLICATION_STATUSES,
   POSITION_CLOSES_AT_ORDER_ERROR,
   POSITION_CLOSES_AT_PAST_ERROR,
@@ -280,6 +285,29 @@ describe('status-set invariants', () => {
   it('TERMINAL_DECISION_STATUSES is disjoint from UNRESOLVED_APPLICATION_STATUSES', () => {
     for (const status of TERMINAL_DECISION_STATUSES)
       expect(UNRESOLVED_APPLICATION_STATUSES).not.toContain(status);
+  });
+});
+
+describe('EMAIL_STATUS_* maps', () => {
+  const allStatuses = Object.values($Enums.EmailStatus);
+
+  it('has a label for every EmailStatus member', () => {
+    for (const status of allStatuses)
+      expect(EMAIL_STATUS_LABELS[status]).toBeTruthy();
+  });
+
+  it('has a badge variant for every EmailStatus member', () => {
+    for (const status of allStatuses)
+      expect(EMAIL_STATUS_BADGE_VARIANT[status]).toBeTruthy();
+  });
+
+  it('has a description entry for every EmailStatus member', () => {
+    for (const status of allStatuses)
+      expect(EMAIL_STATUS_DESCRIPTIONS).toHaveProperty(status);
+  });
+
+  it("does not map 'sent' to the success variant", () => {
+    expect(EMAIL_STATUS_BADGE_VARIANT.sent).not.toBe('success');
   });
 });
 

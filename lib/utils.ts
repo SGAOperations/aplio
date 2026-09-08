@@ -5,6 +5,7 @@ import type { $Enums } from '@/prisma/client';
 
 import {
   APPLICATION_STATUS_LABELS,
+  EMAIL_STATUS_DESCRIPTIONS,
   MANAGED_POSITIONS_WINDOW_DAYS,
   USER_ROLE_FILTER_OPTIONS,
   getApplicationStatusRank,
@@ -76,6 +77,48 @@ export function getApplicationStatusHistoryRowLabel(entry: {
   if (entry.from === null)
     return `Status recorded as ${APPLICATION_STATUS_LABELS[entry.to]}`;
   return `${APPLICATION_STATUS_LABELS[entry.from]} → ${APPLICATION_STATUS_LABELS[entry.to]}`;
+}
+
+/** The one sentence for a row's status; `bounced` branches on `bounceType`. */
+export function getEmailLogDescription(entry: {
+  status: $Enums.EmailStatus;
+  bounceType: string | null;
+}): string | null {
+  if (entry.status !== 'bounced')
+    return EMAIL_STATUS_DESCRIPTIONS[entry.status];
+
+  if (entry.bounceType === 'Permanent')
+    return 'The address rejected it permanently — the applicant did not receive this.';
+  if (entry.bounceType === 'Transient')
+    return 'Temporarily undeliverable — the applicant did not receive this.';
+  return 'This could not be delivered.';
+}
+
+/** The one timestamp a status actually means — never the raw `createdAt` when a truer column exists. */
+export function getEmailLogOccurredAt(entry: {
+  status: $Enums.EmailStatus;
+  scheduledAt: Date | null;
+  sentAt: Date | null;
+  deliveredAt: Date | null;
+  createdAt: Date;
+}): Date {
+  switch (entry.status) {
+    case 'scheduled':
+      return entry.scheduledAt ?? entry.createdAt;
+    case 'delivered':
+      return entry.deliveredAt ?? entry.sentAt ?? entry.createdAt;
+    case 'sent':
+    case 'bounced':
+    case 'complained':
+    case 'suppressed':
+    case 'failed':
+    case 'cancelled':
+      return entry.sentAt ?? entry.createdAt;
+    default: {
+      const exhaustiveCheck: never = entry.status;
+      return exhaustiveCheck;
+    }
+  }
 }
 
 export type ErrorType = { error: string };

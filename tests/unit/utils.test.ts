@@ -19,6 +19,8 @@ import {
   formatPaginationSummary,
   formatTableCount,
   getApplicantName,
+  getEmailLogDescription,
+  getEmailLogOccurredAt,
   getPaginationRange,
   getPositionAvailability,
   getPositionDateInfo,
@@ -1302,5 +1304,142 @@ describe('getApplicantName', () => {
     expect(
       getApplicantName({ applicantName: '', user: { name: null } }),
     ).toBeNull();
+  });
+});
+
+describe('getEmailLogDescription', () => {
+  it('describes a permanent bounce', () => {
+    expect(
+      getEmailLogDescription({ status: 'bounced', bounceType: 'Permanent' }),
+    ).toBe(
+      'The address rejected it permanently — the applicant did not receive this.',
+    );
+  });
+
+  it('describes a transient bounce', () => {
+    expect(
+      getEmailLogDescription({ status: 'bounced', bounceType: 'Transient' }),
+    ).toBe('Temporarily undeliverable — the applicant did not receive this.');
+  });
+
+  it('describes a bounce with no bounceType', () => {
+    expect(
+      getEmailLogDescription({ status: 'bounced', bounceType: null }),
+    ).toBe('This could not be delivered.');
+  });
+
+  it('returns the scheduled sentence', () => {
+    expect(
+      getEmailLogDescription({ status: 'scheduled', bounceType: null }),
+    ).toBe(
+      "Not sent yet. Changing this application's status again cancels it.",
+    );
+  });
+
+  it('returns the sent sentence', () => {
+    expect(getEmailLogDescription({ status: 'sent', bounceType: null })).toBe(
+      'Handed off to the email provider — delivery not confirmed yet.',
+    );
+  });
+
+  it('returns the cancelled sentence', () => {
+    expect(
+      getEmailLogDescription({ status: 'cancelled', bounceType: null }),
+    ).toBe('Cancelled before it was sent.');
+  });
+
+  it('returns null for delivered', () => {
+    expect(
+      getEmailLogDescription({ status: 'delivered', bounceType: null }),
+    ).toBeNull();
+  });
+});
+
+describe('getEmailLogOccurredAt', () => {
+  const scheduledAt = new Date('2026-01-01T00:00:00Z');
+  const sentAt = new Date('2026-01-02T00:00:00Z');
+  const deliveredAt = new Date('2026-01-03T00:00:00Z');
+  const createdAt = new Date('2025-12-31T00:00:00Z');
+
+  it('picks scheduledAt for scheduled', () => {
+    expect(
+      getEmailLogOccurredAt({
+        status: 'scheduled',
+        scheduledAt,
+        sentAt: null,
+        deliveredAt: null,
+        createdAt,
+      }),
+    ).toBe(scheduledAt);
+  });
+
+  it('picks deliveredAt for delivered', () => {
+    expect(
+      getEmailLogOccurredAt({
+        status: 'delivered',
+        scheduledAt: null,
+        sentAt,
+        deliveredAt,
+        createdAt,
+      }),
+    ).toBe(deliveredAt);
+  });
+
+  it('picks sentAt for sent', () => {
+    expect(
+      getEmailLogOccurredAt({
+        status: 'sent',
+        scheduledAt: null,
+        sentAt,
+        deliveredAt: null,
+        createdAt,
+      }),
+    ).toBe(sentAt);
+  });
+
+  it('picks createdAt for failed', () => {
+    expect(
+      getEmailLogOccurredAt({
+        status: 'failed',
+        scheduledAt: null,
+        sentAt: null,
+        deliveredAt: null,
+        createdAt,
+      }),
+    ).toBe(createdAt);
+  });
+
+  it('picks createdAt for cancelled', () => {
+    expect(
+      getEmailLogOccurredAt({
+        status: 'cancelled',
+        scheduledAt: null,
+        sentAt: null,
+        deliveredAt: null,
+        createdAt,
+      }),
+    ).toBe(createdAt);
+  });
+
+  it('falls back to createdAt when the preferred column is null', () => {
+    expect(
+      getEmailLogOccurredAt({
+        status: 'scheduled',
+        scheduledAt: null,
+        sentAt: null,
+        deliveredAt: null,
+        createdAt,
+      }),
+    ).toBe(createdAt);
+
+    expect(
+      getEmailLogOccurredAt({
+        status: 'delivered',
+        scheduledAt: null,
+        sentAt: null,
+        deliveredAt: null,
+        createdAt,
+      }),
+    ).toBe(createdAt);
   });
 });

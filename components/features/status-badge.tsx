@@ -3,6 +3,8 @@ import { type $Enums } from '@/prisma/client';
 import {
   APPLICATION_STATUS_BADGE_VARIANT,
   APPLICATION_STATUS_LABELS,
+  EMAIL_STATUS_BADGE_VARIANT,
+  EMAIL_STATUS_LABELS,
   POSITION_AVAILABILITY_BADGE_VARIANT,
   POSITION_AVAILABILITY_LABELS,
   POSITION_STATUS_BADGE_VARIANT,
@@ -30,6 +32,18 @@ export function ApplicationStatusBadge({
     <Badge variant={APPLICATION_STATUS_BADGE_VARIANT[status]}>
       <Icon />
       {APPLICATION_STATUS_LABELS[status]}
+    </Badge>
+  );
+}
+
+interface EmailStatusBadgeProps {
+  status: $Enums.EmailStatus;
+}
+
+export function EmailStatusBadge({ status }: EmailStatusBadgeProps) {
+  return (
+    <Badge variant={EMAIL_STATUS_BADGE_VARIANT[status]}>
+      {EMAIL_STATUS_LABELS[status]}
     </Badge>
   );
 }

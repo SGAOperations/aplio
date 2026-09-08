@@ -14,6 +14,7 @@ import { getDisplayName, getRenamedTo } from '@/lib/utils';
 
 import { ApplicantOtherApplications } from '@/components/features/applicant-other-applications';
 import { ApplicationAnswersList } from '@/components/features/application-answers-list';
+import { ApplicationEmailHistory } from '@/components/features/application-email-history';
 import { ApplicationStatusHeaderActions } from '@/components/features/application-status-header-actions';
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
 import { PageHeader } from '@/components/layouts/page-header';
@@ -124,6 +125,19 @@ export default async function ApplicationDetailPage({
             />
           </SectionCard>
         )}
+
+        <Suspense
+          fallback={
+            <SectionCardSkeleton
+              rowShape="badge-stacked"
+              hasSubtitle
+              hasLink={false}
+              rows={2}
+            />
+          }
+        >
+          <ApplicationEmailHistory applicationId={application.id} user={user} />
+        </Suspense>
       </div>
     </div>
   );
