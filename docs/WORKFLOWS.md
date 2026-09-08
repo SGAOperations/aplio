@@ -29,7 +29,7 @@ Behaviour shared by many workflows is stated once under [Cross-cutting behaviour
 
 **[Position manager (PM)](#position-manager-pm)** — [PM-1](#pm-1-see-your-dashboard) · [PM-2](#pm-2-see-the-positions-you-manage) · [PM-3](#pm-3-create-a-position) · [PM-4](#pm-4-edit-position-details) · [PM-5](#pm-5-manage-position-questions) · [PM-6](#pm-6-add-a-manager) · [PM-7](#pm-7-remove-a-manager) · [PM-8](#pm-8-work-the-application-queue) · [PM-9](#pm-9-open-an-application-for-review) · [PM-10](#pm-10-download-an-applicants-file-answer) · [PM-11](#pm-11-move-one-application-through-the-status-path) · [PM-12](#pm-12-move-several-applications-at-once) · [PM-13](#pm-13-reorder-position-questions) · [PM-14](#pm-14-override-a-status-undo-or-review-its-history)
 
-**[Admin (AD)](#admin-ad)** — [AD-1](#ad-1-see-every-position) · [AD-2](#ad-2-edit-an-archived-position) · [AD-3](#ad-3-delete-a-position) · [AD-4](#ad-4-create-a-global-question) · [AD-5](#ad-5-edit-a-global-question) · [AD-6](#ad-6-delete-a-global-question) · [AD-7](#ad-7-create-a-user) · [AD-8](#ad-8-grant-or-revoke-admin) · [AD-9](#ad-9-deactivate-a-user) · [AD-10](#ad-10-find-a-user) · [AD-11](#ad-11-reorder-global-questions)
+**[Admin (AD)](#admin-ad)** — [AD-1](#ad-1-see-every-position) · [AD-2](#ad-2-edit-an-archived-position) · [AD-3](#ad-3-delete-a-position) · [AD-4](#ad-4-create-a-global-question) · [AD-5](#ad-5-edit-a-global-question) · [AD-6](#ad-6-delete-a-global-question) · [AD-7](#ad-7-create-a-user) · [AD-8](#ad-8-grant-or-revoke-admin) · [AD-9](#ad-9-deactivate-a-user) · [AD-10](#ad-10-find-a-user) · [AD-11](#ad-11-reorder-global-questions) · [AD-12](#ad-12-look-up-an-email)
 
 ---
 
@@ -671,7 +671,19 @@ An admin is a **manager on every position**: every [Position manager](#position-
   - Full keyboard support, same as [PM-13](#pm-13-reorder-position-questions).
 - **End state** — `/profile` reflects the new order immediately ([AP-2](#ap-2-answer-profile-questions)); a gap left by a soft-deleted question closes on the next reorder.
 
+### AD-12 Look up an email
+
+- **Trigger** — `/emails`, or a failure-strip card's link (e.g. `/emails?status=bounced`).
+- **Happy path** — the page opens with a **Delivery failures** strip (bounced, complained, failed counts over the last 7 days; each card links into the matching status filter) above a **Status** / **Template** / **Search by recipient address** toolbar and a newest-first table. Search is debounced and case-insensitive over the recipient address. A bounced row shows its `bounceType` (**Permanent** vs **Transient**) alongside the status badge, plus the provider's error text. A legend line above the table reads **"Sent means Resend accepted the message — only Delivered confirms it reached the inbox. Newest first."** — `sent` never renders with the success badge variant. Pagination round-trips through the URL exactly like [`/manage/applications`](#pm-8-work-the-application-queue); a filter change lands on page 1, and a stale `?page=` clamps to the last page instead of rendering blank.
+- **Failure / edge**
+  - A manager or applicant visiting `/emails` directly → 404, same as any other admin-only route; no **Email Log** nav entry for either.
+  - No emails match the current filters → the table's "No emails match your filters." row/card; **Clear filters** resets search, status and template together.
+  - A fresh environment with zero `EmailLog` rows → the **"No emails yet"** empty state, no action button (the page cannot send anything).
+  - A quiet week → the failure strip's three cards still render with `0` and the caption reads **"No delivery failures in the last 7 days."** instead of hiding the strip.
+- **End state** — read-only. There is no resend, retry, or suppression-list control anywhere on the page, desktop or mobile; the log itself is the only place any admin can see a sign-in code's subject and recipient, which is why the route, its nav entry and its queries all sit behind the same admin gate.
+
 ### Known open
 
 - Reactivating a deactivated account has no UI at all — the copy in [AD-7](#ad-7-create-a-user) points at a direct database change.
 - There is no audit trail surface. Rows carry `createdById` / `updatedById` / `deletedById`, but nothing renders them, so "who moved this application to rejected" is not answerable in the app.
+- The email log's `to` search is an unindexed `contains` scan and the table has no retention/pruning policy — both fine at current volume, both a follow-up if the table grows.

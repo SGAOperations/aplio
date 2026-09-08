@@ -11,6 +11,9 @@ import type {
   APPLICATION_SORT_DIRECTIONS,
   APPLICATION_SORT_FIELDS,
   APPLICATION_STATUS_VALUES,
+  EMAIL_FAILURE_STATUSES,
+  EMAIL_STATUS_VALUES,
+  EMAIL_TEMPLATE_VALUES,
   PublicApplicationStatus,
 } from '@/lib/constants';
 
@@ -448,3 +451,34 @@ export interface NavGroup {
   label: string;
   items: NavItem[];
 }
+
+export type EmailStatusFilter = (typeof EMAIL_STATUS_VALUES)[number];
+export type EmailTemplateFilter = (typeof EMAIL_TEMPLATE_VALUES)[number];
+
+export type EmailLogFilters = {
+  q?: string;
+  status?: EmailStatusFilter;
+  template?: EmailTemplateFilter;
+};
+
+// Exposes recipient addresses and provider errors — admin-gated contexts
+// only. Matches prisma/data/emails.ts#emailLogSelect.
+export type EmailLogListItem = Prisma.EmailLogGetPayload<{
+  select: {
+    id: true;
+    to: true;
+    subject: true;
+    template: true;
+    status: true;
+    bounceType: true;
+    error: true;
+    scheduledAt: true;
+    sentAt: true;
+    deliveredAt: true;
+    createdAt: true;
+    user: { select: { id: true; name: true } };
+  };
+}>;
+
+export type EmailFailureStatus = (typeof EMAIL_FAILURE_STATUSES)[number];
+export type EmailFailureCounts = Record<EmailFailureStatus, number>;

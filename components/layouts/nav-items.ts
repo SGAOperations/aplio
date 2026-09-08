@@ -34,7 +34,7 @@ export const manageReviewerNavItems: NavItem[] = [
   },
 ];
 
-// Shown to admins only — Users and Global Questions are admin-only.
+// Shown to admins only — Users, Global Questions and Email Log are admin-only.
 export const manageAdminNavItems: NavItem[] = [
   { href: '/users', label: 'Users', icon: CONCEPT_ICONS.user },
   {
@@ -42,6 +42,7 @@ export const manageAdminNavItems: NavItem[] = [
     label: 'Global Questions',
     icon: CONCEPT_ICONS.question,
   },
+  { href: '/emails', label: 'Email Log', icon: CONCEPT_ICONS.email },
 ];
 
 // Positions only: the others are auth-gated and would bounce to login.
