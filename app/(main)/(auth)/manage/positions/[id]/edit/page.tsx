@@ -18,7 +18,6 @@ import {
   isPositionActive,
 } from '@/lib/utils';
 
-import { PositionApplicationsSummary } from '@/components/features/position-applications-summary';
 import { PositionAvailabilitySection } from '@/components/features/position-availability-section';
 import { PositionDangerZone } from '@/components/features/position-danger-zone';
 import { PositionDetailsSection } from '@/components/features/position-details-section';
@@ -77,9 +76,7 @@ export default async function EditPositionPage({
     getPositionApplicationStats([position.id]),
   ]);
 
-  // One groupBy, reused by the archived callout and the applications summary.
   const counts = stats.get(position.id)?.counts ?? {};
-  const total = stats.get(position.id)?.total ?? 0;
   const unresolvedTotal = UNRESOLVED_APPLICATION_STATUSES.reduce(
     (sum, status) => sum + (counts[status] ?? 0),
     0,
@@ -174,19 +171,55 @@ export default async function EditPositionPage({
       )}
 
       <SectionCard title="Details" titleAs="h2">
-        <div className="p-4">
+        <div className="flex flex-col gap-4 p-4">
+          {canEdit && availabilityWarnings}
           {canEdit ? (
             <PositionDetailsSection
               positionId={position.id}
               title={position.title}
               description={position.description}
-            />
+            >
+              <PositionAvailabilitySection
+                positionId={position.id}
+                opensAt={
+                  position.opensAt ? toOrgDayString(position.opensAt) : null
+                }
+                closesAt={
+                  position.closesAt ? toOrgDayString(position.closesAt) : null
+                }
+              />
+            </PositionDetailsSection>
           ) : (
-            <div className="flex flex-col gap-4">
+            <>
               <div>
                 <p className="text-muted-foreground text-xs">Title</p>
                 <p className="text-sm font-medium">{position.title}</p>
               </div>
+              <dl className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <dt className="text-muted-foreground text-xs">Opens</dt>
+                  <dd className="text-sm">
+                    {position.opensAt ? (
+                      <LocalTime date={position.opensAt} precision="datetime" />
+                    ) : (
+                      <span className="text-muted-foreground">Not set</span>
+                    )}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground text-xs">Closes</dt>
+                  <dd className="text-sm">
+                    {position.closesAt ? (
+                      <LocalTime
+                        date={position.closesAt}
+                        precision="datetime"
+                      />
+                    ) : (
+                      <span className="text-muted-foreground">Not set</span>
+                    )}
+                  </dd>
+                </div>
+              </dl>
               <div>
                 <p className="text-muted-foreground text-xs">Description</p>
                 {position.description ? (
@@ -197,93 +230,40 @@ export default async function EditPositionPage({
                   </p>
                 )}
               </div>
-            </div>
+            </>
           )}
         </div>
       </SectionCard>
 
-      <SectionCard title="Availability" titleAs="h2">
-        <div className="p-4">
-          {canEdit ? (
-            <PositionAvailabilitySection
-              positionId={position.id}
-              opensAt={
-                position.opensAt ? toOrgDayString(position.opensAt) : null
-              }
-              closesAt={
-                position.closesAt ? toOrgDayString(position.closesAt) : null
-              }
-              warnings={availabilityWarnings}
-            />
-          ) : (
-            <dl className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <dt className="text-muted-foreground text-xs">Opens</dt>
-                <dd className="text-sm">
-                  {position.opensAt ? (
-                    <LocalTime date={position.opensAt} precision="datetime" />
-                  ) : (
-                    <span className="text-muted-foreground">Not set</span>
-                  )}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground text-xs">Closes</dt>
-                <dd className="text-sm">
-                  {position.closesAt ? (
-                    <LocalTime date={position.closesAt} precision="datetime" />
-                  ) : (
-                    <span className="text-muted-foreground">Not set</span>
-                  )}
-                </dd>
-              </div>
-            </dl>
-          )}
-        </div>
-      </SectionCard>
+      <div className="grid gap-4 md:grid-cols-2">
+        <SectionCard title="Managers" titleAs="h2">
+          <div className="p-4">
+            {canEdit ? (
+              <PositionManagersSection
+                positionId={position.id}
+                initialManagers={position.managers}
+                currentUserId={user.id}
+                isAdmin={user.isAdmin}
+              />
+            ) : (
+              <PositionManagersReadonly managers={position.managers} />
+            )}
+          </div>
+        </SectionCard>
 
-      <SectionCard title="Managers" titleAs="h2">
-        <div className="p-4">
-          {canEdit ? (
-            <PositionManagersSection
-              positionId={position.id}
-              initialManagers={position.managers}
-              currentUserId={user.id}
-              isAdmin={user.isAdmin}
-            />
-          ) : (
-            <PositionManagersReadonly managers={position.managers} />
-          )}
-        </div>
-      </SectionCard>
-
-      <SectionCard
-        title="Applications"
-        subtitle="Submitted applications only — drafts aren't counted."
-        titleAs="h2"
-        link={{
-          href: `/manage/applications?positionId=${position.id}`,
-          label: 'Review applications',
-          ariaLabel: `Review applications for ${position.title}`,
-        }}
-      >
-        <div className="p-4">
-          <PositionApplicationsSummary counts={counts} total={total} />
-        </div>
-      </SectionCard>
-
-      <SectionCard title="Questions" titleAs="h2">
-        <div className="p-4">
-          {canEdit ? (
-            <PositionQuestionsSection
-              positionId={position.id}
-              initialQuestions={position.questions}
-            />
-          ) : (
-            <PositionQuestionsReadonly questions={position.questions} />
-          )}
-        </div>
-      </SectionCard>
+        <SectionCard title="Questions" titleAs="h2">
+          <div className="p-4">
+            {canEdit ? (
+              <PositionQuestionsSection
+                positionId={position.id}
+                initialQuestions={position.questions}
+              />
+            ) : (
+              <PositionQuestionsReadonly questions={position.questions} />
+            )}
+          </div>
+        </SectionCard>
+      </div>
 
       {deletionSummary && (
         <PositionDangerZone

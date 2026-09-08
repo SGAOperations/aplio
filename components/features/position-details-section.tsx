@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -39,12 +40,16 @@ interface PositionDetailsSectionProps {
   positionId: string;
   title: string;
   description: string;
+  // Rendered between the title and description fields — e.g. the
+  // availability (opens/closes) fields, kept as their own component.
+  children?: ReactNode;
 }
 
 export function PositionDetailsSection({
   positionId,
   title,
   description,
+  children,
 }: PositionDetailsSectionProps) {
   const form = useForm<DetailsValues>({
     resolver: zodResolver(detailsSchema),
@@ -76,7 +81,7 @@ export function PositionDetailsSection({
 
   return (
     <Form {...form}>
-      <form className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4">
         <FormField
           control={form.control}
           name="title"
@@ -120,6 +125,8 @@ export function PositionDetailsSection({
           }}
         />
 
+        {children}
+
         <MarkdownField
           disabled={descriptionAutosave.status === 'saving'}
           onCommit={(value) => {
@@ -147,7 +154,7 @@ export function PositionDetailsSection({
             ) : undefined;
           })()}
         />
-      </form>
+      </div>
     </Form>
   );
 }

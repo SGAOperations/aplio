@@ -1,6 +1,5 @@
 'use client';
 
-import type { ReactNode } from 'react';
 import { useRef } from 'react';
 import { useForm } from 'react-hook-form';
 
@@ -35,8 +34,6 @@ interface PositionAvailabilitySectionProps {
   positionId: string;
   opensAt: string | null;
   closesAt: string | null;
-  // Server-rendered warning callout(s) about a status/date divergence.
-  warnings?: ReactNode;
 }
 
 // No zodResolver — the pair saves together, so validation runs inside the commit handler instead.
@@ -44,7 +41,6 @@ export function PositionAvailabilitySection({
   positionId,
   opensAt,
   closesAt,
-  warnings,
 }: PositionAvailabilitySectionProps) {
   const initial: ScheduleValues = {
     opensAt: opensAt ?? '',
@@ -102,9 +98,7 @@ export function PositionAvailabilitySection({
 
   return (
     <Form {...form}>
-      <form className="flex flex-col gap-4">
-        {warnings}
-
+      <div className="flex flex-col gap-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField
             control={form.control}
@@ -169,7 +163,7 @@ export function PositionAvailabilitySection({
             {statusText}
           </p>
         )}
-      </form>
+      </div>
     </Form>
   );
 }

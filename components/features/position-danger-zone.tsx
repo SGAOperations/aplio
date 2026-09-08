@@ -50,10 +50,24 @@ export function PositionDangerZone({
           <h2 className="text-sm font-semibold">Delete Position</h2>
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3 p-0">
-        <p className="text-muted-foreground text-sm">
-          Deleting hides this position everywhere — the positions list, search
-          results and any direct link. This can&apos;t be undone from the app.
+      <CardContent className="flex flex-wrap items-center justify-between gap-3 p-0">
+        <p
+          id={blockedReasonId}
+          className="text-muted-foreground min-w-0 flex-1 text-sm"
+        >
+          {blocked ? (
+            <>
+              This position has {summary.submittedCount} application
+              {summary.submittedCount === 1 ? '' : 's'}, so it can&apos;t be
+              deleted. Close it instead — closed positions stay in the archive.
+            </>
+          ) : (
+            <>
+              Deleting hides this position everywhere — the positions list,
+              search results and any direct link. This can&apos;t be undone from
+              the app.
+            </>
+          )}
         </p>
 
         <AlertDialog open={open} onOpenChange={setOpen}>
@@ -63,7 +77,7 @@ export function PositionDangerZone({
               disabled={blocked}
               aria-label={`Delete position ${positionTitle}`}
               aria-describedby={blocked ? blockedReasonId : undefined}
-              className="self-start"
+              className="shrink-0"
             >
               Delete position
             </Button>
@@ -118,14 +132,6 @@ export function PositionDangerZone({
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-
-        {blocked && (
-          <p id={blockedReasonId} className="text-muted-foreground text-sm">
-            This position has {summary.submittedCount} application
-            {summary.submittedCount === 1 ? '' : 's'}, so it can&apos;t be
-            deleted. Close it instead — closed positions stay in the archive.
-          </p>
-        )}
       </CardContent>
     </Card>
   );
