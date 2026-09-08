@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-import { $Enums } from '@/prisma/client';
-
 import {
   ANSWER_LONG_MAX_LENGTH,
   ANSWER_OTHER_MAX_LENGTH,
@@ -10,6 +8,11 @@ import {
   EMAIL_STATUS_BADGE_VARIANT,
   EMAIL_STATUS_DESCRIPTIONS,
   EMAIL_STATUS_LABELS,
+  EMAIL_STATUS_OPTIONS,
+  EMAIL_STATUS_VALUES,
+  EMAIL_TEMPLATE_LABELS,
+  EMAIL_TEMPLATE_OPTIONS,
+  EMAIL_TEMPLATE_VALUES,
   NON_TERMINAL_APPLICATION_STATUSES,
   POSITION_CLOSES_AT_ORDER_ERROR,
   POSITION_CLOSES_AT_PAST_ERROR,
@@ -289,25 +292,43 @@ describe('status-set invariants', () => {
 });
 
 describe('EMAIL_STATUS_* maps', () => {
-  const allStatuses = Object.values($Enums.EmailStatus);
+  it('has a description entry for every EmailStatus member', () => {
+    for (const status of EMAIL_STATUS_VALUES)
+      expect(EMAIL_STATUS_DESCRIPTIONS).toHaveProperty(status);
+  });
+});
 
-  it('has a label for every EmailStatus member', () => {
-    for (const status of allStatuses)
+describe('email vocabulary', () => {
+  it('EMAIL_STATUS_LABELS is total over EMAIL_STATUS_VALUES', () => {
+    for (const status of EMAIL_STATUS_VALUES)
       expect(EMAIL_STATUS_LABELS[status]).toBeTruthy();
   });
 
-  it('has a badge variant for every EmailStatus member', () => {
-    for (const status of allStatuses)
+  it('EMAIL_STATUS_BADGE_VARIANT is total over EMAIL_STATUS_VALUES', () => {
+    for (const status of EMAIL_STATUS_VALUES)
       expect(EMAIL_STATUS_BADGE_VARIANT[status]).toBeTruthy();
   });
 
-  it('has a description entry for every EmailStatus member', () => {
-    for (const status of allStatuses)
-      expect(EMAIL_STATUS_DESCRIPTIONS).toHaveProperty(status);
+  it("'sent' is not mapped to the 'success' badge variant", () => {
+    expect(EMAIL_STATUS_BADGE_VARIANT.sent).not.toBe('success');
+    expect(EMAIL_STATUS_BADGE_VARIANT.delivered).toBe('success');
   });
 
-  it("does not map 'sent' to the success variant", () => {
-    expect(EMAIL_STATUS_BADGE_VARIANT.sent).not.toBe('success');
+  it('EMAIL_TEMPLATE_LABELS is total over EMAIL_TEMPLATE_VALUES', () => {
+    for (const template of EMAIL_TEMPLATE_VALUES)
+      expect(EMAIL_TEMPLATE_LABELS[template]).toBeTruthy();
+  });
+
+  it('EMAIL_STATUS_OPTIONS matches EMAIL_STATUS_VALUES', () => {
+    expect(EMAIL_STATUS_OPTIONS.map((o) => o.value)).toEqual([
+      ...EMAIL_STATUS_VALUES,
+    ]);
+  });
+
+  it('EMAIL_TEMPLATE_OPTIONS matches EMAIL_TEMPLATE_VALUES', () => {
+    expect(EMAIL_TEMPLATE_OPTIONS.map((o) => o.value)).toEqual([
+      ...EMAIL_TEMPLATE_VALUES,
+    ]);
   });
 });
 

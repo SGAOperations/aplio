@@ -12,11 +12,13 @@ import type {
 import {
   answerFieldIds,
   buildApplicationsHref,
+  buildEmailLogHref,
   canReviewPosition,
   classifyDecisionEmailStatus,
   countBulkEmailRecipients,
   displayUserName,
   findDivergingGlobalAnswers,
+  formatBounceType,
   formatCountdown,
   formatPaginationSummary,
   formatTableCount,
@@ -25,7 +27,9 @@ import {
   getDecisionEmailWarning,
   getEmailLogDescription,
   getEmailLogOccurredAt,
+  getEmailLogTimestamp,
   getFirstName,
+  getPaginationBounds,
   getPaginationRange,
   getPositionAvailability,
   getPositionDateInfo,
@@ -768,6 +772,188 @@ describe('buildApplicationsHref', () => {
     expect(buildApplicationsHref({ status: 'draft' }, 2)).toBe(
       '/manage/applications?status=draft&page=2',
     );
+  });
+});
+
+describe('buildEmailLogHref', () => {
+  it('returns the bare path with no filters or page', () => {
+    expect(buildEmailLogHref({})).toBe('/emails');
+  });
+
+  it('round-trips every filter field', () => {
+    const href = buildEmailLogHref({
+      q: 'jane@example.com',
+      status: 'bounced',
+      template: 'otp',
+    });
+    expect(href).toBe(
+      '/emails?q=jane%40example.com&status=bounced&template=otp',
+    );
+  });
+
+  it('omits page=1', () => {
+    expect(buildEmailLogHref({ status: 'bounced' }, 1)).toBe(
+      '/emails?status=bounced',
+    );
+  });
+
+  it('includes page when past 1', () => {
+    expect(buildEmailLogHref({ status: 'bounced' }, 2)).toBe(
+      '/emails?status=bounced&page=2',
+    );
+  });
+});
+
+describe('getPaginationBounds', () => {
+  it('floors totalPages at 1 for an empty set', () => {
+    const bounds = getPaginationBounds({ total: 0, page: 1, pageSize: 50 });
+    expect(bounds).toEqual({
+      totalPages: 1,
+      currentPage: 1,
+      rangeStart: 0,
+      rangeEnd: 0,
+    });
+  });
+
+  it('clamps a stale page past the last page', () => {
+    const bounds = getPaginationBounds({ total: 55, page: 999, pageSize: 50 });
+    expect(bounds.currentPage).toBe(2);
+    expect(bounds.totalPages).toBe(2);
+    expect(bounds.rangeStart).toBe(51);
+    expect(bounds.rangeEnd).toBe(55);
+  });
+
+  it('reports the range for a mid-set page', () => {
+    const bounds = getPaginationBounds({ total: 120, page: 2, pageSize: 50 });
+    expect(bounds).toEqual({
+      totalPages: 3,
+      currentPage: 2,
+      rangeStart: 51,
+      rangeEnd: 100,
+    });
+  });
+});
+
+describe('getEmailLogTimestamp', () => {
+  const scheduledAt = new Date('2026-01-01T00:00:00Z');
+  const sentAt = new Date('2026-01-02T00:00:00Z');
+  const deliveredAt = new Date('2026-01-03T00:00:00Z');
+  const createdAt = new Date('2025-12-31T00:00:00Z');
+
+  it('delivered prefers deliveredAt, falling back to sentAt then createdAt', () => {
+    expect(
+      getEmailLogTimestamp({
+        status: 'delivered',
+        scheduledAt: null,
+        sentAt,
+        deliveredAt,
+        createdAt,
+      }),
+    ).toEqual({ date: deliveredAt, label: 'Delivered' });
+    expect(
+      getEmailLogTimestamp({
+        status: 'delivered',
+        scheduledAt: null,
+        sentAt,
+        deliveredAt: null,
+        createdAt,
+      }),
+    ).toEqual({ date: sentAt, label: 'Delivered' });
+    expect(
+      getEmailLogTimestamp({
+        status: 'delivered',
+        scheduledAt: null,
+        sentAt: null,
+        deliveredAt: null,
+        createdAt,
+      }),
+    ).toEqual({ date: createdAt, label: 'Delivered' });
+  });
+
+  it('scheduled prefers scheduledAt, falling back to createdAt', () => {
+    expect(
+      getEmailLogTimestamp({
+        status: 'scheduled',
+        scheduledAt,
+        sentAt: null,
+        deliveredAt: null,
+        createdAt,
+      }),
+    ).toEqual({ date: scheduledAt, label: 'Scheduled for' });
+    expect(
+      getEmailLogTimestamp({
+        status: 'scheduled',
+        scheduledAt: null,
+        sentAt: null,
+        deliveredAt: null,
+        createdAt,
+      }),
+    ).toEqual({ date: createdAt, label: 'Scheduled for' });
+  });
+
+  it.each(['sent', 'bounced', 'complained', 'suppressed'] as const)(
+    '%s prefers sentAt, falling back to createdAt',
+    (status) => {
+      expect(
+        getEmailLogTimestamp({
+          status,
+          scheduledAt: null,
+          sentAt,
+          deliveredAt: null,
+          createdAt,
+        }),
+      ).toEqual({ date: sentAt, label: 'Sent' });
+      expect(
+        getEmailLogTimestamp({
+          status,
+          scheduledAt: null,
+          sentAt: null,
+          deliveredAt: null,
+          createdAt,
+        }),
+      ).toEqual({ date: createdAt, label: 'Sent' });
+    },
+  );
+
+  it('failed always uses createdAt, labeled Attempted', () => {
+    expect(
+      getEmailLogTimestamp({
+        status: 'failed',
+        scheduledAt: null,
+        sentAt,
+        deliveredAt: null,
+        createdAt,
+      }),
+    ).toEqual({ date: createdAt, label: 'Attempted' });
+  });
+
+  it('cancelled always uses createdAt', () => {
+    expect(
+      getEmailLogTimestamp({
+        status: 'cancelled',
+        scheduledAt: null,
+        sentAt,
+        deliveredAt: null,
+        createdAt,
+      }),
+    ).toEqual({ date: createdAt, label: 'Cancelled' });
+  });
+});
+
+describe('formatBounceType', () => {
+  it('passes Permanent and Transient through', () => {
+    expect(formatBounceType('Permanent')).toBe('Permanent');
+    expect(formatBounceType('Transient')).toBe('Transient');
+  });
+
+  it('passes an unknown provider string through verbatim', () => {
+    expect(formatBounceType('Undetermined')).toBe('Undetermined');
+  });
+
+  it('returns null for null or blank', () => {
+    expect(formatBounceType(null)).toBeNull();
+    expect(formatBounceType('')).toBeNull();
+    expect(formatBounceType('   ')).toBeNull();
   });
 });
 
