@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import type { PositionStatus } from '@/prisma/client';
+
 import {
   ANSWER_LONG_MAX_LENGTH,
   ANSWER_OTHER_MAX_LENGTH,
@@ -18,6 +20,8 @@ import {
   POSITION_CLOSES_AT_PAST_ERROR,
   POSITION_OPENS_AT_ORDER_ERROR,
   POSITION_OPENS_AT_PAST_ERROR,
+  POSITION_STATUS_TRANSITIONS,
+  POSITION_TRANSITION_ACTIONS,
   REVIEWER_APPLICATION_STATUSES,
   TERMINAL_DECISION_STATUSES,
   UNRESOLVED_APPLICATION_STATUSES,
@@ -26,6 +30,7 @@ import {
   getStatusOptions,
   makePositionFormSchema,
   matchesShortAnswerFormat,
+  positionPastDateIssues,
 } from '@/lib/constants';
 import { toOrgDayString } from '@/lib/dates';
 
@@ -521,5 +526,53 @@ describe('getStatusOptions', () => {
     expect(getStatusOptions(false, 'closed').map((o) => o.value)).not.toContain(
       'open',
     );
+  });
+});
+
+describe('positionPastDateIssues — the schedule autosave pair', () => {
+  const today = '2026-06-01';
+
+  it('flags only the date the caller actually changed', () => {
+    // opensAt unchanged from previous (still past); closesAt newly set to a past date.
+    const issues = positionPastDateIssues(
+      { opensAt: '2026-05-01', closesAt: '2026-05-15' },
+      today,
+      { opensAt: '2026-05-01' },
+    );
+    expect(issues.map((i) => i.path)).toEqual(['closesAt']);
+  });
+
+  it('is silent on an unchanged past date with nothing else touched', () => {
+    const issues = positionPastDateIssues(
+      { opensAt: '2026-05-01', closesAt: undefined },
+      today,
+      { opensAt: '2026-05-01' },
+    );
+    expect(issues).toEqual([]);
+  });
+
+  it('is silent on an empty/mid-typing value rather than erroring', () => {
+    const issues = positionPastDateIssues(
+      { opensAt: '', closesAt: '2026-06-15' },
+      today,
+      {},
+    );
+    expect(issues).toEqual([]);
+  });
+
+  // The ordering case itself is covered above, via makePositionFormSchema's
+  // 'rejects an inverted pair' test — validatePositionDates is the same
+  // refinement makePositionFormSchema runs.
+});
+
+describe('POSITION_TRANSITION_ACTIONS', () => {
+  it('covers exactly the pairs POSITION_STATUS_TRANSITIONS allows', () => {
+    for (const from of Object.keys(
+      POSITION_STATUS_TRANSITIONS,
+    ) as PositionStatus[]) {
+      const allowedTargets = POSITION_STATUS_TRANSITIONS[from];
+      const actionTargets = Object.keys(POSITION_TRANSITION_ACTIONS[from]);
+      expect(new Set(actionTargets)).toEqual(new Set(allowedTargets));
+    }
   });
 });

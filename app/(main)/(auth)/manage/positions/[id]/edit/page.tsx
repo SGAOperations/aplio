@@ -18,15 +18,20 @@ import {
   isPositionActive,
 } from '@/lib/utils';
 
+import { PositionApplicationsSummary } from '@/components/features/position-applications-summary';
+import { PositionAvailabilitySection } from '@/components/features/position-availability-section';
 import { PositionDangerZone } from '@/components/features/position-danger-zone';
-import { PositionDetailsForm } from '@/components/features/position-details-form';
-import { PositionDetailsReadonly } from '@/components/features/position-details-readonly';
-import { PositionEditTabs } from '@/components/features/position-edit-tabs';
+import { PositionDetailsSection } from '@/components/features/position-details-section';
+import { PositionManagersReadonly } from '@/components/features/position-managers-readonly';
 import { PositionManagersSection } from '@/components/features/position-managers-section';
 import { PositionQuestionsReadonly } from '@/components/features/position-questions-readonly';
 import { PositionQuestionsSection } from '@/components/features/position-questions-section';
+import { PositionStatusHeaderActions } from '@/components/features/position-status-header-actions';
+import { PositionStatusBadge } from '@/components/features/status-badge';
 import { PageHeader } from '@/components/layouts/page-header';
 import { LocalTime } from '@/components/ui/local-time';
+import { Markdown } from '@/components/ui/markdown';
+import { SectionCard } from '@/components/ui/section-card';
 import { WarningCallout } from '@/components/ui/warning-callout';
 
 interface EditPositionPageProps {
@@ -55,6 +60,8 @@ export default async function EditPositionPage({
   const user = await requireListedManagerOr404(position.managers);
 
   const canEdit = user.isAdmin || isPositionActive(position);
+  const closesAtPast =
+    position.closesAt !== null && position.closesAt < new Date();
   const staleCloseDate = isOpenPastCloseDate(position)
     ? position.closesAt
     : null;
@@ -65,25 +72,79 @@ export default async function EditPositionPage({
       : null;
   const draftPastOpenDate = draftPastDate?.label === 'Was scheduled to open';
 
-  const deletionSummary = user.isAdmin
-    ? await getPositionDeletionSummary(position.id)
-    : null;
+  const [deletionSummary, stats] = await Promise.all([
+    user.isAdmin ? getPositionDeletionSummary(position.id) : null,
+    getPositionApplicationStats([position.id]),
+  ]);
 
-  // One groupBy, reused by the archived callout and the close confirmation.
-  const stats = await getPositionApplicationStats([position.id]);
+  // One groupBy, reused by the archived callout and the applications summary.
   const counts = stats.get(position.id)?.counts ?? {};
+  const total = stats.get(position.id)?.total ?? 0;
   const unresolvedTotal = UNRESOLVED_APPLICATION_STATUSES.reduce(
     (sum, status) => sum + (counts[status] ?? 0),
     0,
   );
 
+  const availabilityWarnings = (staleCloseDate || draftPastDate) && (
+    <div className="flex flex-col gap-2">
+      {staleCloseDate && (
+        <WarningCallout>
+          <div className="flex flex-col gap-1">
+            <p className="font-medium">
+              Applicants see this position as Closed.
+            </p>
+            <p>
+              Its close date passed on{' '}
+              <LocalTime date={staleCloseDate} precision="date" />, so it
+              stopped accepting applications even though its status is still
+              Open. Give it a future close date to reopen it, or choose Close to
+              make that explicit.
+            </p>
+          </div>
+        </WarningCallout>
+      )}
+      {draftPastDate && (
+        <WarningCallout>
+          <div className="flex flex-col gap-1">
+            <p className="font-medium">
+              This position was scheduled to{' '}
+              {draftPastOpenDate ? 'open' : 'close'}.
+            </p>
+            <p>
+              Its {draftPastOpenDate ? 'open' : 'close'} date passed on{' '}
+              <LocalTime date={draftPastDate.date} precision="date" />, but
+              it&apos;s still a draft, so applicants can&apos;t see it. Give it
+              a future {draftPastOpenDate ? 'open' : 'close'} date, or{' '}
+              {user.isAdmin
+                ? 'choose Publish to open it now.'
+                : 'ask an admin to publish it.'}
+            </p>
+          </div>
+        </WarningCallout>
+      )}
+    </div>
+  );
+
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6">
+    <div className="mx-auto flex max-w-5xl flex-col gap-4">
       <PageHeader
         title={position.title}
         description={canEdit ? 'Edit position' : 'View position'}
         backHref="/manage/positions"
         backLabel="Back to Manage Positions"
+        titleAdornment={<PositionStatusBadge position={position} />}
+        actions={
+          canEdit ? (
+            <PositionStatusHeaderActions
+              positionId={position.id}
+              currentStatus={position.status}
+              isAdmin={user.isAdmin}
+              hasApplications={position.hasApplications}
+              closesAtPast={closesAtPast}
+              unresolvedApplicationCount={unresolvedTotal}
+            />
+          ) : undefined
+        }
       />
 
       {!canEdit && (
@@ -112,103 +173,117 @@ export default async function EditPositionPage({
         </WarningCallout>
       )}
 
-      <PositionEditTabs
-        detailsContent={
-          canEdit ? (
-            <PositionDetailsForm
-              position={{
-                id: position.id,
-                title: position.title,
-                description: position.description,
-                status: position.status,
-                opensAt: position.opensAt
-                  ? toOrgDayString(position.opensAt)
-                  : null,
-                closesAt: position.closesAt
-                  ? toOrgDayString(position.closesAt)
-                  : null,
-              }}
-              statusNotice={
-                (staleCloseDate || draftPastDate) && (
-                  <div className="flex flex-col gap-2">
-                    {staleCloseDate && (
-                      <WarningCallout>
-                        <div className="flex flex-col gap-1">
-                          <p className="font-medium">
-                            Applicants see this position as Closed.
-                          </p>
-                          <p>
-                            Its close date passed on{' '}
-                            <LocalTime date={staleCloseDate} precision="date" />
-                            , so it stopped accepting applications even though
-                            its status is still Open. Change Closes At below to
-                            a future date to reopen it, or set Status to Closed
-                            to make that explicit.
-                          </p>
-                        </div>
-                      </WarningCallout>
-                    )}
-                    {draftPastDate && (
-                      <WarningCallout>
-                        <div className="flex flex-col gap-1">
-                          <p className="font-medium">
-                            This position was scheduled to{' '}
-                            {draftPastOpenDate ? 'open' : 'close'}.
-                          </p>
-                          <p>
-                            Its {draftPastOpenDate ? 'open' : 'close'} date
-                            passed on{' '}
-                            <LocalTime
-                              date={draftPastDate.date}
-                              precision="date"
-                            />
-                            , but its status is still Draft, so applicants
-                            can&apos;t see it. Change{' '}
-                            {draftPastOpenDate ? 'Opens At' : 'Closes At'} below
-                            to a future date, or set Status to Open to publish
-                            it now.
-                          </p>
-                        </div>
-                      </WarningCallout>
-                    )}
-                  </div>
-                )
-              }
-              isAdmin={user.isAdmin}
-              hasApplications={position.hasApplications}
-              unresolvedApplicationCount={unresolvedTotal}
+      <SectionCard title="Details" titleAs="h2">
+        <div className="p-4">
+          {canEdit ? (
+            <PositionDetailsSection
+              positionId={position.id}
+              title={position.title}
+              description={position.description}
             />
           ) : (
-            <PositionDetailsReadonly
-              position={{
-                title: position.title,
-                description: position.description,
-                status: position.status,
-                opensAt: position.opensAt,
-                closesAt: position.closesAt,
-              }}
+            <div className="flex flex-col gap-4">
+              <div>
+                <p className="text-muted-foreground text-xs">Title</p>
+                <p className="text-sm font-medium">{position.title}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground text-xs">Description</p>
+                {position.description ? (
+                  <Markdown variant="full" source={position.description} />
+                ) : (
+                  <p className="text-muted-foreground text-sm">
+                    No description
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </SectionCard>
+
+      <SectionCard title="Availability" titleAs="h2">
+        <div className="p-4">
+          {canEdit ? (
+            <PositionAvailabilitySection
+              positionId={position.id}
+              opensAt={
+                position.opensAt ? toOrgDayString(position.opensAt) : null
+              }
+              closesAt={
+                position.closesAt ? toOrgDayString(position.closesAt) : null
+              }
+              warnings={availabilityWarnings}
             />
-          )
-        }
-        questionsContent={
-          canEdit ? (
+          ) : (
+            <dl className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <dt className="text-muted-foreground text-xs">Opens</dt>
+                <dd className="text-sm">
+                  {position.opensAt ? (
+                    <LocalTime date={position.opensAt} precision="datetime" />
+                  ) : (
+                    <span className="text-muted-foreground">Not set</span>
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground text-xs">Closes</dt>
+                <dd className="text-sm">
+                  {position.closesAt ? (
+                    <LocalTime date={position.closesAt} precision="datetime" />
+                  ) : (
+                    <span className="text-muted-foreground">Not set</span>
+                  )}
+                </dd>
+              </div>
+            </dl>
+          )}
+        </div>
+      </SectionCard>
+
+      <SectionCard title="Managers" titleAs="h2">
+        <div className="p-4">
+          {canEdit ? (
+            <PositionManagersSection
+              positionId={position.id}
+              initialManagers={position.managers}
+              currentUserId={user.id}
+              isAdmin={user.isAdmin}
+            />
+          ) : (
+            <PositionManagersReadonly managers={position.managers} />
+          )}
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Applications"
+        subtitle="Submitted applications only — drafts aren't counted."
+        titleAs="h2"
+        link={{
+          href: `/manage/applications?positionId=${position.id}`,
+          label: 'Review applications',
+          ariaLabel: `Review applications for ${position.title}`,
+        }}
+      >
+        <div className="p-4">
+          <PositionApplicationsSummary counts={counts} total={total} />
+        </div>
+      </SectionCard>
+
+      <SectionCard title="Questions" titleAs="h2">
+        <div className="p-4">
+          {canEdit ? (
             <PositionQuestionsSection
               positionId={position.id}
               initialQuestions={position.questions}
             />
           ) : (
             <PositionQuestionsReadonly questions={position.questions} />
-          )
-        }
-        managersContent={
-          <PositionManagersSection
-            positionId={position.id}
-            initialManagers={position.managers}
-            currentUserId={user.id}
-            isAdmin={user.isAdmin}
-          />
-        }
-      />
+          )}
+        </div>
+      </SectionCard>
 
       {deletionSummary && (
         <PositionDangerZone

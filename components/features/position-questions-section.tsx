@@ -163,7 +163,7 @@ export function PositionQuestionsSection({
             >
               {editingId === question.id ? (
                 <Card className="gap-4 p-4">
-                  <h2 className="text-sm font-medium">Edit Question</h2>
+                  <h3 className="text-sm font-medium">Edit Question</h3>
                   <QuestionForm
                     key={question.id}
                     positionId={positionId}
@@ -209,7 +209,7 @@ export function PositionQuestionsSection({
 
         {showAddForm ? (
           <Card className="gap-4 p-4">
-            <h2 className="text-sm font-medium">Add Question</h2>
+            <h3 className="text-sm font-medium">Add Question</h3>
             <QuestionForm
               positionId={positionId}
               onSuccess={handleQuestionSaved}

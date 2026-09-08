@@ -418,27 +418,29 @@ A user who manages at least one non-deleted position. Manager status is **derive
 
 ### PM-4 Edit position details
 
-- **Trigger** — **Edit** on `/positions/[id]`, or a managed position card (`/manage/positions/[id]/edit`, Details tab).
-- **Happy path** — the page loads the position, then `requireListedManagerOr404` against the already-loaded managers list. `PositionDetailsForm` submits `updatePosition`, which authenticates, checks existence, checks access, then checks editability. Toast **"Position updated"**; the position, its detail page, the dashboard, `/applications` and `/manage/applications` are all revalidated because a status flip changes what every surface shows. The Status select is filtered by `getPositionStatusOptions` to moves both the role and the transition rules allow, so an option is never offered if the server would reject it — a manager on a `draft` position sees only **Draft** (disabled, nothing else is legal); on `open` or `closed`, **Open** stays admin-only. Closing (`open → closed`) with unresolved applications, and reopening (`closed → open`), each show a `ConfirmDialog` before the write; every other move saves immediately.
+- **Trigger** — **Edit** on `/positions/[id]`, or a managed position card (`/manage/positions/[id]/edit`).
+- **Happy path** — the page is a single `max-w-5xl` scroll, no tabs: Details, Availability, Managers, an Applications summary, Questions, then the danger zone last. The page loads the position, then `requireListedManagerOr404` against the already-loaded managers list. Status is not a form field anywhere — it lives in the header as a badge (`PositionStatusBadge`, next to the title) plus a split-button/caret action control ([PM-3](#pm-3-create-a-position) covers create; the header actions below cover every later move). Title and description each autosave independently on blur — `updatePositionTitle`/`updatePositionDescription` — with inline **Saving…**/**Saved**/error text under the field instead of a toast (a toast per field per save would be spam); `opensAt`/`closesAt` autosave together as a pair through `updatePositionSchedule`, sharing one status line, since a single date can't be validated alone. Every autosave debounces to blur only — nothing fires mid-keystroke. Each write revalidates the position, its detail page, the dashboard, `/applications` and `/manage/applications`, since a status flip elsewhere changes what every one of those surfaces shows.
+  - **Status transitions (header actions).** The legal targets from the current status (`getPositionTransitionTargets`) render as a split button — first target primary, the rest behind a caret — always behind a confirm dialog, since a header button has none of the deliberateness a select-then-Save had. Admin · `draft` → **Publish**. Manager · `draft` → no button, a muted note: "Only an admin can publish this position." `open`, no applications → **Close applications** + caret → **Return to draft**; with applications, **Close applications** alone. Admin · `closed`, close date future or unset → **Reopen** + caret → **Return to draft**; manager · `closed` → **Return to draft** only. No legal move at all → the muted note alone. Archived → no header actions. Toasts: **"Position published"** / **"Position closed"** / **"Position reopened"** / **"Position returned to draft"**.
 - **Failure / edge**
   - Position missing or soft-deleted → `notFound()`, checked **before** the access guard so both paths 404 identically.
   - Not a listed manager and not an admin → `notFound()`.
-  - Archived (closed >30 days with no application status change since) and the caller is not an admin → the form is replaced by `PositionDetailsReadonly` under a warning callout ("This position is archived. It closed more than 30 days ago and no application status has changed since…"), plus a stalled-applications line and a **Review applications** link when the position still holds unresolved applications. A stale tab that posts anyway gets `ARCHIVED_POSITION_EDIT_ERROR`: **"This position is archived. Ask an admin if it still needs changes."** ([AD-2](#ad-2-edit-an-archived-position))
-  - A manager posting a transition **to** `open` from `draft` or `closed` (stale tab, hand-made request) → `{ error: POSITION_OPEN_REQUIRES_ADMIN_ERROR }`: **"Only an admin can open a position. Ask an admin to publish it for you."** The form keeps its values so they can pick Draft or Closed and resubmit.
-  - `draft → closed`, any caller (stale tab — the select never offers it) → `{ error: 'A draft has never accepted applications, so there is nothing to close. Publish it first, or leave it as a draft.' }`; the select shows a hint explaining why Closed is absent.
-  - `open → draft` or `closed → draft` once any non-deleted application exists, at any status including `draft` (stale tab or a race with a concurrent first application) → `{ error: 'Someone has already started an application, so this position cannot go back to draft. Close it instead.' }`; the select shows a hint and drops Draft from the list the moment an application exists.
-  - `closed → open` with `closesAt` still in the past (stale tab, or the manager didn't clear/extend it) → `{ error: "This position's close date has passed. Clear or extend the close date to reopen it." }`; the select drops Open and shows a hint until `closesAt` is cleared or moved to the future — live, without a save.
-  - `opensAt` or `closesAt` **changed** to a date before today → **"The open date must be today or later."** / **"The close date must be today or later."**, checked against the position's own previous dates. An untouched past date on an already-open position saves normally — the rule only fires on a field the manager actually changed.
-  - Deleted between render and submit → **"This position no longer exists."**
-  - Unexpected throw → **"Something went wrong. Please try again."**
-  - Status `open` with a `closesAt` already past → below the Status field the form shows a warning callout ("Applicants see this position as Closed…"), naming the passed date and offering both remedies (extend `closesAt`, or set status to Closed); the Status select still shows Open — displaying anything else would misrepresent what's stored.
-  - Status `draft` with an `opensAt` or `closesAt` already past → the same spot below the Status field shows a warning callout ("This position was scheduled to open/close…"), naming the passed date and offering both remedies (move that date to the future, or set Status to Open to publish now). Mutually exclusive with the `open`-past-`closesAt` case above (they gate on different statuses), but both render from the same status-notice slot.
-- **Confirmations** — **Close** (`open → closed`, only when unresolved applications exist): "N applications are still in progress. Closing stops new applications; the ones you have stay reviewable."; Cancel leaves the row untouched. **Reopen** (`closed → open`, always): "This position becomes listed and applyable again. Existing applications and decisions are unchanged." Both trap focus, Escape cancels (suppressed while saving), and focus returns to Save on close.
-- **End state** — the position's details, status and window are updated; only an admin's draft/closed→open flip publishes it, a draft can never become closed directly, unpublishing is one-way once an application exists, and a stale `open` or `draft` position past its relevant date keeps its warning callout until the date is moved forward or the status is changed.
+  - Archived (closed >30 days with no application status change since) and the caller is not an admin → Details and Availability render as read-only text (description through `Markdown`, dates through `LocalTime`) under a warning callout ("This position is archived. It closed more than 30 days ago and no application status has changed since…"), plus a stalled-applications line and a **Review applications** link when the position still holds unresolved applications; no header actions render at all. A stale tab that autosaves anyway gets `ARCHIVED_POSITION_EDIT_ERROR`: **"This position is archived. Ask an admin if it still needs changes."** ([AD-2](#ad-2-edit-an-archived-position))
+  - A manager triggering a transition **to** `open` (stale tab, hand-made request — the header never offers it) → `{ error: POSITION_OPEN_REQUIRES_ADMIN_ERROR }`: **"Only an admin can open a position. Ask an admin to publish it for you."**
+  - `draft → closed`, any caller (stale tab — no header control ever offers it, since `POSITION_STATUS_TRANSITIONS` has no entry for it) → `{ error: 'A draft has never accepted applications, so there is nothing to close. Publish it first, or leave it as a draft.' }`.
+  - `open → draft` or `closed → draft` once any non-deleted application exists, at any status including `draft` (stale tab or a race with a concurrent first application) → `{ error: 'Someone has already started an application, so this position cannot go back to draft. Close it instead.' }`; **Return to draft** drops out of the header the moment an application exists.
+  - `closed → open` with `closesAt` still in the past (stale tab, or the manager didn't clear/extend it first) → `{ error: "This position's close date has passed. Clear or extend the close date to reopen it." }`; **Reopen** drops out of the header and the muted note explains why, reading the position's stored `closesAt` — never a value from the request.
+  - `opensAt` or `closesAt` **changed** to a date before today → the same past-date messages as [PM-3](#pm-3-create-a-position), checked against the position's own previous dates. An untouched past date on an already-open position saves normally — the rule only fires on a date the manager actually changed — and a partially-typed date never fires the check mid-keystroke.
+  - An empty title on blur → "Title is required" inline; nothing saves, the header keeps showing the last-saved title.
+  - Deleted between render and an autosave → **"This position no longer exists."**, shown inline on the field, not a toast.
+  - Unexpected throw during an autosave → the generic toast; a header-action throw does the same.
+  - Status `open` with a `closesAt` already past → a warning callout at the top of the Availability card ("Applicants see this position as Closed…"), naming the passed date and offering both remedies (extend `closesAt`, or use **Close applications** to make that explicit).
+  - Status `draft` with an `opensAt` or `closesAt` already past → the same spot shows a warning callout ("This position was scheduled to open/close…"), naming the passed date and offering both remedies (move that date to the future, or — role-aware — an admin sees "use Publish to open it now", a manager sees "ask an admin to publish it"). Mutually exclusive with the `open`-past-`closesAt` case above (they gate on different statuses).
+- **Confirmations** — every header transition confirms first (there is no "just Save" anymore): **Publish** — "It becomes visible on the positions list. Applications open on its open date, or immediately if it has none." **Close** (only when unresolved applications exist): "N applications are still in progress. Closing stops new applications; the ones you have stay reviewable." — otherwise "New applications stop immediately. Everything already submitted stays reviewable." **Reopen** — "This position becomes listed and applyable again. Existing applications and decisions are unchanged." **Return to draft** — "Applicants stop seeing it entirely and no one can apply. You can publish it again later." All trap focus, Escape cancels (suppressed while pending), and focus returns to the trigger on close.
+- **End state** — the position's fields, status and window are updated field by field; only an admin's flip to `open` publishes it, a draft can never become closed directly, unpublishing is one-way once an application exists, and a stale `open` or `draft` position past its relevant date keeps its warning callout until the date is moved forward or the status is changed.
 
 ### PM-5 Manage position questions
 
-- **Trigger** — the Questions tab on `/manage/positions/[id]/edit`.
+- **Trigger** — the Questions section on `/manage/positions/[id]/edit`, at the bottom of the page.
 - **Happy path** — `createPositionQuestion` appends at `max(order) + 1` inside a transaction (so concurrent inserts can't collide on order); `updatePositionQuestion` and `deletePositionQuestion` both scope their write to the `positionId` to prevent cross-position IDOR, and delete is a soft delete. Toasts **"Question added"**, **"Question updated"**, **"Question deleted"**.
 - **Failure / edge**
   - Validation — a missing label ("Label is required"), a choice question with no options ("At least one option is required for choice questions"), options or `allowOther` on a non-choice type, more than `QUESTION_MAX_OPTIONS` (50), an option over 200 characters, or a format on a non-`short_answer` type ("Format is only available for short-answer questions") → the first zod issue's message, verbatim.
@@ -450,11 +452,12 @@ A user who manages at least one non-deleted position. Manager status is **derive
 
 ### PM-6 Add a manager
 
-- **Trigger** — the Managers tab on `/manage/positions/[id]/edit`.
-- **Happy path** — typing searches through `searchUsers` (gated to managers/admins, name or email, case-insensitive, capped at 10 results, and it returns display name + email only — never the user id). Picking a result calls `addPositionManager`, which authenticates, checks the position exists, checks access, resolves the target by email, and connects them. Toast **"Manager added"**; `/positions`, `/manage/positions` and `/users` are revalidated too, since membership drives all three.
+- **Trigger** — the Managers section on `/manage/positions/[id]/edit`.
+- **Happy path** — typing searches through `searchUsers` (gated to managers/admins, name or email, case-insensitive, capped at 10 results, and it returns display name + email only — never the user id). Picking a result calls `addPositionManager`, which authenticates, checks the position exists, checks access, checks editability, resolves the target by email, and connects them. Toast **"Manager added"**; `/positions`, `/manage/positions` and `/users` are revalidated too, since membership drives all three.
 - **Failure / edge**
   - Query over 200 characters → **"Search is limited to 200 characters."**; an empty query returns no results without querying.
   - Position deleted since render → **"This position no longer exists."**
+  - Archived position and the caller is not an admin → `ARCHIVED_POSITION_EDIT_ERROR`: **"This position is archived. Ask an admin if it still needs changes."** The Managers section renders read-only for this position (no search box) instead of reaching the action at all ([AD-2](#ad-2-edit-an-archived-position)).
   - The picked user was deactivated in the meantime → **"That user is no longer available."** (never a raw Prisma error).
   - Caller lacks access to the position → the action throws.
   - Unexpected throw → **"Something went wrong. Please try again."**
@@ -462,11 +465,12 @@ A user who manages at least one non-deleted position. Manager status is **derive
 
 ### PM-7 Remove a manager
 
-- **Trigger** — the remove control next to a manager on the Managers tab.
+- **Trigger** — the remove control next to a manager in the Managers section.
 - **Happy path** — `removePositionManager` disconnects them. Toast **"Manager removed"**.
 - **Failure / edge**
   - Removing yourself as a non-admin → **"You cannot remove yourself as a manager. Ask an admin to do it."** Admins are exempt.
   - Position deleted since render → **"This position no longer exists."**
+  - Archived position → `ARCHIVED_POSITION_EDIT_ERROR`, same gate as [PM-6](#pm-6-add-a-manager); the read-only view draws no remove buttons at all.
   - No access → throws.
 - **End state** — the user no longer manages this position. If it was their last, they lose manager status entirely — including the Manage nav and the ability to create positions.
 
@@ -533,7 +537,7 @@ A user who manages at least one non-deleted position. Manager status is **derive
 
 ### PM-13 Reorder position questions
 
-- **Trigger** — the drag handle on a question card, Questions tab on `/manage/positions/[id]/edit`.
+- **Trigger** — the drag handle on a question card, Questions section on `/manage/positions/[id]/edit`.
 - **Happy path** — the list is wrapped in a shared `SortableProvider` (dnd-kit); dropping a card calls `reorderPositionQuestions` with the full ordered id list, which renumbers every live question `1..N` in one transaction. The new order shows immediately (`useOptimistic`) while the write is in flight. Toast **"Order saved"**.
 - **Failure / edge**
   - The id set changed since the page loaded (a question added or deleted in another tab) → **"The question list changed since this page loaded. Refresh and try reordering again."**; the list reverts to the server's order.
@@ -579,7 +583,7 @@ An admin is a **manager on every position**: every [Position manager](#position-
 ### AD-2 Edit an archived position
 
 - **Trigger** — `/manage/positions/[id]/edit` for a position closed more than 30 days ago with no application status change since.
-- **Happy path** — `checkPositionEditable` returns true for an admin, so the editable form and the question actions render normally where a manager would see the read-only view and the warning callout ([PM-4](#pm-4-edit-position-details), [PM-5](#pm-5-manage-position-questions)).
+- **Happy path** — `checkPositionEditable` returns true for an admin, so the autosaving Details/Availability sections, the question actions, and the managers section all render normally where a manager would see read-only text, the read-only question list, and the read-only managers list, respectively, under the warning callout ([PM-4](#pm-4-edit-position-details), [PM-5](#pm-5-manage-position-questions), [PM-6](#pm-6-add-a-manager)).
 - **Failure / edge** — as [PM-4](#pm-4-edit-position-details); the archived branch simply does not fire.
 - **End state** — as [PM-4](#pm-4-edit-position-details).
 

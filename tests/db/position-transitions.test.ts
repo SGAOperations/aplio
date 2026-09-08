@@ -8,7 +8,11 @@ import {
 import { actAs } from '@/tests/stubs/auth-server';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { updatePosition } from '@/prisma/actions/position-actions';
+import {
+  updatePositionSchedule,
+  updatePositionStatus,
+  updatePositionTitle,
+} from '@/prisma/actions/position-actions';
 import type { Position, User } from '@/prisma/client';
 
 import {
@@ -62,10 +66,8 @@ describe('unpublish (open/closed -> draft)', () => {
     await createTestApplication(applicant, position, { status: 'draft' });
 
     actAs(manager);
-    const result = await updatePosition({
+    const result = await updatePositionStatus({
       id: position.id,
-      title: position.title,
-      description: '',
       status: 'draft',
     });
     expect(result).toEqual({ error: POSITION_UNPUBLISH_BLOCKED_ERROR });
@@ -76,10 +78,8 @@ describe('unpublish (open/closed -> draft)', () => {
     const position = await makePosition({ status: 'open' });
 
     actAs(manager);
-    const result = await updatePosition({
+    const result = await updatePositionStatus({
       id: position.id,
-      title: position.title,
-      description: '',
       status: 'draft',
     });
     expect(result).toBeUndefined();
@@ -88,19 +88,16 @@ describe('unpublish (open/closed -> draft)', () => {
 });
 
 describe('reopen (closed -> open)', () => {
-  it('is blocked when the submitted closesAt is in the past', async () => {
+  it('is blocked when the stored closesAt is in the past', async () => {
     const position = await makePosition({
       status: 'closed',
       closesAt: orgDayEnd(pastDay),
     });
 
     actAs(admin);
-    const result = await updatePosition({
+    const result = await updatePositionStatus({
       id: position.id,
-      title: position.title,
-      description: '',
       status: 'open',
-      closesAt: pastDay,
     });
     expect(result).toEqual({ error: POSITION_REOPEN_PAST_CLOSE_ERROR });
     expect(await status(position.id)).toBe('closed');
@@ -110,31 +107,32 @@ describe('reopen (closed -> open)', () => {
     const position = await makePosition({ status: 'closed' });
 
     actAs(admin);
-    const result = await updatePosition({
+    const result = await updatePositionStatus({
       id: position.id,
-      title: position.title,
-      description: '',
       status: 'open',
     });
     expect(result).toBeUndefined();
     expect(await status(position.id)).toBe('open');
   });
 
-  it('succeeds when the past closesAt is extended in the same save', async () => {
+  it('succeeds once the past closesAt is extended in an earlier save', async () => {
     const position = await makePosition({
       status: 'closed',
       closesAt: orgDayEnd(pastDay),
     });
 
     actAs(admin);
-    const result = await updatePosition({
+    const scheduleResult = await updatePositionSchedule({
       id: position.id,
-      title: position.title,
-      description: '',
-      status: 'open',
       closesAt: futureDay,
     });
-    expect(result).toBeUndefined();
+    expect(scheduleResult).toBeUndefined();
+
+    const statusResult = await updatePositionStatus({
+      id: position.id,
+      status: 'open',
+    });
+    expect(statusResult).toBeUndefined();
     expect(await status(position.id)).toBe('open');
   });
 });
@@ -144,10 +142,8 @@ describe('draft -> closed', () => {
     const position = await makePosition({ status: 'draft' });
 
     actAs(manager);
-    const result = await updatePosition({
+    const result = await updatePositionStatus({
       id: position.id,
-      title: position.title,
-      description: '',
       status: 'closed',
     });
     expect(result).toEqual({ error: POSITION_DRAFT_CLOSE_BLOCKED_ERROR });
@@ -156,16 +152,14 @@ describe('draft -> closed', () => {
 });
 
 describe('unchanged status', () => {
-  it('is never a transition — saving other fields with applications present still succeeds', async () => {
+  it('is never a transition — saving another field with applications present still succeeds', async () => {
     const position = await makePosition({ status: 'open' });
     await createTestApplication(applicant, position, { status: 'applied' });
 
     actAs(manager);
-    const result = await updatePosition({
+    const result = await updatePositionTitle({
       id: position.id,
       title: `${TEST_PREFIX}retitled`,
-      description: '',
-      status: 'open',
     });
     expect(result).toBeUndefined();
 
@@ -175,5 +169,18 @@ describe('unchanged status', () => {
     });
     expect(row.status).toBe('open');
     expect(row.title).toBe(`${TEST_PREFIX}retitled`);
+  });
+
+  it('saving the same status back is a no-op, even with applications present', async () => {
+    const position = await makePosition({ status: 'open' });
+    await createTestApplication(applicant, position, { status: 'applied' });
+
+    actAs(manager);
+    const result = await updatePositionStatus({
+      id: position.id,
+      status: 'open',
+    });
+    expect(result).toBeUndefined();
+    expect(await status(position.id)).toBe('open');
   });
 });

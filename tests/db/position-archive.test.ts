@@ -1,18 +1,28 @@
 import {
+  TEST_PREFIX,
   cleanupFixtures,
   createTestApplication,
   createTestPosition,
   createTestUser,
 } from '@/tests/helpers/fixtures';
+import { actAs } from '@/tests/stubs/auth-server';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import {
+  addPositionManager,
+  removePositionManager,
+} from '@/prisma/actions/position-actions';
 import type { Position, User } from '@/prisma/client';
 import {
   checkPositionEditable,
   getManagedPositions,
 } from '@/prisma/data/positions';
 
-import { MANAGED_POSITIONS_WINDOW_DAYS } from '@/lib/constants';
+import {
+  ARCHIVED_POSITION_EDIT_ERROR,
+  MANAGED_POSITIONS_WINDOW_DAYS,
+} from '@/lib/constants';
+import { prisma } from '@/lib/prisma';
 import { isPositionActive } from '@/lib/utils';
 
 const now = new Date();
@@ -132,5 +142,52 @@ describe('checkPositionEditable', () => {
       isAdmin: false,
     });
     expect(editable).toBe(true);
+  });
+});
+
+describe('managers on an archived position', () => {
+  it("refuses a manager's addPositionManager", async () => {
+    const target = await createTestUser();
+
+    actAs(manager);
+    const result = await addPositionManager({
+      positionId: forgottenPosition.id,
+      email: target.email,
+    });
+    expect(result).toEqual({ error: ARCHIVED_POSITION_EDIT_ERROR });
+  });
+
+  it("refuses a manager's removePositionManager", async () => {
+    const extraManager = await createTestUser({
+      name: `${TEST_PREFIX}extra-manager`,
+    });
+    await prisma.position.update({
+      where: { id: forgottenPosition.id },
+      data: { managers: { connect: { id: extraManager.id } } },
+    });
+
+    actAs(manager);
+    const result = await removePositionManager({
+      positionId: forgottenPosition.id,
+      userId: extraManager.id,
+    });
+    expect(result).toEqual({ error: ARCHIVED_POSITION_EDIT_ERROR });
+  });
+
+  it("allows an admin's addPositionManager and removePositionManager", async () => {
+    const target = await createTestUser();
+
+    actAs(admin);
+    const addResult = await addPositionManager({
+      positionId: forgottenPosition.id,
+      email: target.email,
+    });
+    expect(addResult).not.toEqual({ error: ARCHIVED_POSITION_EDIT_ERROR });
+
+    const removeResult = await removePositionManager({
+      positionId: forgottenPosition.id,
+      userId: target.id,
+    });
+    expect(removeResult).toBeUndefined();
   });
 });

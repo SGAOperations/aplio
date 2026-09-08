@@ -634,11 +634,12 @@ export const RECENTLY_CLOSED_WINDOW_DAYS = 7;
 // Longer than the public window so managers and admins keep oversight during wrap-up.
 export const MANAGED_POSITIONS_WINDOW_DAYS = 30;
 
-// Returned by updatePosition / the three position-question actions when isPositionActive is false.
+// Returned by the position-field actions, addPositionManager/removePositionManager,
+// and the three position-question actions when isPositionActive is false.
 export const ARCHIVED_POSITION_EDIT_ERROR =
   'This position is archived. Ask an admin if it still needs changes.';
 
-// Returned by createPosition/updatePosition when a non-admin tries to set 'open'.
+// Returned by createPosition/updatePositionStatus when a non-admin tries to set 'open'.
 export const POSITION_OPEN_REQUIRES_ADMIN_ERROR =
   'Only an admin can open a position. Ask an admin to publish it for you.';
 
@@ -706,7 +707,7 @@ export function positionPastDateIssues(
 }
 
 // Ordering plus past-date, for the client form and createPosition —
-// updatePosition runs positionPastDateIssues directly against its loaded row.
+// updatePositionSchedule runs positionPastDateIssues directly against its loaded row.
 export function positionDatesRefinement(
   today: string,
   previous?: { opensAt?: string; closesAt?: string },
@@ -760,10 +761,12 @@ export function getStatusOptions(
 
 // Single source of truth for legal position status moves — draft -> closed is
 // deliberately absent, the map's only structural gap (see the resolver below).
+// Order is header-action priority: the first legal target is the primary
+// split-button action, the rest fall behind its caret.
 export const POSITION_STATUS_TRANSITIONS = {
   draft: ['open'],
-  open: ['draft', 'closed'],
-  closed: ['draft', 'open'],
+  open: ['closed', 'draft'],
+  closed: ['open', 'draft'],
 } as const satisfies Record<PositionStatus, readonly PositionStatus[]>;
 
 export const POSITION_DRAFT_CLOSE_BLOCKED_ERROR =
@@ -773,13 +776,15 @@ export const POSITION_UNPUBLISH_BLOCKED_ERROR =
 export const POSITION_REOPEN_PAST_CLOSE_ERROR =
   "This position's close date has passed. Clear or extend the close date to reopen it.";
 
-// The Status select's FormDescription twins of the errors above.
-export const POSITION_DRAFT_CLOSE_HINT =
-  'A draft has nothing to close — publish it first.';
+// The header note's twins of the errors above.
 export const POSITION_UNPUBLISH_BLOCKED_HINT =
   'Someone has already started an application, so this position can no longer go back to Draft.';
 export const POSITION_REOPEN_PAST_CLOSE_HINT =
   'Clear or extend Closes At to reopen this position.';
+
+// Shown in place of a Publish button when a manager has no legal move to open.
+export const POSITION_PUBLISH_REQUIRES_ADMIN_NOTE =
+  'Only an admin can publish this position.';
 
 // null = legal. from === to always passes; then the map; then the two conditional rules.
 export function getPositionStatusTransitionError(
@@ -801,17 +806,83 @@ export function getPositionStatusTransitionError(
   return null;
 }
 
-// getStatusOptions filtered to moves the resolver actually allows, so the
-// select never offers a transition the server will reject.
-export function getPositionStatusOptions(
+// The header actions' legal targets, in split-button priority order (first =
+// primary). `from` is never in the result. Folds in the admin-only `-> open`
+// rule on top of getPositionStatusTransitionError, since that resolver only
+// knows the transition graph, not who's allowed to publish.
+export function getPositionTransitionTargets(
   isAdmin: boolean,
   from: PositionStatus,
   ctx: { hasApplications: boolean; closesAtPast: boolean },
-): typeof POSITION_STATUS_OPTIONS {
-  return getStatusOptions(isAdmin, from).filter(
-    (opt) => getPositionStatusTransitionError(from, opt.value, ctx) === null,
-  );
+): PositionStatus[] {
+  return POSITION_STATUS_TRANSITIONS[from].filter((to) => {
+    if (to === 'open' && !isAdmin) return false;
+    return getPositionStatusTransitionError(from, to, ctx) === null;
+  });
 }
+
+export interface PositionTransitionAction {
+  label: string;
+  confirmTitle: string;
+  confirmDescription: (ctx: { unresolvedApplicationCount: number }) => string;
+  confirmLabel: string;
+  pendingLabel: string;
+  successToast: string;
+}
+
+const RETURN_TO_DRAFT_ACTION: PositionTransitionAction = {
+  label: 'Return to draft',
+  confirmTitle: 'Return this position to draft?',
+  confirmDescription: () =>
+    'Applicants stop seeing it entirely and no one can apply. You can publish it again later.',
+  confirmLabel: 'Return to draft',
+  pendingLabel: 'Returning to draft…',
+  successToast: 'Position returned to draft',
+};
+
+// Covers exactly the five legal (from, to) pairs in POSITION_STATUS_TRANSITIONS.
+export const POSITION_TRANSITION_ACTIONS: Record<
+  PositionStatus,
+  Partial<Record<PositionStatus, PositionTransitionAction>>
+> = {
+  draft: {
+    open: {
+      label: 'Publish',
+      confirmTitle: 'Publish this position?',
+      confirmDescription: () =>
+        'It becomes visible on the positions list. Applications open on its open date, or immediately if it has none.',
+      confirmLabel: 'Publish',
+      pendingLabel: 'Publishing…',
+      successToast: 'Position published',
+    },
+  },
+  open: {
+    closed: {
+      label: 'Close applications',
+      confirmTitle: 'Close this position?',
+      confirmDescription: ({ unresolvedApplicationCount }) =>
+        unresolvedApplicationCount > 0
+          ? `${unresolvedApplicationCount} ${unresolvedApplicationCount === 1 ? 'application is' : 'applications are'} still in progress. Closing stops new applications; the ones you have stay reviewable.`
+          : 'New applications stop immediately. Everything already submitted stays reviewable.',
+      confirmLabel: 'Close position',
+      pendingLabel: 'Closing…',
+      successToast: 'Position closed',
+    },
+    draft: RETURN_TO_DRAFT_ACTION,
+  },
+  closed: {
+    open: {
+      label: 'Reopen',
+      confirmTitle: 'Reopen this position?',
+      confirmDescription: () =>
+        'This position becomes listed and applyable again. Existing applications and decisions are unchanged.',
+      confirmLabel: 'Reopen position',
+      pendingLabel: 'Reopening…',
+      successToast: 'Position reopened',
+    },
+    draft: RETURN_TO_DRAFT_ACTION,
+  },
+};
 
 export const POSITION_DESCRIPTION_MAX_LENGTH = 10000;
 export const MARKDOWN_GUIDE_URL = 'https://www.markdownguide.org/basic-syntax/';
@@ -821,19 +892,26 @@ const orgDayInputSchema = z.union([z.iso.date(), z.literal('')], {
   error: 'Enter a valid date',
 });
 
+// Shared by makePositionFormSchema (both title/description fields at once)
+// and each field's own autosave section (one field at a time).
 export const positionTitleSchema = z.string().min(1, 'Title is required');
+export const positionDescriptionSchema = z
+  .string()
+  .max(
+    POSITION_DESCRIPTION_MAX_LENGTH,
+    `Description must be ${POSITION_DESCRIPTION_MAX_LENGTH.toLocaleString()} characters or fewer.`,
+  );
+
+export const positionScheduleShape = {
+  opensAt: orgDayInputSchema.optional(),
+  closesAt: orgDayInputSchema.optional(),
+};
 
 const positionFormShape = {
   title: positionTitleSchema,
-  description: z
-    .string()
-    .max(
-      POSITION_DESCRIPTION_MAX_LENGTH,
-      `Description must be ${POSITION_DESCRIPTION_MAX_LENGTH.toLocaleString()} characters or fewer.`,
-    ),
+  description: positionDescriptionSchema,
   status: z.enum(POSITION_STATUS_VALUES),
-  opensAt: orgDayInputSchema.optional(),
-  closesAt: orgDayInputSchema.optional(),
+  ...positionScheduleShape,
 };
 
 // `today`/`previous` are injected — this module must not import lib/dates.ts
@@ -1057,3 +1135,15 @@ export const EMAIL_FAILURE_STATUSES = [
   'complained',
   'failed',
 ] as const satisfies $Enums.EmailStatus[];
+
+// Statuses surfaced in a pipeline summary (excludes draft). Shared by the
+// reviewer dashboard's PipelineSummary and the position edit page's
+// applications summary.
+export const APPLICATION_PIPELINE_STATUSES = [
+  'applied',
+  'reached_out',
+  'interview_scheduled',
+  'reviewing',
+  'accepted',
+  'rejected',
+] as const satisfies $Enums.ApplicationStatus[];

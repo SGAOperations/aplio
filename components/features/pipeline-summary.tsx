@@ -1,7 +1,7 @@
-import { $Enums } from '@/prisma/client';
 import { getApplicationStatusCounts } from '@/prisma/data/applications';
 
 import {
+  APPLICATION_PIPELINE_STATUSES,
   APPLICATION_STATUS_BADGE_VARIANT,
   APPLICATION_STATUS_LABELS,
   STATUS_BADGE_VARIANT_TO_DOT,
@@ -13,16 +13,6 @@ import { StatCard } from '@/components/features/stat-card';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
-// Statuses surfaced in the pipeline summary (excludes draft).
-const PIPELINE_STATUSES = [
-  $Enums.ApplicationStatus.applied,
-  $Enums.ApplicationStatus.reached_out,
-  $Enums.ApplicationStatus.interview_scheduled,
-  $Enums.ApplicationStatus.reviewing,
-  $Enums.ApplicationStatus.accepted,
-  $Enums.ApplicationStatus.rejected,
-] as const;
-
 interface PipelineSummaryProps {
   reviewer: Reviewer;
 }
@@ -30,7 +20,10 @@ interface PipelineSummaryProps {
 export async function PipelineSummary({ reviewer }: PipelineSummaryProps) {
   const counts = await getApplicationStatusCounts(reviewer);
 
-  const total = PIPELINE_STATUSES.reduce((sum, s) => sum + (counts[s] ?? 0), 0);
+  const total = APPLICATION_PIPELINE_STATUSES.reduce(
+    (sum, s) => sum + (counts[s] ?? 0),
+    0,
+  );
 
   return (
     <section aria-label="Pipeline summary">
@@ -43,7 +36,7 @@ export async function PipelineSummary({ reviewer }: PipelineSummaryProps) {
           className="col-span-2 md:col-span-1"
         />
 
-        {PIPELINE_STATUSES.map((status) => {
+        {APPLICATION_PIPELINE_STATUSES.map((status) => {
           const count = counts[status] ?? 0;
           const variant = APPLICATION_STATUS_BADGE_VARIANT[status];
           const dotClass = STATUS_BADGE_VARIANT_TO_DOT[variant];

@@ -44,11 +44,13 @@ export function PositionDangerZone({
   const blockedReasonId = `delete-position-blocked-${positionId}`;
 
   return (
-    <Card className="border-destructive/50">
-      <CardHeader>
-        <CardTitle className="text-destructive">Delete Position</CardTitle>
+    <Card className="border-destructive/50 gap-2 p-4">
+      <CardHeader className="p-0">
+        <CardTitle asChild className="text-destructive">
+          <h2 className="text-sm font-semibold">Delete Position</h2>
+        </CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3">
+      <CardContent className="flex flex-col gap-3 p-0">
         <p className="text-muted-foreground text-sm">
           Deleting hides this position everywhere — the positions list, search
           results and any direct link. This can&apos;t be undone from the app.

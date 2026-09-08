@@ -8,8 +8,8 @@ import {
   POSITION_STATUS_TRANSITIONS,
   POSITION_STATUS_VALUES,
   POSITION_UNPUBLISH_BLOCKED_ERROR,
-  getPositionStatusOptions,
   getPositionStatusTransitionError,
+  getPositionTransitionTargets,
 } from '@/lib/constants';
 
 const NO_APPLICATIONS = { hasApplications: false, closesAtPast: false };
@@ -98,32 +98,59 @@ describe('getPositionStatusTransitionError', () => {
   });
 });
 
-describe('getPositionStatusOptions', () => {
-  it('omits closed from a draft position for both roles', () => {
-    for (const isAdmin of [true, false]) {
-      const values = getPositionStatusOptions(
-        isAdmin,
-        'draft',
-        NO_APPLICATIONS,
-      ).map((o) => o.value);
-      expect(values).not.toContain('closed');
-    }
+describe('getPositionTransitionTargets', () => {
+  it('offers nothing to a manager on a draft — publishing is admin-only', () => {
+    expect(
+      getPositionTransitionTargets(false, 'draft', NO_APPLICATIONS),
+    ).toEqual([]);
   });
 
-  it('omits draft from an open position with applications', () => {
-    const values = getPositionStatusOptions(true, 'open', {
-      hasApplications: true,
-      closesAtPast: false,
-    }).map((o) => o.value);
-    expect(values).not.toContain('draft');
+  it('offers open to an admin on a draft', () => {
+    expect(
+      getPositionTransitionTargets(true, 'draft', NO_APPLICATIONS),
+    ).toEqual(['open']);
   });
 
-  it('omits open from a closed position past its close date', () => {
-    const values = getPositionStatusOptions(true, 'closed', {
-      hasApplications: false,
-      closesAtPast: true,
-    }).map((o) => o.value);
-    expect(values).not.toContain('open');
+  it('orders an open position closed-first, then draft, matching the split button priority', () => {
+    expect(getPositionTransitionTargets(true, 'open', NO_APPLICATIONS)).toEqual(
+      ['closed', 'draft'],
+    );
+  });
+
+  it('drops draft from an open position once applications exist', () => {
+    expect(
+      getPositionTransitionTargets(true, 'open', {
+        hasApplications: true,
+        closesAtPast: false,
+      }),
+    ).toEqual(['closed']);
+  });
+
+  it('orders a closed position open-first, then draft, matching the split button priority', () => {
+    expect(
+      getPositionTransitionTargets(true, 'closed', NO_APPLICATIONS),
+    ).toEqual(['open', 'draft']);
+  });
+
+  it('drops open from a closed position past its close date', () => {
+    expect(
+      getPositionTransitionTargets(true, 'closed', {
+        hasApplications: false,
+        closesAtPast: true,
+      }),
+    ).toEqual(['draft']);
+  });
+
+  it('never offers open to a non-admin, from any status', () => {
+    for (const from of POSITION_STATUS_VALUES)
+      for (const hasApplications of [true, false])
+        for (const closesAtPast of [true, false])
+          expect(
+            getPositionTransitionTargets(false, from, {
+              hasApplications,
+              closesAtPast,
+            }),
+          ).not.toContain('open');
   });
 
   it('never offers a move the resolver would reject', () => {
@@ -132,10 +159,10 @@ describe('getPositionStatusOptions', () => {
         for (const hasApplications of [true, false])
           for (const closesAtPast of [true, false]) {
             const ctx = { hasApplications, closesAtPast };
-            const options = getPositionStatusOptions(isAdmin, from, ctx);
-            for (const opt of options)
+            const targets = getPositionTransitionTargets(isAdmin, from, ctx);
+            for (const to of targets)
               expect(
-                getPositionStatusTransitionError(from, opt.value, ctx),
+                getPositionStatusTransitionError(from, to, ctx),
               ).toBeNull();
           }
   });

@@ -1,52 +1,36 @@
+import { SectionCardSkeleton } from '@/components/ui/section-card';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function EditPositionLoading() {
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6">
-      {/* PageHeader skeleton: back link + title + description */}
+    <div className="mx-auto flex max-w-5xl flex-col gap-4">
+      {/* PageHeader skeleton: back link + title + badge, one action bar */}
       <div className="flex flex-col gap-1">
         <Skeleton className="mb-1 h-7 w-32" />
-        <Skeleton className="h-8 w-56" />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-8 w-56" />
+            <Skeleton className="h-5 w-16 rounded-md" />
+          </div>
+          <Skeleton className="h-9 w-40" />
+        </div>
         <Skeleton className="h-4 w-24" />
       </div>
 
-      <div className="flex flex-col gap-4">
-        {/* Tab bar skeleton */}
-        <div className="flex gap-1 rounded-lg border p-1">
-          <Skeleton className="h-8 flex-1" />
-          <Skeleton className="h-8 flex-1" />
-          <Skeleton className="h-8 flex-1" />
-        </div>
+      {/* Details */}
+      <SectionCardSkeleton rowShape="form-field" rows={2} hasLink={false} />
+      {/* Availability */}
+      <SectionCardSkeleton rowShape="form-field" rows={2} hasLink={false} />
+      {/* Managers */}
+      <SectionCardSkeleton rowShape="form-field" rows={1} hasLink={false} />
+      {/* Applications summary */}
+      <SectionCardSkeleton rowShape="form-field" rows={1} hasSubtitle hasLink />
+      {/* Questions */}
+      <SectionCardSkeleton rowShape="form-field" rows={3} hasLink={false} />
 
-        {/* Tab content skeleton — loose shape fits both the editable form and the archived read-only view */}
-        <div className="mt-2 flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <Skeleton className="h-4 w-12" />
-            <Skeleton className="h-9 w-full" />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Skeleton className="h-4 w-20" />
-            <Skeleton className="h-24 w-full" />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Skeleton className="h-4 w-12" />
-            <Skeleton className="h-9 w-full" />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Skeleton className="h-4 w-20" />
-            <Skeleton className="h-9 w-full" />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Skeleton className="h-4 w-20" />
-            <Skeleton className="h-9 w-full" />
-          </div>
-          <Skeleton className="h-9 w-32" />
-        </div>
-      </div>
-
-      {/* Danger zone skeleton — admin-only, shown speculatively to avoid layout shift */}
-      <div className="flex flex-col gap-3 rounded-xl border p-6">
-        <Skeleton className="h-5 w-32" />
+      {/* Danger zone skeleton — compact, admin-only, shown speculatively to avoid layout shift */}
+      <div className="flex flex-col gap-2 rounded-xl border p-4">
+        <Skeleton className="h-4 w-32" />
         <Skeleton className="h-9 w-36" />
       </div>
     </div>

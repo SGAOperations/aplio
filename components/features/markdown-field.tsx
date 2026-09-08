@@ -3,6 +3,7 @@
 import {
   type ClipboardEvent,
   type KeyboardEvent,
+  type ReactNode,
   useRef,
   useState,
 } from 'react';
@@ -21,7 +22,6 @@ import {
 import {
   MARKDOWN_GUIDE_URL,
   POSITION_DESCRIPTION_MAX_LENGTH,
-  type PositionFormValues,
 } from '@/lib/constants';
 import { markdownToPlainText } from '@/lib/utils';
 
@@ -229,9 +229,21 @@ function isPastableUrl(text: string): boolean {
   return protocol === 'http:' || protocol === 'https:';
 }
 
-export function MarkdownField() {
-  const { control, formState } = useFormContext<PositionFormValues>();
-  const isSubmitting = formState.isSubmitting;
+interface MarkdownFieldProps {
+  disabled?: boolean;
+  footer?: ReactNode;
+  onCommit?: (value: string) => void;
+}
+
+// Context is typed as the minimal shape both consumers actually share — the
+// create dialog's full PositionFormValues structurally satisfies it too.
+export function MarkdownField({
+  disabled,
+  footer,
+  onCommit,
+}: MarkdownFieldProps) {
+  const { control, formState } = useFormContext<{ description: string }>();
+  const isSubmitting = disabled ?? formState.isSubmitting;
   const [mode, setMode] = useState<'write' | 'preview'>('write');
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -368,6 +380,10 @@ export function MarkdownField() {
                   }}
                   onPaste={handlePaste}
                   onKeyDown={handleKeyDown}
+                  onBlur={(e) => {
+                    field.onBlur();
+                    onCommit?.(e.target.value);
+                  }}
                   rows={10}
                   disabled={isSubmitting}
                   placeholder="Describe the role, responsibilities, and what you're looking for. Markdown is supported."
@@ -415,6 +431,7 @@ export function MarkdownField() {
             )}
 
             <FormMessage />
+            {footer}
           </FormItem>
         );
       }}
