@@ -1,12 +1,6 @@
 import Link from 'next/link';
 
-import {
-  APPLICANT_EDITABLE_APPLICATION_STATUSES,
-  APPLICATION_STATUS_BADGE_VARIANT,
-  APPLICATION_STATUS_LABELS,
-  POSITION_CARD_STAT_STATUSES,
-  STATUS_BADGE_VARIANT_TO_DOT,
-} from '@/lib/constants';
+import { APPLICANT_EDITABLE_APPLICATION_STATUSES } from '@/lib/constants';
 import { ACTION_ICONS, CONCEPT_ICONS } from '@/lib/icons';
 import type {
   MyPositionApplication,
@@ -16,6 +10,7 @@ import type {
 import { cn, getPositionAvailability, markdownToPlainText } from '@/lib/utils';
 
 import { PositionDateLine } from '@/components/features/position-date-line';
+import { PositionStatCircles } from '@/components/features/position-stat-circles';
 import {
   ApplicationStatusBadge,
   PositionStatusBadge,
@@ -30,64 +25,6 @@ interface PositionCardProps {
   isAuthenticated?: boolean;
   applicationStats?: PositionApplicationStats;
   myApplication?: MyPositionApplication;
-}
-
-interface PositionStatClusterProps {
-  stats: PositionApplicationStats;
-}
-
-// Zero-count tiles are dimmed rather than hidden, so the cluster keeps a stable shape.
-function PositionStatCluster({ stats }: PositionStatClusterProps) {
-  return (
-    <div role="region" aria-label="Application stats" className="shrink-0">
-      {/* Total tile — col-span-2 lead row with hairline divider below */}
-      <div className="border-border mb-2 border-b pb-2">
-        <div className="flex items-center gap-1.5">
-          <span
-            className="bg-primary size-2 shrink-0 rounded-full"
-            aria-hidden="true"
-          />
-          <p className="text-muted-foreground text-[11px] leading-tight">
-            Total
-          </p>
-        </div>
-        <p className="mt-1 text-xl leading-none font-semibold tabular-nums">
-          {stats.total}
-        </p>
-      </div>
-
-      {/* 2x2 grid of key pipeline statuses */}
-      <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-        {POSITION_CARD_STAT_STATUSES.map((status) => {
-          const count = stats.counts[status] ?? 0;
-          const isDimmed = count === 0;
-          const variant = APPLICATION_STATUS_BADGE_VARIANT[status];
-          const dotClass = STATUS_BADGE_VARIANT_TO_DOT[variant];
-
-          return (
-            <div key={status}>
-              <div className="flex items-center gap-1.5">
-                <span
-                  className={`size-1.5 shrink-0 rounded-full ${dotClass} ${isDimmed ? 'opacity-40' : ''}`}
-                  aria-hidden="true"
-                />
-                <p
-                  className={`text-[11px] leading-tight ${isDimmed ? 'text-muted-foreground/60' : 'text-muted-foreground'}`}
-                >
-                  {APPLICATION_STATUS_LABELS[status]}
-                </p>
-              </div>
-              <p
-                className={`mt-0.5 text-xl leading-none font-semibold tabular-nums ${isDimmed ? 'text-muted-foreground/60' : ''}`}
-              >
-                {count}
-              </p>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
 }
 
 export function PositionCard({
@@ -238,7 +175,7 @@ export function PositionCard({
             sits beside it at sm+ in a two-column layout */}
         {applicationStats && (
           <div className="px-4 pb-4 sm:flex sm:shrink-0 sm:items-start sm:p-6 sm:pl-0">
-            <PositionStatCluster stats={applicationStats} />
+            <PositionStatCircles stats={applicationStats} />
           </div>
         )}
       </div>

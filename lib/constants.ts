@@ -970,14 +970,6 @@ export const STATUS_BADGE_VARIANT_TO_DOT: Record<BadgeVariant, string> = {
   outline: 'bg-border',
 };
 
-// Order is meaningful — rendered left to right on position cards.
-export const POSITION_CARD_STAT_STATUSES = [
-  'applied',
-  'interview_scheduled',
-  'accepted',
-  'rejected',
-] as const satisfies $Enums.ApplicationStatus[];
-
 export const EMAIL_STATUS_VALUES = [
   'scheduled',
   'sent',
@@ -1057,3 +1049,36 @@ export const EMAIL_FAILURE_STATUSES = [
   'complained',
   'failed',
 ] as const satisfies $Enums.EmailStatus[];
+
+// Buckets partition every status getPositionApplicationStats counts, so circles sum to Total.
+export const POSITION_STAT_BUCKETS = [
+  {
+    key: 'applied',
+    label: 'Applied',
+    ringClassName: 'border-info',
+    statuses: ['applied'],
+  },
+  {
+    key: 'in_progress',
+    label: 'In progress',
+    ringClassName: 'border-warning',
+    statuses: ['reached_out', 'interview_scheduled', 'reviewing'],
+  },
+  {
+    key: 'accepted',
+    label: 'Accepted',
+    ringClassName: 'border-success',
+    statuses: ['accepted'],
+  },
+  {
+    key: 'rejected',
+    label: 'Rejected',
+    ringClassName: 'border-destructive',
+    statuses: ['rejected'],
+  },
+] as const satisfies {
+  key: string;
+  label: string;
+  ringClassName: string;
+  statuses: readonly $Enums.ApplicationStatus[];
+}[];
