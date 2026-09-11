@@ -1057,3 +1057,15 @@ export const EMAIL_FAILURE_STATUSES = [
   'complained',
   'failed',
 ] as const satisfies $Enums.EmailStatus[];
+
+// The four statuses only a delivery-event webhook can produce — distinct from
+// EMAIL_FAILURE_STATUSES, which carries 'failed' (a send failure) and omits 'suppressed'.
+export const EMAIL_DELIVERY_EVENT_STATUSES = [
+  'delivered',
+  'bounced',
+  'complained',
+  'suppressed',
+] as const satisfies $Enums.EmailStatus[];
+
+// Grace period before a still-`sent` row counts as "awaiting a delivery event".
+export const EMAIL_DELIVERY_EVENT_GRACE_MINUTES = 30;

@@ -3,12 +3,15 @@ import 'server-only';
 import type { Prisma } from '@/prisma/client';
 
 import {
+  EMAIL_DELIVERY_EVENT_GRACE_MINUTES,
+  EMAIL_DELIVERY_EVENT_STATUSES,
   EMAIL_FAILURE_STATUSES,
   EMAIL_FAILURE_WINDOW_DAYS,
   EMAIL_LOG_PAGE_SIZE,
 } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 import type {
+  DeliveryEventHealth,
   EmailFailureCounts,
   EmailLogFilters,
   EmailLogListItem,
@@ -84,4 +87,32 @@ export async function getEmailFailureCounts(): Promise<EmailFailureCounts> {
       row._count._all;
 
   return counts;
+}
+
+// Admin-only, like its neighbours — unfiltered counts, no recipient data.
+export async function getDeliveryEventHealth(): Promise<DeliveryEventHealth> {
+  const windowStart = new Date(
+    Date.now() - EMAIL_FAILURE_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+  );
+  const graceCutoff = new Date(
+    Date.now() - EMAIL_DELIVERY_EVENT_GRACE_MINUTES * 60 * 1000,
+  );
+
+  const [awaitingEvents, recentEvents] = await Promise.all([
+    prisma.emailLog.count({
+      where: {
+        providerMessageId: { not: null },
+        status: 'sent',
+        sentAt: { gte: windowStart, lte: graceCutoff },
+      },
+    }),
+    prisma.emailLog.count({
+      where: {
+        createdAt: { gte: windowStart },
+        status: { in: EMAIL_DELIVERY_EVENT_STATUSES },
+      },
+    }),
+  ]);
+
+  return { awaitingEvents, recentEvents };
 }

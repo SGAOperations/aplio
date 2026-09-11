@@ -4,6 +4,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 
 import type { Prisma } from '@/prisma/client';
 import {
+  getDeliveryEventHealth,
   getEmailFailureCounts,
   getEmailLogs,
   getEmailLogsCount,
@@ -181,5 +182,51 @@ describe('getEmailFailureCounts', () => {
     await cleanupFixtures();
     const counts = await getEmailFailureCounts();
     expect(counts).toEqual({ bounced: 0, complained: 0, failed: 0 });
+  });
+});
+
+describe('getDeliveryEventHealth', () => {
+  it('returns explicit zeros with no rows', async () => {
+    await cleanupFixtures();
+    const health = await getDeliveryEventHealth();
+    expect(health).toEqual({ awaitingEvents: 0, recentEvents: 0 });
+  });
+
+  it('counts a sent row past the grace period as awaiting an event', async () => {
+    await cleanupFixtures();
+    await seedRow({
+      status: 'sent',
+      providerMessageId: randomUUID(),
+      sentAt: new Date(Date.now() - 60 * 60 * 1000),
+    });
+
+    const health = await getDeliveryEventHealth();
+    expect(health.awaitingEvents).toBe(1);
+    expect(health.recentEvents).toBe(0);
+  });
+
+  it('excludes a sent row still inside the grace period', async () => {
+    await cleanupFixtures();
+    await seedRow({
+      status: 'sent',
+      providerMessageId: randomUUID(),
+      sentAt: new Date(),
+    });
+
+    const health = await getDeliveryEventHealth();
+    expect(health.awaitingEvents).toBe(0);
+  });
+
+  it('counts a delivered row as a recent event', async () => {
+    await cleanupFixtures();
+    await seedRow({
+      status: 'delivered',
+      providerMessageId: randomUUID(),
+      sentAt: new Date(Date.now() - 60 * 60 * 1000),
+      deliveredAt: new Date(),
+    });
+
+    const health = await getDeliveryEventHealth();
+    expect(health.recentEvents).toBe(1);
   });
 });

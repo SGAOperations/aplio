@@ -8,6 +8,7 @@ import { EMAIL_STATUS_VALUES, EMAIL_TEMPLATE_VALUES } from '@/lib/constants';
 import { STATE_ICONS } from '@/lib/icons';
 import type { EmailLogFilters } from '@/lib/types';
 
+import { EmailDeliveryHealthNotice } from '@/components/features/email-delivery-health-notice';
 import {
   EmailFailureStrip,
   EmailFailureStripSkeleton,
@@ -53,7 +54,10 @@ export default async function EmailsPage({ searchParams }: EmailsPageProps) {
       />
 
       <Suspense fallback={<EmailFailureStripSkeleton />}>
-        <EmailFailureStrip />
+        <div className="flex flex-col gap-4">
+          <EmailDeliveryHealthNotice />
+          <EmailFailureStrip />
+        </div>
       </Suspense>
 
       <EmailLogToolbar filters={filters} hasActiveFilters={hasActiveFilters} />

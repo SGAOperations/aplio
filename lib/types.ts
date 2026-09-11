@@ -483,3 +483,8 @@ export type EmailLogListItem = Prisma.EmailLogGetPayload<{
 
 export type EmailFailureStatus = (typeof EMAIL_FAILURE_STATUSES)[number];
 export type EmailFailureCounts = Record<EmailFailureStatus, number>;
+
+export interface DeliveryEventHealth {
+  awaitingEvents: number;
+  recentEvents: number;
+}
