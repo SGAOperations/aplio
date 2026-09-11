@@ -13,6 +13,7 @@ import {
 } from '@/lib/auth/scopes';
 import {
   APPLICATIONS_PAGE_SIZE,
+  DEADLINE_SOON_DAYS,
   PUBLIC_APPLICATION_STATUS,
   PUBLISHED_POSITION_WHERE,
   type PublicApplicationStatus,
@@ -214,18 +215,64 @@ export async function getMyApplications(
   return applications.map(toPublicApplication);
 }
 
+// Shared by getRecentMyApplications and getClosingSoonDraftCount so they can't disagree; opens gate keeps a not-yet-open position from floating.
+function buildAtRiskDraftWhere(
+  userId: string,
+  now: Date,
+): Prisma.ApplicationWhereInput {
+  const soonCutoff = new Date(
+    now.getTime() + DEADLINE_SOON_DAYS * 24 * 60 * 60 * 1000,
+  );
+
+  return {
+    userId,
+    deletedAt: null,
+    status: 'draft',
+    position: {
+      ...PUBLISHED_POSITION_WHERE,
+      status: 'open',
+      closesAt: { gt: now, lte: soonCutoff },
+      OR: [{ opensAt: null }, { opensAt: { lte: now } }],
+    },
+  };
+}
+
+// Floats at-risk drafts (closing within DEADLINE_SOON_DAYS) ahead of recency
+// order — a `take`-bounded recency query alone can hide one entirely. Both
+// queries stay take-bounded; never an unbounded fetch-then-sort.
 export async function getRecentMyApplications(
   userId: string,
   take = 5,
+  now: Date = new Date(),
 ): Promise<MyApplicationListItem[]> {
-  const applications = await prisma.application.findMany({
-    where: { userId, deletedAt: null, position: PUBLISHED_POSITION_WHERE },
-    select: applicationSelect,
-    orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
-    take,
-  });
+  const [atRisk, recent] = await Promise.all([
+    prisma.application.findMany({
+      where: buildAtRiskDraftWhere(userId, now),
+      select: applicationSelect,
+      orderBy: [{ position: { closesAt: 'asc' } }, { id: 'desc' }],
+      take,
+    }),
+    prisma.application.findMany({
+      where: { userId, deletedAt: null, position: PUBLISHED_POSITION_WHERE },
+      select: applicationSelect,
+      orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
+      take,
+    }),
+  ]);
 
-  return applications.map(toPublicApplication);
+  const atRiskIds = new Set(atRisk.map((a) => a.id));
+  const merged = [...atRisk, ...recent.filter((a) => !atRiskIds.has(a.id))];
+
+  return merged.slice(0, take).map(toPublicApplication);
+}
+
+export async function getClosingSoonDraftCount(
+  userId: string,
+  now: Date = new Date(),
+): Promise<number> {
+  return prisma.application.count({
+    where: buildAtRiskDraftWhere(userId, now),
+  });
 }
 
 // No status filter — caller needs draft/withdrawn too; one row per position via the [userId, positionId] unique constraint.

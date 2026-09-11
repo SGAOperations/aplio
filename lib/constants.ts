@@ -631,6 +631,11 @@ export function isTerminalDecisionApplicationStatus(
 
 export const RECENTLY_CLOSED_WINDOW_DAYS = 7;
 
+// Sole owners of the applicant deadline-urgency boundaries — shared by
+// getDeadlineInfo and the at-risk query in prisma/data/applications.ts.
+export const DEADLINE_SOON_DAYS = 7;
+export const DEADLINE_URGENT_HOURS = 48;
+
 // Longer than the public window so managers and admins keep oversight during wrap-up.
 export const MANAGED_POSITIONS_WINDOW_DAYS = 30;
 

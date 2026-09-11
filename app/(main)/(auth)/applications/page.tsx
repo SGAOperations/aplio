@@ -12,6 +12,7 @@ export const metadata: Metadata = { title: 'My Applications' };
 export default async function MyApplicationsPage() {
   const user = await getCurrentUser();
   const applications = await getMyApplications(user.id);
+  const now = new Date();
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -19,7 +20,7 @@ export default async function MyApplicationsPage() {
         title="My Applications"
         description="Track your drafts and submitted applications."
       />
-      <MyApplicationsTable applications={applications} />
+      <MyApplicationsTable applications={applications} now={now} />
     </div>
   );
 }

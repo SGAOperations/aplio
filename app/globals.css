@@ -24,6 +24,7 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-destructive-text: var(--destructive-text);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -44,6 +45,7 @@
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-warning-text: var(--warning-text);
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
   --color-nav-hover: var(--nav-hover);
@@ -74,6 +76,8 @@
   --muted-foreground: oklch(0.5 0 0);
   --destructive: oklch(0.55 0.22 28);
   --destructive-foreground: oklch(0.98 0 0);
+  /* Passes 4.5:1 on --card as plain text; --destructive is fill/icon-only. */
+  --destructive-text: oklch(0.55 0.22 28);
   --border: oklch(0.88 0 0);
   --sidebar-border: oklch(0.88 0 0);
   --ring: oklch(0.55 0.18 27);
@@ -89,6 +93,8 @@
   --success-foreground: oklch(0.98 0 0);
   --warning: oklch(0.7 0.15 85);
   --warning-foreground: oklch(0.2 0 0);
+  /* Passes 4.5:1 on --card as plain text; --warning is fill/icon-only (≈2.7:1 as text). */
+  --warning-text: oklch(0.52 0.15 85);
   --info: oklch(0.53 0.15 250);
   --info-foreground: oklch(0.98 0 0);
   --nav-hover: oklch(0.93 0 0);
@@ -119,6 +125,8 @@
   --muted-foreground: oklch(0.65 0 0);
   --destructive: oklch(0.55 0.22 28);
   --destructive-foreground: oklch(0.98 0 0);
+  /* Lightened vs. light mode — --card inverts, --destructive alone drops to ≈3.4:1 here. */
+  --destructive-text: oklch(0.66 0.22 28);
   --border: oklch(0.31 0 0);
   --sidebar-border: oklch(0.31 0 0);
   --ring: oklch(0.5 0.18 27);
@@ -133,6 +141,7 @@
   --success-foreground: oklch(0.98 0 0);
   --warning: oklch(0.7 0.15 85);
   --warning-foreground: oklch(0.15 0 0);
+  --warning-text: oklch(0.65 0.15 85);
   --info: oklch(0.53 0.15 250);
   --info-foreground: oklch(0.98 0 0);
   --nav-hover: oklch(0.27 0 0);

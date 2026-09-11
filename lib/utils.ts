@@ -5,6 +5,8 @@ import type { $Enums } from '@/prisma/client';
 
 import {
   APPLICATION_STATUS_LABELS,
+  DEADLINE_SOON_DAYS,
+  DEADLINE_URGENT_HOURS,
   DECISION_EMAIL_DELAY_SECONDS,
   EMAIL_STATUS_DESCRIPTIONS,
   MANAGED_POSITIONS_WINDOW_DAYS,
@@ -16,6 +18,7 @@ import type {
   AnswerPartition,
   AnswerQuestion,
   ApplicationFilters,
+  DeadlineInfo,
   EmailLogFilters,
   ManagedPositionRow,
   PositionActivity,
@@ -385,6 +388,71 @@ export function getPositionDateInfo(
     position.closesAt
   )
     return { label: 'Closed', date: position.closesAt, emphasis: 'calm' };
+
+  return null;
+}
+
+const MS_PER_HOUR = 60 * 60 * 1000;
+const MS_PER_DAY = 24 * MS_PER_HOUR;
+
+/** Applicant-facing deadline urgency — kept separate from `getPositionDateInfo`'s calm/live/stale emphasis so position cards don't inherit this ticket's amber/red tiering. */
+export function getDeadlineInfo(
+  position: PositionWindow,
+  now: Date = new Date(),
+): DeadlineInfo | null {
+  if (position.status === 'draft') return null;
+
+  const availability = getPositionAvailability(position, now);
+
+  if (availability === 'upcoming' && position.opensAt)
+    return {
+      tier: 'upcoming',
+      label: 'Opens',
+      date: position.opensAt,
+      compactCountdown: null,
+    };
+
+  if (availability === 'accepting' && position.closesAt) {
+    const diffMs = position.closesAt.getTime() - now.getTime();
+
+    if (diffMs <= DEADLINE_URGENT_HOURS * MS_PER_HOUR) {
+      const hours = Math.max(1, Math.ceil(diffMs / MS_PER_HOUR));
+      return {
+        tier: 'urgent',
+        label: 'Closes',
+        date: position.closesAt,
+        compactCountdown: `${hours}h`,
+      };
+    }
+
+    if (diffMs <= DEADLINE_SOON_DAYS * MS_PER_DAY) {
+      const days = Math.max(1, Math.ceil(diffMs / MS_PER_DAY));
+      return {
+        tier: 'soon',
+        label: 'Closes',
+        date: position.closesAt,
+        compactCountdown: `${days}d`,
+      };
+    }
+
+    return {
+      tier: 'distant',
+      label: 'Closes',
+      date: position.closesAt,
+      compactCountdown: null,
+    };
+  }
+
+  if (
+    (availability === 'closed_by_date' || availability === 'unavailable') &&
+    position.closesAt
+  )
+    return {
+      tier: 'past',
+      label: 'Closed',
+      date: position.closesAt,
+      compactCountdown: null,
+    };
 
   return null;
 }
