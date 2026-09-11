@@ -1,8 +1,9 @@
-import { CONCEPT_ICONS, STATE_ICONS } from '@/lib/icons';
+import type { ReactNode } from 'react';
+
+import { DEADLINE_TIER_ICONS, STATE_ICONS } from '@/lib/icons';
 import type { PositionWindow } from '@/lib/types';
 import { cn, getDeadlineInfo } from '@/lib/utils';
 
-import { Badge } from '@/components/ui/badge';
 import { LocalTime } from '@/components/ui/local-time';
 
 interface DeadlineIndicatorProps {
@@ -24,17 +25,40 @@ export function DeadlineIndicator({
   const info = getDeadlineInfo(position, now);
   if (!info) return <span className="text-muted-foreground">—</span>;
 
+  const isPast = info.tier === 'past';
+  const Icon = DEADLINE_TIER_ICONS[info.tier];
+
   const mutedLine = (
     <span
       className={cn(
         'text-muted-foreground flex items-center gap-1.5',
         variant === 'full' ? 'text-sm' : 'text-xs',
+        isPast && 'opacity-70',
       )}
     >
-      {variant === 'full' && (
-        <CONCEPT_ICONS.deadline className="size-4 shrink-0" />
+      {variant === 'full' && <Icon className="size-4 shrink-0" />}
+      {info.label}
+      {isPast ? ' · ' : ' '}
+      <LocalTime date={info.date} precision="date" />
+    </span>
+  );
+
+  // Text, not a Badge — a filled pill next to the status badge reads heavier
+  // than a metadata line should; text-warning-text/destructive-text pass
+  // AA at 12px/14px, unlike --warning/--destructive used as plain text.
+  const emphasizedLine = (
+    tone: 'warning' | 'destructive',
+    children: ReactNode,
+  ) => (
+    <span
+      className={cn(
+        'flex items-center gap-1.5 font-semibold',
+        variant === 'full' ? 'text-sm' : 'text-xs',
+        tone === 'warning' ? 'text-warning-text' : 'text-destructive-text',
       )}
-      {info.label} <LocalTime date={info.date} precision="date" />
+    >
+      <STATE_ICONS.warning className="size-4 shrink-0" />
+      {children}
     </span>
   );
 
@@ -45,37 +69,33 @@ export function DeadlineIndicator({
 
     case 'soon':
       if (!emphasizeUrgency) return mutedLine;
-      return (
-        <Badge variant="warning">
-          <STATE_ICONS.warning />
-          <LocalTime date={info.date} precision="date">
-            {variant === 'compact'
-              ? `${info.compactCountdown} left`
-              : `${info.label} ${info.countdown}`}
-          </LocalTime>
-        </Badge>
+      return emphasizedLine(
+        'warning',
+        <LocalTime date={info.date} precision="date">
+          {variant === 'compact'
+            ? `${info.compactCountdown} left`
+            : `${info.label} ${info.countdown}`}
+        </LocalTime>,
       );
 
     case 'urgent':
       if (!emphasizeUrgency) return mutedLine;
-      return (
-        <Badge variant="destructive">
-          <STATE_ICONS.warning />
-          <LocalTime date={info.date} precision="date">
-            {variant === 'compact'
-              ? `${info.compactCountdown} left`
-              : `${info.label} ${info.countdown}`}
-          </LocalTime>
-        </Badge>
+      return emphasizedLine(
+        'destructive',
+        <LocalTime date={info.date} precision="date">
+          {variant === 'compact'
+            ? `${info.compactCountdown} left`
+            : `${info.label} ${info.countdown}`}
+        </LocalTime>,
       );
 
     case 'past':
       if (!emphasizeUrgency) return mutedLine;
-      return (
-        <Badge variant="destructive">
-          <STATE_ICONS.warning />
+      return emphasizedLine(
+        'destructive',
+        <>
           {info.label} <LocalTime date={info.date} precision="date" />
-        </Badge>
+        </>,
       );
 
     default: {
