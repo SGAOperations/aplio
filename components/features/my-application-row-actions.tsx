@@ -104,12 +104,8 @@ export function MyApplicationRowActions({
   // withdrawn: the cell already carries the primary action (Edit & resubmit / Position closed).
   if (status === 'withdrawn') return null;
 
-  if (TERMINAL_DECISION_STATUSES.includes(status))
-    return (
-      <span className="text-muted-foreground text-sm" aria-hidden="true">
-        —
-      </span>
-    );
+  // Desktop placeholder for these lives in the column cell, not here.
+  if (TERMINAL_DECISION_STATUSES.includes(status)) return null;
 
   // Non-draft, non-withdrawn, non-terminal statuses (applied, reached_out, interview_scheduled, reviewing)
   return (

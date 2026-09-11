@@ -94,6 +94,8 @@ The vocabulary lives in `lib/icons.ts` as five separately-exported `Record<Enum,
 
 Mobile-first (per `CLAUDE.md`): base styles target mobile, layer `md:`/`lg:` upward. Sidebars collapse to a Sheet/drawer with a hamburger trigger below `md`. Touch targets ≥ ~44px. No fixed pixel widths that break narrow viewports. Test at 375px, 768px, 1280px.
 
+**Mobile cards carry no placeholders.** A `—` reads as "none" only directly beneath its column header. A `DataTable` mobile card (below `md`) has no headers, so a field with no value is omitted from the card, never rendered as a dash. Keep the placeholder in the desktop column's `cell` — never inside a child component both layouts render.
+
 ## 9. Agent quick reference
 
 Surfaces → `bg-background` (page), `bg-card` (panels), `bg-popover` (menus). Text → `text-foreground` (primary), `text-muted-foreground` (secondary). Brand → `primary`. Status → `success`/`warning`/`info`/`destructive`. Lines → `border-border`, focus → `ring-ring`. Radius → `rounded-lg`. Icons → `@/lib/icons`, never `lucide-react` directly. Never hardcode any of these.
