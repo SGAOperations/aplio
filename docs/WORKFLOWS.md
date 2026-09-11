@@ -193,12 +193,13 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 ### AP-1 See your dashboard
 
 - **Trigger** — signing in, the logo, or the Home nav item (`/`).
-- **Happy path** — `UserDashboard` renders "Welcome back, <first name>" and streams five independently-suspended sections: the profile-completeness banner, an application summary, the three most recent applications, the three open positions closing soonest, and an activity feed. Each has its own skeleton.
+- **Happy path** — `UserDashboard` renders "Welcome back, <first name>" and streams five independently-suspended sections: the profile-completeness banner, an application summary, the three most recent applications, the three open positions closing soonest, and an activity feed. Each has its own skeleton. The applications widget's row shows the deadline in its trailing slot for a draft — plain muted text normally, an amber or red badge once the tier is `soon`/`urgent`/`past` ([AP-10](#ap-10-track-your-applications)) — and its subtitle appends `N closing soon` when any at-risk draft exists, so a draft that would otherwise sit outside the top-3 by recency still surfaces here.
 - **Failure / edge**
   - Anonymous → `redirect('/positions')` — routing, not denial.
   - No name → [XC-2](#xc-2-name-gate).
   - Admin → `AdminDashboard`; manager → `ManagerDashboard` ([PM-1](#pm-1-see-your-dashboard)).
   - Nothing applied for yet → the widgets render their own empty states; the heading falls back to "Welcome to Aplio" when the name is missing.
+  - No at-risk draft → the subtitle omits the `closing soon` segment entirely; the widget's ordering is unchanged from plain recency.
 - **End state** — read-only.
 
 ### AP-2 Answer profile questions
@@ -303,7 +304,10 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 ### AP-10 Track your applications
 
 - **Trigger** — the My Applications nav item (`/applications`).
-- **Happy path** — `getMyApplications(user.id)` returns the caller's non-deleted applications on published positions, ordered by `submittedAt` (not `updatedAt` — [XC-8](#xc-8-applicant-facing-status-grouping)). The table sorts client-side by position, status or applied date, and collapses to stacked cards below `md`. Each row links to the detail page and carries its primary action and row action. Every status shown is the public one — `reached_out`/`interview_scheduled`/`reviewing` all read as **Applied**.
+- **Happy path** — `getMyApplications(user.id)` returns the caller's non-deleted applications on published positions, ordered by `submittedAt` (not `updatedAt` — [XC-8](#xc-8-applicant-facing-status-grouping)). The table sorts client-side by position, status, applied date, or the new **Deadline** column, and collapses to stacked cards below `md`. Each row links to the detail page and carries its primary action and row action. Every status shown is the public one — `reached_out`/`interview_scheduled`/`reviewing` all read as **Applied**.
+  - **Deadline column** — every row (draft or submitted) shows `position.closesAt` via `DeadlineIndicator`, computed from `getDeadlineInfo` (`lib/utils.ts`) against a server-resolved `now` passed down as a prop, never a client-side `new Date()` (that would hydration-mismatch near a tier boundary). A position not yet open shows its `Opens <date>` muted, with no urgency; a submitted row's deadline is always the plain muted date or badge-free `Closed <date>`, regardless of tier; a position with no `closesAt` shows the same neutral "—" the table already uses for missing values.
+  - **Urgency tiers (draft rows only)** — `distant` (> 7 days): muted `Closes <date>`. `soon` (≤ 7 days): amber `Badge` "Closes in N days". `urgent` (≤ 48 hours): red `Badge` "Closes in N hours". `past` (closed): red `Badge` "Closed <date>" — the row still offers **Continue**, since a draft can always be resumed even though submitting it will be refused.
+  - **At-risk float** — drafts with an approaching deadline (tier `soon`/`urgent`) sort to the top, nearest deadline first; everything else keeps the table's normal order. Clicking any column header (including **Deadline**) takes over the sort completely — the float never reasserts itself afterward.
 - **Failure / edge**
   - Nothing yet → `EmptyState` "No applications yet" · "Browse open positions to start your first application." with a **Browse positions** button.
   - A draft shows "—" for the applied date, **Continue** as its primary action and **Delete** as its row action.
@@ -311,6 +315,7 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
   - A withdrawn row shows **Edit & resubmit**, or the plain text "Position closed" when the window has since closed; it has no row action.
   - `accepted` / `rejected` rows show "—" instead of a withdraw button.
   - Applications on soft-deleted or unpublished positions are excluded entirely.
+  - A not-yet-open draft or a past-due draft never floats to the top, even though both are drafts — only an actually-open, approaching window counts as at-risk.
 - **End state** — read-only.
 
 ### AP-11 View one of your applications
