@@ -77,3 +77,19 @@ export function getFileDisplayName(url: string): string {
     return 'file';
   }
 }
+
+export function base64ToBlob(base64: string, contentType: string): Blob {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: contentType });
+}
+
+export type FilePreviewKind = 'image' | 'pdf' | 'unsupported';
+
+export function getFilePreviewKind(contentType: string): FilePreviewKind {
+  if (contentType === 'application/pdf') return 'pdf';
+  if (contentType === 'image/png' || contentType === 'image/jpeg')
+    return 'image';
+  return 'unsupported';
+}

@@ -15,9 +15,10 @@ describe('buildContentSecurityPolicy', () => {
     expect(csp).toContain(`form-action 'self'`);
     expect(csp).toContain(`script-src 'self' 'unsafe-inline'`);
     expect(csp).toContain(`style-src 'self' 'unsafe-inline'`);
-    expect(csp).toContain(`img-src 'self' data:`);
+    expect(csp).toContain(`img-src 'self' data: blob:`);
     expect(csp).toContain(`font-src 'self'`);
     expect(csp).toContain(`connect-src 'self'`);
+    expect(csp).toContain(`frame-src 'self' blob:`);
     expect(csp).toContain('upgrade-insecure-requests');
     expect(csp).not.toContain('unsafe-eval');
     expect(csp).not.toContain('ws:');
