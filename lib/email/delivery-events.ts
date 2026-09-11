@@ -157,21 +157,38 @@ function extractWebhookHeaders(headers: Headers): ResendWebhookHeaders | null {
   return { id, timestamp, signature };
 }
 
+export type VerifyWebhookResult =
+  | { verified: true; payload: unknown }
+  | {
+      verified: false;
+      reason: 'missing_signature_headers' | 'invalid_signature';
+    };
+
 export function verifyResendWebhook(params: {
   rawBody: string;
   headers: Headers;
   secret: string;
-}): unknown {
+}): VerifyWebhookResult {
   const webhookHeaders = extractWebhookHeaders(params.headers);
-  if (!webhookHeaders) return null;
+  if (!webhookHeaders)
+    return { verified: false, reason: 'missing_signature_headers' };
 
   try {
-    return getResend().webhooks.verify({
+    const payload = getResend().webhooks.verify({
       payload: params.rawBody,
       headers: webhookHeaders,
       webhookSecret: params.secret,
     });
+    return { verified: true, payload };
   } catch {
-    return null;
+    return { verified: false, reason: 'invalid_signature' };
   }
+}
+
+export function getResendWebhookSecret(): string {
+  if (!process.env.RESEND_WEBHOOK_SECRET)
+    throw new Error(
+      'RESEND_WEBHOOK_SECRET is not configured — /api/webhooks/resend cannot verify delivery events',
+    );
+  return process.env.RESEND_WEBHOOK_SECRET;
 }

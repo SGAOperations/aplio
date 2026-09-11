@@ -53,10 +53,13 @@ describe('verifyResendWebhook', () => {
       secret: SECRET,
     });
 
-    expect(result).toEqual({ type: 'email.delivered' });
+    expect(result).toEqual({
+      verified: true,
+      payload: { type: 'email.delivered' },
+    });
   });
 
-  it('returns null for a tampered body', () => {
+  it('returns invalid_signature for a tampered body', () => {
     const id = 'msg_2';
     const timestamp = Math.floor(Date.now() / 1000).toString();
     const body = JSON.stringify({ type: 'email.delivered' });
@@ -69,10 +72,10 @@ describe('verifyResendWebhook', () => {
       secret: SECRET,
     });
 
-    expect(result).toBeNull();
+    expect(result).toEqual({ verified: false, reason: 'invalid_signature' });
   });
 
-  it('returns null when a required header is missing', () => {
+  it('returns missing_signature_headers when a required header is missing', () => {
     const id = 'msg_3';
     const timestamp = Math.floor(Date.now() / 1000).toString();
     const body = JSON.stringify({ type: 'email.delivered' });
@@ -89,10 +92,13 @@ describe('verifyResendWebhook', () => {
       secret: SECRET,
     });
 
-    expect(result).toBeNull();
+    expect(result).toEqual({
+      verified: false,
+      reason: 'missing_signature_headers',
+    });
   });
 
-  it('returns null for a stale timestamp', () => {
+  it('returns invalid_signature for a stale timestamp', () => {
     const id = 'msg_4';
     const staleTimestamp = (Math.floor(Date.now() / 1000) - 600).toString();
     const body = JSON.stringify({ type: 'email.delivered' });
@@ -104,7 +110,7 @@ describe('verifyResendWebhook', () => {
       secret: SECRET,
     });
 
-    expect(result).toBeNull();
+    expect(result).toEqual({ verified: false, reason: 'invalid_signature' });
   });
 });
 

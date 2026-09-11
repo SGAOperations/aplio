@@ -186,6 +186,7 @@ describe('POST /api/webhooks/resend', () => {
     expect(await first.json()).toEqual({ applied: 'delivered' });
     expect(await second.json()).toEqual({
       ignored: 'no matching row or already terminal',
+      type: 'email.delivered',
     });
     const updated = await prisma.emailLog.findUniqueOrThrow({
       where: { id: row.id },
@@ -203,10 +204,11 @@ describe('POST /api/webhooks/resend', () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
       ignored: 'no matching row or already terminal',
+      type: 'email.delivered',
     });
   });
 
-  it('returns 400 and writes nothing when signature verification throws', async () => {
+  it('returns 400 with invalid_signature when signature verification throws', async () => {
     const row = await seedSentRow();
     verifyImpl = () => {
       throw new Error('bad signature');
@@ -221,6 +223,30 @@ describe('POST /api/webhooks/resend', () => {
     );
 
     expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'invalid_signature' });
+    const untouched = await prisma.emailLog.findUniqueOrThrow({
+      where: { id: row.id },
+    });
+    expect(untouched.status).toBe('sent');
+  });
+
+  it('returns 400 with missing_signature_headers when signature headers are absent', async () => {
+    const row = await seedSentRow();
+
+    const payload = {
+      type: 'email.delivered',
+      created_at: '2026-01-01T00:00:00.000Z',
+      data: { email_id: row.providerMessageId },
+    };
+    const res = await POST(
+      new Request('http://localhost/api/webhooks/resend', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    );
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'missing_signature_headers' });
     const untouched = await prisma.emailLog.findUniqueOrThrow({
       where: { id: row.id },
     });
@@ -254,7 +280,10 @@ describe('POST /api/webhooks/resend', () => {
     });
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ignored: 'unhandled event type' });
+    expect(await res.json()).toEqual({
+      ignored: 'unhandled event type',
+      type: 'email.opened',
+    });
     const untouched = await prisma.emailLog.findUniqueOrThrow({
       where: { id: row.id },
     });

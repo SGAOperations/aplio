@@ -1,37 +1,41 @@
 import {
   applyDeliveryEvent,
   deliveryEventSchema,
+  getResendWebhookSecret,
   isHandledDeliveryEventType,
   verifyResendWebhook,
 } from '@/lib/email/delivery-events';
 
 export async function POST(request: Request): Promise<Response> {
-  // Missing config, not an event we could have processed either way.
-  if (!process.env.RESEND_WEBHOOK_SECRET)
-    throw new Error('RESEND_WEBHOOK_SECRET is not configured');
+  // Throws (not logs) so Resend retries once the secret is fixed — the
+  // thrown message names the variable in the Vercel log without source access.
+  const secret = getResendWebhookSecret();
 
   // The signature covers the exact bytes — never request.json() on this route.
   const rawBody = await request.text();
 
-  const verified = verifyResendWebhook({
+  const result = verifyResendWebhook({
     rawBody,
     headers: request.headers,
-    secret: process.env.RESEND_WEBHOOK_SECRET,
+    secret,
   });
-  if (verified === null)
-    return Response.json({ error: 'Invalid signature' }, { status: 400 });
+  if (!result.verified)
+    return Response.json({ error: result.reason }, { status: 400 });
 
-  const type = (verified as { type?: unknown }).type;
+  const type = (result.payload as { type?: unknown }).type;
   if (typeof type !== 'string' || !isHandledDeliveryEventType(type))
-    return Response.json({ ignored: 'unhandled event type' });
+    return Response.json({ ignored: 'unhandled event type', type });
 
-  const parsed = deliveryEventSchema.safeParse(verified);
+  const parsed = deliveryEventSchema.safeParse(result.payload);
   if (!parsed.success)
     return Response.json({ error: 'Invalid payload' }, { status: 400 });
 
   const applied = await applyDeliveryEvent(parsed.data);
   if (applied === null)
-    return Response.json({ ignored: 'no matching row or already terminal' });
+    return Response.json({
+      ignored: 'no matching row or already terminal',
+      type,
+    });
 
   return Response.json({ applied });
 }
