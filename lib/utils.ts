@@ -409,7 +409,6 @@ export function getDeadlineInfo(
       tier: 'upcoming',
       label: 'Opens',
       date: position.opensAt,
-      countdown: null,
       compactCountdown: null,
     };
 
@@ -422,7 +421,6 @@ export function getDeadlineInfo(
         tier: 'urgent',
         label: 'Closes',
         date: position.closesAt,
-        countdown: `in ${hours} hour${hours === 1 ? '' : 's'}`,
         compactCountdown: `${hours}h`,
       };
     }
@@ -433,7 +431,6 @@ export function getDeadlineInfo(
         tier: 'soon',
         label: 'Closes',
         date: position.closesAt,
-        countdown: `in ${days} day${days === 1 ? '' : 's'}`,
         compactCountdown: `${days}d`,
       };
     }
@@ -442,7 +439,6 @@ export function getDeadlineInfo(
       tier: 'distant',
       label: 'Closes',
       date: position.closesAt,
-      countdown: null,
       compactCountdown: null,
     };
   }
@@ -455,7 +451,6 @@ export function getDeadlineInfo(
       tier: 'past',
       label: 'Closed',
       date: position.closesAt,
-      countdown: null,
       compactCountdown: null,
     };
 
