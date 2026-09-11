@@ -25,9 +25,9 @@ Behaviour shared by many workflows is stated once under [Cross-cutting behaviour
 
 **[Anonymous (AN)](#anonymous-an)** — [AN-1](#an-1-browse-positions) · [AN-2](#an-2-view-a-position) · [AN-3](#an-3-start-applying-from-a-position) · [AN-4](#an-4-sign-in-with-an-email-code) · [AN-5](#an-5-request-a-new-code) · [AN-6](#an-6-set-your-name-on-first-sign-in) · [AN-7](#an-7-read-the-legal-pages) · [AN-8](#an-8-dev-bypass-sign-in)
 
-**[Applicant (AP)](#applicant-ap)** — [AP-1](#ap-1-see-your-dashboard) · [AP-2](#ap-2-answer-profile-questions) · [AP-3](#ap-3-change-your-name) · [AP-4](#ap-4-return-to-an-interrupted-flow) · [AP-5](#ap-5-start-an-application) · [AP-6](#ap-6-answer-application-questions) · [AP-7](#ap-7-customize-or-revert-profile-answers) · [AP-8](#ap-8-upload-or-remove-a-file-answer) · [AP-9](#ap-9-submit-an-application) · [AP-10](#ap-10-track-your-applications) · [AP-11](#ap-11-view-one-of-your-applications) · [AP-12](#ap-12-download-your-own-file-answer) · [AP-13](#ap-13-withdraw-an-application) · [AP-14](#ap-14-edit-and-resubmit-a-withdrawn-application) · [AP-15](#ap-15-delete-a-draft) · [AP-16](#ap-16-sign-out) · [AP-17](#ap-17-see-which-positions-youve-already-applied-to)
+**[Applicant (AP)](#applicant-ap)** — [AP-1](#ap-1-see-your-dashboard) · [AP-2](#ap-2-answer-profile-questions) · [AP-3](#ap-3-change-your-name) · [AP-4](#ap-4-return-to-an-interrupted-flow) · [AP-5](#ap-5-start-an-application) · [AP-6](#ap-6-answer-application-questions) · [AP-7](#ap-7-customize-or-revert-profile-answers) · [AP-8](#ap-8-upload-or-remove-a-file-answer) · [AP-9](#ap-9-submit-an-application) · [AP-10](#ap-10-track-your-applications) · [AP-11](#ap-11-view-one-of-your-applications) · [AP-12](#ap-12-preview-or-download-your-own-file-answer) · [AP-13](#ap-13-withdraw-an-application) · [AP-14](#ap-14-edit-and-resubmit-a-withdrawn-application) · [AP-15](#ap-15-delete-a-draft) · [AP-16](#ap-16-sign-out) · [AP-17](#ap-17-see-which-positions-youve-already-applied-to)
 
-**[Position manager (PM)](#position-manager-pm)** — [PM-1](#pm-1-see-your-dashboard) · [PM-2](#pm-2-see-the-positions-you-manage) · [PM-3](#pm-3-create-a-position) · [PM-4](#pm-4-edit-position-details) · [PM-5](#pm-5-manage-position-questions) · [PM-6](#pm-6-add-a-manager) · [PM-7](#pm-7-remove-a-manager) · [PM-8](#pm-8-work-the-application-queue) · [PM-9](#pm-9-open-an-application-for-review) · [PM-10](#pm-10-download-an-applicants-file-answer) · [PM-11](#pm-11-move-one-application-through-the-status-path) · [PM-12](#pm-12-move-several-applications-at-once) · [PM-13](#pm-13-reorder-position-questions) · [PM-14](#pm-14-override-a-status-undo-or-review-its-history)
+**[Position manager (PM)](#position-manager-pm)** — [PM-1](#pm-1-see-your-dashboard) · [PM-2](#pm-2-see-the-positions-you-manage) · [PM-3](#pm-3-create-a-position) · [PM-4](#pm-4-edit-position-details) · [PM-5](#pm-5-manage-position-questions) · [PM-6](#pm-6-add-a-manager) · [PM-7](#pm-7-remove-a-manager) · [PM-8](#pm-8-work-the-application-queue) · [PM-9](#pm-9-open-an-application-for-review) · [PM-10](#pm-10-preview-or-download-an-applicants-file-answer) · [PM-11](#pm-11-move-one-application-through-the-status-path) · [PM-12](#pm-12-move-several-applications-at-once) · [PM-13](#pm-13-reorder-position-questions) · [PM-14](#pm-14-override-a-status-undo-or-review-its-history)
 
 **[Admin (AD)](#admin-ad)** — [AD-1](#ad-1-see-every-position) · [AD-2](#ad-2-edit-an-archived-position) · [AD-3](#ad-3-delete-a-position) · [AD-4](#ad-4-create-a-global-question) · [AD-5](#ad-5-edit-a-global-question) · [AD-6](#ad-6-delete-a-global-question) · [AD-7](#ad-7-create-a-user) · [AD-8](#ad-8-grant-or-revoke-admin) · [AD-9](#ad-9-deactivate-a-user) · [AD-10](#ad-10-find-a-user) · [AD-11](#ad-11-reorder-global-questions) · [AD-12](#ad-12-look-up-an-email)
 
@@ -324,14 +324,15 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
   - An individual answer with no stored value → "No answer".
 - **End state** — read-only. This is the answer of record for what was submitted.
 
-### AP-12 Download your own file answer
+### AP-12 Preview or download your own file answer
 
-- **Trigger** — the **Download** button on a file answer, on `/applications/[id]` or `/profile`.
-- **Happy path** — `downloadQuestionFileAnswer` authorizes **by row and caller, never by URL**, fetches the private blob and returns it base64-encoded; the client rebuilds a `Blob` and triggers the download. No route handler is involved.
+- **Trigger** — the filename on a file answer, on `/applications/[id]` or `/profile`, opens a preview dialog; the **Download** button next to it downloads directly.
+- **Happy path** — `downloadQuestionFileAnswer` authorizes **by row and caller, never by URL**, fetches the private blob and returns it base64-encoded; the client rebuilds a `Blob`. Download turns it into an object URL and triggers a save; preview opens a dialog naming the file and renders a PNG/JPEG inline as an image or a PDF inline in an iframe, with a Download button inside the dialog as well. No route handler is involved, and the preview re-fetches (and re-authorizes) on every open.
 - **Failure / edge**
-  - The answer row holds no URL, or the blob is gone → **"This file is no longer available."**
-  - The application is neither owned by the caller nor in their reviewer scope → the action throws → toast **"Something went wrong"**.
-- **End state** — the file is on the user's device; nothing is written.
+  - The answer row holds no URL, or the blob is gone → **"This file is no longer available."**, and an open preview dialog closes.
+  - The application is neither owned by the caller nor in their reviewer scope → the action throws → toast **"Something went wrong"**, and an open preview dialog closes.
+  - A content type outside PDF/PNG/JPEG (unreachable via normal upload) → the dialog shows "This file can't be previewed here. Download it to open it on your device."
+- **End state** — the file is on the user's device (Download), or was viewed and discarded (Preview, object URL revoked on close); nothing is written.
 
 ### AP-13 Withdraw an application
 
@@ -500,12 +501,12 @@ A user who manages at least one non-deleted position. Manager status is **derive
   - A decision email queued by [PM-14](#pm-14-override-a-status-undo-or-review-its-history)'s ~10-second self-managed delay, not yet sent → shown as **Scheduled**, with the sentence "Not sent yet. Changing this application's status again cancels it."
 - **End state** — read-only until a transition is made.
 
-### PM-10 Download an applicant's file answer
+### PM-10 Preview or download an applicant's file answer
 
-- **Trigger** — the **Download** button on a file answer on `/manage/applications/[id]`.
-- **Happy path** — same action and same by-row authorization as [AP-12](#ap-12-download-your-own-file-answer); a reviewer qualifies through the position-manager branch of the scope rather than ownership.
-- **Failure / edge** — as [AP-12](#ap-12-download-your-own-file-answer). An application outside the reviewer's scope throws rather than returning a message.
-- **End state** — the file is on the reviewer's device; nothing is written.
+- **Trigger** — the filename on a file answer on `/manage/applications/[id]` opens the same preview dialog; the **Download** button next to it downloads directly.
+- **Happy path** — same action, same rendering, and same by-row authorization as [AP-12](#ap-12-preview-or-download-your-own-file-answer); a reviewer qualifies through the position-manager branch of the scope rather than ownership.
+- **Failure / edge** — as [AP-12](#ap-12-preview-or-download-your-own-file-answer). An application outside the reviewer's scope throws rather than returning a message.
+- **End state** — the file is on the reviewer's device (Download), or was viewed and discarded (Preview); nothing is written.
 
 ### PM-11 Move one application through the status path
 
