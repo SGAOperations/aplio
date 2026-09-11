@@ -43,9 +43,7 @@ export function DeadlineIndicator({
     </span>
   );
 
-  // Text, not a Badge — a filled pill next to the status badge reads heavier
-  // than a metadata line should; text-warning-text/destructive-text pass
-  // AA at 12px/14px, unlike --warning/--destructive used as plain text.
+  // Text, not Badge — a filled pill reads heavier than a metadata line; *-text tokens pass AA at this weight.
   const emphasizedLine = (
     tone: 'warning' | 'destructive',
     children: ReactNode,
