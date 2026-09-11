@@ -9,6 +9,7 @@ import {
   Briefcase,
   CalendarCheck,
   CalendarClock,
+  CalendarX,
   Check,
   ChevronDown,
   CircleCheck,
@@ -56,7 +57,7 @@ import {
 
 import type { $Enums } from '@/prisma/client';
 
-import type { PositionAvailability } from '@/lib/types';
+import type { DeadlineTier, PositionAvailability } from '@/lib/types';
 
 type Concept =
   | 'home'
@@ -81,6 +82,15 @@ export const CONCEPT_ICONS: Record<Concept, LucideIcon> = {
   activity: Activity,
   deadline: CalendarClock,
   email: Mail,
+};
+
+// Past reads "over" (crossed-out calendar), not "scheduled" like the rest.
+export const DEADLINE_TIER_ICONS: Record<DeadlineTier, LucideIcon> = {
+  upcoming: CalendarClock,
+  distant: CalendarClock,
+  soon: CalendarClock,
+  urgent: CalendarClock,
+  past: CalendarX,
 };
 
 export const APPLICATION_STATUS_ICONS: Record<
