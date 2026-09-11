@@ -68,7 +68,7 @@ function AnswerValue({
           <ChipList values={answer.value} />
         </dd>
       ) : (
-        <dd className="max-w-prose text-sm leading-relaxed whitespace-pre-wrap">
+        <dd className="max-w-prose text-sm leading-relaxed break-words whitespace-pre-wrap">
           {answer.value[0]}
         </dd>
       );
@@ -87,10 +87,6 @@ function AnswerValue({
   }
 }
 
-function isFullWidthAnswer(answer: ApplicationReviewAnswer) {
-  return answer.type === 'long_answer' && answer.value.length === 1;
-}
-
 export function ApplicationAnswersList({
   answers,
   emptyMessage,
@@ -106,11 +102,7 @@ export function ApplicationAnswersList({
       {answers.map((answer) => (
         <div
           key={answer.id}
-          className={
-            isFullWidthAnswer(answer)
-              ? 'flex flex-col gap-1.5 px-4 py-3'
-              : 'px-4 py-3 sm:grid sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)] sm:gap-4'
-          }
+          className="px-4 py-3 sm:grid sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)] sm:gap-4"
         >
           <dt className="text-muted-foreground text-sm">
             {answer.questionLabel}
