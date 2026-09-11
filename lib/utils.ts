@@ -395,18 +395,13 @@ export function getPositionDateInfo(
 const MS_PER_HOUR = 60 * 60 * 1000;
 const MS_PER_DAY = 24 * MS_PER_HOUR;
 
-/**
- * Applicant-facing deadline urgency — distinct from `getPositionDateInfo`'s
- * calm/live/stale emphasis, which stays unchanged so position cards don't
- * inherit this ticket's amber/red tiering. `soon`/`urgent` only ever apply
- * while the window is actually open; not-yet-open renders its Opens date
- * with no tier. Past the draft-status check (excluded upstream via
- * PUBLISHED_POSITION_WHERE), 'unavailable' can only mean status 'closed'.
- */
+/** Applicant-facing deadline urgency — kept separate from `getPositionDateInfo`'s calm/live/stale emphasis so position cards don't inherit this ticket's amber/red tiering. */
 export function getDeadlineInfo(
   position: PositionWindow,
   now: Date = new Date(),
 ): DeadlineInfo | null {
+  if (position.status === 'draft') return null;
+
   const availability = getPositionAvailability(position, now);
 
   if (availability === 'upcoming' && position.opensAt)
