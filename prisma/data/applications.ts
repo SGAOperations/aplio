@@ -215,10 +215,7 @@ export async function getMyApplications(
   return applications.map(toPublicApplication);
 }
 
-// Shared by getRecentMyApplications and getClosingSoonDraftCount so the two
-// can never disagree about which drafts count as at-risk. The opens gate
-// (OR opensAt null/past) keeps a not-yet-open position from floating —
-// nothing is actionable on it yet.
+// Shared by getRecentMyApplications and getClosingSoonDraftCount so they can't disagree; opens gate keeps a not-yet-open position from floating.
 function buildAtRiskDraftWhere(
   userId: string,
   now: Date,

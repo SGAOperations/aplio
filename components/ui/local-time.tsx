@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { useSyncExternalStore } from 'react';
 
 import { ORG_TIMEZONE } from '@/lib/constants';
@@ -10,6 +11,8 @@ interface LocalTimeProps {
   date: Date;
   precision?: 'date' | 'datetime' | 'relative';
   className?: string;
+  // Overrides the visible text (e.g. a countdown) while dateTime/title still come from `date`.
+  children?: ReactNode;
 }
 
 // No-op subscribe: the viewer's timezone never changes during a session, so this
@@ -33,15 +36,17 @@ export function LocalTime({
   date,
   precision = 'date',
   className,
+  children,
 }: LocalTimeProps) {
   const timeZone = useViewerTimeZone();
   const isoString = date.toISOString();
   const title = formatInstant(date, { precision: 'datetime', timeZone });
 
   const display =
-    precision === 'relative'
+    children ??
+    (precision === 'relative'
       ? formatRelativeTime(date, new Date(), timeZone)
-      : formatInstant(date, { precision, timeZone });
+      : formatInstant(date, { precision, timeZone }));
 
   return (
     <time dateTime={isoString} title={title} className={cn(className)}>

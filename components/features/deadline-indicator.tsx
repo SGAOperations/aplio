@@ -48,9 +48,11 @@ export function DeadlineIndicator({
       return (
         <Badge variant="warning">
           <STATE_ICONS.warning />
-          {variant === 'compact'
-            ? `${info.compactCountdown} left`
-            : `${info.label} ${info.countdown}`}
+          <LocalTime date={info.date} precision="date">
+            {variant === 'compact'
+              ? `${info.compactCountdown} left`
+              : `${info.label} ${info.countdown}`}
+          </LocalTime>
         </Badge>
       );
 
@@ -59,9 +61,11 @@ export function DeadlineIndicator({
       return (
         <Badge variant="destructive">
           <STATE_ICONS.warning />
-          {variant === 'compact'
-            ? `${info.compactCountdown} left`
-            : `${info.label} ${info.countdown}`}
+          <LocalTime date={info.date} precision="date">
+            {variant === 'compact'
+              ? `${info.compactCountdown} left`
+              : `${info.label} ${info.countdown}`}
+          </LocalTime>
         </Badge>
       );
 
