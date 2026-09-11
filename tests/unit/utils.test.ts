@@ -267,7 +267,6 @@ describe('getDeadlineInfo', () => {
       tier: 'past',
       label: 'Closed',
       date: closesAt,
-      countdown: null,
       compactCountdown: null,
     });
   });
@@ -280,7 +279,6 @@ describe('getDeadlineInfo', () => {
       tier: 'past',
       label: 'Closed',
       date: closesAt,
-      countdown: null,
       compactCountdown: null,
     });
   });
@@ -295,7 +293,6 @@ describe('getDeadlineInfo', () => {
       tier: 'urgent',
       label: 'Closes',
       date: closesAt,
-      countdown: 'in 48 hours',
       compactCountdown: '48h',
     });
   });
@@ -328,7 +325,6 @@ describe('getDeadlineInfo', () => {
       tier: 'soon',
       label: 'Closes',
       date: closesAt,
-      countdown: 'in 7 days',
       compactCountdown: '7d',
     });
   });
@@ -343,7 +339,6 @@ describe('getDeadlineInfo', () => {
       tier: 'distant',
       label: 'Closes',
       date: closesAt,
-      countdown: null,
       compactCountdown: null,
     });
   });
@@ -357,28 +352,25 @@ describe('getDeadlineInfo', () => {
       tier: 'upcoming',
       label: 'Opens',
       date: opensAt,
-      countdown: null,
       compactCountdown: null,
     });
   });
 
-  it('singularizes "1 hour" rather than "1 hours"', () => {
+  it('formats the compact countdown in hours below the day boundary', () => {
     const closesAt = new Date(NOW.getTime() + 30 * 60 * 1000);
     const info = getDeadlineInfo(
       { status: 'open', opensAt: null, closesAt },
       NOW,
     );
-    expect(info?.countdown).toBe('in 1 hour');
     expect(info?.compactCountdown).toBe('1h');
   });
 
-  it('pluralizes hours and days once above 1', () => {
+  it('formats the compact countdown in days above the hour boundary', () => {
     const closesAt = new Date(NOW.getTime() + 3 * 24 * 60 * 60 * 1000);
     const info = getDeadlineInfo(
       { status: 'open', opensAt: null, closesAt },
       NOW,
     );
-    expect(info?.countdown).toBe('in 3 days');
     expect(info?.compactCountdown).toBe('3d');
   });
 });
