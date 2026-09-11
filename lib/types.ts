@@ -263,9 +263,7 @@ export type DeadlineInfo = {
   tier: DeadlineTier;
   label: 'Opens' | 'Closes' | 'Closed';
   date: Date;
-  // Long form ("in 5 days") for the table/card; null when no countdown applies.
-  countdown: string | null;
-  // Short form ("5d") for the widget's trailing slot; null when no countdown applies.
+  // Short form ("5d"); null when no countdown applies.
   compactCountdown: string | null;
 };
 

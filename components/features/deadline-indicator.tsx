@@ -28,6 +28,8 @@ export function DeadlineIndicator({
   const isPast = info.tier === 'past';
   const Icon = DEADLINE_TIER_ICONS[info.tier];
 
+  // Deadline column header already says what the date is — the label would
+  // be redundant, except "Opens" which reads as the deadline without it.
   const mutedLine = (
     <span
       className={cn(
@@ -37,8 +39,8 @@ export function DeadlineIndicator({
       )}
     >
       {variant === 'full' && <Icon className="size-4 shrink-0" />}
-      {info.label}
-      {isPast ? ' · ' : ' '}
+      {info.tier === 'upcoming' && `${info.label} `}
+      {isPast && '· '}
       <LocalTime date={info.date} precision="date" />
     </span>
   );
@@ -70,9 +72,7 @@ export function DeadlineIndicator({
       return emphasizedLine(
         'warning',
         <LocalTime date={info.date} precision="date">
-          {variant === 'compact'
-            ? `${info.compactCountdown} left`
-            : `${info.label} ${info.countdown}`}
+          {`${info.compactCountdown} left`}
         </LocalTime>,
       );
 
@@ -81,9 +81,7 @@ export function DeadlineIndicator({
       return emphasizedLine(
         'destructive',
         <LocalTime date={info.date} precision="date">
-          {variant === 'compact'
-            ? `${info.compactCountdown} left`
-            : `${info.label} ${info.countdown}`}
+          {`${info.compactCountdown} left`}
         </LocalTime>,
       );
 
@@ -91,9 +89,7 @@ export function DeadlineIndicator({
       if (!emphasizeUrgency) return mutedLine;
       return emphasizedLine(
         'destructive',
-        <>
-          {info.label} <LocalTime date={info.date} precision="date" />
-        </>,
+        <LocalTime date={info.date} precision="date" />,
       );
 
     default: {
