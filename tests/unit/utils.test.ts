@@ -24,6 +24,7 @@ import {
   formatTableCount,
   getApplicantName,
   getBulkDecisionEmailWarning,
+  getDeadlineInfo,
   getDecisionEmailWarning,
   getEmailLogDescription,
   getEmailLogOccurredAt,
@@ -247,6 +248,138 @@ describe('getPositionDateInfo', () => {
         NOW,
       ),
     ).toBeNull();
+  });
+});
+
+describe('getDeadlineInfo', () => {
+  it('returns null for an accepting position with no closesAt', () => {
+    expect(
+      getDeadlineInfo({ status: 'open', opensAt: null, closesAt: null }, NOW),
+    ).toBeNull();
+  });
+
+  it('reads past for a closed position with a past closesAt', () => {
+    const closesAt = new Date(NOW);
+    closesAt.setDate(closesAt.getDate() - 5);
+    expect(
+      getDeadlineInfo({ status: 'closed', opensAt: null, closesAt }, NOW),
+    ).toEqual({
+      tier: 'past',
+      label: 'Closed',
+      date: closesAt,
+      countdown: null,
+      compactCountdown: null,
+    });
+  });
+
+  it('reads past for an open position past its close date', () => {
+    const closesAt = new Date(NOW.getTime() - 1);
+    expect(
+      getDeadlineInfo({ status: 'open', opensAt: null, closesAt }, NOW),
+    ).toEqual({
+      tier: 'past',
+      label: 'Closed',
+      date: closesAt,
+      countdown: null,
+      compactCountdown: null,
+    });
+  });
+
+  it('is urgent at exactly the 48-hour boundary (inclusive)', () => {
+    const closesAt = new Date(NOW.getTime() + 48 * 60 * 60 * 1000);
+    const info = getDeadlineInfo(
+      { status: 'open', opensAt: null, closesAt },
+      NOW,
+    );
+    expect(info).toEqual({
+      tier: 'urgent',
+      label: 'Closes',
+      date: closesAt,
+      countdown: 'in 48 hours',
+      compactCountdown: '48h',
+    });
+  });
+
+  it('is still urgent at 47 hours 59 minutes', () => {
+    const closesAt = new Date(NOW.getTime() + (47 * 60 + 59) * 60 * 1000);
+    const info = getDeadlineInfo(
+      { status: 'open', opensAt: null, closesAt },
+      NOW,
+    );
+    expect(info?.tier).toBe('urgent');
+  });
+
+  it('is soon just past the 48-hour boundary', () => {
+    const closesAt = new Date(NOW.getTime() + 48 * 60 * 60 * 1000 + 1);
+    const info = getDeadlineInfo(
+      { status: 'open', opensAt: null, closesAt },
+      NOW,
+    );
+    expect(info?.tier).toBe('soon');
+  });
+
+  it('is soon at exactly the 7-day boundary (inclusive)', () => {
+    const closesAt = new Date(NOW.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const info = getDeadlineInfo(
+      { status: 'open', opensAt: null, closesAt },
+      NOW,
+    );
+    expect(info).toEqual({
+      tier: 'soon',
+      label: 'Closes',
+      date: closesAt,
+      countdown: 'in 7 days',
+      compactCountdown: '7d',
+    });
+  });
+
+  it('is distant just past the 7-day boundary', () => {
+    const closesAt = new Date(NOW.getTime() + 7 * 24 * 60 * 60 * 1000 + 60_000);
+    const info = getDeadlineInfo(
+      { status: 'open', opensAt: null, closesAt },
+      NOW,
+    );
+    expect(info).toEqual({
+      tier: 'distant',
+      label: 'Closes',
+      date: closesAt,
+      countdown: null,
+      compactCountdown: null,
+    });
+  });
+
+  it('is upcoming for an open position not yet open, with no countdown', () => {
+    const opensAt = new Date(NOW);
+    opensAt.setDate(opensAt.getDate() + 5);
+    expect(
+      getDeadlineInfo({ status: 'open', opensAt, closesAt: null }, NOW),
+    ).toEqual({
+      tier: 'upcoming',
+      label: 'Opens',
+      date: opensAt,
+      countdown: null,
+      compactCountdown: null,
+    });
+  });
+
+  it('singularizes "1 hour" rather than "1 hours"', () => {
+    const closesAt = new Date(NOW.getTime() + 30 * 60 * 1000);
+    const info = getDeadlineInfo(
+      { status: 'open', opensAt: null, closesAt },
+      NOW,
+    );
+    expect(info?.countdown).toBe('in 1 hour');
+    expect(info?.compactCountdown).toBe('1h');
+  });
+
+  it('pluralizes hours and days once above 1', () => {
+    const closesAt = new Date(NOW.getTime() + 3 * 24 * 60 * 60 * 1000);
+    const info = getDeadlineInfo(
+      { status: 'open', opensAt: null, closesAt },
+      NOW,
+    );
+    expect(info?.countdown).toBe('in 3 days');
+    expect(info?.compactCountdown).toBe('3d');
   });
 });
 

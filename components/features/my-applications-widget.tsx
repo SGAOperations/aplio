@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import {
+  getClosingSoonDraftCount,
   getMyApplicationStatusCounts,
   getRecentMyApplications,
 } from '@/prisma/data/applications';
@@ -9,6 +10,7 @@ import { APPLICATION_STATUS_LABELS } from '@/lib/constants';
 import { CONCEPT_ICONS } from '@/lib/icons';
 import { type MyApplicationListItem } from '@/lib/types';
 
+import { DeadlineIndicator } from '@/components/features/deadline-indicator';
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
 import { LocalTime } from '@/components/ui/local-time';
 import { SectionCard, SectionCardEmpty } from '@/components/ui/section-card';
@@ -18,7 +20,10 @@ interface MyApplicationsWidgetProps {
   limit?: number;
 }
 
-function buildCountsSummary(counts: Partial<Record<string, number>>): string {
+function buildCountsSummary(
+  counts: Partial<Record<string, number>>,
+  closingSoonCount: number,
+): string {
   // Drafts shown separately; skip zero counts.
   const draftCount = counts['draft'] ?? 0;
   const submittedParts: string[] = [];
@@ -37,6 +42,7 @@ function buildCountsSummary(counts: Partial<Record<string, number>>): string {
   if (submittedParts.length > 0) parts.push(...submittedParts);
   if (draftCount > 0)
     parts.push(`${draftCount} ${draftCount === 1 ? 'draft' : 'drafts'}`);
+  if (closingSoonCount > 0) parts.push(`${closingSoonCount} closing soon`);
 
   return parts.join(' · ');
 }
@@ -45,12 +51,14 @@ export async function MyApplicationsWidget({
   userId,
   limit = 3,
 }: MyApplicationsWidgetProps) {
-  const [applications, counts] = await Promise.all([
-    getRecentMyApplications(userId, limit),
+  const now = new Date();
+  const [applications, counts, closingSoonCount] = await Promise.all([
+    getRecentMyApplications(userId, limit, now),
     getMyApplicationStatusCounts(userId),
+    getClosingSoonDraftCount(userId, now),
   ]);
 
-  const summary = buildCountsSummary(counts);
+  const summary = buildCountsSummary(counts, closingSoonCount);
 
   return (
     <SectionCard
@@ -78,7 +86,7 @@ export async function MyApplicationsWidget({
           }
         />
       ) : (
-        <ApplicationList applications={applications} />
+        <ApplicationList applications={applications} now={now} />
       )}
     </SectionCard>
   );
@@ -86,8 +94,10 @@ export async function MyApplicationsWidget({
 
 function ApplicationList({
   applications,
+  now,
 }: {
   applications: MyApplicationListItem[];
+  now: Date;
 }) {
   return (
     <ul className="divide-y">
@@ -105,7 +115,12 @@ function ApplicationList({
           <ApplicationStatusBadge status={app.status} />
           <span className="text-muted-foreground shrink-0 text-xs">
             {app.status === 'draft' ? (
-              '—'
+              <DeadlineIndicator
+                variant="compact"
+                position={app.position}
+                now={now}
+                emphasizeUrgency
+              />
             ) : (
               <LocalTime date={app.submittedAt} precision="date" />
             )}
