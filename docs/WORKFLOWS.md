@@ -679,6 +679,7 @@ An admin is a **manager on every position**: every [Position manager](#position-
   - No emails match the current filters → the table's "No emails match your filters." row/card; **Clear filters** resets search, status and template together.
   - A fresh environment with zero `EmailLog` rows → the **"No emails yet"** empty state, no action button (the page cannot send anything).
   - A quiet week → the failure strip's three cards still render with `0` and the caption reads **"No delivery failures in the last 7 days."** instead of hiding the strip.
+  - Mail is going out but no delivery event has come back within 30 minutes → a warning callout appears above the failure strip: **"Delivery events aren't arriving."** plus the count sent in the last 7 days with none confirmed delivered — a signal the Resend webhook likely isn't registered or subscribed correctly. It clears itself on the first `delivered`/`bounced`/`complained`/`suppressed` event; a healthy week shows nothing extra.
 - **End state** — read-only. There is no resend, retry, or suppression-list control anywhere on the page, desktop or mobile; the log itself is the only place any admin can see a sign-in code's subject and recipient, which is why the route, its nav entry and its queries all sit behind the same admin gate.
 
 ### Known open

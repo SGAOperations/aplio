@@ -42,6 +42,10 @@ Open `.env.local` and fill in the required variables:
 
 > **Note:** Prisma CLI commands (`prisma:migrate`, `prisma:seed`) read from `.env`; Next.js reads `.env.local`. Both files are gitignored. For local development you can keep the same values in both.
 
+#### Resend delivery webhook
+
+Register `POST {BETTER_AUTH_URL}/api/webhooks/resend` as a webhook endpoint in the Resend dashboard, subscribed to exactly `email.delivered`, `email.bounced`, `email.complained` and `email.suppressed` — `email.sent` is intentionally not subscribed, since the app already knows what it sent. Copy the endpoint's signing secret into `RESEND_WEBHOOK_SECRET` for **every** Vercel environment that sends mail (Production, Preview, Development); a missing or blank value makes the route throw before it can verify anything.
+
 ### 2. Install dependencies
 
 ```bash
