@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { toast } from 'sonner';
 
@@ -41,15 +41,20 @@ export function FilePreviewDialog({
   filename,
   children,
 }: FilePreviewDialogProps) {
+  const [open, setOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [preview, setPreview] = useState<Preview | null>(null);
+  const requestIdRef = useRef(0);
 
   async function handleOpen() {
+    const requestId = ++requestIdRef.current;
     setIsPending(true);
     try {
       const result = await downloadQuestionFileAnswer(target);
+      if (requestId !== requestIdRef.current) return;
       if (isError(result)) {
         toast.error(result.error);
+        setOpen(false);
         return;
       }
       const blob = base64ToBlob(result.data, result.contentType);
@@ -58,23 +63,27 @@ export function FilePreviewDialog({
         contentType: result.contentType,
       });
     } catch {
+      if (requestId !== requestIdRef.current) return;
       toast.error('Something went wrong');
+      setOpen(false);
     } finally {
-      setIsPending(false);
+      if (requestId === requestIdRef.current) setIsPending(false);
     }
   }
 
-  function handleOpenChange(open: boolean) {
-    if (open) {
+  function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen);
+    if (nextOpen) {
       void handleOpen();
       return;
     }
+    requestIdRef.current++;
     if (preview) URL.revokeObjectURL(preview.objectUrl);
     setPreview(null);
   }
 
   return (
-    <Dialog onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-3xl">
         <DialogTitle className="truncate" title={filename}>
