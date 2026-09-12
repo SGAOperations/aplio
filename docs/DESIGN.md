@@ -66,6 +66,7 @@ Any change to a brand/status token must keep ≥4.5:1 contrast against its paire
 - **Forms:** use the shadcn `Form`/`FieldGroup` primitives with `FormLabel`; every input has an associated label; surface validation with `data-invalid` / inline `FormMessage`, not ad-hoc text. (Form wiring rules: `ENGINEERING.md` §4.)
 - **State surfaces:** all three required (`ENGINEERING.md` §4) — `<Suspense>` + skeleton for loading, `error.tsx`/inline error for failure, a designed empty state (icon + one line + primary action) for zero items. Secondary cards on a detail page may opt into `SectionCardEmpty`'s compact variant (one muted line, no icon/action) instead — the roomy form stays the default for dashboards.
 - **Focus & overlays:** never `outline-none` without a visible replacement; rely on Radix focus trapping in dialogs/sheets — don't break it with custom wrappers.
+- **Section sub-nav.** A page section opts into the sidebar's in-page nav by giving its outermost `<section>` an `id` plus `data-section-nav="<Label>"` (matching its visible heading) and `scroll-mt-6`. The sidebar discovers these from the DOM under the active nav item — nothing to register elsewhere, and a group that never renders (e.g. an empty position status) contributes nothing. Fewer than two opted-in sections on a page renders no sub-nav. This is secondary navigation only — never the sole way to reach a section; every opted-in section must also be reachable by scrolling.
 
 ## 6. Iconography
 
