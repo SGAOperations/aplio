@@ -7,7 +7,7 @@ export const SECTION_NAV_SELECTOR = '[data-section-nav][id]';
 export const SECTION_NAV_ROOT_MARGIN = '0px 0px -70% 0px';
 
 // Preserves document order; drops empty/duplicate ids or labels; fewer than
-// two survivors means no sub-nav (per the ticket's acceptance criteria).
+// two survivors means no sub-nav.
 export function buildSectionNavItems(
   raw: Array<{ id: string; label: string | null }>,
 ): SectionNavItem[] {

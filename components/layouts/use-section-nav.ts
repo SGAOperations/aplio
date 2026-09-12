@@ -27,9 +27,7 @@ function sectionsKey(sections: SectionNavItem[]): string {
   return sections.map((s) => `${s.id}|${s.label}`).join(',');
 }
 
-// Sole permitted useEffect here: subscribing to two browser-native observers
-// (IntersectionObserver for scroll-spy, MutationObserver for streamed
-// sections) — not data fetching, not state sync from props.
+// Sole permitted useEffect: subscribes to native observers, not data fetching.
 export function useSectionNav(): UseSectionNavResult {
   const pathname = usePathname();
   const [sections, setSections] = useState<SectionNavItem[]>([]);

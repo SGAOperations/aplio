@@ -41,20 +41,23 @@ export function SectionNavList({
   );
 }
 
-// Sheet needs the exit animation to run after the click, not fight a scroll —
-// close first, scroll on the next frame. Desktop has no onNavigate and keeps
-// the anchor's native scrollIntoView-on-click behavior.
+// preventDefault + replaceState keeps history flat on both surfaces; Sheet
+// closes first so its exit animation doesn't fight the scroll.
 function handleClick(
   event: MouseEvent<HTMLAnchorElement>,
   id: string,
   onNavigate?: () => void,
 ): void {
-  if (!onNavigate) return;
   if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0)
     return;
 
   event.preventDefault();
-  onNavigate();
+  history.replaceState(
+    null,
+    '',
+    window.location.pathname + window.location.search + '#' + id,
+  );
+  onNavigate?.();
   requestAnimationFrame(() => {
     document.getElementById(id)?.scrollIntoView({ block: 'start' });
   });
