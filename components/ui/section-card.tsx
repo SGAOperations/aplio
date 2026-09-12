@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const HEADER_CLASS = 'border-b p-4';
+const HEADER_CLASS = 'border-b px-4 py-3 pb-3! grid-rows-1';
 const CONTENT_CLASS = 'p-0';
 
 interface SectionCardLink {
@@ -124,7 +124,8 @@ type SectionCardSkeletonRowShape =
   | 'badge-meta'
   | 'stacked-action'
   | 'timeline'
-  | 'badge-stacked';
+  | 'badge-stacked'
+  | 'form-field';
 
 interface SectionCardSkeletonProps {
   rows?: number;
@@ -215,6 +216,13 @@ function SectionCardSkeletonRow({
             <Skeleton className="h-5 w-20 rounded-md" />
           </div>
           <Skeleton className="mt-1.5 h-3 w-48" />
+        </div>
+      );
+    case 'form-field':
+      return (
+        <div className="flex flex-col gap-2 border-b p-4 last:border-0">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-9 w-full" />
         </div>
       );
     default: {

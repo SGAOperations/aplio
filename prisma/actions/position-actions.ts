@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 
 import { z } from 'zod/v4';
 
+import type { PositionStatus, User } from '@/prisma/client';
 import { checkPositionEditable } from '@/prisma/data/positions';
 
 import {
@@ -17,38 +18,24 @@ import {
   POSITION_CLOSES_AT_ORDER_ERROR,
   POSITION_CLOSES_AT_PAST_ERROR,
   POSITION_DELETE_BLOCKED_ERROR,
-  POSITION_DESCRIPTION_MAX_LENGTH,
   POSITION_MANAGERS_REQUIRED_ERROR,
   POSITION_OPENS_AT_ORDER_ERROR,
   POSITION_OPENS_AT_PAST_ERROR,
   POSITION_OPEN_REQUIRES_ADMIN_ERROR,
+  POSITION_STATUS_VALUES,
   POSITION_UNPUBLISH_BLOCKED_ERROR,
   createPositionFormSchema,
   getPositionStatusTransitionError,
+  positionDescriptionSchema,
   positionPastDateIssues,
+  positionScheduleShape,
+  positionTitleSchema,
   validatePositionDates,
 } from '@/lib/constants';
 import { orgDayEnd, orgDayStart, toOrgDayString } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
 import type { PositionManager, UserSearchResult } from '@/lib/types';
 import { type ResponseType, displayUserName } from '@/lib/utils';
-
-// Past-date check runs separately in updatePosition, against the loaded row's
-// previous dates — the schema itself stays ordering-only.
-const updatePositionSchema = z
-  .object({
-    id: z.string().min(1),
-    title: z.string().min(1),
-    description: z
-      .string()
-      .max(POSITION_DESCRIPTION_MAX_LENGTH)
-      .optional()
-      .default(''),
-    status: z.enum(['draft', 'open', 'closed']),
-    opensAt: z.iso.date().optional(),
-    closesAt: z.iso.date().optional(),
-  })
-  .superRefine(validatePositionDates);
 
 // The refinement's messages are the only user-actionable parse failures.
 const parseError = (error: z.ZodError) =>
@@ -109,18 +96,20 @@ export async function createPosition(
   return { id: position.id };
 }
 
-export async function updatePosition(
-  input: unknown,
-): Promise<void | { error: string }> {
-  const parsed = updatePositionSchema.safeParse(input);
-  if (!parsed.success) return { error: parseError(parsed.error) };
+type PositionEditRow = {
+  id: string;
+  status: PositionStatus;
+  opensAt: Date | null;
+  closesAt: Date | null;
+};
 
-  const { id, title, description, status, opensAt, closesAt } = parsed.data;
-
+// Existence check runs before the access guard so a stale link gives an actionable message.
+async function authorizePositionEdit(
+  id: string,
+): Promise<{ position: PositionEditRow; user: User } | { error: string }> {
   // Before any DB work: an earlier query would let an anonymous caller probe ids.
   await getCurrentUser();
 
-  // Before the access guard, so a stale link gives an actionable message.
   const existing = await prisma.position.findFirst({
     where: { id, deletedAt: null },
     select: { id: true, status: true, opensAt: true, closesAt: true },
@@ -132,8 +121,92 @@ export async function updatePosition(
   if (!(await checkPositionEditable(id, user)))
     return { error: ARCHIVED_POSITION_EDIT_ERROR };
 
-  if (status === 'open' && existing.status !== 'open' && !user.isAdmin)
-    return { error: POSITION_OPEN_REQUIRES_ADMIN_ERROR };
+  return { position: existing, user };
+}
+
+// title reaches every one of these — a status flip changes what every surface shows.
+function revalidatePositionSurfaces(id: string) {
+  revalidatePath('/positions');
+  revalidatePath('/manage/positions');
+  revalidatePath(`/positions/${id}`);
+  revalidatePath(`/manage/positions/${id}/edit`);
+  revalidatePath('/');
+  revalidatePath('/applications');
+  revalidatePath('/manage/applications');
+}
+
+const updatePositionTitleSchema = z.object({
+  id: z.string().min(1),
+  title: positionTitleSchema,
+});
+
+export async function updatePositionTitle(
+  input: unknown,
+): Promise<void | { error: string }> {
+  const parsed = updatePositionTitleSchema.safeParse(input);
+  if (!parsed.success) return { error: 'Invalid input' };
+
+  const auth = await authorizePositionEdit(parsed.data.id);
+  if ('error' in auth) return auth;
+
+  const updateResult = await prisma.position.updateMany({
+    where: { id: parsed.data.id, deletedAt: null },
+    data: { title: parsed.data.title, updatedById: auth.user.id },
+  });
+  if (updateResult.count === 0)
+    return { error: 'This position no longer exists.' };
+
+  revalidatePositionSurfaces(parsed.data.id);
+}
+
+const updatePositionDescriptionSchema = z.object({
+  id: z.string().min(1),
+  description: positionDescriptionSchema,
+});
+
+export async function updatePositionDescription(
+  input: unknown,
+): Promise<void | { error: string }> {
+  const parsed = updatePositionDescriptionSchema.safeParse(input);
+  if (!parsed.success) return { error: 'Invalid input' };
+
+  const auth = await authorizePositionEdit(parsed.data.id);
+  if ('error' in auth) return auth;
+
+  const updateResult = await prisma.position.updateMany({
+    where: { id: parsed.data.id, deletedAt: null },
+    data: { description: parsed.data.description, updatedById: auth.user.id },
+  });
+  if (updateResult.count === 0)
+    return { error: 'This position no longer exists.' };
+
+  revalidatePositionSurfaces(parsed.data.id);
+}
+
+// Ordering only — past-date runs separately below, against the loaded row's
+// previous dates, matching how updatePositionStatus reads closesAtPast.
+const updatePositionScheduleSchema = z
+  .object({ id: z.string().min(1), ...positionScheduleShape })
+  .superRefine(validatePositionDates);
+
+const scheduleParseError = (error: z.ZodError) =>
+  error.issues.find(
+    (issue) =>
+      issue.message === POSITION_OPENS_AT_ORDER_ERROR ||
+      issue.message === POSITION_CLOSES_AT_ORDER_ERROR,
+  )?.message ?? 'Invalid input';
+
+export async function updatePositionSchedule(
+  input: unknown,
+): Promise<void | { error: string }> {
+  const parsed = updatePositionScheduleSchema.safeParse(input);
+  if (!parsed.success) return { error: scheduleParseError(parsed.error) };
+
+  const { id, opensAt, closesAt } = parsed.data;
+
+  const auth = await authorizePositionEdit(id);
+  if ('error' in auth) return auth;
+  const { position: existing, user } = auth;
 
   const previous = {
     opensAt: existing.opensAt ? toOrgDayString(existing.opensAt) : undefined,
@@ -147,23 +220,58 @@ export async function updatePosition(
   if (pastDateIssues.length > 0)
     return { error: pastDateIssues[0]?.message ?? 'Invalid input' };
 
-  const isUnpublishing = status === 'draft' && existing.status !== 'draft';
-  if (status !== existing.status) {
-    const hasApplications =
-      status === 'draft'
-        ? (await prisma.application.count({
-            where: { positionId: id, deletedAt: null },
-          })) > 0
-        : false;
-    const closesAtPast = !!closesAt && closesAt < toOrgDayString(new Date());
+  const updateResult = await prisma.position.updateMany({
+    where: { id, deletedAt: null },
+    data: {
+      opensAt: opensAt ? orgDayStart(opensAt) : null,
+      closesAt: closesAt ? orgDayEnd(closesAt) : null,
+      updatedById: user.id,
+    },
+  });
+  if (updateResult.count === 0)
+    return { error: 'This position no longer exists.' };
 
-    const transitionError = getPositionStatusTransitionError(
-      existing.status,
-      status,
-      { hasApplications, closesAtPast },
-    );
-    if (transitionError) return { error: transitionError };
-  }
+  revalidatePositionSurfaces(id);
+}
+
+const updatePositionStatusSchema = z.object({
+  id: z.string().min(1),
+  status: z.enum(POSITION_STATUS_VALUES),
+});
+
+export async function updatePositionStatus(
+  input: unknown,
+): Promise<void | { error: string }> {
+  const parsed = updatePositionStatusSchema.safeParse(input);
+  if (!parsed.success) return { error: 'Invalid input' };
+
+  const { id, status } = parsed.data;
+
+  const auth = await authorizePositionEdit(id);
+  if ('error' in auth) return auth;
+  const { position: existing, user } = auth;
+
+  if (status === 'open' && existing.status !== 'open' && !user.isAdmin)
+    return { error: POSITION_OPEN_REQUIRES_ADMIN_ERROR };
+
+  const isUnpublishing = status === 'draft' && existing.status !== 'draft';
+  const hasApplications =
+    status === 'draft'
+      ? (await prisma.application.count({
+          where: { positionId: id, deletedAt: null },
+        })) > 0
+      : false;
+  // Read from the stored row, never a submitted value — the client never
+  // gets to assert its own closesAt is (or isn't) in the past.
+  const closesAtPast =
+    existing.closesAt !== null && existing.closesAt < new Date();
+
+  const transitionError = getPositionStatusTransitionError(
+    existing.status,
+    status,
+    { hasApplications, closesAtPast },
+  );
+  if (transitionError) return { error: transitionError };
 
   // Folded into the where (not a separate count) so a concurrent first
   // application can't slip past the check above — same shape as deletePosition.
@@ -175,14 +283,7 @@ export async function updatePosition(
         ? { applications: { none: { deletedAt: null } } }
         : {}),
     },
-    data: {
-      title,
-      description,
-      status,
-      opensAt: opensAt ? orgDayStart(opensAt) : null,
-      closesAt: closesAt ? orgDayEnd(closesAt) : null,
-      updatedById: user.id,
-    },
+    data: { status, updatedById: user.id },
   });
 
   if (updateResult.count === 0) {
@@ -197,14 +298,7 @@ export async function updatePosition(
     };
   }
 
-  revalidatePath('/positions');
-  revalidatePath('/manage/positions');
-  revalidatePath(`/positions/${id}`);
-  revalidatePath(`/manage/positions/${id}/edit`);
-  // status can flip open <-> draft, changing what every surface shows.
-  revalidatePath('/');
-  revalidatePath('/applications');
-  revalidatePath('/manage/applications');
+  revalidatePositionSurfaces(id);
 }
 
 export async function deletePosition(
@@ -258,7 +352,7 @@ export async function addPositionManager(
 
   const { positionId, email } = parsed.data;
 
-  // Authenticate before the existence query — see updatePosition.
+  // Authenticate before the existence query — see authorizePositionEdit.
   await getCurrentUser();
 
   const exists = await prisma.position.findFirst({
@@ -268,6 +362,9 @@ export async function addPositionManager(
   if (!exists) return { error: 'This position no longer exists.' };
 
   const user = await requirePositionAccess(positionId);
+
+  if (!(await checkPositionEditable(positionId, user)))
+    return { error: ARCHIVED_POSITION_EDIT_ERROR };
 
   // A stale search result must not connect a deleted user via a raw P2025.
   const target = await prisma.user.findFirst({
@@ -298,7 +395,7 @@ export async function removePositionManager(
 
   const { positionId, userId } = parsed.data;
 
-  // Authenticate before the existence query — see updatePosition.
+  // Authenticate before the existence query — see authorizePositionEdit.
   await getCurrentUser();
 
   const exists = await prisma.position.findFirst({
@@ -308,6 +405,9 @@ export async function removePositionManager(
   if (!exists) return { error: 'This position no longer exists.' };
 
   const user = await requirePositionAccess(positionId);
+
+  if (!(await checkPositionEditable(positionId, user)))
+    return { error: ARCHIVED_POSITION_EDIT_ERROR };
 
   // A manager may remove any other but never themselves; admins are exempt.
   if (userId === user.id && !user.isAdmin)

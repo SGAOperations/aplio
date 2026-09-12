@@ -7,10 +7,14 @@ import {
 import { actAs } from '@/tests/stubs/auth-server';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { updatePosition } from '@/prisma/actions/position-actions';
+import {
+  updatePositionStatus,
+  updatePositionTitle,
+} from '@/prisma/actions/position-actions';
 import type { Position, User } from '@/prisma/client';
 
 import {
+  POSITION_CLOSED_DRAFT_BLOCKED_ERROR,
   POSITION_DRAFT_CLOSE_BLOCKED_ERROR,
   POSITION_OPEN_REQUIRES_ADMIN_ERROR,
 } from '@/lib/constants';
@@ -35,14 +39,12 @@ async function makePosition(
   return createTestPosition(admin, { managers: [manager], status });
 }
 
-describe('updatePosition — status-transition permission', () => {
+describe('updatePositionStatus — status-transition permission', () => {
   it('refuses a manager moving draft to open, row unchanged', async () => {
     const position = await makePosition('draft');
     actAs(manager);
-    const result = await updatePosition({
+    const result = await updatePositionStatus({
       id: position.id,
-      title: position.title,
-      description: '',
       status: 'open',
     });
     expect(result).toEqual({ error: POSITION_OPEN_REQUIRES_ADMIN_ERROR });
@@ -57,10 +59,8 @@ describe('updatePosition — status-transition permission', () => {
   it('refuses a manager moving closed to open, row unchanged', async () => {
     const position = await makePosition('closed');
     actAs(manager);
-    const result = await updatePosition({
+    const result = await updatePositionStatus({
       id: position.id,
-      title: position.title,
-      description: '',
       status: 'open',
     });
     expect(result).toEqual({ error: POSITION_OPEN_REQUIRES_ADMIN_ERROR });
@@ -75,10 +75,8 @@ describe('updatePosition — status-transition permission', () => {
   it('allows a manager moving open to closed', async () => {
     const position = await makePosition('open');
     actAs(manager);
-    const result = await updatePosition({
+    const result = await updatePositionStatus({
       id: position.id,
-      title: position.title,
-      description: '',
       status: 'closed',
     });
     expect(result).toBeUndefined();
@@ -93,10 +91,8 @@ describe('updatePosition — status-transition permission', () => {
   it('refuses a manager moving draft to closed, row unchanged', async () => {
     const position = await makePosition('draft');
     actAs(manager);
-    const result = await updatePosition({
+    const result = await updatePositionStatus({
       id: position.id,
-      title: position.title,
-      description: '',
       status: 'closed',
     });
     expect(result).toEqual({ error: POSITION_DRAFT_CLOSE_BLOCKED_ERROR });
@@ -108,34 +104,35 @@ describe('updatePosition — status-transition permission', () => {
     expect(row.status).toBe('draft');
   });
 
-  it('allows a manager moving closed to draft', async () => {
+  it('refuses a manager moving closed to draft, row unchanged — never legal', async () => {
     const position = await makePosition('closed');
     actAs(manager);
-    const result = await updatePosition({
+    const result = await updatePositionStatus({
       id: position.id,
-      title: position.title,
-      description: '',
       status: 'draft',
     });
-    expect(result).toBeUndefined();
+    expect(result).toEqual({ error: POSITION_CLOSED_DRAFT_BLOCKED_ERROR });
 
     const row = await prisma.position.findUniqueOrThrow({
       where: { id: position.id },
       select: { status: true },
     });
-    expect(row.status).toBe('draft');
+    expect(row.status).toBe('closed');
   });
 
   it('lets a manager save an unchanged open status along with other edits', async () => {
     const position = await makePosition('open');
     actAs(manager);
-    const result = await updatePosition({
+    const titleResult = await updatePositionTitle({
       id: position.id,
       title: `${TEST_PREFIX}manager-edited-title`,
-      description: '',
+    });
+    expect(titleResult).toBeUndefined();
+    const statusResult = await updatePositionStatus({
+      id: position.id,
       status: 'open',
     });
-    expect(result).toBeUndefined();
+    expect(statusResult).toBeUndefined();
 
     const row = await prisma.position.findUniqueOrThrow({
       where: { id: position.id },
@@ -145,66 +142,47 @@ describe('updatePosition — status-transition permission', () => {
     expect(row.title).toBe(`${TEST_PREFIX}manager-edited-title`);
   });
 
-  it('allows an admin every transition, including to open', async () => {
+  it('allows an admin every legal transition, including to open', async () => {
     actAs(admin);
 
     const draftToOpen = await makePosition('draft');
     expect(
-      await updatePosition({
-        id: draftToOpen.id,
-        title: draftToOpen.title,
-        description: '',
-        status: 'open',
-      }),
+      await updatePositionStatus({ id: draftToOpen.id, status: 'open' }),
     ).toBeUndefined();
 
     const closedToOpen = await makePosition('closed');
     expect(
-      await updatePosition({
-        id: closedToOpen.id,
-        title: closedToOpen.title,
-        description: '',
-        status: 'open',
-      }),
+      await updatePositionStatus({ id: closedToOpen.id, status: 'open' }),
     ).toBeUndefined();
 
     const openToClosed = await makePosition('open');
     expect(
-      await updatePosition({
-        id: openToClosed.id,
-        title: openToClosed.title,
-        description: '',
-        status: 'closed',
-      }),
-    ).toBeUndefined();
-
-    const closedToDraft = await makePosition('closed');
-    expect(
-      await updatePosition({
-        id: closedToDraft.id,
-        title: closedToDraft.title,
-        description: '',
-        status: 'draft',
-      }),
+      await updatePositionStatus({ id: openToClosed.id, status: 'closed' }),
     ).toBeUndefined();
 
     const rows = await prisma.position.findMany({
-      where: {
-        id: {
-          in: [
-            draftToOpen.id,
-            closedToOpen.id,
-            openToClosed.id,
-            closedToDraft.id,
-          ],
-        },
-      },
+      where: { id: { in: [draftToOpen.id, closedToOpen.id, openToClosed.id] } },
       select: { id: true, status: true },
     });
     const statusById = new Map(rows.map((r) => [r.id, r.status]));
     expect(statusById.get(draftToOpen.id)).toBe('open');
     expect(statusById.get(closedToOpen.id)).toBe('open');
     expect(statusById.get(openToClosed.id)).toBe('closed');
-    expect(statusById.get(closedToDraft.id)).toBe('draft');
+  });
+
+  it('refuses even an admin moving closed to draft, row unchanged', async () => {
+    const position = await makePosition('closed');
+    actAs(admin);
+    const result = await updatePositionStatus({
+      id: position.id,
+      status: 'draft',
+    });
+    expect(result).toEqual({ error: POSITION_CLOSED_DRAFT_BLOCKED_ERROR });
+
+    const row = await prisma.position.findUniqueOrThrow({
+      where: { id: position.id },
+      select: { status: true },
+    });
+    expect(row.status).toBe('closed');
   });
 });
