@@ -7,7 +7,6 @@ import {
   orgDayEnd,
   orgDayStart,
   previousOrgDay,
-  previousOrgWeek,
   toOrgDayString,
 } from '@/lib/dates';
 
@@ -116,30 +115,6 @@ describe('currentOrgWeekStart', () => {
 
   it('resolves a Monday to itself', () => {
     expect(currentOrgWeekStart(noonOn('2026-03-09'))).toBe('2026-03-09');
-  });
-});
-
-describe('previousOrgWeek', () => {
-  it('spans a full Monday-Sunday week before the current one', () => {
-    const week = previousOrgWeek(noonOn('2026-03-23'));
-    expect(week.startDay).toBe('2026-03-16');
-    expect(week.endDay).toBe('2026-03-22');
-    expect(week.start).toEqual(orgDayStart('2026-03-16'));
-    expect(week.end).toEqual(orgDayEnd('2026-03-22'));
-  });
-
-  it('still spans exactly 7 calendar days across a DST change', () => {
-    // now's current week is 2026-03-09..15, so the previous week is
-    // 2026-03-02..08 — the Sunday it ends on is the spring-forward day.
-    const week = previousOrgWeek(noonOn('2026-03-09'));
-    expect(week.startDay).toBe('2026-03-02');
-    expect(week.endDay).toBe('2026-03-08');
-
-    // Spring-forward inside the week loses an hour, so the instant span is
-    // 167 hours, not 168 — the calendar-day count is still exactly 7.
-    const hours =
-      (week.end.getTime() - week.start.getTime() + 1) / (1000 * 60 * 60);
-    expect(hours).toBeCloseTo(167, 5);
   });
 });
 

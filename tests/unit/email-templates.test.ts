@@ -259,84 +259,47 @@ describe('managerDailyDigestEmail', () => {
 });
 
 describe('managerWeeklyDigestEmail', () => {
-  const base = {
-    weekStart: '2026-03-02',
-    weekEnd: '2026-03-08',
-    openPositions: [],
-  };
+  const base = { asOfDay: '2026-03-09', openPositions: [] };
 
-  it('uses the new-applications subject when there is new activity', () => {
+  it('sums the unresolved statuses into the subject, pluralized', () => {
     const result = managerWeeklyDigestEmail({
       ...base,
-      newApplications: 12,
-      statusCounts: [],
-    });
-    expect(result.subject).toBe('Your week on Aplio: 12 new applications');
-  });
-
-  it('singularizes the new-applications subject at exactly 1', () => {
-    const result = managerWeeklyDigestEmail({
-      ...base,
-      newApplications: 1,
-      statusCounts: [],
-    });
-    expect(result.subject).toBe('Your week on Aplio: 1 new application');
-  });
-
-  it('falls back to the awaiting-review subject with no new applications', () => {
-    const result = managerWeeklyDigestEmail({
-      ...base,
-      newApplications: 0,
-      statusCounts: [{ status: 'applied', count: 7 }],
-    });
-    expect(result.subject).toBe(
-      'Your week on Aplio: 7 applications awaiting review',
-    );
-  });
-
-  it('excludes terminal decisions from the awaiting-review count', () => {
-    const result = managerWeeklyDigestEmail({
-      ...base,
-      newApplications: 0,
       statusCounts: [
         { status: 'applied', count: 7 },
-        { status: 'accepted', count: 3 },
-        { status: 'rejected', count: 2 },
+        { status: 'reviewing', count: 3 },
       ],
     });
-    expect(result.subject).toBe(
-      'Your week on Aplio: 7 applications awaiting review',
-    );
+    expect(result.subject).toBe('10 applications awaiting your review');
   });
 
-  it('omits zero-count statuses and links each remaining status', () => {
+  it('singularizes the subject at exactly 1', () => {
     const result = managerWeeklyDigestEmail({
       ...base,
-      newApplications: 0,
+      statusCounts: [{ status: 'applied', count: 1 }],
+    });
+    expect(result.subject).toBe('1 application awaiting your review');
+  });
+
+  it('renders a stat box per status, linked by status value', () => {
+    const result = managerWeeklyDigestEmail({
+      ...base,
       statusCounts: [
         { status: 'applied', count: 7 },
-        { status: 'accepted', count: 3 },
+        { status: 'reviewing', count: 3 },
       ],
     });
     expect(result.html).toContain('?status=applied');
-    expect(result.html).toContain('?status=accepted');
-    expect(result.html).not.toContain('?status=rejected');
-  });
-
-  it('shows the empty statuses line when nothing is unresolved but new applications exist', () => {
-    const result = managerWeeklyDigestEmail({
-      ...base,
-      newApplications: 4,
-      statusCounts: [],
-    });
-    expect(result.html).toContain('No applications on your positions yet.');
+    expect(result.html).toContain('?status=reviewing');
+    expect(result.html).toContain('>7<');
+    expect(result.html).toContain('>3<');
+    expect(result.html).toContain('Applied');
+    expect(result.html).toContain('Reviewing');
   });
 
   it('shows the empty open-positions line with none open', () => {
     const result = managerWeeklyDigestEmail({
       ...base,
-      newApplications: 4,
-      statusCounts: [],
+      statusCounts: [{ status: 'applied', count: 1 }],
     });
     expect(result.html).toContain('You have no positions open right now.');
   });
@@ -344,8 +307,7 @@ describe('managerWeeklyDigestEmail', () => {
   it('links open positions by positionId', () => {
     const result = managerWeeklyDigestEmail({
       ...base,
-      newApplications: 4,
-      statusCounts: [],
+      statusCounts: [{ status: 'applied', count: 1 }],
       openPositions: [
         { positionId: 'pos-1', title: 'Senator' },
         { positionId: 'pos-2', title: 'Treasurer' },
@@ -355,25 +317,12 @@ describe('managerWeeklyDigestEmail', () => {
     expect(result.html).toContain('?positionId=pos-2');
   });
 
-  it('includes the week range and the manager footer', () => {
+  it('includes the as-of date and the manager footer', () => {
     const result = managerWeeklyDigestEmail({
       ...base,
-      newApplications: 4,
-      statusCounts: [],
+      statusCounts: [{ status: 'applied', count: 1 }],
     });
-    expect(result.html).toContain('Mar 2');
-    expect(result.html).toContain('Mar 8, 2026');
+    expect(result.html).toContain('Mar 9, 2026');
     expect(result.html).toContain(MANAGER_EMAIL_FOOTER);
-  });
-
-  it('disambiguates a week range that crosses a year boundary', () => {
-    const result = managerWeeklyDigestEmail({
-      weekStart: '2026-12-28',
-      weekEnd: '2027-01-03',
-      openPositions: [],
-      newApplications: 4,
-      statusCounts: [],
-    });
-    expect(result.html).toContain('Dec 28, 2026 – Jan 3, 2027');
   });
 });

@@ -18,12 +18,7 @@ import {
 
 import type { Position, User } from '@/prisma/client';
 
-import {
-  orgDayStart,
-  previousOrgDay,
-  previousOrgWeek,
-  toOrgDayString,
-} from '@/lib/dates';
+import { orgDayStart, previousOrgDay, toOrgDayString } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
 
 const mockSend = vi.fn();
@@ -273,10 +268,7 @@ describe('weekly digest', () => {
     });
   });
 
-  it('sends one email with totals, a status breakdown excluding withdrawn/draft, and open positions excluding a closed-by-date one', async () => {
-    const week = previousOrgWeek(new Date());
-    const submittedAt = new Date(week.start.getTime() + 60 * 60 * 1000);
-
+  it('sends one email with a status breakdown excluding terminal/withdrawn/draft, and open positions excluding a closed-by-date one', async () => {
     const applicantApplied = await createTestUser();
     const applicantReviewing = await createTestUser();
     const applicantAccepted = await createTestUser();
@@ -284,23 +276,18 @@ describe('weekly digest', () => {
     const applicantDraft = await createTestUser();
 
     await createTestApplication(applicantApplied, openPosition, {
-      submittedAt,
       status: 'applied',
     });
     await createTestApplication(applicantReviewing, openPosition, {
-      submittedAt,
       status: 'reviewing',
     });
     await createTestApplication(applicantAccepted, closedByDatePosition, {
-      submittedAt,
       status: 'accepted',
     });
     await createTestApplication(applicantWithdrawn, openPosition, {
-      submittedAt,
       status: 'withdrawn',
     });
     await createTestApplication(applicantDraft, openPosition, {
-      submittedAt,
       status: 'draft',
     });
 
@@ -311,10 +298,10 @@ describe('weekly digest', () => {
 
     const call = sentTo(manager.email);
     expect(call).toBeDefined();
-    expect(call?.subject).toBe('Your week on Aplio: 3 new applications');
+    expect(call?.subject).toBe('2 applications awaiting your review');
     expect(call?.html).toContain('?status=applied');
     expect(call?.html).toContain('?status=reviewing');
-    expect(call?.html).toContain('?status=accepted');
+    expect(call?.html).not.toContain('?status=accepted');
     expect(call?.html).toContain(`?positionId=${openPosition.id}`);
     expect(call?.html).not.toContain(`?positionId=${closedByDatePosition.id}`);
 
@@ -325,7 +312,12 @@ describe('weekly digest', () => {
     expect(logs[0]?.applicationId).toBeNull();
   });
 
-  it('sends nothing with zero new applications and nothing unresolved', async () => {
+  it('sends nothing when there is nothing unresolved', async () => {
+    const applicant = await createTestUser();
+    await createTestApplication(applicant, openPosition, {
+      status: 'accepted',
+    });
+
     const res = await weeklyGET(
       makeRequest(WEEKLY_URL, `Bearer ${CRON_SECRET}`),
     );
@@ -333,13 +325,11 @@ describe('weekly digest', () => {
     expect(sentTo(manager.email)).toBeUndefined();
   });
 
-  it('sends the awaiting-review subject with zero new applications but something unresolved', async () => {
-    const now = new Date();
-    const twoWeeksAgo = previousOrgWeek(previousOrgWeek(now).start);
-    const submittedAt = new Date(twoWeeksAgo.start.getTime() + 60 * 60 * 1000);
+  it('sends the reminder regardless of how long an application has been unresolved', async () => {
     const applicant = await createTestUser();
+    const longAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     await createTestApplication(applicant, openPosition, {
-      submittedAt,
+      submittedAt: longAgo,
       status: 'applied',
     });
 
@@ -350,19 +340,12 @@ describe('weekly digest', () => {
 
     const call = sentTo(manager.email);
     expect(call).toBeDefined();
-    expect(call?.subject).toBe(
-      'Your week on Aplio: 1 application awaiting review',
-    );
+    expect(call?.subject).toBe('1 application awaiting your review');
   });
 
   it('gates a repeat call the same week', async () => {
-    const week = previousOrgWeek(new Date());
-    const submittedAt = new Date(week.start.getTime() + 60 * 60 * 1000);
     const applicant = await createTestUser();
-    await createTestApplication(applicant, openPosition, {
-      submittedAt,
-      status: 'applied',
-    });
+    await createTestApplication(applicant, openPosition, { status: 'applied' });
 
     const first = await weeklyGET(
       makeRequest(WEEKLY_URL, `Bearer ${CRON_SECRET}`),
@@ -381,13 +364,8 @@ describe('weekly digest', () => {
   });
 
   it('is not gated by an existing daily-digest row for the same manager', async () => {
-    const week = previousOrgWeek(new Date());
-    const submittedAt = new Date(week.start.getTime() + 60 * 60 * 1000);
     const applicant = await createTestUser();
-    await createTestApplication(applicant, openPosition, {
-      submittedAt,
-      status: 'applied',
-    });
+    await createTestApplication(applicant, openPosition, { status: 'applied' });
 
     await prisma.emailLog.create({
       data: {
