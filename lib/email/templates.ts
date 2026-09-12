@@ -4,7 +4,7 @@ import { type $Enums } from '@/prisma/client';
 
 import { getBaseUrl } from '@/lib/base-url';
 import { APPLICATION_STATUS_LABELS, ORG_TIMEZONE } from '@/lib/constants';
-import { orgDayStart } from '@/lib/dates';
+import { formatInstant, orgDayStart } from '@/lib/dates';
 import {
   type ManagerDigestPosition,
   type WeeklyDigestStatusCount,
@@ -275,20 +275,26 @@ function formatDigestDay(day: string): string {
 
 export interface ManagerDailyDigestEmailOptions {
   firstName?: string;
-  day: string;
+  since: Date;
   positions: ManagerDigestPosition[];
   total: number;
 }
 
+// `since` is an instant, not a calendar day — the window is "since your last
+// digest," which can span more than a day after a missed/delayed run, so the
+// copy names the exact moment rather than a single date.
 export function managerDailyDigestEmail({
   firstName,
-  day,
+  since,
   positions,
   total,
 }: ManagerDailyDigestEmailOptions): EmailTemplate {
   const baseUrl = getBaseUrl();
   const allApplicationsUrl = `${baseUrl}/manage/applications`;
-  const dayLabel = formatDigestDay(day);
+  const sinceLabel = formatInstant(since, {
+    precision: 'datetime',
+    timeZone: ORG_TIMEZONE,
+  });
   const safeGreeting = escapeHtml(greeting(firstName));
 
   const subject =
@@ -305,7 +311,7 @@ export function managerDailyDigestEmail({
 
   const content = `
     <p style="margin:0 0 16px;font-size:14px;color:#09090b;">${safeGreeting}</p>
-    <p style="margin:0 0 16px;font-size:14px;color:#71717a;">New applications on the positions you manage, from <strong>${escapeHtml(dayLabel)}</strong>.</p>
+    <p style="margin:0 0 16px;font-size:14px;color:#71717a;">New applications on the positions you manage, since <strong>${escapeHtml(sinceLabel)}</strong>.</p>
     <div style="margin:0 0 24px;">${positionRows}</div>
     ${primaryButton(allApplicationsUrl, 'Review all applications')}
   `;
@@ -313,7 +319,7 @@ export function managerDailyDigestEmail({
   const text = [
     greeting(firstName),
     '',
-    `New applications on the positions you manage, from ${dayLabel}.`,
+    `New applications on the positions you manage, since ${sinceLabel}.`,
     '',
     ...positions.map(
       (position) =>

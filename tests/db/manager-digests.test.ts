@@ -18,7 +18,6 @@ import {
 
 import type { Position, User } from '@/prisma/client';
 
-import { orgDayStart, previousOrgDay, toOrgDayString } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
 
 const mockSend = vi.fn();
@@ -104,15 +103,12 @@ describe('daily digest', () => {
     position2 = await createTestPosition(creator, { managers: [manager] });
   });
 
-  it('sends one email covering two positions submitted yesterday, logged once', async () => {
-    const yesterday = previousOrgDay(new Date());
-    const submittedAt = new Date(yesterday.start.getTime() + 60 * 60 * 1000);
-
+  it('sends one email covering two positions with recent applications, logged once', async () => {
     const applicantA = await createTestUser();
     const applicantB = await createTestUser();
-    await createTestApplication(applicantA, position1, { submittedAt });
-    await createTestApplication(applicantB, position1, { submittedAt });
-    await createTestApplication(applicantA, position2, { submittedAt });
+    await createTestApplication(applicantA, position1, {});
+    await createTestApplication(applicantB, position1, {});
+    await createTestApplication(applicantA, position2, {});
 
     const res = await dailyGET(makeRequest(DAILY_URL, `Bearer ${CRON_SECRET}`));
     expect(res.status).toBe(200);
@@ -130,33 +126,26 @@ describe('daily digest', () => {
     expect(logs[0]?.applicationId).toBeNull();
   });
 
-  it('excludes submissions from today and from two days ago', async () => {
+  it('only looks back the fallback window for a manager never digested before', async () => {
     const now = new Date();
-    const todaySubmittedAt = new Date(
-      orgDayStart(toOrgDayString(now)).getTime() + 60 * 60 * 1000,
-    );
-    const twoDaysAgo = previousOrgDay(previousOrgDay(now).start);
-    const twoDaysAgoSubmittedAt = new Date(
-      twoDaysAgo.start.getTime() + 60 * 60 * 1000,
-    );
+    const tooOld = new Date(now.getTime() - 25 * 60 * 60 * 1000);
+    const withinLookback = new Date(now.getTime() - 23 * 60 * 60 * 1000);
 
-    const applicantToday = await createTestUser();
-    const applicantTwoDaysAgo = await createTestUser();
-    await createTestApplication(applicantToday, position1, {
-      submittedAt: todaySubmittedAt,
+    const applicantOld = await createTestUser();
+    const applicantRecent = await createTestUser();
+    await createTestApplication(applicantOld, position1, {
+      submittedAt: tooOld,
     });
-    await createTestApplication(applicantTwoDaysAgo, position1, {
-      submittedAt: twoDaysAgoSubmittedAt,
+    await createTestApplication(applicantRecent, position1, {
+      submittedAt: withinLookback,
     });
 
     const res = await dailyGET(makeRequest(DAILY_URL, `Bearer ${CRON_SECRET}`));
     expect(res.status).toBe(200);
-    expect(sentTo(manager.email)).toBeUndefined();
 
-    const logs = await prisma.emailLog.findMany({
-      where: { userId: manager.id, template: 'manager_daily_digest' },
-    });
-    expect(logs).toHaveLength(0);
+    const call = sentTo(manager.email);
+    expect(call).toBeDefined();
+    expect(call?.subject).toBe(`1 new application for ${position1.title}`);
   });
 
   it('sends nothing to a manager with no new activity', async () => {
@@ -165,11 +154,9 @@ describe('daily digest', () => {
     expect(sentTo(manager.email)).toBeUndefined();
   });
 
-  it('gates a repeat call the same day after a successful send', async () => {
-    const yesterday = previousOrgDay(new Date());
-    const submittedAt = new Date(yesterday.start.getTime() + 60 * 60 * 1000);
+  it('finds nothing new when called again immediately after a successful send', async () => {
     const applicant = await createTestUser();
-    await createTestApplication(applicant, position1, { submittedAt });
+    await createTestApplication(applicant, position1, {});
 
     const first = await dailyGET(
       makeRequest(DAILY_URL, `Bearer ${CRON_SECRET}`),
@@ -192,19 +179,40 @@ describe('daily digest', () => {
     expect(logs).toHaveLength(1);
   });
 
-  it('does not stop the run when one recipient send fails, and records it as failed', async () => {
-    const yesterday = previousOrgDay(new Date());
-    const submittedAt = new Date(yesterday.start.getTime() + 60 * 60 * 1000);
+  it('still reports an application submitted after the previous send, even later the same day', async () => {
+    const firstApplicant = await createTestUser();
+    await createTestApplication(firstApplicant, position1, {});
 
+    const first = await dailyGET(
+      makeRequest(DAILY_URL, `Bearer ${CRON_SECRET}`),
+    );
+    expect(first.status).toBe(200);
+    expect(sentTo(manager.email)).toBeDefined();
+
+    mockSend.mockClear();
+
+    const secondApplicant = await createTestUser();
+    await createTestApplication(secondApplicant, position1, {});
+
+    const second = await dailyGET(
+      makeRequest(DAILY_URL, `Bearer ${CRON_SECRET}`),
+    );
+    expect(second.status).toBe(200);
+    const call = sentTo(manager.email);
+    expect(call).toBeDefined();
+    expect(call?.subject).toBe(`1 new application for ${position1.title}`);
+  });
+
+  it('does not stop the run when one recipient send fails, and records it as failed', async () => {
     const applicant = await createTestUser();
-    await createTestApplication(applicant, position1, { submittedAt });
+    await createTestApplication(applicant, position1, {});
 
     const managerOk = await createTestUser();
     const positionOk = await createTestPosition(creator, {
       managers: [managerOk],
     });
     const applicantOk = await createTestUser();
-    await createTestApplication(applicantOk, positionOk, { submittedAt });
+    await createTestApplication(applicantOk, positionOk, {});
 
     mockSend.mockImplementation(async (args: { to: string }) => {
       if (args.to === manager.email) throw new Error('simulated send failure');
@@ -227,17 +235,12 @@ describe('daily digest', () => {
   });
 
   it('excludes a deactivated manager and a manager who only manages a draft position', async () => {
-    const yesterday = previousOrgDay(new Date());
-    const submittedAt = new Date(yesterday.start.getTime() + 60 * 60 * 1000);
-
     const deactivatedManager = await createTestUser({ deletedAt: new Date() });
     const deactivatedManagerPosition = await createTestPosition(creator, {
       managers: [deactivatedManager],
     });
     const applicantA = await createTestUser();
-    await createTestApplication(applicantA, deactivatedManagerPosition, {
-      submittedAt,
-    });
+    await createTestApplication(applicantA, deactivatedManagerPosition, {});
 
     const draftOnlyManager = await createTestUser();
     const draftPosition = await createTestPosition(creator, {
@@ -245,7 +248,7 @@ describe('daily digest', () => {
       status: 'draft',
     });
     const applicantB = await createTestUser();
-    await createTestApplication(applicantB, draftPosition, { submittedAt });
+    await createTestApplication(applicantB, draftPosition, {});
 
     const res = await dailyGET(makeRequest(DAILY_URL, `Bearer ${CRON_SECRET}`));
     expect(res.status).toBe(200);
