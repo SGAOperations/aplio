@@ -149,6 +149,7 @@ A thrown error reaches Vercel's runtime logs with a stack and request context; a
   - **A client `catch` that also toasts** — the §3-mandated wrapper around a server action, where the log keeps a real bug distinguishable from a stale-permission denial. Logging with **no** toast is not exempt.
   - **A server-side cause the browser can't see** (`prisma/actions/auth.ts`) — log the upstream error, return `{ error }` with safe copy.
   - **Best-effort side effects get no automatic exemption.** Where the caller can retry (a webhook whose 500 is retried), **throw** — `lib/email/resend.ts` still does, for both the single send and the batch send. The one exemption is a domain email already dispatched from `after()`: `lib/email/application-emails.ts` is the named swallow site, since the mutation it follows has already committed and the `EmailLog` row is the record that makes swallowing correct.
+  - **A second, differently-justified swallow site: `lib/email/manager-digests.ts`.** No mutation sits behind a digest send — the caller is Vercel Cron, which does not retry a 200 — so throwing on one bad address would abandon every later manager in the run rather than protect anything. Each recipient's send is its own `try`/`catch`; the `EmailLog` row is still the record.
 
 ## 5. Accessibility
 
