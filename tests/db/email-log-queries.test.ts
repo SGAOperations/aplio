@@ -81,12 +81,15 @@ describe('getEmailLogs / getEmailLogsCount filtering', () => {
     });
     await seedRow({
       to: `${TEST_PREFIX}${marker}-digest@example.com`,
-      template: 'manager_digest',
+      template: 'manager_daily_digest',
     });
 
-    const rows = await getEmailLogs({ q: marker, template: 'manager_digest' });
+    const rows = await getEmailLogs({
+      q: marker,
+      template: 'manager_daily_digest',
+    });
     expect(rows).toHaveLength(1);
-    expect(rows[0]?.template).toBe('manager_digest');
+    expect(rows[0]?.template).toBe('manager_daily_digest');
   });
 
   it('status and template filters compose', async () => {
@@ -99,7 +102,7 @@ describe('getEmailLogs / getEmailLogsCount filtering', () => {
     await seedRow({
       to: `${TEST_PREFIX}${marker}-wrong-template@example.com`,
       status: 'bounced',
-      template: 'manager_digest',
+      template: 'manager_daily_digest',
     });
     await seedRow({
       to: `${TEST_PREFIX}${marker}-wrong-status@example.com`,
