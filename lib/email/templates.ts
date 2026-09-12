@@ -1,6 +1,12 @@
 import 'server-only';
 
 import { getBaseUrl } from '@/lib/base-url';
+import { APPLICATION_STATUS_LABELS, ORG_TIMEZONE } from '@/lib/constants';
+import { orgDayStart } from '@/lib/dates';
+import {
+  type ManagerDigestPosition,
+  type WeeklyDigestStatusCount,
+} from '@/lib/types';
 
 // Inline styles throughout: email clients ignore Tailwind classes.
 
@@ -244,6 +250,208 @@ export function applicationDecisionEmail({
       title: 'Application update',
       content,
       footer: APPLICANT_EMAIL_FOOTER,
+    }),
+    text,
+  };
+}
+
+export const MANAGER_EMAIL_FOOTER =
+  'You&#39;re receiving this because you manage one or more positions on Aplio.';
+
+function pluralize(count: number, singular: string): string {
+  return count === 1 ? singular : `${singular}s`;
+}
+
+function formatDigestDay(day: string): string {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: ORG_TIMEZONE,
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(orgDayStart(day));
+}
+
+function formatDigestWeekRange(startDay: string, endDay: string): string {
+  const startLabel = new Intl.DateTimeFormat('en-US', {
+    timeZone: ORG_TIMEZONE,
+    month: 'short',
+    day: 'numeric',
+  }).format(orgDayStart(startDay));
+  const endLabel = new Intl.DateTimeFormat('en-US', {
+    timeZone: ORG_TIMEZONE,
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(orgDayStart(endDay));
+  return `${startLabel} – ${endLabel}`;
+}
+
+export interface ManagerDailyDigestEmailOptions {
+  firstName?: string;
+  day: string;
+  positions: ManagerDigestPosition[];
+  total: number;
+}
+
+export function managerDailyDigestEmail({
+  firstName,
+  day,
+  positions,
+  total,
+}: ManagerDailyDigestEmailOptions): EmailTemplate {
+  const baseUrl = getBaseUrl();
+  const allApplicationsUrl = `${baseUrl}/manage/applications`;
+  const dayLabel = formatDigestDay(day);
+  const safeGreeting = escapeHtml(greeting(firstName));
+
+  const subject =
+    positions.length === 1
+      ? `${total} new ${pluralize(total, 'application')} for ${positions[0]!.title}`
+      : `${total} new applications across ${positions.length} positions`;
+
+  const positionRows = positions
+    .map((position) => {
+      const url = `${allApplicationsUrl}?positionId=${position.positionId}`;
+      return `<p style="margin:0 0 8px;font-size:14px;color:#09090b;"><a href="${escapeHtml(url)}" style="color:#D41B2C;text-decoration:none;font-weight:600;">${escapeHtml(position.title)}</a> — ${position.newApplications} new ${pluralize(position.newApplications, 'application')}</p>`;
+    })
+    .join('\n');
+
+  const content = `
+    <p style="margin:0 0 16px;font-size:14px;color:#09090b;">${safeGreeting}</p>
+    <p style="margin:0 0 16px;font-size:14px;color:#71717a;">New applications on the positions you manage, from <strong>${escapeHtml(dayLabel)}</strong>.</p>
+    <div style="margin:0 0 24px;">${positionRows}</div>
+    ${primaryButton(allApplicationsUrl, 'Review all applications')}
+  `;
+
+  const text = [
+    greeting(firstName),
+    '',
+    `New applications on the positions you manage, from ${dayLabel}.`,
+    '',
+    ...positions.map(
+      (position) =>
+        `${position.title} — ${position.newApplications} new ${pluralize(position.newApplications, 'application')}: ${allApplicationsUrl}?positionId=${position.positionId}`,
+    ),
+    '',
+    `Review all applications: ${allApplicationsUrl}`,
+  ].join('\n');
+
+  return {
+    subject,
+    html: emailLayout({
+      title: 'Manager daily digest',
+      content,
+      footer: MANAGER_EMAIL_FOOTER,
+    }),
+    text,
+  };
+}
+
+export interface ManagerWeeklyDigestEmailOptions {
+  firstName?: string;
+  weekStart: string;
+  weekEnd: string;
+  newApplications: number;
+  statusCounts: WeeklyDigestStatusCount[];
+  openPositions: Pick<ManagerDigestPosition, 'positionId' | 'title'>[];
+}
+
+export function managerWeeklyDigestEmail({
+  firstName,
+  weekStart,
+  weekEnd,
+  newApplications,
+  statusCounts,
+  openPositions,
+}: ManagerWeeklyDigestEmailOptions): EmailTemplate {
+  const baseUrl = getBaseUrl();
+  const allApplicationsUrl = `${baseUrl}/manage/applications`;
+  const weekRangeLabel = formatDigestWeekRange(weekStart, weekEnd);
+  const safeGreeting = escapeHtml(greeting(firstName));
+  const unresolvedTotal = statusCounts.reduce(
+    (sum, entry) => sum + entry.count,
+    0,
+  );
+
+  const subject =
+    newApplications > 0
+      ? `Your week on Aplio: ${newApplications} new ${pluralize(newApplications, 'application')}`
+      : `Your week on Aplio: ${unresolvedTotal} ${pluralize(unresolvedTotal, 'application')} awaiting review`;
+
+  const newThisWeekLine =
+    newApplications > 0
+      ? `${newApplications} new ${pluralize(newApplications, 'application')} across the positions you manage.`
+      : 'No new applications this week.';
+
+  const statusRows =
+    statusCounts.length > 0
+      ? statusCounts
+          .map((entry) => {
+            const url = `${allApplicationsUrl}?status=${entry.status}`;
+            return `<a href="${escapeHtml(url)}" style="color:#D41B2C;text-decoration:none;font-weight:600;">${escapeHtml(APPLICATION_STATUS_LABELS[entry.status])}</a> — ${entry.count}`;
+          })
+          .join('<br />')
+      : 'No applications on your positions yet.';
+
+  const openPositionsLine =
+    openPositions.length > 0
+      ? openPositions
+          .map((position) => {
+            const url = `${allApplicationsUrl}?positionId=${position.positionId}`;
+            return `<a href="${escapeHtml(url)}" style="color:#D41B2C;text-decoration:none;font-weight:600;">${escapeHtml(position.title)}</a>`;
+          })
+          .join(' · ')
+      : 'You have no positions open right now.';
+
+  const content = `
+    <p style="margin:0 0 16px;font-size:14px;color:#09090b;">${safeGreeting}</p>
+    <p style="margin:0 0 16px;font-size:14px;color:#71717a;">Your weekly summary for <strong>${escapeHtml(weekRangeLabel)}</strong>.</p>
+    <p style="margin:0 0 4px;font-size:14px;font-weight:700;color:#09090b;">New this week</p>
+    <p style="margin:0 0 16px;font-size:14px;color:#71717a;">${escapeHtml(newThisWeekLine)}</p>
+    <p style="margin:0 0 4px;font-size:14px;font-weight:700;color:#09090b;">Where things stand</p>
+    <p style="margin:0 0 16px;font-size:14px;color:#71717a;">${statusRows}</p>
+    <p style="margin:0 0 4px;font-size:14px;font-weight:700;color:#09090b;">Your open positions</p>
+    <p style="margin:0 0 24px;font-size:14px;color:#71717a;">${openPositionsLine}</p>
+    ${primaryButton(allApplicationsUrl, 'Review all applications')}
+  `;
+
+  const text = [
+    greeting(firstName),
+    '',
+    `Your weekly summary for ${weekRangeLabel}.`,
+    '',
+    'New this week',
+    newThisWeekLine,
+    '',
+    'Where things stand',
+    statusCounts.length > 0
+      ? statusCounts
+          .map(
+            (entry) =>
+              `${APPLICATION_STATUS_LABELS[entry.status]} (${allApplicationsUrl}?status=${entry.status}) — ${entry.count}`,
+          )
+          .join('\n')
+      : 'No applications on your positions yet.',
+    '',
+    'Your open positions',
+    openPositions.length > 0
+      ? openPositions
+          .map(
+            (position) =>
+              `${position.title}: ${allApplicationsUrl}?positionId=${position.positionId}`,
+          )
+          .join('\n')
+      : 'You have no positions open right now.',
+    '',
+    `Review all applications: ${allApplicationsUrl}`,
+  ].join('\n');
+
+  return {
+    subject,
+    html: emailLayout({
+      title: 'Manager weekly digest',
+      content,
+      footer: MANAGER_EMAIL_FOOTER,
     }),
     text,
   };
