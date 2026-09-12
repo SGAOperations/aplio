@@ -73,6 +73,54 @@ export function toOrgDayString(date: Date): string {
   }).format(date);
 }
 
+// Calendar-date arithmetic on the Y/M/D triple — never on a resolved instant,
+// so a DST transition inside the shifted range can't shift the day count.
+function shiftOrgDay(day: string, deltaDays: number): string {
+  const [year, month, date] = parseOrgDay(day);
+  const shifted = new Date(Date.UTC(year, month - 1, date + deltaDays));
+  return [
+    shifted.getUTCFullYear(),
+    String(shifted.getUTCMonth() + 1).padStart(2, '0'),
+    String(shifted.getUTCDate()).padStart(2, '0'),
+  ].join('-');
+}
+
+/** The org day before `now`'s org day, with its instant bounds. */
+export function previousOrgDay(now: Date): {
+  day: string;
+  start: Date;
+  end: Date;
+} {
+  const day = shiftOrgDay(toOrgDayString(now), -1);
+  return { day, start: orgDayStart(day), end: orgDayEnd(day) };
+}
+
+/** `YYYY-MM-DD` of the Monday of `now`'s org-local week. */
+export function currentOrgWeekStart(now: Date): string {
+  const day = toOrgDayString(now);
+  const [year, month, date] = parseOrgDay(day);
+  const dow = new Date(Date.UTC(year, month - 1, date)).getUTCDay();
+  const daysSinceMonday = (dow + 6) % 7;
+  return shiftOrgDay(day, -daysSinceMonday);
+}
+
+/** The Monday–Sunday org week before `now`'s current week, with its instant bounds. */
+export function previousOrgWeek(now: Date): {
+  startDay: string;
+  endDay: string;
+  start: Date;
+  end: Date;
+} {
+  const startDay = shiftOrgDay(currentOrgWeekStart(now), -7);
+  const endDay = shiftOrgDay(startDay, 6);
+  return {
+    startDay,
+    endDay,
+    start: orgDayStart(startDay),
+    end: orgDayEnd(endDay),
+  };
+}
+
 export function formatInstant(
   date: Date,
   { precision, timeZone }: { precision: DatePrecision; timeZone: string },
