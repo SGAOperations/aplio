@@ -147,7 +147,7 @@ export default async function EditPositionPage({
         }
       />
 
-      {position.status !== 'draft' && (
+      {canEdit && position.status !== 'draft' && (
         <WarningCallout>{POSITION_LIVE_EDIT_WARNING}</WarningCallout>
       )}
 
