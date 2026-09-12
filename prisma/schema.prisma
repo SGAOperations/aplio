@@ -55,7 +55,8 @@ enum EmailTemplateKey {
   application_received
   application_accepted
   application_rejected
-  manager_digest
+  manager_daily_digest
+  manager_weekly_digest
 }
 
 model User {
