@@ -272,10 +272,14 @@ function formatDigestDay(day: string): string {
 }
 
 function formatDigestWeekRange(startDay: string, endDay: string): string {
+  // Only the start label carries the year conditionally — a week spanning a
+  // year boundary would otherwise read ambiguously (Dec 29 – Jan 4, 2027).
+  const crossesYear = startDay.slice(0, 4) !== endDay.slice(0, 4);
   const startLabel = new Intl.DateTimeFormat('en-US', {
     timeZone: ORG_TIMEZONE,
     month: 'short',
     day: 'numeric',
+    ...(crossesYear ? { year: 'numeric' } : {}),
   }).format(orgDayStart(startDay));
   const endLabel = new Intl.DateTimeFormat('en-US', {
     timeZone: ORG_TIMEZONE,
