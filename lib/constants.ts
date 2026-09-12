@@ -775,18 +775,20 @@ export const POSITION_UNPUBLISH_BLOCKED_ERROR =
 export const POSITION_REOPEN_PAST_CLOSE_ERROR =
   "This position's close date has passed. Clear or extend the close date to reopen it.";
 
-// The header note's twins of the errors above.
-export const POSITION_UNPUBLISH_BLOCKED_HINT =
-  'Someone has already started an application, so this position can no longer go back to Draft.';
+// The header note's twin of the reopen error above.
 export const POSITION_REOPEN_PAST_CLOSE_HINT =
   'Clear or extend Closes At to reopen this position.';
 
-// Shown in place of a Publish button when a manager has no legal move to open.
-export const POSITION_PUBLISH_REQUIRES_ADMIN_NOTE =
-  'Only an admin can publish this position.';
+// Tooltip on a disabled Open position button for a manager viewing a draft.
+export const POSITION_OPEN_REQUIRES_ADMIN_NOTE =
+  'Only an admin can open this position.';
 // Tooltip on a disabled Reopen button for a manager viewing a closed position.
 export const POSITION_REOPEN_REQUIRES_ADMIN_NOTE =
   'Only an admin can reopen this position.';
+
+// Shown on the edit page for a live (open or closed) position, never draft.
+export const POSITION_LIVE_EDIT_WARNING =
+  'Changes made here are immediately visible in the live application.';
 
 // null = legal. from === to, then closed->draft, then the map, then the two conditional rules.
 export function getPositionStatusTransitionError(
@@ -848,18 +850,18 @@ export const POSITION_TRANSITION_ACTIONS: Record<
 > = {
   draft: {
     open: {
-      label: 'Publish',
-      confirmTitle: 'Publish this position?',
+      label: 'Open position',
+      confirmTitle: 'Open this position?',
       confirmDescription: () =>
         'It becomes visible on the positions list. Applications open on its open date, or immediately if it has none.',
-      confirmLabel: 'Publish',
-      pendingLabel: 'Publishing…',
-      successToast: 'Position published',
+      confirmLabel: 'Open position',
+      pendingLabel: 'Opening…',
+      successToast: 'Position opened',
     },
   },
   open: {
     closed: {
-      label: 'Close applications',
+      label: 'Close position',
       confirmTitle: 'Close this position?',
       confirmDescription: ({ unresolvedApplicationCount }) =>
         unresolvedApplicationCount > 0

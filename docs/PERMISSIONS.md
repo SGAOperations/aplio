@@ -93,7 +93,7 @@ Four principals, each derived rather than stored as a single role field:
 
 | Transition                         | Allowed     | Rule                                                                                                                                                                           |
 | ---------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `draft → open` (publish)           | yes         | Admin only, non-archived position                                                                                                                                              |
+| `draft → open` (publish)           | conditional | Admin only, non-archived position. **Open position** is always shown for a draft and disabled with a tooltip for a manager, rather than hidden                                 |
 | `open → closed` (close)            | yes         | Confirm first when unresolved applications exist                                                                                                                               |
 | `closed → open` (reopen)           | conditional | Admin only, and only when `closesAt` is null or in the future. Reopen is always shown for a closed position and disabled with a tooltip when not yet legal, rather than hidden |
 | `open → draft` (unpublish)         | conditional | Blocked once any non-deleted application exists                                                                                                                                |

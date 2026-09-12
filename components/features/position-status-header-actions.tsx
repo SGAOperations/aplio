@@ -8,11 +8,10 @@ import { updatePositionStatus } from '@/prisma/actions/position-actions';
 import type { PositionStatus } from '@/prisma/client';
 
 import {
-  POSITION_PUBLISH_REQUIRES_ADMIN_NOTE,
+  POSITION_OPEN_REQUIRES_ADMIN_NOTE,
   POSITION_REOPEN_PAST_CLOSE_HINT,
   POSITION_REOPEN_REQUIRES_ADMIN_NOTE,
   POSITION_TRANSITION_ACTIONS,
-  POSITION_UNPUBLISH_BLOCKED_HINT,
   getPositionTransitionTargets,
 } from '@/lib/constants';
 import { ACTION_ICONS } from '@/lib/icons';
@@ -42,7 +41,48 @@ interface PositionStatusHeaderActionsProps {
   unresolvedApplicationCount: number;
 }
 
-// No legal move renders a muted explanation instead of a disabled button that leaves the reason unstated.
+// Shared by the closed->open and draft->open cases: each has exactly one
+// possible target, so it always renders, disabled with a tooltip if illegal.
+function GatedActionButton({
+  label,
+  disabled,
+  disabledReason,
+  pending,
+  onClick,
+}: {
+  label: string;
+  disabled: boolean;
+  disabledReason: string | null;
+  pending: boolean;
+  onClick: () => void;
+}) {
+  const button = (
+    <Button
+      variant="default"
+      size="sm"
+      className="min-h-11 sm:min-h-9"
+      disabled={disabled}
+      onClick={onClick}
+    >
+      {pending && <ACTION_ICONS.pending className="animate-spin" />}
+      {label}
+    </Button>
+  );
+
+  if (!disabledReason) return button;
+
+  return (
+    <TooltipProvider delayDuration={300}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span tabIndex={0}>{button}</span>
+        </TooltipTrigger>
+        <TooltipContent>{disabledReason}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
 export function PositionStatusHeaderActions({
   positionId,
   currentStatus,
@@ -111,8 +151,6 @@ export function PositionStatusHeaderActions({
     />
   );
 
-  // Reopen is the only possible move from closed, so it's always rendered —
-  // disabled with a tooltip explanation, never hidden, when it isn't legal yet.
   if (currentStatus === 'closed') {
     const reopenAction = POSITION_TRANSITION_ACTIONS.closed.open;
     if (!reopenAction) return null;
@@ -123,50 +161,37 @@ export function PositionStatusHeaderActions({
         ? POSITION_REOPEN_PAST_CLOSE_HINT
         : POSITION_REOPEN_REQUIRES_ADMIN_NOTE;
 
-    const reopenButton = (
-      <Button
-        variant="default"
-        size="sm"
-        className="min-h-11 sm:min-h-9"
-        disabled={isPending || !canReopen}
-        onClick={() => setConfirmTarget('open')}
-      >
-        {isPending && pendingTarget === 'open' && (
-          <ACTION_ICONS.pending className="animate-spin" />
-        )}
-        {reopenAction.label}
-      </Button>
-    );
-
     return (
       <>
-        {disabledReason ? (
-          <TooltipProvider delayDuration={300}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span tabIndex={0}>{reopenButton}</span>
-              </TooltipTrigger>
-              <TooltipContent>{disabledReason}</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        ) : (
-          reopenButton
-        )}
+        <GatedActionButton
+          label={reopenAction.label}
+          disabled={isPending || !canReopen}
+          disabledReason={disabledReason}
+          pending={isPending && pendingTarget === 'open'}
+          onClick={() => setConfirmTarget('open')}
+        />
         {confirmDialog}
       </>
     );
   }
 
-  if (targets.length === 0) {
-    const note =
-      currentStatus === 'draft' && !isAdmin
-        ? POSITION_PUBLISH_REQUIRES_ADMIN_NOTE
-        : hasApplications
-          ? POSITION_UNPUBLISH_BLOCKED_HINT
-          : null;
-    return note ? (
-      <p className="text-muted-foreground text-xs">{note}</p>
-    ) : null;
+  if (currentStatus === 'draft') {
+    const openAction = POSITION_TRANSITION_ACTIONS.draft.open;
+    if (!openAction) return null;
+    const canOpen = targets.includes('open');
+
+    return (
+      <>
+        <GatedActionButton
+          label={openAction.label}
+          disabled={isPending || !canOpen}
+          disabledReason={canOpen ? null : POSITION_OPEN_REQUIRES_ADMIN_NOTE}
+          pending={isPending && pendingTarget === 'open'}
+          onClick={() => setConfirmTarget('open')}
+        />
+        {confirmDialog}
+      </>
+    );
   }
 
   const [primaryTarget, ...restTargets] = targets;

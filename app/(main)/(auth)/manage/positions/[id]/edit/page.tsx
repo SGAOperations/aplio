@@ -9,7 +9,10 @@ import {
 } from '@/prisma/data/positions';
 
 import { requireListedManagerOr404 } from '@/lib/auth/guards';
-import { UNRESOLVED_APPLICATION_STATUSES } from '@/lib/constants';
+import {
+  POSITION_LIVE_EDIT_WARNING,
+  UNRESOLVED_APPLICATION_STATUSES,
+} from '@/lib/constants';
 import { toOrgDayString } from '@/lib/dates';
 import { CONCEPT_ICONS, STATE_ICONS } from '@/lib/icons';
 import {
@@ -94,8 +97,8 @@ export default async function EditPositionPage({
               Its close date passed on{' '}
               <LocalTime date={staleCloseDate} precision="date" />, so it
               stopped accepting applications even though its status is still
-              Open. Give it a future close date to reopen it, or choose Close to
-              make that explicit.
+              Open. Give it a future close date to reopen it, or choose Close
+              position to make that explicit.
             </p>
           </div>
         </WarningCallout>
@@ -113,8 +116,8 @@ export default async function EditPositionPage({
               it&apos;s still a draft, so applicants can&apos;t see it. Give it
               a future {draftPastOpenDate ? 'open' : 'close'} date, or{' '}
               {user.isAdmin
-                ? 'choose Publish to open it now.'
-                : 'ask an admin to publish it.'}
+                ? 'choose Open position to open it now.'
+                : 'ask an admin to open it.'}
             </p>
           </div>
         </WarningCallout>
@@ -143,6 +146,10 @@ export default async function EditPositionPage({
           ) : undefined
         }
       />
+
+      {position.status !== 'draft' && (
+        <WarningCallout>{POSITION_LIVE_EDIT_WARNING}</WarningCallout>
+      )}
 
       {!canEdit && (
         <WarningCallout icon={STATE_ICONS.archived}>
