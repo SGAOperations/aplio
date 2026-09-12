@@ -788,7 +788,7 @@ export const POSITION_PUBLISH_REQUIRES_ADMIN_NOTE =
 export const POSITION_REOPEN_REQUIRES_ADMIN_NOTE =
   'Only an admin can reopen this position.';
 
-// null = legal. from === to always passes; then the map; then the two conditional rules.
+// null = legal. from === to, then closed->draft, then the map, then the two conditional rules.
 export function getPositionStatusTransitionError(
   from: PositionStatus,
   to: PositionStatus,
