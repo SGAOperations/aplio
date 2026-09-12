@@ -91,19 +91,20 @@ Four principals, each derived rather than stored as a single role field:
 
 `PositionStatus` is `draft | open | closed` (`POSITION_STATUS_VALUES`, `lib/constants.ts`). Archived is not a status — see [Archive](#archive).
 
-| Transition                                   | Allowed     | Rule                                                                    |
-| -------------------------------------------- | ----------- | ----------------------------------------------------------------------- |
-| `draft → open` (publish)                     | yes         | Admin only, non-archived position                                       |
-| `open → closed` (close)                      | yes         | Confirm first when unresolved applications exist                        |
-| `closed → open` (reopen)                     | conditional | Admin only, and only when `closesAt` is null or in the future           |
-| `open → draft`, `closed → draft` (unpublish) | conditional | Blocked once any non-deleted application exists, at any status          |
-| `draft → closed`                             | no          | A draft has never accepted applications — nothing to close              |
-| create as anything but `draft`               | no          | `createPosition` takes no status input — every position is born `draft` |
+| Transition                         | Allowed     | Rule                                                                                                                                                                           |
+| ---------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `draft → open` (publish)           | yes         | Admin only, non-archived position                                                                                                                                              |
+| `open → closed` (close)            | yes         | Confirm first when unresolved applications exist                                                                                                                               |
+| `closed → open` (reopen)           | conditional | Admin only, and only when `closesAt` is null or in the future. Reopen is always shown for a closed position and disabled with a tooltip when not yet legal, rather than hidden |
+| `open → draft` (unpublish)         | conditional | Blocked once any non-deleted application exists                                                                                                                                |
+| `draft → closed`, `closed → draft` | no          | A draft has never accepted applications — nothing to close. A closed position never returns to draft — reopen it instead                                                       |
+| create as anything but `draft`     | no          | `createPosition` takes no status input — every position is born `draft`                                                                                                        |
 
 - **Publishing is a permission, not a workflow.** There is no submit-for-approval step, no pending queue, no approve/reject with a reason, and no notification to the manager. A manager creates and shapes a draft; an admin performs the act of setting it `open`, from either `draft` or `closed`. Content edits after publishing stay unrestricted — approval gates the status change, not the position's fields.
 - **Reopening past `closesAt` is a silent no-op**, not a reopen — `getPositionAvailability` (`lib/utils.ts`) still returns `closed_by_date`, so the position reads Open and accepts nothing. Reject it: `{ error: "This position's close date has passed. Clear or extend the close date to reopen it." }`
-- **Unpublishing hides a position out from under applicants who already have work in it**, so the first application — including a draft nobody has submitted — is one-way out of `draft`: `{ error: 'Someone has already started an application, so this position cannot go back to draft. Close it instead.' }`
+- **Unpublishing hides a position out from under applicants who already have work in it**, so the first application — including a draft nobody has submitted — is one-way out of `open`: `{ error: 'Someone has already started an application, so this position cannot go back to draft. Close it instead.' }`
 - **A draft was never listed, so it has nothing to close.** `draft → closed` is rejected with `{ error: 'A draft has never accepted applications, so there is nothing to close. Publish it first, or leave it as a draft.' }` — a manager who wants a draft off the board leaves it as a draft, or publishes and closes it instead.
+- **A closed position never goes back to draft**, independent of `closesAt` or application count: `{ error: 'A closed position cannot go back to draft. Reopen it instead, or leave it closed.' }` — reopen it (admin only) or leave it closed.
 - **Reopening changes nothing about existing applications.** Decisions stand; a reviewer reverses one through the application status control, not by reopening the position.
 - `Application` is unique on `[userId, positionId]` (`prisma/schema.prisma`), so a rejected or withdrawn applicant still cannot reapply to a reopened position. Known-open, not fixed by this policy.
 
@@ -111,16 +112,16 @@ Four principals, each derived rather than stored as a single role field:
 
 **Publish freezes nothing. The first application freezes nothing.** The only hard freeze is archive. Do not re-derive a stricter rule from the fact that a position is live — freezing fields would be stricter than the settled "questions stay fully editable", which is incoherent.
 
-| Capability (manager)          | `draft`        | `open`                    | `closed`                  | archived   |
-| ----------------------------- | -------------- | ------------------------- | ------------------------- | ---------- |
-| Title, description            | ✓              | ✓                         | ✓                         | ✗          |
-| `opensAt` / `closesAt`        | ✓              | ✓                         | ✓                         | ✗          |
-| Questions (add, edit, delete) | ✓              | ✓                         | ✓                         | ✗          |
-| Managers (add, remove others) | ✓              | ✓                         | ✓                         | ✗          |
-| Status → `open`               | ✗ (admin only) | ✓ (already open — no-op)  | ✗ (admin only)            | ✗          |
-| Status → `closed`             | ✗ (never)      | ✓                         | ✓ (no-op)                 | ✗          |
-| Status → `draft`              | ✓              | only with no applications | only with no applications | ✗          |
-| Delete the position           | admin only     | admin only                | admin only                | admin only |
+| Capability (manager)          | `draft`        | `open`                    | `closed`       | archived   |
+| ----------------------------- | -------------- | ------------------------- | -------------- | ---------- |
+| Title, description            | ✓              | ✓                         | ✓              | ✗          |
+| `opensAt` / `closesAt`        | ✓              | ✓                         | ✓              | ✗          |
+| Questions (add, edit, delete) | ✓              | ✓                         | ✓              | ✗          |
+| Managers (add, remove others) | ✓              | ✓                         | ✓              | ✗          |
+| Status → `open`               | ✗ (admin only) | ✓ (already open — no-op)  | ✗ (admin only) | ✗          |
+| Status → `closed`             | ✗ (never)      | ✓                         | ✓ (no-op)      | ✗          |
+| Status → `draft`              | ✓              | only with no applications | ✗ (never)      | ✗          |
+| Delete the position           | admin only     | admin only                | admin only     | admin only |
 
 Managers lose access to membership on an archived position, same as every other field: `addPositionManager` / `removePositionManager` run `checkPositionEditable` like the rest of the edit surface. An admin still short-circuits the check, so oversight can always be handed off by an admin.
 

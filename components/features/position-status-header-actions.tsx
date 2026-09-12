@@ -10,6 +10,7 @@ import type { PositionStatus } from '@/prisma/client';
 import {
   POSITION_PUBLISH_REQUIRES_ADMIN_NOTE,
   POSITION_REOPEN_PAST_CLOSE_HINT,
+  POSITION_REOPEN_REQUIRES_ADMIN_NOTE,
   POSITION_TRANSITION_ACTIONS,
   POSITION_UNPUBLISH_BLOCKED_HINT,
   getPositionTransitionTargets,
@@ -25,6 +26,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface PositionStatusHeaderActionsProps {
   positionId: string;
@@ -81,16 +88,82 @@ export function PositionStatusHeaderActions({
     });
   }
 
+  const confirmAction = confirmTarget
+    ? POSITION_TRANSITION_ACTIONS[currentStatus][confirmTarget]
+    : undefined;
+
+  const confirmDialog = (
+    <ConfirmDialog
+      open={confirmTarget !== null && !!confirmAction}
+      onOpenChange={(open) => {
+        if (!open && !isPending) setConfirmTarget(null);
+      }}
+      title={confirmAction?.confirmTitle ?? ''}
+      description={
+        confirmAction?.confirmDescription({ unresolvedApplicationCount }) ?? ''
+      }
+      confirmLabel={confirmAction?.confirmLabel ?? ''}
+      pendingLabel={confirmAction?.pendingLabel ?? ''}
+      isPending={isPending}
+      onConfirm={() => {
+        if (confirmTarget) performMove(confirmTarget);
+      }}
+    />
+  );
+
+  // Reopen is the only possible move from closed, so it's always rendered —
+  // disabled with a tooltip explanation, never hidden, when it isn't legal yet.
+  if (currentStatus === 'closed') {
+    const reopenAction = POSITION_TRANSITION_ACTIONS.closed.open;
+    if (!reopenAction) return null;
+    const canReopen = targets.includes('open');
+    const disabledReason = canReopen
+      ? null
+      : isAdmin
+        ? POSITION_REOPEN_PAST_CLOSE_HINT
+        : POSITION_REOPEN_REQUIRES_ADMIN_NOTE;
+
+    const reopenButton = (
+      <Button
+        variant="default"
+        size="sm"
+        className="min-h-11 sm:min-h-9"
+        disabled={isPending || !canReopen}
+        onClick={() => setConfirmTarget('open')}
+      >
+        {isPending && pendingTarget === 'open' && (
+          <ACTION_ICONS.pending className="animate-spin" />
+        )}
+        {reopenAction.label}
+      </Button>
+    );
+
+    return (
+      <>
+        {disabledReason ? (
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span tabIndex={0}>{reopenButton}</span>
+              </TooltipTrigger>
+              <TooltipContent>{disabledReason}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ) : (
+          reopenButton
+        )}
+        {confirmDialog}
+      </>
+    );
+  }
+
   if (targets.length === 0) {
-    // Precedence: non-admin draft -> reopen-past-close -> unpublish-blocked.
     const note =
       currentStatus === 'draft' && !isAdmin
         ? POSITION_PUBLISH_REQUIRES_ADMIN_NOTE
-        : currentStatus === 'closed' && closesAtPast
-          ? POSITION_REOPEN_PAST_CLOSE_HINT
-          : hasApplications
-            ? POSITION_UNPUBLISH_BLOCKED_HINT
-            : null;
+        : hasApplications
+          ? POSITION_UNPUBLISH_BLOCKED_HINT
+          : null;
     return note ? (
       <p className="text-muted-foreground text-xs">{note}</p>
     ) : null;
@@ -99,9 +172,6 @@ export function PositionStatusHeaderActions({
   const [primaryTarget, ...restTargets] = targets;
   const primaryAction = primaryTarget
     ? POSITION_TRANSITION_ACTIONS[currentStatus][primaryTarget]
-    : undefined;
-  const confirmAction = confirmTarget
-    ? POSITION_TRANSITION_ACTIONS[currentStatus][confirmTarget]
     : undefined;
 
   if (!primaryTarget || !primaryAction) return null;
@@ -156,23 +226,7 @@ export function PositionStatusHeaderActions({
         )}
       </div>
 
-      <ConfirmDialog
-        open={confirmTarget !== null && !!confirmAction}
-        onOpenChange={(open) => {
-          if (!open && !isPending) setConfirmTarget(null);
-        }}
-        title={confirmAction?.confirmTitle ?? ''}
-        description={
-          confirmAction?.confirmDescription({ unresolvedApplicationCount }) ??
-          ''
-        }
-        confirmLabel={confirmAction?.confirmLabel ?? ''}
-        pendingLabel={confirmAction?.pendingLabel ?? ''}
-        isPending={isPending}
-        onConfirm={() => {
-          if (confirmTarget) performMove(confirmTarget);
-        }}
-      />
+      {confirmDialog}
     </>
   );
 }

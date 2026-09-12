@@ -16,6 +16,7 @@ import {
 import type { Position, User } from '@/prisma/client';
 
 import {
+  POSITION_CLOSED_DRAFT_BLOCKED_ERROR,
   POSITION_DRAFT_CLOSE_BLOCKED_ERROR,
   POSITION_REOPEN_PAST_CLOSE_ERROR,
   POSITION_UNPUBLISH_BLOCKED_ERROR,
@@ -60,7 +61,7 @@ afterAll(async () => {
   await cleanupFixtures();
 });
 
-describe('unpublish (open/closed -> draft)', () => {
+describe('unpublish (open -> draft)', () => {
   it('is blocked once any non-deleted application exists, even a draft one', async () => {
     const position = await makePosition({ status: 'open' });
     await createTestApplication(applicant, position, { status: 'draft' });
@@ -84,6 +85,20 @@ describe('unpublish (open/closed -> draft)', () => {
     });
     expect(result).toBeUndefined();
     expect(await status(position.id)).toBe('draft');
+  });
+});
+
+describe('closed -> draft', () => {
+  it('is always blocked — reopening is the only legal move out of closed', async () => {
+    const position = await makePosition({ status: 'closed' });
+
+    actAs(manager);
+    const result = await updatePositionStatus({
+      id: position.id,
+      status: 'draft',
+    });
+    expect(result).toEqual({ error: POSITION_CLOSED_DRAFT_BLOCKED_ERROR });
+    expect(await status(position.id)).toBe('closed');
   });
 });
 

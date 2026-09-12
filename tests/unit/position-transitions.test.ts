@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { PositionStatus } from '@/prisma/client';
 
 import {
+  POSITION_CLOSED_DRAFT_BLOCKED_ERROR,
   POSITION_DRAFT_CLOSE_BLOCKED_ERROR,
   POSITION_REOPEN_PAST_CLOSE_ERROR,
   POSITION_STATUS_TRANSITIONS,
@@ -26,13 +27,25 @@ describe('getPositionStatusTransitionError', () => {
     }
   });
 
-  it('rejects draft -> closed — the only structurally missing pair', () => {
+  it('rejects draft -> closed and closed -> draft — the two structurally missing pairs', () => {
     expect(
       getPositionStatusTransitionError('draft', 'closed', NO_APPLICATIONS),
     ).toBe(POSITION_DRAFT_CLOSE_BLOCKED_ERROR);
+    expect(
+      getPositionStatusTransitionError('closed', 'draft', NO_APPLICATIONS),
+    ).toBe(POSITION_CLOSED_DRAFT_BLOCKED_ERROR);
   });
 
-  it('is the only structurally missing pair — every other (from, to) is in the map', () => {
+  it('rejects closed -> draft regardless of applications — it is never legal', () => {
+    expect(
+      getPositionStatusTransitionError('closed', 'draft', {
+        hasApplications: true,
+        closesAtPast: false,
+      }),
+    ).toBe(POSITION_CLOSED_DRAFT_BLOCKED_ERROR);
+  });
+
+  it('are the only structurally missing pairs — every other (from, to) is in the map', () => {
     const missing: [PositionStatus, PositionStatus][] = [];
     for (const from of POSITION_STATUS_VALUES)
       for (const to of POSITION_STATUS_VALUES) {
@@ -42,24 +55,21 @@ describe('getPositionStatusTransitionError', () => {
         ).includes(to);
         if (!allowed) missing.push([from, to]);
       }
-    expect(missing).toEqual([['draft', 'closed']]);
+    expect(missing).toEqual([
+      ['draft', 'closed'],
+      ['closed', 'draft'],
+    ]);
   });
 
-  it('allows open/closed -> draft with no applications', () => {
+  it('allows open -> draft with no applications', () => {
     expect(
       getPositionStatusTransitionError('open', 'draft', NO_APPLICATIONS),
     ).toBeNull();
-    expect(
-      getPositionStatusTransitionError('closed', 'draft', NO_APPLICATIONS),
-    ).toBeNull();
   });
 
-  it('rejects open/closed -> draft once any application exists', () => {
+  it('rejects open -> draft once any application exists', () => {
     const ctx = { hasApplications: true, closesAtPast: false };
     expect(getPositionStatusTransitionError('open', 'draft', ctx)).toBe(
-      POSITION_UNPUBLISH_BLOCKED_ERROR,
-    );
-    expect(getPositionStatusTransitionError('closed', 'draft', ctx)).toBe(
       POSITION_UNPUBLISH_BLOCKED_ERROR,
     );
   });
@@ -126,19 +136,19 @@ describe('getPositionTransitionTargets', () => {
     ).toEqual(['closed']);
   });
 
-  it('orders a closed position open-first, then draft, matching the split button priority', () => {
+  it('offers only open from a closed position — draft is never a target', () => {
     expect(
       getPositionTransitionTargets(true, 'closed', NO_APPLICATIONS),
-    ).toEqual(['open', 'draft']);
+    ).toEqual(['open']);
   });
 
-  it('drops open from a closed position past its close date', () => {
+  it('drops open from a closed position past its close date, leaving no targets', () => {
     expect(
       getPositionTransitionTargets(true, 'closed', {
         hasApplications: false,
         closesAtPast: true,
       }),
-    ).toEqual(['draft']);
+    ).toEqual([]);
   });
 
   it('never offers open to a non-admin, from any status', () => {

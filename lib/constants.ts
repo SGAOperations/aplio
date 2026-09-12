@@ -759,15 +759,17 @@ export function getStatusOptions(
   return POSITION_STATUS_OPTIONS.filter((opt) => opt.value !== 'open');
 }
 
-// Legal position status moves — draft -> closed is deliberately absent.
+// Legal position status moves — draft <-> closed is deliberately absent both ways.
 export const POSITION_STATUS_TRANSITIONS = {
   draft: ['open'],
   open: ['closed', 'draft'],
-  closed: ['open', 'draft'],
+  closed: ['open'],
 } as const satisfies Record<PositionStatus, readonly PositionStatus[]>;
 
 export const POSITION_DRAFT_CLOSE_BLOCKED_ERROR =
   'A draft has never accepted applications, so there is nothing to close. Publish it first, or leave it as a draft.';
+export const POSITION_CLOSED_DRAFT_BLOCKED_ERROR =
+  'A closed position cannot go back to draft. Reopen it instead, or leave it closed.';
 export const POSITION_UNPUBLISH_BLOCKED_ERROR =
   'Someone has already started an application, so this position cannot go back to draft. Close it instead.';
 export const POSITION_REOPEN_PAST_CLOSE_ERROR =
@@ -782,6 +784,9 @@ export const POSITION_REOPEN_PAST_CLOSE_HINT =
 // Shown in place of a Publish button when a manager has no legal move to open.
 export const POSITION_PUBLISH_REQUIRES_ADMIN_NOTE =
   'Only an admin can publish this position.';
+// Tooltip on a disabled Reopen button for a manager viewing a closed position.
+export const POSITION_REOPEN_REQUIRES_ADMIN_NOTE =
+  'Only an admin can reopen this position.';
 
 // null = legal. from === to always passes; then the map; then the two conditional rules.
 export function getPositionStatusTransitionError(
@@ -790,6 +795,8 @@ export function getPositionStatusTransitionError(
   ctx: { hasApplications: boolean; closesAtPast: boolean },
 ): string | null {
   if (from === to) return null;
+  if (from === 'closed' && to === 'draft')
+    return POSITION_CLOSED_DRAFT_BLOCKED_ERROR;
   if (
     !(POSITION_STATUS_TRANSITIONS[from] as readonly PositionStatus[]).includes(
       to,
@@ -834,7 +841,7 @@ const RETURN_TO_DRAFT_ACTION: PositionTransitionAction = {
   successToast: 'Position returned to draft',
 };
 
-// Covers exactly the five legal (from, to) pairs in POSITION_STATUS_TRANSITIONS.
+// Covers exactly the four legal (from, to) pairs in POSITION_STATUS_TRANSITIONS.
 export const POSITION_TRANSITION_ACTIONS: Record<
   PositionStatus,
   Partial<Record<PositionStatus, PositionTransitionAction>>
@@ -874,7 +881,6 @@ export const POSITION_TRANSITION_ACTIONS: Record<
       pendingLabel: 'Reopening…',
       successToast: 'Position reopened',
     },
-    draft: RETURN_TO_DRAFT_ACTION,
   },
 };
 
@@ -1130,9 +1136,7 @@ export const EMAIL_FAILURE_STATUSES = [
   'failed',
 ] as const satisfies $Enums.EmailStatus[];
 
-// Statuses surfaced in a pipeline summary (excludes draft). Shared by the
-// reviewer dashboard's PipelineSummary and the position edit page's
-// applications summary.
+// Statuses surfaced in the reviewer dashboard's PipelineSummary (excludes draft).
 export const APPLICATION_PIPELINE_STATUSES = [
   'applied',
   'reached_out',
