@@ -875,7 +875,7 @@ export const POSITION_TRANSITION_ACTIONS: Record<
   },
   closed: {
     open: {
-      label: 'Reopen',
+      label: 'Reopen position',
       confirmTitle: 'Reopen this position?',
       confirmDescription: () =>
         'This position becomes listed and applyable again. Existing applications and decisions are unchanged.',
