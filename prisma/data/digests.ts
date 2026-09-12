@@ -5,14 +5,12 @@ import { type $Enums } from '@/prisma/client';
 import {
   NON_REVIEWABLE_APPLICATION_STATUSES,
   PUBLISHED_POSITION_WHERE,
-  REVIEWER_APPLICATION_STATUSES,
   UNRESOLVED_APPLICATION_STATUSES,
 } from '@/lib/constants';
 import {
   currentOrgWeekStart,
   orgDayStart,
   previousOrgDay,
-  previousOrgWeek,
   toOrgDayString,
 } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
@@ -86,6 +84,7 @@ async function tallyNewApplications(
 
 async function tallyStatusBreakdown(
   positionIds: string[],
+  statuses: readonly $Enums.ApplicationStatus[],
 ): Promise<Map<string, Map<$Enums.ApplicationStatus, number>>> {
   const map = new Map<string, Map<$Enums.ApplicationStatus, number>>();
   if (positionIds.length === 0) return map;
@@ -95,7 +94,7 @@ async function tallyStatusBreakdown(
     where: {
       positionId: { in: positionIds },
       deletedAt: null,
-      status: { notIn: NON_REVIEWABLE_APPLICATION_STATUSES },
+      status: { in: [...statuses] },
       position: PUBLISHED_POSITION_WHERE,
     },
     _count: true,
@@ -171,7 +170,7 @@ export async function getDailyDigestRecipients(
   return { recipients, skipped: gatedIds.size };
 }
 
-/** Managers with new or unresolved applications last week, gated like the daily digest. */
+/** Managers with any application still short of a terminal status, gated per org week. */
 export async function getWeeklyDigestRecipients(
   now: Date = new Date(),
 ): Promise<{ recipients: WeeklyDigestRecipient[]; skipped: number }> {
@@ -179,7 +178,6 @@ export async function getWeeklyDigestRecipients(
   if (managers.length === 0) return { recipients: [], skipped: 0 };
 
   const managerIds = managers.map((manager) => manager.id);
-  const { startDay, endDay, start, end } = previousOrgWeek(now);
 
   const alreadyDigested = await prisma.emailLog.findMany({
     where: {
@@ -200,14 +198,10 @@ export async function getWeeklyDigestRecipients(
   const positionIds = candidates.flatMap((manager) =>
     manager.managedPositions.map((position) => position.id),
   );
-
-  const [newTallies, statusTallies] = await Promise.all([
-    tallyNewApplications(positionIds, start, end),
-    tallyStatusBreakdown(positionIds),
-  ]);
-
-  const unresolvedStatuses: readonly $Enums.ApplicationStatus[] =
-    UNRESOLVED_APPLICATION_STATUSES;
+  const statusTallies = await tallyStatusBreakdown(
+    positionIds,
+    UNRESOLVED_APPLICATION_STATUSES,
+  );
 
   const recipients: WeeklyDigestRecipient[] = [];
   for (const manager of candidates) {
@@ -215,12 +209,7 @@ export async function getWeeklyDigestRecipients(
       (position) => position.id,
     );
 
-    const newApplications = managerPositionIds.reduce(
-      (sum, id) => sum + (newTallies.get(id) ?? 0),
-      0,
-    );
-
-    const statusCounts = REVIEWER_APPLICATION_STATUSES.map((status) => ({
+    const statusCounts = UNRESOLVED_APPLICATION_STATUSES.map((status) => ({
       status,
       count: managerPositionIds.reduce(
         (sum, id) => sum + (statusTallies.get(id)?.get(status) ?? 0),
@@ -228,11 +217,8 @@ export async function getWeeklyDigestRecipients(
       ),
     })).filter((entry) => entry.count > 0);
 
-    const unresolvedTotal = statusCounts
-      .filter((entry) => unresolvedStatuses.includes(entry.status))
-      .reduce((sum, entry) => sum + entry.count, 0);
-
-    if (newApplications === 0 && unresolvedTotal === 0) continue;
+    const total = statusCounts.reduce((sum, entry) => sum + entry.count, 0);
+    if (total === 0) continue;
 
     const openPositions = manager.managedPositions
       .filter((position) => isAcceptingApplications(position))
@@ -243,9 +229,7 @@ export async function getWeeklyDigestRecipients(
       userId: manager.id,
       email: manager.email,
       name: manager.name,
-      weekStart: startDay,
-      weekEnd: endDay,
-      newApplications,
+      asOfDay: toOrgDayString(now),
       statusCounts,
       openPositions,
     });

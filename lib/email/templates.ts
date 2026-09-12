@@ -1,11 +1,9 @@
 import 'server-only';
 
+import { type $Enums } from '@/prisma/client';
+
 import { getBaseUrl } from '@/lib/base-url';
-import {
-  APPLICATION_STATUS_LABELS,
-  ORG_TIMEZONE,
-  UNRESOLVED_APPLICATION_STATUSES,
-} from '@/lib/constants';
+import { APPLICATION_STATUS_LABELS, ORG_TIMEZONE } from '@/lib/constants';
 import { orgDayStart } from '@/lib/dates';
 import {
   type ManagerDigestPosition,
@@ -275,25 +273,6 @@ function formatDigestDay(day: string): string {
   }).format(orgDayStart(day));
 }
 
-function formatDigestWeekRange(startDay: string, endDay: string): string {
-  // Only the start label carries the year conditionally — a week spanning a
-  // year boundary would otherwise read ambiguously (Dec 29 – Jan 4, 2027).
-  const crossesYear = startDay.slice(0, 4) !== endDay.slice(0, 4);
-  const startLabel = new Intl.DateTimeFormat('en-US', {
-    timeZone: ORG_TIMEZONE,
-    month: 'short',
-    day: 'numeric',
-    ...(crossesYear ? { year: 'numeric' } : {}),
-  }).format(orgDayStart(startDay));
-  const endLabel = new Intl.DateTimeFormat('en-US', {
-    timeZone: ORG_TIMEZONE,
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(orgDayStart(endDay));
-  return `${startLabel} – ${endLabel}`;
-}
-
 export interface ManagerDailyDigestEmailOptions {
   firstName?: string;
   day: string;
@@ -355,51 +334,83 @@ export function managerDailyDigestEmail({
   };
 }
 
+// Only the two variants an unresolved status can carry (see
+// APPLICATION_STATUS_BADGE_VARIANT) — reviewing is the sole 'warning', the
+// rest are 'info'. Matches the in-app status-dot palette (app/globals.css).
+const DIGEST_STATUS_DOT_COLOR: Partial<
+  Record<$Enums.ApplicationStatus, string>
+> = {
+  applied: '#2563eb',
+  reached_out: '#2563eb',
+  interview_scheduled: '#2563eb',
+  reviewing: '#d97706',
+};
+
+// A single stat box: dot + big number + label, linking to the filtered queue.
+// Table-based, not flex/grid — Outlook's Word engine only renders tables reliably.
+function statBox(
+  url: string,
+  color: string,
+  count: number,
+  label: string,
+): string {
+  const safeUrl = escapeHtml(url);
+  return `<td width="50%" style="padding:4px;">
+      <a href="${safeUrl}" style="display:block;text-decoration:none;background-color:#f4f4f5;border-radius:8px;padding:16px;text-align:center;">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:${color};margin-bottom:6px;"></span><br />
+        <span style="display:block;font-size:24px;font-weight:700;color:#09090b;line-height:1.2;">${count}</span>
+        <span style="display:block;font-size:12px;color:#71717a;margin-top:2px;">${escapeHtml(label)}</span>
+      </a>
+    </td>`;
+}
+
+// Two boxes per row (UNRESOLVED_APPLICATION_STATUSES never exceeds four), a
+// blank spacer cell keeps the last row's alignment when the count is odd.
+function statBoxGrid(
+  entries: { url: string; color: string; count: number; label: string }[],
+): string {
+  const rows: string[] = [];
+  for (let i = 0; i < entries.length; i += 2) {
+    const a = entries[i]!;
+    const b = entries[i + 1];
+    rows.push(
+      `<tr>${statBox(a.url, a.color, a.count, a.label)}${b ? statBox(b.url, b.color, b.count, b.label) : '<td width="50%">&nbsp;</td>'}</tr>`,
+    );
+  }
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">${rows.join('')}</table>`;
+}
+
 export interface ManagerWeeklyDigestEmailOptions {
   firstName?: string;
-  weekStart: string;
-  weekEnd: string;
-  newApplications: number;
+  asOfDay: string;
   statusCounts: WeeklyDigestStatusCount[];
   openPositions: Pick<ManagerDigestPosition, 'positionId' | 'title'>[];
 }
 
+// statusCounts is always unresolved-only (WeeklyDigestRecipient's contract) —
+// this is a reminder of outstanding review work, never a terminal-decision recap.
 export function managerWeeklyDigestEmail({
   firstName,
-  weekStart,
-  weekEnd,
-  newApplications,
+  asOfDay,
   statusCounts,
   openPositions,
 }: ManagerWeeklyDigestEmailOptions): EmailTemplate {
   const baseUrl = getBaseUrl();
   const allApplicationsUrl = `${baseUrl}/manage/applications`;
-  const weekRangeLabel = formatDigestWeekRange(weekStart, weekEnd);
+  const asOfLabel = formatDigestDay(asOfDay);
   const safeGreeting = escapeHtml(greeting(firstName));
-  const unresolvedStatuses: readonly string[] = UNRESOLVED_APPLICATION_STATUSES;
-  const unresolvedTotal = statusCounts
-    .filter((entry) => unresolvedStatuses.includes(entry.status))
-    .reduce((sum, entry) => sum + entry.count, 0);
+  const total = statusCounts.reduce((sum, entry) => sum + entry.count, 0);
 
-  const subject =
-    newApplications > 0
-      ? `Your week on Aplio: ${newApplications} new ${pluralize(newApplications, 'application')}`
-      : `Your week on Aplio: ${unresolvedTotal} ${pluralize(unresolvedTotal, 'application')} awaiting review`;
+  const subject = `${total} ${pluralize(total, 'application')} awaiting your review`;
 
-  const newThisWeekLine =
-    newApplications > 0
-      ? `${newApplications} new ${pluralize(newApplications, 'application')} across the positions you manage.`
-      : 'No new applications this week.';
-
-  const statusRows =
-    statusCounts.length > 0
-      ? statusCounts
-          .map((entry) => {
-            const url = `${allApplicationsUrl}?status=${entry.status}`;
-            return `<a href="${escapeHtml(url)}" style="color:#D41B2C;text-decoration:none;font-weight:600;">${escapeHtml(APPLICATION_STATUS_LABELS[entry.status])}</a> — ${entry.count}`;
-          })
-          .join('<br />')
-      : 'No applications on your positions yet.';
+  const statBoxesHtml = statBoxGrid(
+    statusCounts.map((entry) => ({
+      url: `${allApplicationsUrl}?status=${entry.status}`,
+      color: DIGEST_STATUS_DOT_COLOR[entry.status] ?? '#71717a',
+      count: entry.count,
+      label: APPLICATION_STATUS_LABELS[entry.status],
+    })),
+  );
 
   const openPositionsLine =
     openPositions.length > 0
@@ -413,11 +424,8 @@ export function managerWeeklyDigestEmail({
 
   const content = `
     <p style="margin:0 0 16px;font-size:14px;color:#09090b;">${safeGreeting}</p>
-    <p style="margin:0 0 16px;font-size:14px;color:#71717a;">Your weekly summary for <strong>${escapeHtml(weekRangeLabel)}</strong>.</p>
-    <p style="margin:0 0 4px;font-size:14px;font-weight:700;color:#09090b;">New this week</p>
-    <p style="margin:0 0 16px;font-size:14px;color:#71717a;">${escapeHtml(newThisWeekLine)}</p>
-    <p style="margin:0 0 4px;font-size:14px;font-weight:700;color:#09090b;">Where things stand</p>
-    <p style="margin:0 0 16px;font-size:14px;color:#71717a;">${statusRows}</p>
+    <p style="margin:0 0 20px;font-size:14px;color:#71717a;">As of <strong>${escapeHtml(asOfLabel)}</strong>, you have ${total} ${pluralize(total, 'application')} awaiting review across the positions you manage.</p>
+    ${statBoxesHtml}
     <p style="margin:0 0 4px;font-size:14px;font-weight:700;color:#09090b;">Your open positions</p>
     <p style="margin:0 0 24px;font-size:14px;color:#71717a;">${openPositionsLine}</p>
     ${primaryButton(allApplicationsUrl, 'Review all applications')}
@@ -426,20 +434,12 @@ export function managerWeeklyDigestEmail({
   const text = [
     greeting(firstName),
     '',
-    `Your weekly summary for ${weekRangeLabel}.`,
+    `As of ${asOfLabel}, you have ${total} ${pluralize(total, 'application')} awaiting review across the positions you manage.`,
     '',
-    'New this week',
-    newThisWeekLine,
-    '',
-    'Where things stand',
-    statusCounts.length > 0
-      ? statusCounts
-          .map(
-            (entry) =>
-              `${APPLICATION_STATUS_LABELS[entry.status]} (${allApplicationsUrl}?status=${entry.status}) — ${entry.count}`,
-          )
-          .join('\n')
-      : 'No applications on your positions yet.',
+    ...statusCounts.map(
+      (entry) =>
+        `${APPLICATION_STATUS_LABELS[entry.status]}: ${entry.count} — ${allApplicationsUrl}?status=${entry.status}`,
+    ),
     '',
     'Your open positions',
     openPositions.length > 0

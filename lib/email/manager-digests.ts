@@ -66,9 +66,7 @@ export async function dispatchWeeklyManagerDigests(
     try {
       const { subject, html, text } = managerWeeklyDigestEmail({
         firstName: getFirstName(recipient.name),
-        weekStart: recipient.weekStart,
-        weekEnd: recipient.weekEnd,
-        newApplications: recipient.newApplications,
+        asOfDay: recipient.asOfDay,
         statusCounts: recipient.statusCounts,
         openPositions: recipient.openPositions,
       });

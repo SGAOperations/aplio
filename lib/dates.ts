@@ -104,23 +104,6 @@ export function currentOrgWeekStart(now: Date): string {
   return shiftOrgDay(day, -daysSinceMonday);
 }
 
-/** The Monday–Sunday org week before `now`'s current week, with its instant bounds. */
-export function previousOrgWeek(now: Date): {
-  startDay: string;
-  endDay: string;
-  start: Date;
-  end: Date;
-} {
-  const startDay = shiftOrgDay(currentOrgWeekStart(now), -7);
-  const endDay = shiftOrgDay(startDay, 6);
-  return {
-    startDay,
-    endDay,
-    start: orgDayStart(startDay),
-    end: orgDayEnd(endDay),
-  };
-}
-
 export function formatInstant(
   date: Date,
   { precision, timeZone }: { precision: DatePrecision; timeZone: string },

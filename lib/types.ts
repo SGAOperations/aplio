@@ -511,6 +511,7 @@ export type DailyDigestRecipient = {
   total: number;
 };
 
+// status is always one of UNRESOLVED_APPLICATION_STATUSES — never a terminal decision.
 export type WeeklyDigestStatusCount = {
   status: $Enums.ApplicationStatus;
   count: number;
@@ -520,9 +521,7 @@ export type WeeklyDigestRecipient = {
   userId: string;
   email: string;
   name: string | null;
-  weekStart: string;
-  weekEnd: string;
-  newApplications: number;
+  asOfDay: string;
   statusCounts: WeeklyDigestStatusCount[];
   openPositions: Pick<ManagerDigestPosition, 'positionId' | 'title'>[];
 };
