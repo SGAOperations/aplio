@@ -340,9 +340,8 @@ export function managerDailyDigestEmail({
   };
 }
 
-// Only the two variants an unresolved status can carry (see
-// APPLICATION_STATUS_BADGE_VARIANT) — reviewing is the sole 'warning', the
-// rest are 'info'. Matches the in-app status-dot palette (app/globals.css).
+// Matches the in-app status-dot palette — reviewing is the sole 'warning'
+// (APPLICATION_STATUS_BADGE_VARIANT), the rest are 'info'.
 const DIGEST_STATUS_DOT_COLOR: Partial<
   Record<$Enums.ApplicationStatus, string>
 > = {
