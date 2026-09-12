@@ -93,8 +93,8 @@ export function ManagedPositionsSection({
     <div className="flex flex-col gap-6">
       {open.length > 0 && (
         <PositionGroup
-          sectionId="managed-positions-open"
-          headingId="managed-positions-open-heading"
+          sectionId="open"
+          headingId="open-heading"
           title="Open"
           icon={POSITION_STATUS_ICONS.open}
           positions={open}
@@ -104,8 +104,8 @@ export function ManagedPositionsSection({
 
       {closed.length > 0 && (
         <PositionGroup
-          sectionId="managed-positions-closed"
-          headingId="managed-positions-closed-heading"
+          sectionId="closed"
+          headingId="closed-heading"
           title="Closed"
           icon={POSITION_STATUS_ICONS.closed}
           positions={closedActive}
@@ -140,8 +140,8 @@ export function ManagedPositionsSection({
 
       {draft.length > 0 && (
         <PositionGroup
-          sectionId="managed-positions-draft"
-          headingId="managed-positions-draft-heading"
+          sectionId="draft"
+          headingId="draft-heading"
           title="Draft"
           icon={POSITION_STATUS_ICONS.draft}
           positions={draft}
