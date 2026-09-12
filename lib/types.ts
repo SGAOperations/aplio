@@ -453,6 +453,18 @@ export interface NavGroup {
   items: NavItem[];
 }
 
+// Discovered from data-section-nav elements under <main>; label is the raw attribute value.
+export interface SectionNavItem {
+  id: string;
+  label: string;
+}
+
+// One IntersectionObserver entry, reduced to what selectActiveSectionId needs.
+export interface SectionVisibility {
+  id: string;
+  isIntersecting: boolean;
+}
+
 export type EmailStatusFilter = (typeof EMAIL_STATUS_VALUES)[number];
 export type EmailTemplateFilter = (typeof EMAIL_TEMPLATE_VALUES)[number];
 

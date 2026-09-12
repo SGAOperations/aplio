@@ -18,6 +18,7 @@ interface ManagedPositionsSectionProps {
 }
 
 interface PositionGroupProps {
+  sectionId: string;
   headingId: string;
   title: string;
   icon: LucideIcon;
@@ -27,6 +28,7 @@ interface PositionGroupProps {
 }
 
 function PositionGroup({
+  sectionId,
   headingId,
   title,
   icon: Icon,
@@ -35,7 +37,12 @@ function PositionGroup({
   trailing,
 }: PositionGroupProps) {
   return (
-    <section aria-labelledby={headingId} className="flex flex-col gap-4">
+    <section
+      id={sectionId}
+      data-section-nav={title}
+      aria-labelledby={headingId}
+      className="flex scroll-mt-6 flex-col gap-4"
+    >
       <h2
         id={headingId}
         className="flex items-center gap-2 text-lg font-semibold"
@@ -86,6 +93,7 @@ export function ManagedPositionsSection({
     <div className="flex flex-col gap-6">
       {open.length > 0 && (
         <PositionGroup
+          sectionId="managed-positions-open"
           headingId="managed-positions-open-heading"
           title="Open"
           icon={POSITION_STATUS_ICONS.open}
@@ -96,6 +104,7 @@ export function ManagedPositionsSection({
 
       {closed.length > 0 && (
         <PositionGroup
+          sectionId="managed-positions-closed"
           headingId="managed-positions-closed-heading"
           title="Closed"
           icon={POSITION_STATUS_ICONS.closed}
@@ -131,6 +140,7 @@ export function ManagedPositionsSection({
 
       {draft.length > 0 && (
         <PositionGroup
+          sectionId="managed-positions-draft"
           headingId="managed-positions-draft-heading"
           title="Draft"
           icon={POSITION_STATUS_ICONS.draft}
