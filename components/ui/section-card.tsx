@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const HEADER_CLASS = 'border-b px-4 py-3 pb-3!';
+const HEADER_CLASS = 'border-b px-4 py-3 pb-3! grid-rows-1';
 const CONTENT_CLASS = 'p-0';
 
 interface SectionCardLink {
