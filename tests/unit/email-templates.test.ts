@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest';
 
 import {
   APPLICANT_EMAIL_FOOTER,
+  MANAGER_EMAIL_FOOTER,
   applicationDecisionEmail,
   applicationReceivedEmail,
   emailLayout,
   escapeHtml,
+  managerDailyDigestEmail,
+  managerWeeklyDigestEmail,
   otpEmail,
 } from '@/lib/email/templates';
 
@@ -173,5 +176,178 @@ describe('applicationDecisionEmail', () => {
     });
     expect(result.html).toContain('/my-applications/app-1');
     expect(result.html).toContain(APPLICANT_EMAIL_FOOTER);
+  });
+});
+
+describe('managerDailyDigestEmail', () => {
+  it('singularizes the subject and body at exactly 1', () => {
+    const result = managerDailyDigestEmail({
+      firstName: 'Jane',
+      day: '2026-03-02',
+      positions: [
+        { positionId: 'pos-1', title: 'Treasurer', newApplications: 1 },
+      ],
+      total: 1,
+    });
+    expect(result.subject).toBe('1 new application for Treasurer');
+    expect(result.html).toContain('1 new application<');
+  });
+
+  it('names the single position in the subject, pluralized', () => {
+    const result = managerDailyDigestEmail({
+      day: '2026-03-02',
+      positions: [
+        { positionId: 'pos-1', title: 'Treasurer', newApplications: 3 },
+      ],
+      total: 3,
+    });
+    expect(result.subject).toBe('3 new applications for Treasurer');
+  });
+
+  it('summarizes across positions in the subject when there is more than one', () => {
+    const result = managerDailyDigestEmail({
+      day: '2026-03-02',
+      positions: [
+        { positionId: 'pos-1', title: 'Senator', newApplications: 3 },
+        { positionId: 'pos-2', title: 'Treasurer', newApplications: 2 },
+      ],
+      total: 5,
+    });
+    expect(result.subject).toBe('5 new applications across 2 positions');
+  });
+
+  it('escapes a dangerous position title in the html but leaves the subject raw', () => {
+    const result = managerDailyDigestEmail({
+      day: '2026-03-02',
+      positions: [
+        { positionId: 'pos-1', title: DANGEROUS_TITLE, newApplications: 1 },
+      ],
+      total: 1,
+    });
+    expect(result.subject).toBe(`1 new application for ${DANGEROUS_TITLE}`);
+    expect(result.html).toContain(escapeHtml(DANGEROUS_TITLE));
+    expect(result.html).not.toContain(DANGEROUS_TITLE);
+    expect(result.text).toContain(DANGEROUS_TITLE);
+  });
+
+  it('links every position row to its own positionId', () => {
+    const result = managerDailyDigestEmail({
+      day: '2026-03-02',
+      positions: [
+        { positionId: 'pos-1', title: 'Senator', newApplications: 3 },
+        { positionId: 'pos-2', title: 'Treasurer', newApplications: 2 },
+      ],
+      total: 5,
+    });
+    expect(result.html).toContain('?positionId=pos-1');
+    expect(result.html).toContain('?positionId=pos-2');
+    expect(result.text).toContain('?positionId=pos-1');
+    expect(result.text).toContain('?positionId=pos-2');
+  });
+
+  it('names the org day and includes the manager footer', () => {
+    const result = managerDailyDigestEmail({
+      day: '2026-03-02',
+      positions: [
+        { positionId: 'pos-1', title: 'Treasurer', newApplications: 1 },
+      ],
+      total: 1,
+    });
+    expect(result.html).toContain('Mar 2, 2026');
+    expect(result.html).toContain(MANAGER_EMAIL_FOOTER);
+  });
+});
+
+describe('managerWeeklyDigestEmail', () => {
+  const base = {
+    weekStart: '2026-03-02',
+    weekEnd: '2026-03-08',
+    openPositions: [],
+  };
+
+  it('uses the new-applications subject when there is new activity', () => {
+    const result = managerWeeklyDigestEmail({
+      ...base,
+      newApplications: 12,
+      statusCounts: [],
+    });
+    expect(result.subject).toBe('Your week on Aplio: 12 new applications');
+  });
+
+  it('singularizes the new-applications subject at exactly 1', () => {
+    const result = managerWeeklyDigestEmail({
+      ...base,
+      newApplications: 1,
+      statusCounts: [],
+    });
+    expect(result.subject).toBe('Your week on Aplio: 1 new application');
+  });
+
+  it('falls back to the awaiting-review subject with no new applications', () => {
+    const result = managerWeeklyDigestEmail({
+      ...base,
+      newApplications: 0,
+      statusCounts: [{ status: 'applied', count: 7 }],
+    });
+    expect(result.subject).toBe(
+      'Your week on Aplio: 7 applications awaiting review',
+    );
+  });
+
+  it('omits zero-count statuses and links each remaining status', () => {
+    const result = managerWeeklyDigestEmail({
+      ...base,
+      newApplications: 0,
+      statusCounts: [
+        { status: 'applied', count: 7 },
+        { status: 'accepted', count: 3 },
+      ],
+    });
+    expect(result.html).toContain('?status=applied');
+    expect(result.html).toContain('?status=accepted');
+    expect(result.html).not.toContain('?status=rejected');
+  });
+
+  it('shows the empty statuses line when nothing is unresolved but new applications exist', () => {
+    const result = managerWeeklyDigestEmail({
+      ...base,
+      newApplications: 4,
+      statusCounts: [],
+    });
+    expect(result.html).toContain('No applications on your positions yet.');
+  });
+
+  it('shows the empty open-positions line with none open', () => {
+    const result = managerWeeklyDigestEmail({
+      ...base,
+      newApplications: 4,
+      statusCounts: [],
+    });
+    expect(result.html).toContain('You have no positions open right now.');
+  });
+
+  it('links open positions by positionId', () => {
+    const result = managerWeeklyDigestEmail({
+      ...base,
+      newApplications: 4,
+      statusCounts: [],
+      openPositions: [
+        { positionId: 'pos-1', title: 'Senator' },
+        { positionId: 'pos-2', title: 'Treasurer' },
+      ],
+    });
+    expect(result.html).toContain('?positionId=pos-1');
+    expect(result.html).toContain('?positionId=pos-2');
+  });
+
+  it('includes the week range and the manager footer', () => {
+    const result = managerWeeklyDigestEmail({
+      ...base,
+      newApplications: 4,
+      statusCounts: [],
+    });
+    expect(result.html).toContain('Mar 2');
+    expect(result.html).toContain('Mar 8, 2026');
+    expect(result.html).toContain(MANAGER_EMAIL_FOOTER);
   });
 });
