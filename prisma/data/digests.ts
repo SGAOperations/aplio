@@ -3,16 +3,12 @@ import 'server-only';
 import { type $Enums } from '@/prisma/client';
 
 import {
+  DAILY_DIGEST_LOOKBACK_MS,
   NON_REVIEWABLE_APPLICATION_STATUSES,
   PUBLISHED_POSITION_WHERE,
   UNRESOLVED_APPLICATION_STATUSES,
 } from '@/lib/constants';
-import {
-  currentOrgWeekStart,
-  orgDayStart,
-  previousOrgDay,
-  toOrgDayString,
-} from '@/lib/dates';
+import { currentOrgWeekStart, orgDayStart, toOrgDayString } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
 import {
   type DailyDigestRecipient,
@@ -60,26 +56,49 @@ async function getManagerCandidates(): Promise<ManagerCandidate[]> {
   });
 }
 
-async function tallyNewApplications(
+// Raw rows, not a groupBy count — the daily digest windows per manager (each
+// manager's own last-digest cutoff), so the count per position can't be
+// pre-aggregated until each manager's cutoff is known.
+async function fetchNewApplications(
   positionIds: string[],
-  start: Date,
-  end: Date,
-): Promise<Map<string, number>> {
-  if (positionIds.length === 0) return new Map();
+  since: Date,
+  until: Date,
+): Promise<{ positionId: string; submittedAt: Date }[]> {
+  if (positionIds.length === 0) return [];
 
-  const rows = await prisma.application.groupBy({
-    by: ['positionId'],
+  return prisma.application.findMany({
     where: {
       positionId: { in: positionIds },
       deletedAt: null,
       status: { notIn: NON_REVIEWABLE_APPLICATION_STATUSES },
-      submittedAt: { gte: start, lte: end },
+      submittedAt: { gt: since, lte: until },
       position: PUBLISHED_POSITION_WHERE,
     },
-    _count: true,
+    select: { positionId: true, submittedAt: true },
+  });
+}
+
+// A manager's own last `manager_daily_digest` row (success or failure — a
+// failed run isn't retried, same as before) anchors their next window, so a
+// missed/delayed cron fire can never drop a gap; a manager never digested
+// before falls back to DAILY_DIGEST_LOOKBACK_MS.
+async function getDigestSinceByManager(
+  managerIds: string[],
+  fallback: Date,
+): Promise<Map<string, Date>> {
+  if (managerIds.length === 0) return new Map();
+
+  const rows = await prisma.emailLog.groupBy({
+    by: ['userId'],
+    where: { template: 'manager_daily_digest', userId: { in: managerIds } },
+    _max: { createdAt: true },
   });
 
-  return new Map(rows.map((row) => [row.positionId, row._count]));
+  const since = new Map<string, Date>();
+  for (const row of rows)
+    if (row.userId !== null)
+      since.set(row.userId, row._max.createdAt ?? fallback);
+  return since;
 }
 
 async function tallyStatusBreakdown(
@@ -109,7 +128,13 @@ async function tallyStatusBreakdown(
   return map;
 }
 
-/** Managers with new applications yesterday, minus any already digested today (counted in `skipped`). */
+/**
+ * Managers with new applications since their own last daily digest (or the
+ * lookback fallback, for a first-ever digest). A manager with nothing new in
+ * their window is counted in `skipped`, whether that's genuinely no activity
+ * or a repeat call shortly after a successful send — both collapse to the
+ * same "nothing since last time" outcome.
+ */
 export async function getDailyDigestRecipients(
   now: Date = new Date(),
 ): Promise<{ recipients: DailyDigestRecipient[]; skipped: number }> {
@@ -117,36 +142,44 @@ export async function getDailyDigestRecipients(
   if (managers.length === 0) return { recipients: [], skipped: 0 };
 
   const managerIds = managers.map((manager) => manager.id);
-  const { day, start, end } = previousOrgDay(now);
-
-  const alreadyDigested = await prisma.emailLog.findMany({
-    where: {
-      template: 'manager_daily_digest',
-      userId: { in: managerIds },
-      createdAt: { gte: orgDayStart(toOrgDayString(now)) },
-    },
-    select: { userId: true },
-  });
-  const gatedIds = new Set(
-    alreadyDigested.map((row) => row.userId).filter((id) => id !== null),
+  const fallbackSince = new Date(now.getTime() - DAILY_DIGEST_LOOKBACK_MS);
+  const sinceByManager = await getDigestSinceByManager(
+    managerIds,
+    fallbackSince,
   );
 
-  const candidates = managers.filter((manager) => !gatedIds.has(manager.id));
-  if (candidates.length === 0)
-    return { recipients: [], skipped: gatedIds.size };
-
-  const positionIds = candidates.flatMap((manager) =>
+  const positionIds = managers.flatMap((manager) =>
     manager.managedPositions.map((position) => position.id),
   );
-  const tallies = await tallyNewApplications(positionIds, start, end);
+  const earliestSince = managers.reduce((earliest, manager) => {
+    const since = sinceByManager.get(manager.id) ?? fallbackSince;
+    return since < earliest ? since : earliest;
+  }, fallbackSince);
+
+  const applications = await fetchNewApplications(
+    positionIds,
+    earliestSince,
+    now,
+  );
+  const submittedAtByPosition = new Map<string, Date[]>();
+  for (const application of applications) {
+    const list = submittedAtByPosition.get(application.positionId) ?? [];
+    list.push(application.submittedAt);
+    submittedAtByPosition.set(application.positionId, list);
+  }
 
   const recipients: DailyDigestRecipient[] = [];
-  for (const manager of candidates) {
+  let skipped = 0;
+  for (const manager of managers) {
+    const since = sinceByManager.get(manager.id) ?? fallbackSince;
+
     const positions: ManagerDigestPosition[] = manager.managedPositions
       .map((position) => ({
         positionId: position.id,
         title: position.title,
-        newApplications: tallies.get(position.id) ?? 0,
+        newApplications: (submittedAtByPosition.get(position.id) ?? []).filter(
+          (submittedAt) => submittedAt > since,
+        ).length,
       }))
       .filter((position) => position.newApplications > 0)
       .sort((a, b) => a.title.localeCompare(b.title));
@@ -155,19 +188,22 @@ export async function getDailyDigestRecipients(
       (sum, position) => sum + position.newApplications,
       0,
     );
-    if (total === 0) continue;
+    if (total === 0) {
+      skipped += 1;
+      continue;
+    }
 
     recipients.push({
       userId: manager.id,
       email: manager.email,
       name: manager.name,
-      day,
+      since,
       positions,
       total,
     });
   }
 
-  return { recipients, skipped: gatedIds.size };
+  return { recipients, skipped };
 }
 
 /** Managers with any application still short of a terminal status, gated per org week. */

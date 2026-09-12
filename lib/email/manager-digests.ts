@@ -31,7 +31,7 @@ export async function dispatchDailyManagerDigests(
     try {
       const { subject, html, text } = managerDailyDigestEmail({
         firstName: getFirstName(recipient.name),
-        day: recipient.day,
+        since: recipient.since,
         positions: recipient.positions,
         total: recipient.total,
       });

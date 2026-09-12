@@ -506,7 +506,7 @@ export type DailyDigestRecipient = {
   userId: string;
   email: string;
   name: string | null;
-  day: string;
+  since: Date;
   positions: ManagerDigestPosition[];
   total: number;
 };

@@ -1001,6 +1001,11 @@ export const EMAIL_TEMPLATE_VALUES = [
 // Keeps a digest run under Resend's 2 req/s (docs.resend.com/api-reference/introduction#rate-limit).
 export const MANAGER_DIGEST_SEND_SPACING_MS = 600;
 
+// Daily digest fallback window for a manager with no prior digest — every
+// later run instead windows from that manager's own last digest, so a
+// missed/delayed cron fire never drops a gap of applications.
+export const DAILY_DIGEST_LOOKBACK_MS = 24 * 60 * 60 * 1000;
+
 export const EMAIL_STATUS_LABELS: Record<$Enums.EmailStatus, string> = {
   scheduled: 'Scheduled',
   sent: 'Sent',

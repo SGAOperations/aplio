@@ -183,7 +183,7 @@ describe('managerDailyDigestEmail', () => {
   it('singularizes the subject and body at exactly 1', () => {
     const result = managerDailyDigestEmail({
       firstName: 'Jane',
-      day: '2026-03-02',
+      since: new Date('2026-03-02T14:00:00.000Z'),
       positions: [
         { positionId: 'pos-1', title: 'Treasurer', newApplications: 1 },
       ],
@@ -195,7 +195,7 @@ describe('managerDailyDigestEmail', () => {
 
   it('names the single position in the subject, pluralized', () => {
     const result = managerDailyDigestEmail({
-      day: '2026-03-02',
+      since: new Date('2026-03-02T14:00:00.000Z'),
       positions: [
         { positionId: 'pos-1', title: 'Treasurer', newApplications: 3 },
       ],
@@ -206,7 +206,7 @@ describe('managerDailyDigestEmail', () => {
 
   it('summarizes across positions in the subject when there is more than one', () => {
     const result = managerDailyDigestEmail({
-      day: '2026-03-02',
+      since: new Date('2026-03-02T14:00:00.000Z'),
       positions: [
         { positionId: 'pos-1', title: 'Senator', newApplications: 3 },
         { positionId: 'pos-2', title: 'Treasurer', newApplications: 2 },
@@ -218,7 +218,7 @@ describe('managerDailyDigestEmail', () => {
 
   it('escapes a dangerous position title in the html but leaves the subject raw', () => {
     const result = managerDailyDigestEmail({
-      day: '2026-03-02',
+      since: new Date('2026-03-02T14:00:00.000Z'),
       positions: [
         { positionId: 'pos-1', title: DANGEROUS_TITLE, newApplications: 1 },
       ],
@@ -232,7 +232,7 @@ describe('managerDailyDigestEmail', () => {
 
   it('links every position row to its own positionId', () => {
     const result = managerDailyDigestEmail({
-      day: '2026-03-02',
+      since: new Date('2026-03-02T14:00:00.000Z'),
       positions: [
         { positionId: 'pos-1', title: 'Senator', newApplications: 3 },
         { positionId: 'pos-2', title: 'Treasurer', newApplications: 2 },
@@ -245,15 +245,15 @@ describe('managerDailyDigestEmail', () => {
     expect(result.text).toContain('?positionId=pos-2');
   });
 
-  it('names the org day and includes the manager footer', () => {
+  it('names the exact since-instant and includes the manager footer', () => {
     const result = managerDailyDigestEmail({
-      day: '2026-03-02',
+      since: new Date('2026-03-02T14:00:00.000Z'),
       positions: [
         { positionId: 'pos-1', title: 'Treasurer', newApplications: 1 },
       ],
       total: 1,
     });
-    expect(result.html).toContain('Mar 2, 2026');
+    expect(result.html).toContain('Mar 2, 2026, 9:00 AM EST');
     expect(result.html).toContain(MANAGER_EMAIL_FOOTER);
   });
 });
