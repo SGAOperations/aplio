@@ -14,9 +14,10 @@ export function buildContentSecurityPolicy(isDevelopment: boolean): string {
     `form-action 'self'`,
     `script-src ${scriptSrc}`,
     `style-src 'self' 'unsafe-inline'`,
-    `img-src 'self' data:`,
+    `img-src 'self' data: blob:`,
     `font-src 'self'`,
     `connect-src ${connectSrc}`,
+    `frame-src 'self' blob:`,
   ];
   if (!isDevelopment) directives.push('upgrade-insecure-requests');
 

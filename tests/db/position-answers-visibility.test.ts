@@ -41,10 +41,12 @@ describe('getApplicationForReview hasPositionQuestions', () => {
     expect(forReview?.positionAnswers).toHaveLength(0);
   });
 
-  it('is true for a position with an unanswered question', async () => {
+  it('is true for a position with an unanswered question, and lists it as a placeholder', async () => {
     const applicant = await createTestUser();
     const position = await createTestPosition(admin);
-    await createTestPositionQuestion(position, admin);
+    const question = await createTestPositionQuestion(position, admin, {
+      label: 'Why this role?',
+    });
     const application = await createTestApplication(applicant, position, {
       status: 'applied',
       submittedAt: new Date(),
@@ -52,7 +54,12 @@ describe('getApplicationForReview hasPositionQuestions', () => {
 
     const forReview = await getApplicationForReview(application.id, admin);
     expect(forReview?.hasPositionQuestions).toBe(true);
-    expect(forReview?.positionAnswers).toHaveLength(0);
+    expect(forReview?.positionAnswers).toHaveLength(1);
+    expect(forReview?.positionAnswers[0]).toMatchObject({
+      questionId: question.id,
+      questionLabel: 'Why this role?',
+      value: [],
+    });
   });
 
   it('is false once every question is soft-deleted, even with live answers', async () => {
@@ -84,6 +91,139 @@ describe('getApplicationForReview hasPositionQuestions', () => {
     expect(forReview?.hasPositionQuestions).toBe(false);
     expect(forReview?.positionAnswers).toHaveLength(1);
   });
+
+  it('orders the merged list by PositionQuestion.order, not by answer save order', async () => {
+    const applicant = await createTestUser();
+    const position = await createTestPosition(admin);
+    const first = await createTestPositionQuestion(position, admin, {
+      order: 1,
+      label: 'First',
+    });
+    const second = await createTestPositionQuestion(position, admin, {
+      order: 2,
+      label: 'Second',
+    });
+    const application = await createTestApplication(applicant, position, {
+      status: 'applied',
+      submittedAt: new Date(),
+    });
+
+    // Answer the second question first, so createdAt order is reversed.
+    await prisma.positionApplicationAnswer.create({
+      data: {
+        applicationId: application.id,
+        positionQuestionId: second.id,
+        questionLabel: second.label,
+        questionType: second.type,
+        value: ['b'],
+        createdById: applicant.id,
+        updatedById: applicant.id,
+      },
+    });
+    await prisma.positionApplicationAnswer.create({
+      data: {
+        applicationId: application.id,
+        positionQuestionId: first.id,
+        questionLabel: first.label,
+        questionType: first.type,
+        value: ['a'],
+        createdById: applicant.id,
+        updatedById: applicant.id,
+      },
+    });
+
+    const forReview = await getApplicationForReview(application.id, admin);
+    expect(forReview?.positionAnswers.map((a) => a.questionId)).toEqual([
+      first.id,
+      second.id,
+    ]);
+  });
+
+  it('keeps an answered row on its snapshotted label while a placeholder tracks the live label', async () => {
+    const applicant = await createTestUser();
+    const position = await createTestPosition(admin);
+    const answered = await createTestPositionQuestion(position, admin, {
+      order: 1,
+      label: 'Original label',
+    });
+    const unanswered = await createTestPositionQuestion(position, admin, {
+      order: 2,
+      label: 'Unanswered label',
+    });
+    const application = await createTestApplication(applicant, position, {
+      status: 'applied',
+      submittedAt: new Date(),
+    });
+    await prisma.positionApplicationAnswer.create({
+      data: {
+        applicationId: application.id,
+        positionQuestionId: answered.id,
+        questionLabel: answered.label,
+        questionType: answered.type,
+        value: ['yes'],
+        createdById: applicant.id,
+        updatedById: applicant.id,
+      },
+    });
+
+    await prisma.positionQuestion.update({
+      where: { id: answered.id },
+      data: { label: 'Renamed label' },
+    });
+    await prisma.positionQuestion.update({
+      where: { id: unanswered.id },
+      data: { label: 'Renamed unanswered label' },
+    });
+
+    const forReview = await getApplicationForReview(application.id, admin);
+    const answeredRow = forReview?.positionAnswers.find(
+      (a) => a.questionId === answered.id,
+    );
+    const placeholderRow = forReview?.positionAnswers.find(
+      (a) => a.questionId === unanswered.id,
+    );
+    expect(answeredRow?.questionLabel).toBe('Original label');
+    expect(answeredRow?.value).toEqual(['yes']);
+    expect(placeholderRow?.questionLabel).toBe('Renamed unanswered label');
+    expect(placeholderRow?.value).toEqual([]);
+  });
+
+  it('sorts an answer to a soft-deleted question after the live questions', async () => {
+    const applicant = await createTestUser();
+    const position = await createTestPosition(admin);
+    const deleted = await createTestPositionQuestion(position, admin, {
+      order: 1,
+    });
+    const live = await createTestPositionQuestion(position, admin, {
+      order: 2,
+    });
+    const application = await createTestApplication(applicant, position, {
+      status: 'applied',
+      submittedAt: new Date(),
+    });
+    await prisma.positionApplicationAnswer.create({
+      data: {
+        applicationId: application.id,
+        positionQuestionId: deleted.id,
+        questionLabel: deleted.label,
+        questionType: deleted.type,
+        value: ['answer'],
+        createdById: applicant.id,
+        updatedById: applicant.id,
+      },
+    });
+    await prisma.positionQuestion.update({
+      where: { id: deleted.id },
+      data: { deletedAt: new Date(), deletedById: admin.id },
+    });
+
+    const forReview = await getApplicationForReview(application.id, admin);
+    expect(forReview?.positionAnswers.map((a) => a.questionId)).toEqual([
+      live.id,
+      deleted.id,
+    ]);
+    expect(forReview?.positionAnswers[1]?.value).toEqual(['answer']);
+  });
 });
 
 describe('getMyApplication hasPositionQuestions', () => {
@@ -99,12 +239,15 @@ describe('getMyApplication hasPositionQuestions', () => {
     expect(mine?.hasPositionQuestions).toBe(false);
     expect(mine?.positionAnswers).toHaveLength(0);
     expect(mine?.position).not.toHaveProperty('_count');
+    expect(mine?.position).not.toHaveProperty('questions');
   });
 
-  it('is true for a position with an unanswered question', async () => {
+  it('is true for a position with an unanswered question, and lists it as a placeholder', async () => {
     const applicant = await createTestUser();
     const position = await createTestPosition(admin);
-    await createTestPositionQuestion(position, admin);
+    const question = await createTestPositionQuestion(position, admin, {
+      label: 'Why this role?',
+    });
     const application = await createTestApplication(applicant, position, {
       status: 'applied',
       submittedAt: new Date(),
@@ -112,7 +255,12 @@ describe('getMyApplication hasPositionQuestions', () => {
 
     const mine = await getMyApplication(application.id, applicant.id);
     expect(mine?.hasPositionQuestions).toBe(true);
-    expect(mine?.positionAnswers).toHaveLength(0);
+    expect(mine?.positionAnswers).toHaveLength(1);
+    expect(mine?.positionAnswers[0]).toMatchObject({
+      questionId: question.id,
+      questionLabel: 'Why this role?',
+      value: [],
+    });
   });
 
   it('is false once every question is soft-deleted, even with live answers', async () => {
@@ -143,6 +291,52 @@ describe('getMyApplication hasPositionQuestions', () => {
     const mine = await getMyApplication(application.id, applicant.id);
     expect(mine?.hasPositionQuestions).toBe(false);
     expect(mine?.positionAnswers).toHaveLength(1);
+  });
+
+  it('orders the merged list by PositionQuestion.order, not by answer save order', async () => {
+    const applicant = await createTestUser();
+    const position = await createTestPosition(admin);
+    const first = await createTestPositionQuestion(position, admin, {
+      order: 1,
+      label: 'First',
+    });
+    const second = await createTestPositionQuestion(position, admin, {
+      order: 2,
+      label: 'Second',
+    });
+    const application = await createTestApplication(applicant, position, {
+      status: 'applied',
+      submittedAt: new Date(),
+    });
+
+    await prisma.positionApplicationAnswer.create({
+      data: {
+        applicationId: application.id,
+        positionQuestionId: second.id,
+        questionLabel: second.label,
+        questionType: second.type,
+        value: ['b'],
+        createdById: applicant.id,
+        updatedById: applicant.id,
+      },
+    });
+    await prisma.positionApplicationAnswer.create({
+      data: {
+        applicationId: application.id,
+        positionQuestionId: first.id,
+        questionLabel: first.label,
+        questionType: first.type,
+        value: ['a'],
+        createdById: applicant.id,
+        updatedById: applicant.id,
+      },
+    });
+
+    const mine = await getMyApplication(application.id, applicant.id);
+    expect(mine?.positionAnswers.map((a) => a.questionId)).toEqual([
+      first.id,
+      second.id,
+    ]);
   });
 
   it('does not add a count field to the list queries', async () => {

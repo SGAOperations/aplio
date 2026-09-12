@@ -2,7 +2,10 @@
 
 import Link from 'next/link';
 
-import { APPLICATION_STATUS_LABELS } from '@/lib/constants';
+import {
+  APPLICATION_STATUS_LABELS,
+  TERMINAL_DECISION_STATUSES,
+} from '@/lib/constants';
 import { type DataTableColumn } from '@/lib/data-table';
 import { CONCEPT_ICONS } from '@/lib/icons';
 import { type MyApplicationListItem } from '@/lib/types';
@@ -56,16 +59,21 @@ const COLUMNS: DataTableColumn<MyApplicationListItem>[] = [
   {
     key: 'action',
     header: 'Action',
-    cell: (a) => (
-      <div className="flex items-center gap-2">
-        <MyApplicationPrimaryAction application={a} />
-        <MyApplicationRowActions
-          applicationId={a.id}
-          status={a.status}
-          positionTitle={a.position.title}
-        />
-      </div>
-    ),
+    cell: (a) =>
+      TERMINAL_DECISION_STATUSES.includes(a.status) ? (
+        <span className="text-muted-foreground text-sm" aria-hidden="true">
+          —
+        </span>
+      ) : (
+        <div className="flex items-center gap-2">
+          <MyApplicationPrimaryAction application={a} />
+          <MyApplicationRowActions
+            applicationId={a.id}
+            status={a.status}
+            positionTitle={a.position.title}
+          />
+        </div>
+      ),
   },
 ];
 

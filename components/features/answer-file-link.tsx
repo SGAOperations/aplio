@@ -6,23 +6,17 @@ import { toast } from 'sonner';
 
 import { downloadQuestionFileAnswer } from '@/prisma/actions/question-files';
 
-import { getFileDisplayName } from '@/lib/files';
+import { base64ToBlob, getFileDisplayName } from '@/lib/files';
 import { ACTION_ICONS, FILE_TYPE_ICONS } from '@/lib/icons';
 import type { QuestionFileTarget } from '@/lib/types';
 import { isError } from '@/lib/utils';
 
+import { FilePreviewDialog } from '@/components/features/file-preview-dialog';
 import { Button } from '@/components/ui/button';
 
 interface AnswerFileLinkProps {
   target: QuestionFileTarget;
   url: string;
-}
-
-function base64ToBlob(base64: string, contentType: string): Blob {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return new Blob([bytes], { type: contentType });
 }
 
 // Server Action, not a Route Handler: base64 becomes a Blob and downloads client-side.
@@ -61,10 +55,20 @@ export function AnswerFileLink({ target, url }: AnswerFileLinkProps) {
   return (
     // Fills the container so a long filename still pushes Download right.
     <div className="flex w-full min-w-0 items-center gap-2">
-      <Icon className="text-muted-foreground size-4 shrink-0" />
-      <span className="min-w-0 flex-1 truncate text-sm" title={filename}>
-        {filename}
-      </span>
+      <FilePreviewDialog target={target} filename={filename}>
+        <Button
+          type="button"
+          variant="link"
+          size="sm"
+          className="min-w-0 flex-1 justify-start gap-2 px-0 font-normal"
+          aria-label={`Preview ${filename}`}
+        >
+          <Icon className="text-muted-foreground shrink-0" />
+          <span className="min-w-0 truncate" title={filename}>
+            {filename}
+          </span>
+        </Button>
+      </FilePreviewDialog>
       <Button
         type="button"
         variant="outline"
