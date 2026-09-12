@@ -90,9 +90,9 @@ export function getEmailLogDescription(entry: {
     return EMAIL_STATUS_DESCRIPTIONS[entry.status];
 
   if (entry.bounceType === 'Permanent')
-    return 'The address rejected it permanently — the applicant did not receive this.';
+    return 'The address rejected it permanently — the recipient did not receive this.';
   if (entry.bounceType === 'Transient')
-    return 'Temporarily undeliverable — the applicant did not receive this.';
+    return 'Temporarily undeliverable — the recipient did not receive this.';
   return 'This could not be delivered.';
 }
 

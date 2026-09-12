@@ -418,7 +418,7 @@ export const EMAIL_STATUS_DESCRIPTIONS: Record<
   sent: 'Handed off to the email provider — delivery not confirmed yet.',
   delivered: null,
   bounced: null,
-  complained: 'The applicant marked this as spam.',
+  complained: 'The recipient marked this as spam.',
   suppressed:
     "Blocked before sending because the address is on the provider's suppression list.",
   failed: 'This was never sent.',
@@ -994,8 +994,12 @@ export const EMAIL_TEMPLATE_VALUES = [
   'application_received',
   'application_accepted',
   'application_rejected',
-  'manager_digest',
+  'manager_daily_digest',
+  'manager_weekly_digest',
 ] as const satisfies $Enums.EmailTemplateKey[];
+
+// Keeps a digest run under Resend's 2 req/s (docs.resend.com/api-reference/introduction#rate-limit).
+export const MANAGER_DIGEST_SEND_SPACING_MS = 600;
 
 export const EMAIL_STATUS_LABELS: Record<$Enums.EmailStatus, string> = {
   scheduled: 'Scheduled',
@@ -1028,7 +1032,8 @@ export const EMAIL_TEMPLATE_LABELS: Record<$Enums.EmailTemplateKey, string> = {
   application_received: 'Application received',
   application_accepted: 'Application accepted',
   application_rejected: 'Application rejected',
-  manager_digest: 'Manager digest',
+  manager_daily_digest: 'Manager daily digest',
+  manager_weekly_digest: 'Manager weekly digest',
 };
 
 export const EMAIL_STATUS_OPTIONS: {
