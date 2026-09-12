@@ -294,6 +294,21 @@ describe('managerWeeklyDigestEmail', () => {
     );
   });
 
+  it('excludes terminal decisions from the awaiting-review count', () => {
+    const result = managerWeeklyDigestEmail({
+      ...base,
+      newApplications: 0,
+      statusCounts: [
+        { status: 'applied', count: 7 },
+        { status: 'accepted', count: 3 },
+        { status: 'rejected', count: 2 },
+      ],
+    });
+    expect(result.subject).toBe(
+      'Your week on Aplio: 7 applications awaiting review',
+    );
+  });
+
   it('omits zero-count statuses and links each remaining status', () => {
     const result = managerWeeklyDigestEmail({
       ...base,

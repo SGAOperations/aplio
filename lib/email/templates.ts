@@ -1,7 +1,11 @@
 import 'server-only';
 
 import { getBaseUrl } from '@/lib/base-url';
-import { APPLICATION_STATUS_LABELS, ORG_TIMEZONE } from '@/lib/constants';
+import {
+  APPLICATION_STATUS_LABELS,
+  ORG_TIMEZONE,
+  UNRESOLVED_APPLICATION_STATUSES,
+} from '@/lib/constants';
 import { orgDayStart } from '@/lib/dates';
 import {
   type ManagerDigestPosition,
@@ -372,10 +376,10 @@ export function managerWeeklyDigestEmail({
   const allApplicationsUrl = `${baseUrl}/manage/applications`;
   const weekRangeLabel = formatDigestWeekRange(weekStart, weekEnd);
   const safeGreeting = escapeHtml(greeting(firstName));
-  const unresolvedTotal = statusCounts.reduce(
-    (sum, entry) => sum + entry.count,
-    0,
-  );
+  const unresolvedStatuses: readonly string[] = UNRESOLVED_APPLICATION_STATUSES;
+  const unresolvedTotal = statusCounts
+    .filter((entry) => unresolvedStatuses.includes(entry.status))
+    .reduce((sum, entry) => sum + entry.count, 0);
 
   const subject =
     newApplications > 0
