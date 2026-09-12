@@ -350,4 +350,15 @@ describe('managerWeeklyDigestEmail', () => {
     expect(result.html).toContain('Mar 8, 2026');
     expect(result.html).toContain(MANAGER_EMAIL_FOOTER);
   });
+
+  it('disambiguates a week range that crosses a year boundary', () => {
+    const result = managerWeeklyDigestEmail({
+      weekStart: '2026-12-28',
+      weekEnd: '2027-01-03',
+      openPositions: [],
+      newApplications: 4,
+      statusCounts: [],
+    });
+    expect(result.html).toContain('Dec 28, 2026 – Jan 3, 2027');
+  });
 });

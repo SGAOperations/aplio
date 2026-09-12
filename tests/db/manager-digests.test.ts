@@ -197,6 +197,40 @@ describe('daily digest', () => {
     expect(logs).toHaveLength(1);
   });
 
+  it('does not stop the run when one recipient send fails, and records it as failed', async () => {
+    const yesterday = previousOrgDay(new Date());
+    const submittedAt = new Date(yesterday.start.getTime() + 60 * 60 * 1000);
+
+    const applicant = await createTestUser();
+    await createTestApplication(applicant, position1, { submittedAt });
+
+    const managerOk = await createTestUser();
+    const positionOk = await createTestPosition(creator, {
+      managers: [managerOk],
+    });
+    const applicantOk = await createTestUser();
+    await createTestApplication(applicantOk, positionOk, { submittedAt });
+
+    mockSend.mockImplementation(async (args: { to: string }) => {
+      if (args.to === manager.email) throw new Error('simulated send failure');
+      return { data: { id: randomUUID() }, error: null };
+    });
+
+    const res = await dailyGET(makeRequest(DAILY_URL, `Bearer ${CRON_SECRET}`));
+    const body = (await res.json()) as { sent: number; failed: number };
+    expect(body.failed).toBeGreaterThanOrEqual(1);
+    expect(sentTo(managerOk.email)).toBeDefined();
+
+    const failedLogs = await prisma.emailLog.findMany({
+      where: {
+        userId: manager.id,
+        template: 'manager_daily_digest',
+        status: 'failed',
+      },
+    });
+    expect(failedLogs).toHaveLength(1);
+  });
+
   it('excludes a deactivated manager and a manager who only manages a draft position', async () => {
     const yesterday = previousOrgDay(new Date());
     const submittedAt = new Date(yesterday.start.getTime() + 60 * 60 * 1000);

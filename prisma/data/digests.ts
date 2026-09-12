@@ -110,11 +110,7 @@ async function tallyStatusBreakdown(
   return map;
 }
 
-/**
- * Managers with at least one new application on a managed position over the
- * previous org calendar day, gated so a manager already digested today is
- * dropped (and counted in `skipped`) rather than emailed twice.
- */
+/** Managers with new applications yesterday, minus any already digested today (counted in `skipped`). */
 export async function getDailyDigestRecipients(
   now: Date = new Date(),
 ): Promise<{ recipients: DailyDigestRecipient[]; skipped: number }> {
@@ -175,11 +171,7 @@ export async function getDailyDigestRecipients(
   return { recipients, skipped: gatedIds.size };
 }
 
-/**
- * Managers with new applications or anything unresolved on a managed
- * position over the previous org Monday-Sunday week. Same per-period gate
- * shape as the daily digest, keyed to `manager_weekly_digest` rows.
- */
+/** Managers with new or unresolved applications last week, gated like the daily digest. */
 export async function getWeeklyDigestRecipients(
   now: Date = new Date(),
 ): Promise<{ recipients: WeeklyDigestRecipient[]; skipped: number }> {
