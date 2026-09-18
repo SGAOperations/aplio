@@ -1,4 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "if [ \"$VERCEL_ENV\" = \"preview\" ]; then DATABASE_URL=\"$DATABASE_URL_UNPOOLED\" npm run prisma:migrate:deploy; fi && npm run build"
+  "buildCommand": "if [ \"$VERCEL_ENV\" = \"preview\" ]; then DATABASE_URL=\"$DATABASE_URL_UNPOOLED\" npm run prisma:migrate:deploy; fi && npm run build",
+  "crons": [
+    { "path": "/api/cron/manager-daily-digest", "schedule": "0 12 * * *" },
+    { "path": "/api/cron/manager-weekly-digest", "schedule": "0 13 * * 1" }
+  ]
 }

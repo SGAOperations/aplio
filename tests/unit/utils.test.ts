@@ -1503,14 +1503,14 @@ describe('getEmailLogDescription', () => {
     expect(
       getEmailLogDescription({ status: 'bounced', bounceType: 'Permanent' }),
     ).toBe(
-      'The address rejected it permanently — the applicant did not receive this.',
+      'The address rejected it permanently — the recipient did not receive this.',
     );
   });
 
   it('describes a transient bounce', () => {
     expect(
       getEmailLogDescription({ status: 'bounced', bounceType: 'Transient' }),
-    ).toBe('Temporarily undeliverable — the applicant did not receive this.');
+    ).toBe('Temporarily undeliverable — the recipient did not receive this.');
   });
 
   it('describes a bounce with no bounceType', () => {

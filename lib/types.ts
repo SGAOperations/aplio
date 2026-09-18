@@ -495,3 +495,33 @@ export type EmailLogListItem = Prisma.EmailLogGetPayload<{
 
 export type EmailFailureStatus = (typeof EMAIL_FAILURE_STATUSES)[number];
 export type EmailFailureCounts = Record<EmailFailureStatus, number>;
+
+export type ManagerDigestPosition = {
+  positionId: string;
+  title: string;
+  newApplications: number;
+};
+
+export type DailyDigestRecipient = {
+  userId: string;
+  email: string;
+  name: string | null;
+  since: Date;
+  positions: ManagerDigestPosition[];
+  total: number;
+};
+
+// status is always one of UNRESOLVED_APPLICATION_STATUSES — never a terminal decision.
+export type WeeklyDigestStatusCount = {
+  status: $Enums.ApplicationStatus;
+  count: number;
+};
+
+export type WeeklyDigestRecipient = {
+  userId: string;
+  email: string;
+  name: string | null;
+  asOfDay: string;
+  statusCounts: WeeklyDigestStatusCount[];
+  openPositions: Pick<ManagerDigestPosition, 'positionId' | 'title'>[];
+};
