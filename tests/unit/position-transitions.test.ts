@@ -3,13 +3,14 @@ import { describe, expect, it } from 'vitest';
 import type { PositionStatus } from '@/prisma/client';
 
 import {
+  POSITION_CLOSED_DRAFT_BLOCKED_ERROR,
   POSITION_DRAFT_CLOSE_BLOCKED_ERROR,
   POSITION_REOPEN_PAST_CLOSE_ERROR,
   POSITION_STATUS_TRANSITIONS,
   POSITION_STATUS_VALUES,
   POSITION_UNPUBLISH_BLOCKED_ERROR,
-  getPositionStatusOptions,
   getPositionStatusTransitionError,
+  getPositionTransitionTargets,
 } from '@/lib/constants';
 
 const NO_APPLICATIONS = { hasApplications: false, closesAtPast: false };
@@ -26,13 +27,25 @@ describe('getPositionStatusTransitionError', () => {
     }
   });
 
-  it('rejects draft -> closed — the only structurally missing pair', () => {
+  it('rejects draft -> closed and closed -> draft — the two structurally missing pairs', () => {
     expect(
       getPositionStatusTransitionError('draft', 'closed', NO_APPLICATIONS),
     ).toBe(POSITION_DRAFT_CLOSE_BLOCKED_ERROR);
+    expect(
+      getPositionStatusTransitionError('closed', 'draft', NO_APPLICATIONS),
+    ).toBe(POSITION_CLOSED_DRAFT_BLOCKED_ERROR);
   });
 
-  it('is the only structurally missing pair — every other (from, to) is in the map', () => {
+  it('rejects closed -> draft regardless of applications — it is never legal', () => {
+    expect(
+      getPositionStatusTransitionError('closed', 'draft', {
+        hasApplications: true,
+        closesAtPast: false,
+      }),
+    ).toBe(POSITION_CLOSED_DRAFT_BLOCKED_ERROR);
+  });
+
+  it('are the only structurally missing pairs — every other (from, to) is in the map', () => {
     const missing: [PositionStatus, PositionStatus][] = [];
     for (const from of POSITION_STATUS_VALUES)
       for (const to of POSITION_STATUS_VALUES) {
@@ -42,24 +55,21 @@ describe('getPositionStatusTransitionError', () => {
         ).includes(to);
         if (!allowed) missing.push([from, to]);
       }
-    expect(missing).toEqual([['draft', 'closed']]);
+    expect(missing).toEqual([
+      ['draft', 'closed'],
+      ['closed', 'draft'],
+    ]);
   });
 
-  it('allows open/closed -> draft with no applications', () => {
+  it('allows open -> draft with no applications', () => {
     expect(
       getPositionStatusTransitionError('open', 'draft', NO_APPLICATIONS),
     ).toBeNull();
-    expect(
-      getPositionStatusTransitionError('closed', 'draft', NO_APPLICATIONS),
-    ).toBeNull();
   });
 
-  it('rejects open/closed -> draft once any application exists', () => {
+  it('rejects open -> draft once any application exists', () => {
     const ctx = { hasApplications: true, closesAtPast: false };
     expect(getPositionStatusTransitionError('open', 'draft', ctx)).toBe(
-      POSITION_UNPUBLISH_BLOCKED_ERROR,
-    );
-    expect(getPositionStatusTransitionError('closed', 'draft', ctx)).toBe(
       POSITION_UNPUBLISH_BLOCKED_ERROR,
     );
   });
@@ -98,32 +108,59 @@ describe('getPositionStatusTransitionError', () => {
   });
 });
 
-describe('getPositionStatusOptions', () => {
-  it('omits closed from a draft position for both roles', () => {
-    for (const isAdmin of [true, false]) {
-      const values = getPositionStatusOptions(
-        isAdmin,
-        'draft',
-        NO_APPLICATIONS,
-      ).map((o) => o.value);
-      expect(values).not.toContain('closed');
-    }
+describe('getPositionTransitionTargets', () => {
+  it('offers nothing to a manager on a draft — publishing is admin-only', () => {
+    expect(
+      getPositionTransitionTargets(false, 'draft', NO_APPLICATIONS),
+    ).toEqual([]);
   });
 
-  it('omits draft from an open position with applications', () => {
-    const values = getPositionStatusOptions(true, 'open', {
-      hasApplications: true,
-      closesAtPast: false,
-    }).map((o) => o.value);
-    expect(values).not.toContain('draft');
+  it('offers open to an admin on a draft', () => {
+    expect(
+      getPositionTransitionTargets(true, 'draft', NO_APPLICATIONS),
+    ).toEqual(['open']);
   });
 
-  it('omits open from a closed position past its close date', () => {
-    const values = getPositionStatusOptions(true, 'closed', {
-      hasApplications: false,
-      closesAtPast: true,
-    }).map((o) => o.value);
-    expect(values).not.toContain('open');
+  it('orders an open position closed-first, then draft, matching the split button priority', () => {
+    expect(getPositionTransitionTargets(true, 'open', NO_APPLICATIONS)).toEqual(
+      ['closed', 'draft'],
+    );
+  });
+
+  it('drops draft from an open position once applications exist', () => {
+    expect(
+      getPositionTransitionTargets(true, 'open', {
+        hasApplications: true,
+        closesAtPast: false,
+      }),
+    ).toEqual(['closed']);
+  });
+
+  it('offers only open from a closed position — draft is never a target', () => {
+    expect(
+      getPositionTransitionTargets(true, 'closed', NO_APPLICATIONS),
+    ).toEqual(['open']);
+  });
+
+  it('drops open from a closed position past its close date, leaving no targets', () => {
+    expect(
+      getPositionTransitionTargets(true, 'closed', {
+        hasApplications: false,
+        closesAtPast: true,
+      }),
+    ).toEqual([]);
+  });
+
+  it('never offers open to a non-admin, from any status', () => {
+    for (const from of POSITION_STATUS_VALUES)
+      for (const hasApplications of [true, false])
+        for (const closesAtPast of [true, false])
+          expect(
+            getPositionTransitionTargets(false, from, {
+              hasApplications,
+              closesAtPast,
+            }),
+          ).not.toContain('open');
   });
 
   it('never offers a move the resolver would reject', () => {
@@ -132,10 +169,10 @@ describe('getPositionStatusOptions', () => {
         for (const hasApplications of [true, false])
           for (const closesAtPast of [true, false]) {
             const ctx = { hasApplications, closesAtPast };
-            const options = getPositionStatusOptions(isAdmin, from, ctx);
-            for (const opt of options)
+            const targets = getPositionTransitionTargets(isAdmin, from, ctx);
+            for (const to of targets)
               expect(
-                getPositionStatusTransitionError(from, opt.value, ctx),
+                getPositionStatusTransitionError(from, to, ctx),
               ).toBeNull();
           }
   });
