@@ -138,9 +138,7 @@ describe('getRecentMyApplications', () => {
 });
 
 describe('getClosingSoonDraftCount', () => {
-  // 2, not 6 — the other four drafts (past-due, not-yet-open, unpublished,
-  // soft-deleted) share buildAtRiskDraftWhere with the float above, so a
-  // count that disagreed with it would be a drift bug, not a design choice.
+  // 2, not 6 — the other four drafts share buildAtRiskDraftWhere, so a mismatch here is a drift bug.
   it('counts only the at-risk drafts, matching the float', async () => {
     expect(await getClosingSoonDraftCount(applicant.id, NOW)).toBe(2);
   });

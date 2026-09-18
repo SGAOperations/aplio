@@ -237,9 +237,7 @@ function buildAtRiskDraftWhere(
   };
 }
 
-// Floats at-risk drafts (closing within DEADLINE_SOON_DAYS) ahead of recency
-// order — a `take`-bounded recency query alone can hide one entirely. Both
-// queries stay take-bounded; never an unbounded fetch-then-sort.
+// Floats at-risk drafts ahead of recency order — a take-bounded recency query alone can hide one entirely.
 export async function getRecentMyApplications(
   userId: string,
   take = 5,

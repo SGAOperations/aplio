@@ -110,9 +110,7 @@ export function MyApplicationsTable({
 }: MyApplicationsTableProps) {
   const columns = useMemo(() => buildColumns(now), [now]);
 
-  // At-risk drafts float to the top, nearest deadline first; everything else
-  // keeps its incoming order. No defaultSort — sort.key stays null so a
-  // header click takes over completely.
+  // At-risk drafts float to the top, nearest deadline first; sort.key stays null so a header click still takes over.
   const rows = useMemo(() => {
     const atRisk = applications
       .map((a) => ({ a, date: atRiskDeadlineDate(a, now) }))
