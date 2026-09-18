@@ -40,7 +40,6 @@ export function DeadlineIndicator({
     >
       {variant === 'full' && <Icon className="size-4 shrink-0" />}
       {info.tier === 'upcoming' && `${info.label} `}
-      {isPast && '· '}
       <LocalTime date={info.date} precision="date" />
     </span>
   );
