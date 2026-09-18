@@ -112,7 +112,6 @@ function ApplicationList({
           >
             {app.position.title}
           </Link>
-          <ApplicationStatusBadge status={app.status} />
           <span className="text-muted-foreground shrink-0 text-xs">
             {app.status === 'draft' ? (
               <DeadlineIndicator
@@ -125,6 +124,7 @@ function ApplicationList({
               <LocalTime date={app.submittedAt} precision="date" />
             )}
           </span>
+          <ApplicationStatusBadge status={app.status} />
         </li>
       ))}
     </ul>
