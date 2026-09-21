@@ -42,6 +42,7 @@ import {
   RotateCcw,
   SearchX,
   Send,
+  Share2,
   ShieldCheck,
   ShieldOff,
   Trash2,
@@ -128,6 +129,7 @@ type Action =
   | 'save'
   | 'submit'
   | 'download'
+  | 'share'
   | 'back'
   | 'goTo'
   | 'retry'
@@ -154,6 +156,7 @@ export const ACTION_ICONS: Record<Action, LucideIcon> = {
   save: Check,
   submit: Send,
   download: Download,
+  share: Share2,
   back: ArrowLeft,
   goTo: ArrowRight,
   retry: RotateCcw,

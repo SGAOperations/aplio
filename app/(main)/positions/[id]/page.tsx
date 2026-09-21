@@ -7,6 +7,7 @@ import { getPositionDetail } from '@/prisma/data/positions';
 
 import { getOptionalManagerAccess } from '@/lib/auth/guards';
 import { requireName } from '@/lib/auth/server';
+import { getBaseUrl } from '@/lib/base-url';
 import { ACTION_ICONS, CONCEPT_ICONS, STATE_ICONS } from '@/lib/icons';
 import type { PositionDetail } from '@/lib/types';
 import {
@@ -16,6 +17,7 @@ import {
 } from '@/lib/utils';
 
 import { PositionDateLine } from '@/components/features/position-date-line';
+import { PositionShareButton } from '@/components/features/position-share-button';
 import { PositionStatusBadge } from '@/components/features/status-badge';
 import { Button } from '@/components/ui/button';
 import { LocalTime } from '@/components/ui/local-time';
@@ -64,6 +66,7 @@ export default async function PublicPositionDetailPage({
   if (view.user) await requireName(view.user);
 
   const { position, canManage } = view;
+  const shareUrl = `${getBaseUrl()}/positions/${id}`;
   const isAuthenticated = view.user !== null;
   const availability = getPositionAvailability(position);
   const isAccepting = availability === 'accepting';
@@ -82,11 +85,16 @@ export default async function PublicPositionDetailPage({
         >
           &larr; {canManage ? 'Back to Manage Positions' : 'Back to positions'}
         </Link>
-        <div className="mt-2 flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {position.title}
-          </h1>
-          <PositionStatusBadge position={position} />
+        <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {position.title}
+            </h1>
+            <PositionStatusBadge position={position} />
+          </div>
+          {position.status !== 'draft' && (
+            <PositionShareButton url={shareUrl} className="self-start" />
+          )}
         </div>
         <PositionDateLine position={position} className="mt-3 text-base" />
       </div>
