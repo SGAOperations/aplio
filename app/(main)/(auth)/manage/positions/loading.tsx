@@ -1,28 +1,30 @@
-import { Card, CardHeader } from '@/components/ui/card';
+import { PositionCardSkeleton } from '@/components/features/position-card';
+import { PageHeaderSkeleton } from '@/components/layouts/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
 
-export default function MyPositionsLoading() {
+function PositionGroupSkeleton({ count }: { count: number }) {
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-col gap-2">
-          <Skeleton className="h-8 w-32" />
-          <Skeleton className="h-4 w-72" />
-        </div>
-        <Skeleton className="h-9 w-32" />
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-2">
+        <Skeleton className="size-4 rounded" />
+        <Skeleton className="h-7 w-24" />
       </div>
       <div className="flex flex-col gap-4">
-        <Skeleton className="h-6 w-16" />
-        {Array.from({ length: 3 }).map((_, i) => (
-          <Card key={i} className="gap-0 p-0">
-            <CardHeader className="p-0">
-              <div className="flex w-full items-center justify-between p-6">
-                <Skeleton className="h-5 w-48" />
-                <Skeleton className="size-5 rounded" />
-              </div>
-            </CardHeader>
-          </Card>
+        {Array.from({ length: count }).map((_, i) => (
+          <PositionCardSkeleton key={i} hasStats actions={3} />
         ))}
+      </div>
+    </div>
+  );
+}
+
+export default function ManagePositionsLoading() {
+  return (
+    <div className="flex flex-col gap-6">
+      <PageHeaderSkeleton actions={['w-36']} />
+      <div className="flex flex-col gap-6">
+        <PositionGroupSkeleton count={2} />
+        <PositionGroupSkeleton count={1} />
       </div>
     </div>
   );

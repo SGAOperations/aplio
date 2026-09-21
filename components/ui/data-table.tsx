@@ -6,6 +6,10 @@ import { useCallback, useMemo } from 'react';
 import { parseAsStringEnum, parseAsStringLiteral, useQueryStates } from 'nuqs';
 
 import {
+  DATA_TABLE_DESKTOP_CLASS,
+  DATA_TABLE_MOBILE_CLASS,
+  DATA_TABLE_SHELL_CLASS,
+  DATA_TABLE_STACK_CLASS,
   type DataTableColumn,
   type SortDirection,
   type SortState,
@@ -299,15 +303,15 @@ export function DataTable<T>({
   const columnCount = columns.length + (showReorderColumn ? 1 : 0);
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className={DATA_TABLE_STACK_CLASS}>
       {showReorderColumn && !sortedByOrder && (
         <p className="text-muted-foreground text-sm">{reorder.sortHint}</p>
       )}
       {/* overflow-hidden clips the header hover highlight to the card's rounded corners */}
-      <Card className="gap-0 overflow-hidden p-0">
+      <Card className={DATA_TABLE_SHELL_CLASS}>
         {/* DndContext must wrap this div, not nest inside <tbody> (a11y live region renders as a sibling). */}
         <ReorderSection
-          className="hidden md:block"
+          className={DATA_TABLE_DESKTOP_CLASS}
           reorderActive={showReorderColumn}
           reorder={reorder}
           rows={sortedRows}
@@ -390,7 +394,7 @@ export function DataTable<T>({
 
         {/* Mobile stacked cards — sort order from sortedRows reflects active sort */}
         <ReorderSection
-          className="flex flex-col divide-y md:hidden"
+          className={DATA_TABLE_MOBILE_CLASS}
           reorderActive={showReorderColumn}
           reorder={reorder}
           rows={sortedRows}

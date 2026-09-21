@@ -1,5 +1,10 @@
 import type { ReactNode } from 'react';
 
+export const DATA_TABLE_STACK_CLASS = 'flex flex-col gap-2';
+export const DATA_TABLE_SHELL_CLASS = 'gap-0 overflow-hidden p-0';
+export const DATA_TABLE_DESKTOP_CLASS = 'hidden md:block';
+export const DATA_TABLE_MOBILE_CLASS = 'flex flex-col divide-y md:hidden';
+
 export type SortDirection = 'asc' | 'desc';
 
 export interface SortState {

@@ -7,7 +7,14 @@ import type { EmailLogFilters } from '@/lib/types';
 import { buildEmailLogHref, getPaginationBounds } from '@/lib/utils';
 
 import { EmailLogTable } from '@/components/features/email-log-table';
+import {
+  DataTableSkeleton,
+  type DataTableSkeletonColumn,
+} from '@/components/ui/data-table-skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 import { TablePagination } from '@/components/ui/table-pagination';
+
+const RESULTS_CLASS = 'flex flex-col gap-3';
 
 interface EmailLogResultsProps {
   filters: EmailLogFilters;
@@ -37,7 +44,7 @@ export async function EmailLogResults({
       : initialRows;
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className={RESULTS_CLASS}>
       <EmailLogTable emails={rows} hasActiveFilters={hasActiveFilters} />
       <TablePagination
         buildHref={(p) => buildEmailLogHref(filters, p)}
@@ -49,6 +56,23 @@ export async function EmailLogResults({
         isFiltered={hasActiveFilters}
         noun="email"
       />
+    </div>
+  );
+}
+
+const EMAIL_LOG_SKELETON_COLUMNS: DataTableSkeletonColumn[] = [
+  { head: 'w-32', cell: 'w-48', subCell: 'w-32', mobile: 'primary' },
+  { head: 'w-24', mobile: 'hidden' },
+  { head: 'w-40', mobile: 'line' },
+  { head: 'w-20', shape: 'badge', mobile: 'trailing' },
+  { head: 'w-24', mobile: 'line' },
+];
+
+export function EmailLogResultsSkeleton() {
+  return (
+    <div className={RESULTS_CLASS}>
+      <DataTableSkeleton columns={EMAIL_LOG_SKELETON_COLUMNS} />
+      <Skeleton className="h-5 w-56" />
     </div>
   );
 }

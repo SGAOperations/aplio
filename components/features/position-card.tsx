@@ -23,6 +23,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Markdown } from '@/components/ui/markdown';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface PositionCardProps {
   position: PositionWithQuestions;
@@ -239,6 +240,79 @@ export function PositionCard({
         {applicationStats && (
           <div className="px-4 pb-4 sm:flex sm:shrink-0 sm:items-start sm:p-6 sm:pl-0">
             <PositionStatCluster stats={applicationStats} />
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+interface PositionCardSkeletonProps {
+  hasStats?: boolean;
+  actions?: number;
+}
+
+// Mirrors PositionStatCluster's total tile + 2x2 grid — update alongside it.
+function PositionStatClusterSkeleton() {
+  return (
+    <div className="w-fit shrink-0">
+      <div className="border-border mb-2 border-b pb-2">
+        <Skeleton className="h-4 w-12" />
+        <Skeleton className="mt-1 h-5 w-8" />
+      </div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i}>
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="mt-0.5 h-5 w-6" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function PositionCardSkeleton({
+  hasStats = false,
+  actions = 2,
+}: PositionCardSkeletonProps) {
+  return (
+    <Card className="flex flex-col gap-0 p-0">
+      <div className={cn(hasStats && 'sm:flex sm:flex-row')}>
+        <div
+          className={cn(hasStats && 'sm:flex sm:min-w-0 sm:flex-1 sm:flex-col')}
+        >
+          <CardHeader className="p-4 pb-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-5.5 w-16 rounded-md" />
+            </div>
+            <Skeleton className="mt-1 h-5 w-40" />
+          </CardHeader>
+
+          <CardContent
+            className={cn(
+              'px-4 pb-4',
+              hasStats && 'sm:flex sm:flex-1 sm:flex-col',
+            )}
+          >
+            <div className="flex flex-col gap-1.5">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-11/12" />
+              <Skeleton className="h-4 w-3/5" />
+            </div>
+
+            <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">
+              {Array.from({ length: actions }).map((_, i) => (
+                <Skeleton key={i} className="h-11 w-28 md:h-8" />
+              ))}
+            </div>
+          </CardContent>
+        </div>
+
+        {hasStats && (
+          <div className="px-4 pb-4 sm:flex sm:shrink-0 sm:items-start sm:p-6 sm:pl-0">
+            <PositionStatClusterSkeleton />
           </div>
         )}
       </div>
