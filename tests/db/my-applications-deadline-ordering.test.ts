@@ -27,6 +27,7 @@ let draftNotYetOpen: Application;
 let draftUnpublishedPosition: Application;
 let draftDeletedPosition: Application;
 let withdrawnUrgent: Application;
+let withdrawnSoon: Application;
 let withdrawnPastDue: Application;
 let submittedRecent: Application;
 
@@ -64,6 +65,10 @@ beforeAll(async () => {
     status: 'open',
     closesAt: new Date(NOW.getTime() + 15 * HOUR),
   });
+  const posWithdrawnSoon = await createTestPosition(admin, {
+    status: 'open',
+    closesAt: new Date(NOW.getTime() + 4 * DAY),
+  });
   const posWithdrawnPastDue = await createTestPosition(admin, {
     status: 'open',
     closesAt: new Date(NOW.getTime() - 1 * DAY),
@@ -99,6 +104,9 @@ beforeAll(async () => {
   withdrawnUrgent = await createTestApplication(applicant, posWithdrawnUrgent, {
     status: 'withdrawn',
   });
+  withdrawnSoon = await createTestApplication(applicant, posWithdrawnSoon, {
+    status: 'withdrawn',
+  });
   withdrawnPastDue = await createTestApplication(
     applicant,
     posWithdrawnPastDue,
@@ -118,10 +126,11 @@ describe('getRecentMyApplications', () => {
   it('floats at-risk drafts and withdrawn apps ahead of recency order, nearest deadline first', async () => {
     const rows = await getRecentMyApplications(applicant.id, 10, NOW);
     const ids = rows.map((r) => r.id);
-    expect(ids.slice(0, 3)).toEqual([
+    expect(ids.slice(0, 4)).toEqual([
       draftUrgent.id,
       withdrawnUrgent.id,
       draftSoonOld.id,
+      withdrawnSoon.id,
     ]);
   });
 
@@ -166,8 +175,8 @@ describe('getRecentMyApplications', () => {
 });
 
 describe('getClosingSoonCount', () => {
-  // 3, not 8 — the other five apps share buildAtRiskWhere, so a mismatch here is a drift bug.
+  // 4, not 10 — the other six apps share buildAtRiskWhere, so a mismatch here is a drift bug.
   it('counts at-risk drafts and withdrawn apps, matching the float', async () => {
-    expect(await getClosingSoonCount(applicant.id, NOW)).toBe(3);
+    expect(await getClosingSoonCount(applicant.id, NOW)).toBe(4);
   });
 });

@@ -45,7 +45,6 @@
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
-  --color-warning-text: var(--warning-text);
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
   --color-nav-hover: var(--nav-hover);
@@ -93,8 +92,6 @@
   --success-foreground: oklch(0.98 0 0);
   --warning: oklch(0.7 0.15 85);
   --warning-foreground: oklch(0.2 0 0);
-  /* Passes 4.5:1 on --card as plain text; --warning is fill/icon-only (≈2.7:1 as text). */
-  --warning-text: oklch(0.52 0.15 85);
   --info: oklch(0.53 0.15 250);
   --info-foreground: oklch(0.98 0 0);
   --nav-hover: oklch(0.93 0 0);
@@ -141,7 +138,6 @@
   --success-foreground: oklch(0.98 0 0);
   --warning: oklch(0.7 0.15 85);
   --warning-foreground: oklch(0.15 0 0);
-  --warning-text: oklch(0.65 0.15 85);
   --info: oklch(0.53 0.15 250);
   --info-foreground: oklch(0.98 0 0);
   --nav-hover: oklch(0.27 0 0);

@@ -9,7 +9,7 @@ import { LocalTime } from '@/components/ui/local-time';
 interface DeadlineIndicatorProps {
   position: PositionWindow;
   now: Date;
-  // soon/urgent badges fire only when true; past always renders muted regardless.
+  // Red line fires for distant/soon/urgent only when true; upcoming/past always muted.
   emphasizeUrgency: boolean;
   variant?: 'full' | 'compact';
 }
@@ -43,16 +43,12 @@ export function DeadlineIndicator({
     </span>
   );
 
-  // Text, not Badge — a filled pill reads heavier than a metadata line; *-text tokens pass AA at this weight.
-  const emphasizedLine = (
-    tone: 'warning' | 'destructive',
-    children: ReactNode,
-  ) => (
+  // Text, not Badge — a filled pill reads heavier than a metadata line; text-destructive-text passes AA at this weight.
+  const emphasizedLine = (children: ReactNode) => (
     <span
       className={cn(
-        'flex items-center gap-1.5 font-semibold',
+        'text-destructive-text flex items-center gap-1.5 font-semibold',
         variant === 'full' ? 'text-sm' : 'text-xs',
-        tone === 'warning' ? 'text-warning-text' : 'text-destructive-text',
       )}
     >
       <STATE_ICONS.warning className="size-4 shrink-0" />
@@ -62,22 +58,16 @@ export function DeadlineIndicator({
 
   switch (info.tier) {
     case 'upcoming':
-    case 'distant':
       return mutedLine;
 
+    case 'distant':
     case 'soon':
       if (!emphasizeUrgency) return mutedLine;
-      return emphasizedLine(
-        'warning',
-        <LocalTime date={info.date} precision="date">
-          {`${info.compactCountdown} left`}
-        </LocalTime>,
-      );
+      return emphasizedLine(<LocalTime date={info.date} precision="date" />);
 
     case 'urgent':
       if (!emphasizeUrgency) return mutedLine;
       return emphasizedLine(
-        'destructive',
         <LocalTime date={info.date} precision="date">
           {`${info.compactCountdown} left`}
         </LocalTime>,

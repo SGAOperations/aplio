@@ -283,8 +283,8 @@ describe('getDeadlineInfo', () => {
     });
   });
 
-  it('is urgent at exactly the 48-hour boundary (inclusive)', () => {
-    const closesAt = new Date(NOW.getTime() + 48 * 60 * 60 * 1000);
+  it('is urgent at exactly the 24-hour boundary (inclusive)', () => {
+    const closesAt = new Date(NOW.getTime() + 24 * 60 * 60 * 1000);
     const info = getDeadlineInfo(
       { status: 'open', opensAt: null, closesAt },
       NOW,
@@ -293,12 +293,12 @@ describe('getDeadlineInfo', () => {
       tier: 'urgent',
       label: 'Closes',
       date: closesAt,
-      compactCountdown: '48h',
+      compactCountdown: '24h',
     });
   });
 
-  it('is still urgent at 47 hours 59 minutes', () => {
-    const closesAt = new Date(NOW.getTime() + (47 * 60 + 59) * 60 * 1000);
+  it('is still urgent at 23 hours 59 minutes', () => {
+    const closesAt = new Date(NOW.getTime() + (23 * 60 + 59) * 60 * 1000);
     const info = getDeadlineInfo(
       { status: 'open', opensAt: null, closesAt },
       NOW,
@@ -306,8 +306,8 @@ describe('getDeadlineInfo', () => {
     expect(info?.tier).toBe('urgent');
   });
 
-  it('is soon just past the 48-hour boundary', () => {
-    const closesAt = new Date(NOW.getTime() + 48 * 60 * 60 * 1000 + 1);
+  it('is soon at 25 hours, just past the 24-hour boundary', () => {
+    const closesAt = new Date(NOW.getTime() + 25 * 60 * 60 * 1000);
     const info = getDeadlineInfo(
       { status: 'open', opensAt: null, closesAt },
       NOW,
@@ -315,7 +315,7 @@ describe('getDeadlineInfo', () => {
     expect(info?.tier).toBe('soon');
   });
 
-  it('is soon at exactly the 7-day boundary (inclusive)', () => {
+  it('is soon at exactly the 7-day boundary (inclusive), with no countdown', () => {
     const closesAt = new Date(NOW.getTime() + 7 * 24 * 60 * 60 * 1000);
     const info = getDeadlineInfo(
       { status: 'open', opensAt: null, closesAt },
@@ -325,7 +325,7 @@ describe('getDeadlineInfo', () => {
       tier: 'soon',
       label: 'Closes',
       date: closesAt,
-      compactCountdown: '7d',
+      compactCountdown: null,
     });
   });
 
@@ -365,13 +365,14 @@ describe('getDeadlineInfo', () => {
     expect(info?.compactCountdown).toBe('1h');
   });
 
-  it('formats the compact countdown in days above the hour boundary', () => {
+  it('has no compact countdown at the soon tier', () => {
     const closesAt = new Date(NOW.getTime() + 3 * 24 * 60 * 60 * 1000);
     const info = getDeadlineInfo(
       { status: 'open', opensAt: null, closesAt },
       NOW,
     );
-    expect(info?.compactCountdown).toBe('3d');
+    expect(info?.tier).toBe('soon');
+    expect(info?.compactCountdown).toBeNull();
   });
 });
 

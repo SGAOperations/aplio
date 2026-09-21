@@ -395,7 +395,7 @@ export function getPositionDateInfo(
 const MS_PER_HOUR = 60 * 60 * 1000;
 const MS_PER_DAY = 24 * MS_PER_HOUR;
 
-/** Applicant-facing deadline urgency — kept separate from `getPositionDateInfo`'s calm/live/stale emphasis so position cards don't inherit this ticket's amber/red tiering. */
+/** Applicant-facing deadline urgency — kept separate from `getPositionDateInfo`'s calm/live/stale emphasis so position cards don't inherit this ticket's red tiering. */
 export function getDeadlineInfo(
   position: PositionWindow,
   now: Date = new Date(),
@@ -425,15 +425,13 @@ export function getDeadlineInfo(
       };
     }
 
-    if (diffMs <= DEADLINE_SOON_DAYS * MS_PER_DAY) {
-      const days = Math.max(1, Math.ceil(diffMs / MS_PER_DAY));
+    if (diffMs <= DEADLINE_SOON_DAYS * MS_PER_DAY)
       return {
         tier: 'soon',
         label: 'Closes',
         date: position.closesAt,
-        compactCountdown: `${days}d`,
+        compactCountdown: null,
       };
-    }
 
     return {
       tier: 'distant',
