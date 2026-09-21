@@ -5,7 +5,10 @@ import { useForm } from 'react-hook-form';
 
 import { updatePositionSchedule } from '@/prisma/actions/position-actions';
 
-import { positionScheduleIssues } from '@/lib/constants';
+import {
+  POSITION_DATE_CLEAR_BLOCKED_ERROR,
+  positionScheduleIssues,
+} from '@/lib/constants';
 import { toOrgDayString } from '@/lib/dates';
 import { ACTION_ICONS } from '@/lib/icons';
 import { autosaveStatusText, useAutosave } from '@/lib/use-autosave';
@@ -117,17 +120,27 @@ export function PositionAvailabilitySection({
     if (issues.length > 0) {
       for (const issue of issues)
         form.setError(issue.path, { message: issue.message });
-      return;
+      return issues;
     }
     scheduleAutosave.commit(form.getValues());
+    return [];
   }
 
   function handleClear(name: keyof ScheduleValues) {
     const ref = fieldRefs[name].current;
+    const previousValue = form.getValues(name);
     if (ref) ref.value = '';
     form.setValue(name, '', { shouldDirty: true });
     setIncomplete((prev) => ({ ...prev, [name]: false }));
-    commitIfValid();
+
+    const issues = commitIfValid();
+    // Blocked purely by the sibling — revert so this field doesn't look
+    // cleared while nothing actually committed, and flag it too.
+    if (issues.length > 0 && !issues.some((issue) => issue.path === name)) {
+      if (ref) ref.value = previousValue;
+      form.setValue(name, previousValue);
+      form.setError(name, { message: POSITION_DATE_CLEAR_BLOCKED_ERROR });
+    }
     ref?.focus();
   }
 

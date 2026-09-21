@@ -716,6 +716,11 @@ export function positionPastDateIssues(
 export const POSITION_DATE_INCOMPLETE_ERROR =
   'This date is incomplete. Finish it, or use Clear to remove it.';
 
+// Surfaced on the field being cleared when its own Clear is blocked by the
+// other field, so it doesn't look cleared while nothing actually saved.
+export const POSITION_DATE_CLEAR_BLOCKED_ERROR =
+  'Not cleared — finish or clear the other date first.';
+
 // The schedule autosave blur decision: an incomplete field blocks the pair
 // and suppresses order/past checks; otherwise those checks run as usual.
 export function positionScheduleIssues(
