@@ -55,6 +55,7 @@ export default async function MyApplicationDetailPage({
   if (!application) notFound();
 
   const isDraft = application.status === 'draft';
+  const showDeadline = isDraft || application.status === 'withdrawn';
   const now = new Date();
 
   return (
@@ -96,7 +97,7 @@ export default async function MyApplicationDetailPage({
           >
             View position
           </Link>
-          {isDraft && (
+          {showDeadline && (
             <>
               <span aria-hidden="true">·</span>
               <DeadlineIndicator

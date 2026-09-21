@@ -70,7 +70,7 @@ function buildColumns(now: Date): DataTableColumn<MyApplicationListItem>[] {
         <DeadlineIndicator
           position={a.position}
           now={now}
-          emphasizeUrgency={a.status === 'draft'}
+          emphasizeUrgency={a.status === 'draft' || a.status === 'withdrawn'}
         />
       ),
     },
@@ -96,9 +96,9 @@ function buildColumns(now: Date): DataTableColumn<MyApplicationListItem>[] {
   ];
 }
 
-// Date only for a draft whose deadline tier is soon/urgent — the float target.
+// Date only for a draft/withdrawn app whose deadline tier is soon/urgent — the float target.
 function atRiskDeadlineDate(a: MyApplicationListItem, now: Date): Date | null {
-  if (a.status !== 'draft') return null;
+  if (a.status !== 'draft' && a.status !== 'withdrawn') return null;
   const info = getDeadlineInfo(a.position, now);
   if (info?.tier !== 'soon' && info?.tier !== 'urgent') return null;
   return info.date;
@@ -158,7 +158,9 @@ export function MyApplicationsTable({
           <DeadlineIndicator
             position={app.position}
             now={now}
-            emphasizeUrgency={app.status === 'draft'}
+            emphasizeUrgency={
+              app.status === 'draft' || app.status === 'withdrawn'
+            }
           />
           <div className="flex items-center justify-between gap-2">
             <span className="text-muted-foreground text-sm">

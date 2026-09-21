@@ -215,8 +215,8 @@ export async function getMyApplications(
   return applications.map(toPublicApplication);
 }
 
-// Shared by getRecentMyApplications and getClosingSoonDraftCount so they can't disagree; opens gate keeps a not-yet-open position from floating.
-function buildAtRiskDraftWhere(
+// Shared by getRecentMyApplications and getClosingSoonCount so they can't disagree; opens gate keeps a not-yet-open position from floating.
+function buildAtRiskWhere(
   userId: string,
   now: Date,
 ): Prisma.ApplicationWhereInput {
@@ -227,7 +227,7 @@ function buildAtRiskDraftWhere(
   return {
     userId,
     deletedAt: null,
-    status: 'draft',
+    status: { in: ['draft', 'withdrawn'] },
     position: {
       ...PUBLISHED_POSITION_WHERE,
       status: 'open',
@@ -237,7 +237,7 @@ function buildAtRiskDraftWhere(
   };
 }
 
-// Floats at-risk drafts ahead of recency order — a take-bounded recency query alone can hide one entirely.
+// Floats at-risk drafts/withdrawn ahead of recency order — a take-bounded recency query alone can hide one entirely.
 export async function getRecentMyApplications(
   userId: string,
   take = 5,
@@ -245,7 +245,7 @@ export async function getRecentMyApplications(
 ): Promise<MyApplicationListItem[]> {
   const [atRisk, recent] = await Promise.all([
     prisma.application.findMany({
-      where: buildAtRiskDraftWhere(userId, now),
+      where: buildAtRiskWhere(userId, now),
       select: applicationSelect,
       orderBy: [{ position: { closesAt: 'asc' } }, { id: 'desc' }],
       take,
@@ -264,13 +264,11 @@ export async function getRecentMyApplications(
   return merged.slice(0, take).map(toPublicApplication);
 }
 
-export async function getClosingSoonDraftCount(
+export async function getClosingSoonCount(
   userId: string,
   now: Date = new Date(),
 ): Promise<number> {
-  return prisma.application.count({
-    where: buildAtRiskDraftWhere(userId, now),
-  });
+  return prisma.application.count({ where: buildAtRiskWhere(userId, now) });
 }
 
 // No status filter — caller needs draft/withdrawn too; one row per position via the [userId, positionId] unique constraint.

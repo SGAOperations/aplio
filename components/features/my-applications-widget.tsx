@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
 import {
-  getClosingSoonDraftCount,
+  getClosingSoonCount,
   getMyApplicationStatusCounts,
   getRecentMyApplications,
 } from '@/prisma/data/applications';
@@ -55,7 +55,7 @@ export async function MyApplicationsWidget({
   const [applications, counts, closingSoonCount] = await Promise.all([
     getRecentMyApplications(userId, limit, now),
     getMyApplicationStatusCounts(userId),
-    getClosingSoonDraftCount(userId, now),
+    getClosingSoonCount(userId, now),
   ]);
 
   const summary = buildCountsSummary(counts, closingSoonCount);
@@ -113,7 +113,7 @@ function ApplicationList({
             {app.position.title}
           </Link>
           <span className="text-muted-foreground shrink-0 text-xs">
-            {app.status === 'draft' ? (
+            {app.status === 'draft' || app.status === 'withdrawn' ? (
               <DeadlineIndicator
                 variant="compact"
                 position={app.position}

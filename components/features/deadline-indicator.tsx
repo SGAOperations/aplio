@@ -9,8 +9,7 @@ import { LocalTime } from '@/components/ui/local-time';
 interface DeadlineIndicatorProps {
   position: PositionWindow;
   now: Date;
-  // Badges (soon/urgent/past) fire only when true — submitted rows and the
-  // table's non-draft cells pass false so they read as plain context.
+  // soon/urgent badges fire only when true; past always renders muted regardless.
   emphasizeUrgency: boolean;
   variant?: 'full' | 'compact';
 }
@@ -85,11 +84,7 @@ export function DeadlineIndicator({
       );
 
     case 'past':
-      if (!emphasizeUrgency) return mutedLine;
-      return emphasizedLine(
-        'destructive',
-        <LocalTime date={info.date} precision="date" />,
-      );
+      return mutedLine;
 
     default: {
       const exhaustive: never = info.tier;

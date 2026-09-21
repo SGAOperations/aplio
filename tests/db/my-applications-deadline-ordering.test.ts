@@ -8,7 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { Application, User } from '@/prisma/client';
 import {
-  getClosingSoonDraftCount,
+  getClosingSoonCount,
   getRecentMyApplications,
 } from '@/prisma/data/applications';
 
@@ -26,6 +26,8 @@ let draftPastDue: Application;
 let draftNotYetOpen: Application;
 let draftUnpublishedPosition: Application;
 let draftDeletedPosition: Application;
+let withdrawnUrgent: Application;
+let withdrawnPastDue: Application;
 let submittedRecent: Application;
 
 beforeAll(async () => {
@@ -58,6 +60,14 @@ beforeAll(async () => {
     closesAt: new Date(NOW.getTime() + 2 * DAY),
     deletedAt: new Date(NOW.getTime() - 1 * HOUR),
   });
+  const posWithdrawnUrgent = await createTestPosition(admin, {
+    status: 'open',
+    closesAt: new Date(NOW.getTime() + 15 * HOUR),
+  });
+  const posWithdrawnPastDue = await createTestPosition(admin, {
+    status: 'open',
+    closesAt: new Date(NOW.getTime() - 1 * DAY),
+  });
   const posRecent = await createTestPosition(admin, { status: 'open' });
 
   // Fresh submittedAt (default now()) so it also qualifies for the recency
@@ -86,6 +96,14 @@ beforeAll(async () => {
   draftDeletedPosition = await createTestApplication(applicant, posDeleted, {
     status: 'draft',
   });
+  withdrawnUrgent = await createTestApplication(applicant, posWithdrawnUrgent, {
+    status: 'withdrawn',
+  });
+  withdrawnPastDue = await createTestApplication(
+    applicant,
+    posWithdrawnPastDue,
+    { status: 'withdrawn' },
+  );
   submittedRecent = await createTestApplication(applicant, posRecent, {
     status: 'applied',
     submittedAt: NOW,
@@ -97,10 +115,14 @@ afterAll(async () => {
 });
 
 describe('getRecentMyApplications', () => {
-  it('floats at-risk drafts ahead of recency order, nearest deadline first', async () => {
+  it('floats at-risk drafts and withdrawn apps ahead of recency order, nearest deadline first', async () => {
     const rows = await getRecentMyApplications(applicant.id, 10, NOW);
     const ids = rows.map((r) => r.id);
-    expect(ids.slice(0, 2)).toEqual([draftUrgent.id, draftSoonOld.id]);
+    expect(ids.slice(0, 3)).toEqual([
+      draftUrgent.id,
+      withdrawnUrgent.id,
+      draftSoonOld.id,
+    ]);
   });
 
   it('dedupes a row that qualifies for both the at-risk and recency queries', async () => {
@@ -109,24 +131,30 @@ describe('getRecentMyApplications', () => {
     expect(occurrences).toBe(1);
   });
 
-  it('respects take, keeping the nearest at-risk drafts first', async () => {
-    const rows = await getRecentMyApplications(applicant.id, 2, NOW);
-    expect(rows.map((r) => r.id)).toEqual([draftUrgent.id, draftSoonOld.id]);
+  it('respects take, keeping the nearest at-risk rows first', async () => {
+    const rows = await getRecentMyApplications(applicant.id, 3, NOW);
+    expect(rows.map((r) => r.id)).toEqual([
+      draftUrgent.id,
+      withdrawnUrgent.id,
+      draftSoonOld.id,
+    ]);
   });
 
-  it('excludes a past-due draft from the float', async () => {
+  it('excludes a past-due draft or withdrawn app from the float', async () => {
     const rows = await getRecentMyApplications(applicant.id, 10, NOW);
-    expect(rows.slice(0, 2).map((r) => r.id)).not.toContain(draftPastDue.id);
+    const floated = rows.slice(0, 3).map((r) => r.id);
+    expect(floated).not.toContain(draftPastDue.id);
+    expect(floated).not.toContain(withdrawnPastDue.id);
   });
 
   it('excludes a not-yet-open draft from the float', async () => {
     const rows = await getRecentMyApplications(applicant.id, 10, NOW);
-    expect(rows.slice(0, 2).map((r) => r.id)).not.toContain(draftNotYetOpen.id);
+    expect(rows.slice(0, 3).map((r) => r.id)).not.toContain(draftNotYetOpen.id);
   });
 
   it('excludes drafts on unpublished or soft-deleted positions from the float', async () => {
     const rows = await getRecentMyApplications(applicant.id, 10, NOW);
-    const floated = rows.slice(0, 2).map((r) => r.id);
+    const floated = rows.slice(0, 3).map((r) => r.id);
     expect(floated).not.toContain(draftUnpublishedPosition.id);
     expect(floated).not.toContain(draftDeletedPosition.id);
   });
@@ -137,9 +165,9 @@ describe('getRecentMyApplications', () => {
   });
 });
 
-describe('getClosingSoonDraftCount', () => {
-  // 2, not 6 — the other four drafts share buildAtRiskDraftWhere, so a mismatch here is a drift bug.
-  it('counts only the at-risk drafts, matching the float', async () => {
-    expect(await getClosingSoonDraftCount(applicant.id, NOW)).toBe(2);
+describe('getClosingSoonCount', () => {
+  // 3, not 8 — the other five apps share buildAtRiskWhere, so a mismatch here is a drift bug.
+  it('counts at-risk drafts and withdrawn apps, matching the float', async () => {
+    expect(await getClosingSoonCount(applicant.id, NOW)).toBe(3);
   });
 });
