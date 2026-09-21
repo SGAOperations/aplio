@@ -31,6 +31,7 @@ import {
   House,
   Inbox,
   Info,
+  Link,
   ListChecks,
   LoaderCircle,
   LogOut,
@@ -128,6 +129,7 @@ type Action =
   | 'save'
   | 'submit'
   | 'download'
+  | 'copyLink'
   | 'back'
   | 'goTo'
   | 'retry'
@@ -154,6 +156,7 @@ export const ACTION_ICONS: Record<Action, LucideIcon> = {
   save: Check,
   submit: Send,
   download: Download,
+  copyLink: Link,
   back: ArrowLeft,
   goTo: ArrowRight,
   retry: RotateCcw,
