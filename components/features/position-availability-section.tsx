@@ -99,12 +99,12 @@ export function PositionAvailabilitySection({
   return (
     <Form {...form}>
       <div className="flex flex-col gap-4">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2">
           <FormField
             control={form.control}
             name="opensAt"
             render={({ field }) => (
-              <FormItem>
+              <FormItem className="min-w-0">
                 <FormLabel>Opens At</FormLabel>
                 <FormControl>
                   <Input
@@ -129,7 +129,7 @@ export function PositionAvailabilitySection({
             control={form.control}
             name="closesAt"
             render={({ field }) => (
-              <FormItem>
+              <FormItem className="min-w-0">
                 <FormLabel>Closes At</FormLabel>
                 <FormControl>
                   <Input

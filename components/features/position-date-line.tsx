@@ -45,10 +45,15 @@ export function PositionDateLine({
 
   return (
     <p
-      className={cn('flex items-center gap-1.5 text-sm', textClass, className)}
+      className={cn(
+        'flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm',
+        textClass,
+        className,
+      )}
     >
       <Icon className={cn('size-4 shrink-0', iconClass)} />
-      {dateInfo.label} <LocalTime date={dateInfo.date} precision="datetime" />
+      <span>{dateInfo.label}</span>
+      <LocalTime date={dateInfo.date} precision="datetime" />
     </p>
   );
 }
