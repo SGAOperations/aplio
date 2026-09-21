@@ -15,7 +15,11 @@ import type {
 } from '@/prisma/client';
 import { getApplicationStatusHistory } from '@/prisma/data/applications';
 
-import { requireManagerOrAdmin, requireOwnership } from '@/lib/auth/guards';
+import {
+  requireAdmin,
+  requireManagerOrAdmin,
+  requireOwnership,
+} from '@/lib/auth/guards';
 import {
   buildApplicationScopeWhere,
   buildApplicationWhere,
@@ -24,7 +28,9 @@ import { getCurrentUser } from '@/lib/auth/server';
 import {
   ANSWER_LONG_MAX_LENGTH,
   ANSWER_MAX_VALUES,
+  APPLICATION_DRAFT_NOT_WITHDRAWABLE_MESSAGE,
   APPLICATION_NOT_EDITABLE_MESSAGE,
+  APPLICATION_STATUS_CHANGED_MESSAGE,
   APPLICATION_STATUS_LABELS,
   NON_REVIEWABLE_APPLICATION_STATUSES,
   REVIEWER_APPLICATION_STATUSES,
@@ -589,10 +595,7 @@ export async function updateApplicationStatus(
     });
 
     if (updateResult.count === 0)
-      return {
-        error:
-          'This application just changed. Refresh to see its current status.',
-      };
+      return { error: APPLICATION_STATUS_CHANGED_MESSAGE };
 
     await tx.applicationStatusEvent.create({
       data: {
@@ -814,6 +817,64 @@ export async function withdrawApplication(
   revalidatePath('/manage/applications');
   revalidatePath('/positions', 'layout');
   revalidatePath('/manage/positions', 'layout');
+}
+
+// Admin override of withdrawApplication's applicant-only path — reaches every
+// submitted status, including the terminal decisions withdrawApplication excludes.
+export async function forceWithdrawApplication(
+  input: unknown,
+): Promise<void | { error: string }> {
+  const user = await requireAdmin();
+
+  const parsed = applicationIdSchema.safeParse(input);
+  if (!parsed.success) return { error: 'Invalid input' };
+
+  const { applicationId } = parsed.data;
+
+  const result = await prisma.$transaction(async (tx) => {
+    // No status filter here (unlike buildApplicationWhere) — an ineligible
+    // but visible row gets an actionable sentence instead of an opaque throw.
+    const application = await tx.application.findFirst({
+      where: { id: applicationId, ...buildApplicationScopeWhere(user) },
+      select: { status: true },
+    });
+
+    // IDOR-style miss, unreachable from the UI — throw, don't return.
+    if (!application)
+      throw new Error('Application not found or not authorized');
+
+    if (application.status === 'withdrawn')
+      return {
+        error: `This application is already ${APPLICATION_STATUS_LABELS.withdrawn}.`,
+      };
+    if (application.status === 'draft')
+      return { error: APPLICATION_DRAFT_NOT_WITHDRAWABLE_MESSAGE };
+
+    // CAS on the exact status just read, so the event's `from` below is
+    // provably the status that was replaced.
+    const updateResult = await tx.application.updateMany({
+      where: { id: applicationId, status: application.status },
+      data: { status: 'withdrawn', updatedById: user.id },
+    });
+
+    if (updateResult.count === 0)
+      return { error: APPLICATION_STATUS_CHANGED_MESSAGE };
+
+    await tx.applicationStatusEvent.create({
+      data: {
+        applicationId,
+        from: application.status,
+        to: 'withdrawn',
+        changedById: user.id,
+      },
+    });
+  });
+
+  if (result && 'error' in result) return result;
+
+  // No after() dispatch — the one write path to `withdrawn` that never emails.
+  revalidatePath(`/manage/applications/${applicationId}`);
+  revalidatePath('/manage/applications');
 }
 
 // Soft delete: both answer tables are left untouched, so re-applying to the
