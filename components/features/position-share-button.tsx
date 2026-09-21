@@ -50,8 +50,8 @@ export function PositionShareButton({
         className={cn('min-h-11 sm:min-h-9', className)}
         onClick={() => void handleShare()}
       >
-        <ACTION_ICONS.share />
-        Share
+        <ACTION_ICONS.copyLink />
+        Copy link
       </Button>
 
       <Dialog open={fallbackOpen} onOpenChange={setFallbackOpen}>

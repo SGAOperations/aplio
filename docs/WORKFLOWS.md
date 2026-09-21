@@ -111,11 +111,11 @@ Anyone not signed in. The only routes they can use are `/positions`, `/positions
 ### AN-2 View a position
 
 - **Trigger** — a position card on `/positions`, or a direct link to `/positions/[id]`.
-- **Happy path** — `getPositionDetail(id)`, then `getOptionalManagerAccess(position.managers)` — which never forces auth, so an anonymous visitor and a signed-in non-manager get identical output. Renders the title, availability badge, a **Share** button beside them (copies an absolute `getBaseUrl()`-derived link and toasts **"Link copied"**), the application window date, markdown description, the list of application question labels, and the primary CTA ([AN-3](#an-3-start-applying-from-a-position)). The back link is viewer-dependent: "&larr; Back to Manage Positions" → `/manage/positions` when the viewer can manage this position, otherwise "&larr; Back to positions" → `/positions`.
+- **Happy path** — `getPositionDetail(id)`, then `getOptionalManagerAccess(position.managers)` — which never forces auth, so an anonymous visitor and a signed-in non-manager get identical output. Renders the title, availability badge, a **Copy link** button beside them (copies an absolute `getBaseUrl()`-derived link and toasts **"Link copied"**), the application window date, markdown description, the list of application question labels, and the primary CTA ([AN-3](#an-3-start-applying-from-a-position)). The back link is viewer-dependent: "&larr; Back to Manage Positions" → `/manage/positions` when the viewer can manage this position, otherwise "&larr; Back to positions" → `/positions`.
 - **Failure / edge**
   - Position missing or soft-deleted → `notFound()`.
   - Position is a `draft` and the viewer cannot manage it → `notFound()`, identical to missing ([XC-4](#xc-4-denial-shape)).
-  - Position is a `draft` (viewed by one of its managers) → no Share button; a copied link would 404 for anyone else.
+  - Position is a `draft` (viewed by one of its managers) → no Copy link button; a copied link would 404 for anyone else.
   - Clipboard write blocked or denied → a dialog opens with the link in a pre-selected read-only field to copy by hand; no toast alongside it.
   - No description → "No description yet."
   - Window not open yet → the date under the title reads **Opens <date>**; already closed → **Closed <date>**. No Apply button in either case.
