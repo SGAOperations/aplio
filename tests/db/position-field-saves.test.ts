@@ -171,4 +171,61 @@ describe('updatePositionSchedule', () => {
     const row = await loadPosition(position.id);
     expect(row.closesAt).toBeNull();
   });
+
+  it('allows clearing a date that is already in the past', async () => {
+    const position = await makePosition({
+      opensAt: orgDayStart(pastDay),
+      closesAt: orgDayEnd(pastDay),
+    });
+
+    actAs(manager);
+    const result = await updatePositionSchedule({
+      id: position.id,
+      opensAt: undefined,
+      closesAt: pastDay,
+    });
+    expect(result).toBeUndefined();
+
+    const row = await loadPosition(position.id);
+    expect(row.opensAt).toBeNull();
+    expect(row.closesAt?.getTime()).toBe(orgDayEnd(pastDay).getTime());
+  });
+
+  it('clears one date without disturbing the other', async () => {
+    const position = await makePosition({
+      opensAt: orgDayStart(futureOpen),
+      closesAt: orgDayEnd(futureClose),
+    });
+
+    actAs(manager);
+    const result = await updatePositionSchedule({
+      id: position.id,
+      opensAt: undefined,
+      closesAt: futureClose,
+    });
+    expect(result).toBeUndefined();
+
+    const row = await loadPosition(position.id);
+    expect(row.opensAt).toBeNull();
+    expect(row.closesAt?.getTime()).toBe(orgDayEnd(futureClose).getTime());
+  });
+
+  it("treats '' identically to undefined when clearing", async () => {
+    const position = await makePosition({
+      opensAt: orgDayStart(futureOpen),
+      closesAt: orgDayEnd(futureClose),
+    });
+
+    actAs(manager);
+    const result = await updatePositionSchedule({
+      id: position.id,
+      opensAt: '',
+      closesAt: futureClose,
+    });
+    expect(result).toBeUndefined();
+
+    const row = await loadPosition(position.id);
+    expect(row.opensAt).toBeNull();
+    expect(row.closesAt?.getTime()).toBe(orgDayEnd(futureClose).getTime());
+  });
 });
