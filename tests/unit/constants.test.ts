@@ -26,11 +26,15 @@ import {
   REVIEWER_APPLICATION_STATUSES,
   TERMINAL_DECISION_STATUSES,
   UNRESOLVED_APPLICATION_STATUSES,
+  formatPhoneNumber,
+  formatShortAnswerValue,
   getAnswerBlurError,
   getAnswerValueError,
   getStatusOptions,
   makePositionFormSchema,
   matchesShortAnswerFormat,
+  normalizePhoneNumber,
+  normalizeShortAnswerValue,
   positionDateOrderIssues,
   positionPastDateIssues,
   positionScheduleIssues,
@@ -274,6 +278,93 @@ describe('matchesShortAnswerFormat', () => {
 
   it('rejects an invalid zip code', () => {
     expect(matchesShortAnswerFormat('abcde', 'zip_code')).toBe(false);
+  });
+});
+
+describe('normalizePhoneNumber / formatPhoneNumber', () => {
+  it('round-trips a bare 10-digit number', () => {
+    expect(normalizePhoneNumber('5551234567')).toBe('5551234567');
+    expect(formatPhoneNumber(normalizePhoneNumber('5551234567'))).toBe(
+      '(555) 123-4567',
+    );
+  });
+
+  it('round-trips a legacy punctuated 10-digit number', () => {
+    expect(normalizePhoneNumber('(555) 123-4567')).toBe('5551234567');
+    expect(formatPhoneNumber(normalizePhoneNumber('(555) 123-4567'))).toBe(
+      '(555) 123-4567',
+    );
+  });
+
+  it('round-trips an 11-digit number with a leading 1 and +', () => {
+    expect(normalizePhoneNumber('+1 555 123 4567')).toBe('+15551234567');
+    expect(formatPhoneNumber(normalizePhoneNumber('+1 555 123 4567'))).toBe(
+      '(555) 123-4567',
+    );
+  });
+
+  it('leaves an already-normalized value unchanged', () => {
+    expect(normalizePhoneNumber('+15551234567')).toBe('+15551234567');
+    expect(formatPhoneNumber('+15551234567')).toBe('(555) 123-4567');
+  });
+
+  it('round-trips a + international number by rendering unchanged', () => {
+    expect(normalizePhoneNumber('+44 20 7123 4567')).toBe('+442071234567');
+    expect(formatPhoneNumber(normalizePhoneNumber('+44 20 7123 4567'))).toBe(
+      '+442071234567',
+    );
+  });
+
+  it('round-trips a 00 international number, promoting the prefix to +', () => {
+    expect(normalizePhoneNumber('0044 20 7123 4567')).toBe('+442071234567');
+    expect(formatPhoneNumber(normalizePhoneNumber('0044 20 7123 4567'))).toBe(
+      '+442071234567',
+    );
+  });
+
+  it('round-trips a 7-digit local number by rendering unchanged', () => {
+    expect(normalizePhoneNumber('555-0100')).toBe('5550100');
+    expect(formatPhoneNumber(normalizePhoneNumber('555-0100'))).toBe('5550100');
+  });
+
+  it('round-trips a validator-passing value that fits no mask', () => {
+    expect(normalizePhoneNumber('12345678901234')).toBe('12345678901234');
+    expect(formatPhoneNumber(normalizePhoneNumber('12345678901234'))).toBe(
+      '12345678901234',
+    );
+  });
+
+  it('returns unparseable input unchanged from normalize', () => {
+    expect(normalizePhoneNumber('abc')).toBe('abc');
+  });
+});
+
+describe('normalizeShortAnswerValue / formatShortAnswerValue', () => {
+  it('normalizes a phone_number value', () => {
+    expect(normalizeShortAnswerValue('(617) 555-0100', 'phone_number')).toBe(
+      '6175550100',
+    );
+  });
+
+  it('formats a phone_number value', () => {
+    expect(formatShortAnswerValue('6175550100', 'phone_number')).toBe(
+      '(617) 555-0100',
+    );
+  });
+
+  it('trims but otherwise leaves email/url/zip_code unchanged on normalize', () => {
+    expect(normalizeShortAnswerValue('  a@b.com  ', 'email')).toBe('a@b.com');
+    expect(normalizeShortAnswerValue('  example.com  ', 'url')).toBe(
+      'example.com',
+    );
+    expect(normalizeShortAnswerValue('  02115  ', 'zip_code')).toBe('02115');
+  });
+
+  it('is the identity on format for email/url/zip_code and a null format', () => {
+    expect(formatShortAnswerValue('a@b.com', 'email')).toBe('a@b.com');
+    expect(formatShortAnswerValue('example.com', 'url')).toBe('example.com');
+    expect(formatShortAnswerValue('02115', 'zip_code')).toBe('02115');
+    expect(formatShortAnswerValue('6175550100', null)).toBe('6175550100');
   });
 });
 

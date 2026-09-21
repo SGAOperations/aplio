@@ -162,6 +162,46 @@ export function matchesShortAnswerFormat(
   return SHORT_ANSWER_FORMAT_PATTERNS[format].test(value.trim());
 }
 
+// Digits + optional leading +; 00 promotes to + (validator treats them as the same prefix).
+export function normalizePhoneNumber(value: string): string {
+  const trimmed = value.trim();
+  if (!matchesShortAnswerFormat(trimmed, 'phone_number')) return trimmed;
+
+  const hasPlus = trimmed.startsWith('+');
+  const digits = trimmed.replace(/\D/g, '');
+  if (hasPlus) return `+${digits}`;
+  if (digits.startsWith('00')) return `+${digits.slice(2)}`;
+  return digits;
+}
+
+// Digit-strips first so legacy, unnormalized rows also mask. Anything else renders unchanged.
+export function formatPhoneNumber(value: string): string {
+  const digits = value.replace(/\D/g, '');
+  if (digits.length === 10)
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  if (digits.length === 11 && digits.startsWith('1'))
+    return `(${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+  return value;
+}
+
+// Trims every format; phone_number additionally normalizes to digits + optional leading +.
+export function normalizeShortAnswerValue(
+  value: string,
+  format: ShortAnswerFormatValue,
+): string {
+  return format === 'phone_number'
+    ? normalizePhoneNumber(value.trim())
+    : value.trim();
+}
+
+// Identity for every format except phone_number, which masks US-shaped values.
+export function formatShortAnswerValue(
+  value: string,
+  format: ShortAnswerFormatValue | null,
+): string {
+  return format === 'phone_number' ? formatPhoneNumber(value) : value;
+}
+
 export const baseQuestionSchema = z.object({
   label: z.string().min(1, 'Label is required'),
   type: z.enum(QUESTION_TYPE_VALUES),

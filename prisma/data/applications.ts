@@ -107,6 +107,7 @@ const applicationAnswersSelect = {
       questionLabel: true,
       questionType: true,
       value: true,
+      globalQuestion: { select: { format: true } },
     },
   },
   positionAnswers: {
@@ -118,6 +119,7 @@ const applicationAnswersSelect = {
       questionLabel: true,
       questionType: true,
       value: true,
+      positionQuestion: { select: { format: true } },
     },
   },
 } as const;
@@ -127,7 +129,7 @@ const positionQuestionsSelect = {
   questions: {
     where: { deletedAt: null },
     orderBy: { order: 'asc' },
-    select: { id: true, label: true, type: true },
+    select: { id: true, label: true, type: true, format: true },
   },
 } as const;
 
@@ -162,6 +164,7 @@ function normalizeApplicationAnswers(
           questionLabel: answer.questionLabel,
           value: answer.value,
           type: answer.questionType,
+          format: question.format,
           isGlobal: false,
         };
       return {
@@ -170,6 +173,7 @@ function normalizeApplicationAnswers(
         questionLabel: question.label,
         value: [],
         type: question.type,
+        format: question.format,
         isGlobal: false,
       };
     },
@@ -183,6 +187,7 @@ function normalizeApplicationAnswers(
       questionLabel: a.questionLabel,
       value: a.value,
       type: a.questionType,
+      format: a.positionQuestion.format,
       isGlobal: false,
     }));
 
@@ -193,6 +198,7 @@ function normalizeApplicationAnswers(
       questionLabel: a.questionLabel,
       value: a.value,
       type: a.questionType,
+      format: a.globalQuestion.format,
       isGlobal: true,
     })),
     positionAnswers: [...liveQuestionAnswers, ...orphanedAnswers],

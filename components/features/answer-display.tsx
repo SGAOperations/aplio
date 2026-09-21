@@ -1,3 +1,4 @@
+import { formatShortAnswerValue } from '@/lib/constants';
 import type { AnswerQuestion, QuestionFileTarget } from '@/lib/types';
 import { answerFieldIds, partitionAnswerValue } from '@/lib/utils';
 
@@ -46,7 +47,9 @@ export function AnswerDisplay({
           ))}
         </div>
       ) : (
-        <p className="text-foreground text-base font-medium">{value[0]}</p>
+        <p className="text-foreground text-base font-medium">
+          {formatShortAnswerValue(value[0] ?? '', question.format)}
+        </p>
       )}
     </>
   );

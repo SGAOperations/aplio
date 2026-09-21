@@ -342,6 +342,7 @@ export type ApplicationReviewAnswer = {
   questionLabel: string;
   value: string[];
   type: QuestionType;
+  format: ShortAnswerFormat | null;
   isGlobal: boolean;
 };
 

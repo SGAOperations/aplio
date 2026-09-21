@@ -34,6 +34,7 @@ import {
   isAllowedApplicationStatusTransition,
   isApplicantEditableApplicationStatus,
   matchesShortAnswerFormat,
+  normalizeShortAnswerValue,
 } from '@/lib/constants';
 import {
   type DecisionEmailRecipient,
@@ -273,10 +274,11 @@ export async function createOrUpdateApplicationAnswer(params: {
   const answerError = getAnswerValueError(question, value);
   if (answerError) return { error: answerError };
 
-  // matchesShortAnswerFormat trims internally, so save the trimmed value.
+  // Trims every short-answer format; phone_number additionally normalizes to digits.
+  const format = question.format;
   const persistedValue =
-    question.type === 'short_answer' && question.format
-      ? value.map((v) => v.trim())
+    question.type === 'short_answer' && format
+      ? value.map((v) => normalizeShortAnswerValue(v, format))
       : value;
 
   if (isGlobal) {
