@@ -1,6 +1,9 @@
 import type { Metadata } from 'next';
 
-import { getMyApplications } from '@/prisma/data/applications';
+import {
+  getApplicationCompletion,
+  getMyApplications,
+} from '@/prisma/data/applications';
 
 import { getCurrentUser } from '@/lib/auth/server';
 
@@ -13,6 +16,11 @@ export default async function MyApplicationsPage() {
   const user = await getCurrentUser();
   const applications = await getMyApplications(user.id);
   const now = new Date();
+  const completion = await getApplicationCompletion(
+    applications
+      .filter((a) => a.status === 'draft')
+      .map((a) => ({ id: a.id, positionId: a.positionId, userId: user.id })),
+  );
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -20,7 +28,11 @@ export default async function MyApplicationsPage() {
         title="My Applications"
         description="Track your drafts and submitted applications."
       />
-      <MyApplicationsTable applications={applications} now={now} />
+      <MyApplicationsTable
+        applications={applications}
+        now={now}
+        completion={completion}
+      />
     </div>
   );
 }

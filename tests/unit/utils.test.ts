@@ -13,6 +13,7 @@ import {
   answerFieldIds,
   buildApplicationsHref,
   buildEmailLogHref,
+  calculateAnswerCompletion,
   canReviewPosition,
   classifyDecisionEmailStatus,
   countBulkEmailRecipients,
@@ -1241,6 +1242,124 @@ describe('isAnswered', () => {
 
   it('is false for an empty value', () => {
     expect(isAnswered(shortAnswerQuestion, [])).toBe(false);
+  });
+});
+
+const fileUploadQuestion: AnswerQuestion = {
+  id: 'q4',
+  label: 'Q',
+  type: 'file_upload',
+  required: true,
+  options: [],
+  allowOther: false,
+  format: null,
+};
+
+const optionalShortAnswerQuestion: AnswerQuestion = {
+  ...shortAnswerQuestion,
+  id: 'q5',
+  required: false,
+};
+
+describe('calculateAnswerCompletion', () => {
+  it('is 0% when none are answered', () => {
+    expect(calculateAnswerCompletion([shortAnswerQuestion], new Map())).toEqual(
+      { answeredCount: 0, requiredCount: 1, percent: 0 },
+    );
+  });
+
+  it('is 100% when all required questions are answered', () => {
+    expect(
+      calculateAnswerCompletion(
+        [shortAnswerQuestion],
+        new Map([['q1', ['hi']]]),
+      ),
+    ).toEqual({ answeredCount: 1, requiredCount: 1, percent: 100 });
+  });
+
+  it('rounds a partial count but never to the 100/0 clamps', () => {
+    const questions = Array.from({ length: 3 }, (_, i) => ({
+      ...shortAnswerQuestion,
+      id: `q${i}`,
+    }));
+    const values = new Map([['q0', ['hi']]]);
+    // 1/3 rounds to 33%, well clear of either clamp.
+    expect(calculateAnswerCompletion(questions, values)).toEqual({
+      answeredCount: 1,
+      requiredCount: 3,
+      percent: 33,
+    });
+  });
+
+  it('never reports 100% unless every required question is answered', () => {
+    const questions = Array.from({ length: 200 }, (_, i) => ({
+      ...shortAnswerQuestion,
+      id: `q${i}`,
+    }));
+    const values = new Map(questions.slice(0, 199).map((q) => [q.id, ['hi']]));
+    // 199/200 rounds to 100 — clamped to 99 since one is still unanswered.
+    expect(calculateAnswerCompletion(questions, values)).toEqual({
+      answeredCount: 199,
+      requiredCount: 200,
+      percent: 99,
+    });
+  });
+
+  it('never reports 0% while at least one required question is answered', () => {
+    const questions = Array.from({ length: 200 }, (_, i) => ({
+      ...shortAnswerQuestion,
+      id: `q${i}`,
+    }));
+    const values = new Map([['q0', ['hi']]]);
+    // 1/200 rounds to 0 — clamped to 1 since one is answered.
+    expect(calculateAnswerCompletion(questions, values)).toEqual({
+      answeredCount: 1,
+      requiredCount: 200,
+      percent: 1,
+    });
+  });
+
+  it('is 100% with no NaN when there are no required questions', () => {
+    expect(
+      calculateAnswerCompletion([optionalShortAnswerQuestion], new Map()),
+    ).toEqual({ answeredCount: 0, requiredCount: 0, percent: 100 });
+  });
+
+  it('an unanswered optional question does not affect the denominator', () => {
+    expect(
+      calculateAnswerCompletion(
+        [shortAnswerQuestion, optionalShortAnswerQuestion],
+        new Map([['q1', ['hi']]]),
+      ),
+    ).toEqual({ answeredCount: 1, requiredCount: 1, percent: 100 });
+  });
+
+  it('an empty-string value does not count as answered', () => {
+    expect(
+      calculateAnswerCompletion([shortAnswerQuestion], new Map([['q1', []]])),
+    ).toEqual({ answeredCount: 0, requiredCount: 1, percent: 0 });
+  });
+
+  it('a file_upload value counts as answered', () => {
+    expect(
+      calculateAnswerCompletion(
+        [fileUploadQuestion],
+        new Map([['q4', ['https://blob.example/file']]]),
+      ),
+    ).toEqual({ answeredCount: 1, requiredCount: 1, percent: 100 });
+  });
+
+  it('counts a global answered only through the resolved profile fallback', () => {
+    const resolved = resolveGlobalAnswerValues(
+      ['q1'],
+      [],
+      [{ globalQuestionId: 'q1', value: ['profile answer'] }],
+    );
+    expect(calculateAnswerCompletion([shortAnswerQuestion], resolved)).toEqual({
+      answeredCount: 1,
+      requiredCount: 1,
+      percent: 100,
+    });
   });
 });
 

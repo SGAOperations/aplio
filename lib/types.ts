@@ -175,9 +175,9 @@ export type AdminApplicationListItem = WithSubmittedAt<
   }>
 >;
 
-// Identity and timestamps only — no status, applicantName or answer relation,
-// so no answer/file/completion signal is reachable from a component using
-// this. submittedAt is always null here — every row is a draft.
+// Identity and timestamps only — no status, applicantName, or answer relation.
+// completion travels as a sibling Record<id, ApplicationCompletion>, never here.
+// submittedAt is always null here — every row is a draft.
 export type DraftApplicationListItem = Prisma.ApplicationGetPayload<{
   select: {
     id: true;
@@ -332,6 +332,14 @@ export type ProfileCompleteness = {
   complete: boolean;
   missingCount: number;
   requiredCount: number;
+};
+
+// Counts only — safe on both a reviewer payload and an applicant's own, since
+// neither answer content nor a per-question breakdown crosses in it.
+export type ApplicationCompletion = {
+  answeredCount: number;
+  requiredCount: number;
+  percent: number;
 };
 
 // questionId/type/isGlobal address a file answer without a file-metadata model.
@@ -494,12 +502,16 @@ export type PositionApplicationStats = {
 
 // Feeds the browse page's applied marker on PositionCard. No applicant
 // identity, no answers — safe for a client leaf. status is the public value.
+// completion is null for a non-draft row; a count-only aggregate for a draft.
 export type MyPositionApplication = Omit<
   Prisma.ApplicationGetPayload<{
     select: { id: true; positionId: true; status: true };
   }>,
   'status'
-> & { status: PublicApplicationStatus };
+> & {
+  status: PublicApplicationStatus;
+  completion: ApplicationCompletion | null;
+};
 
 export interface NavIdentity {
   name: string | null;

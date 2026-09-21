@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import {
+  getApplicationCompletion,
   getClosingSoonCount,
   getMyApplicationStatusCounts,
   getRecentMyApplications,
@@ -8,11 +9,15 @@ import {
 
 import { APPLICATION_STATUS_LABELS } from '@/lib/constants';
 import { CONCEPT_ICONS } from '@/lib/icons';
-import { type MyApplicationListItem } from '@/lib/types';
+import {
+  type ApplicationCompletion,
+  type MyApplicationListItem,
+} from '@/lib/types';
 
 import { DeadlineIndicator } from '@/components/features/deadline-indicator';
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
 import { LocalTime } from '@/components/ui/local-time';
+import { ProgressRing } from '@/components/ui/progress-ring';
 import { SectionCard, SectionCardEmpty } from '@/components/ui/section-card';
 
 interface MyApplicationsWidgetProps {
@@ -58,6 +63,18 @@ export async function MyApplicationsWidget({
     getClosingSoonCount(userId, now),
   ]);
 
+  const draftRows = applications.filter((a) => a.status === 'draft');
+  const completion =
+    draftRows.length > 0
+      ? await getApplicationCompletion(
+          draftRows.map((a) => ({
+            id: a.id,
+            positionId: a.positionId,
+            userId,
+          })),
+        )
+      : {};
+
   const summary = buildCountsSummary(counts, closingSoonCount);
 
   return (
@@ -86,7 +103,11 @@ export async function MyApplicationsWidget({
           }
         />
       ) : (
-        <ApplicationList applications={applications} now={now} />
+        <ApplicationList
+          applications={applications}
+          now={now}
+          completion={completion}
+        />
       )}
     </SectionCard>
   );
@@ -95,40 +116,48 @@ export async function MyApplicationsWidget({
 function ApplicationList({
   applications,
   now,
+  completion,
 }: {
   applications: MyApplicationListItem[];
   now: Date;
+  completion: Record<string, ApplicationCompletion>;
 }) {
   return (
     <ul className="divide-y">
-      {applications.map((app) => (
-        <li
-          key={app.id}
-          className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3"
-        >
-          <Link
-            href={`/applications/${app.id}`}
-            className="min-w-0 flex-1 truncate text-sm font-medium hover:underline"
+      {applications.map((app) => {
+        const entry = app.status === 'draft' ? completion[app.id] : undefined;
+        return (
+          <li
+            key={app.id}
+            className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3"
           >
-            {app.position.title}
-          </Link>
-          <span className="text-muted-foreground shrink-0 text-xs">
-            {app.status === 'draft' || app.status === 'withdrawn' ? (
-              <DeadlineIndicator
-                variant="compact"
-                position={app.position}
-                now={now}
-                emphasizeUrgency
-              />
-            ) : app.submittedAt ? (
-              <LocalTime date={app.submittedAt} precision="date" />
-            ) : (
-              '—'
-            )}
-          </span>
-          <ApplicationStatusBadge status={app.status} />
-        </li>
-      ))}
+            <Link
+              href={`/applications/${app.id}`}
+              className="min-w-0 flex-1 truncate text-sm font-medium hover:underline"
+            >
+              {app.position.title}
+            </Link>
+            <ApplicationStatusBadge status={app.status} />
+            <span className="text-muted-foreground flex shrink-0 items-center gap-1 text-xs">
+              {app.status === 'draft' || app.status === 'withdrawn' ? (
+                <>
+                  <DeadlineIndicator
+                    variant="compact"
+                    position={app.position}
+                    now={now}
+                    emphasizeUrgency
+                  />
+                  {entry && <ProgressRing percent={entry.percent} size="sm" />}
+                </>
+              ) : app.submittedAt ? (
+                <LocalTime date={app.submittedAt} precision="date" />
+              ) : (
+                '—'
+              )}
+            </span>
+          </li>
+        );
+      })}
     </ul>
   );
 }

@@ -23,6 +23,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Markdown } from '@/components/ui/markdown';
+import { ProgressRing } from '@/components/ui/progress-ring';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface PositionCardProps {
@@ -187,12 +188,21 @@ export function PositionCard({
                 <>
                   {myApplication ? (
                     canContinueOrResubmit ? (
-                      <Button asChild size="sm">
-                        <Link href={`/positions/${position.id}/apply`}>
-                          <ACTION_ICONS.submit />
-                          {isDraft ? 'Continue application' : 'Edit & resubmit'}
-                        </Link>
-                      </Button>
+                      <>
+                        <Button asChild size="sm">
+                          <Link href={`/positions/${position.id}/apply`}>
+                            <ACTION_ICONS.submit />
+                            {isDraft
+                              ? 'Continue application'
+                              : 'Edit & resubmit'}
+                          </Link>
+                        </Button>
+                        {isDraft && myApplication.completion && (
+                          <ProgressRing
+                            percent={myApplication.completion.percent}
+                          />
+                        )}
+                      </>
                     ) : (
                       <Button asChild variant="outline" size="sm">
                         <Link
