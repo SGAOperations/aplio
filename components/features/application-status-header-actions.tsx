@@ -34,11 +34,7 @@ interface ApplicationStatusHeaderActionsProps {
   history: ApplicationStatusHistoryEntry[];
 }
 
-// PageHeader's actions slot: an unresolved status gets a split button whose
-// caret dropdown includes "See more" to open the status dialog; a decision
-// collapses that into a single "Change decision" button; non-reviewable
-// statuses get the standalone `⋯` as their sole control. Move-backs never
-// appear here — only in the dialog's any-status Select.
+// Unresolved gets a split button; everything else gets a standalone caret — same dropdown either way.
 export function ApplicationStatusHeaderActions({
   applicationId,
   currentStatus,
@@ -54,30 +50,6 @@ export function ApplicationStatusHeaderActions({
     currentStatus,
   });
 
-  const moreButton = (
-    <Button
-      variant="outline"
-      size="icon"
-      className="min-h-11 sm:min-h-9"
-      aria-label={`Status history and override for ${applicantName}`}
-      onClick={() => setDialogOpen(true)}
-    >
-      <ACTION_ICONS.more />
-    </Button>
-  );
-
-  // Non-primary — only reopens the override dialog, doesn't advance the application.
-  const changeDecisionButton = (
-    <Button
-      variant="outline"
-      size="sm"
-      className="min-h-11 sm:min-h-9"
-      onClick={() => setDialogOpen(true)}
-    >
-      Change decision
-    </Button>
-  );
-
   const dialog = (
     <ApplicationStatusDialog
       applicationId={applicationId}
@@ -89,29 +61,48 @@ export function ApplicationStatusHeaderActions({
       onOpenChange={setDialogOpen}
     />
   );
+  const confirmDialog = <ConfirmDialog {...move.confirmDialogProps} />;
 
-  if (isNonReviewableApplicationStatus(currentStatus)) {
+  // The dialog's Select still offers a move for both terminals — only
+  // withdrawn (the sole non-reviewable status reachable here) loses it.
+  const isChangeable = !isNonReviewableApplicationStatus(currentStatus);
+
+  const note = isTerminalDecisionApplicationStatus(currentStatus)
+    ? TERMINAL_DECISION_STATUS_NOTES[currentStatus]
+    : isNonReviewableApplicationStatus(currentStatus)
+      ? NON_REVIEWABLE_APPLICATION_STATUS_NOTES[currentStatus]
+      : null;
+
+  if (note !== null) {
     return (
       <>
-        <p className="text-muted-foreground text-xs">
-          {NON_REVIEWABLE_APPLICATION_STATUS_NOTES[currentStatus]}
-        </p>
-        {moreButton}
-        {dialog}
-      </>
-    );
-  }
-
-  const isTerminalDecision = isTerminalDecisionApplicationStatus(currentStatus);
-
-  if (isTerminalDecision) {
-    return (
-      <>
-        <p className="text-muted-foreground text-xs">
-          {TERMINAL_DECISION_STATUS_NOTES[currentStatus]}
-        </p>
-        {changeDecisionButton}
-        <ConfirmDialog {...move.confirmDialogProps} />
+        <p className="text-muted-foreground text-xs">{note}</p>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="min-h-11 sm:min-h-9"
+              aria-label={
+                isChangeable
+                  ? `More status options for ${applicantName}`
+                  : `Status history for ${applicantName}`
+              }
+            >
+              <ACTION_ICONS.expand />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <ApplicationStatusMenu
+              status={currentStatus}
+              hoistNext={false}
+              isPending={move.isPending}
+              onSelect={move.selectTarget}
+              onSeeMore={() => setDialogOpen(true)}
+            />
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {confirmDialog}
         {dialog}
       </>
     );
@@ -159,7 +150,7 @@ export function ApplicationStatusHeaderActions({
         </DropdownMenu>
       </div>
 
-      <ConfirmDialog {...move.confirmDialogProps} />
+      {confirmDialog}
       {dialog}
     </>
   );

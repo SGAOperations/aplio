@@ -5,6 +5,7 @@ import { useState } from 'react';
 import type { $Enums } from '@/prisma/client';
 
 import {
+  NON_REVIEWABLE_APPLICATION_STATUS_NOTES,
   REVIEWER_APPLICATION_STATUS_OPTIONS,
   isNonReviewableApplicationStatus,
 } from '@/lib/constants';
@@ -90,7 +91,9 @@ export function ApplicationStatusDialog({
           <DialogHeader>
             <DialogTitle>Application status</DialogTitle>
             <DialogDescription>
-              Change the status or review the history.
+              {isNonReviewableApplicationStatus(currentStatus)
+                ? NON_REVIEWABLE_APPLICATION_STATUS_NOTES[currentStatus]
+                : 'Change the status or review the history.'}
             </DialogDescription>
           </DialogHeader>
 
