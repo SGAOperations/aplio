@@ -69,6 +69,7 @@ export default async function ApplicationDetailPage({
               applicantName={applicantName}
               applicantEmail={application.user.email}
               history={history}
+              isAdmin={user.isAdmin}
             />
           }
         />

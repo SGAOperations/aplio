@@ -17,6 +17,7 @@ import {
 } from '@/lib/utils';
 
 import { useApplicationStatusMove } from '@/components/features/use-application-status-move';
+import { useForceWithdrawApplication } from '@/components/features/use-force-withdraw-application';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
@@ -47,6 +48,7 @@ interface ApplicationStatusDialogProps {
   // its pre-fetched history and leaves these unset.
   isHistoryLoading?: boolean;
   historyFailed?: boolean;
+  isAdmin: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -59,6 +61,7 @@ export function ApplicationStatusDialog({
   history,
   isHistoryLoading = false,
   historyFailed = false,
+  isAdmin,
   open,
   onOpenChange,
 }: ApplicationStatusDialogProps) {
@@ -71,8 +74,15 @@ export function ApplicationStatusDialog({
     applicantEmail,
     currentStatus,
   });
+  const forceWithdraw = useForceWithdrawApplication({
+    applicationId,
+    applicantName,
+    currentStatus,
+  });
 
   const canOverride = !isNonReviewableApplicationStatus(currentStatus);
+  const canForceWithdraw =
+    isAdmin && !isNonReviewableApplicationStatus(currentStatus);
   const selectingDecision =
     selectedStatus === 'accepted' || selectedStatus === 'rejected';
 
@@ -110,7 +120,7 @@ export function ApplicationStatusDialog({
                     onValueChange={(v) =>
                       setSelectedStatus(v as $Enums.ApplicationStatus)
                     }
-                    disabled={move.isPending}
+                    disabled={move.isPending || forceWithdraw.isPending}
                   >
                     <SelectTrigger
                       id="status-dialog-select"
@@ -131,7 +141,11 @@ export function ApplicationStatusDialog({
                   </Select>
                   <Button
                     size="sm"
-                    disabled={!selectedStatus || move.isPending}
+                    disabled={
+                      !selectedStatus ||
+                      move.isPending ||
+                      forceWithdraw.isPending
+                    }
                     onClick={handleApply}
                   >
                     {move.isPending &&
@@ -153,6 +167,26 @@ export function ApplicationStatusDialog({
                   Any status, including moves the normal flow doesn&apos;t
                   offer.
                 </p>
+              </div>
+            )}
+
+            {canForceWithdraw && (
+              <div className="flex flex-col gap-2 border-t pt-4">
+                <h3 className="text-sm font-medium">Force withdraw</h3>
+                <p className="text-muted-foreground text-xs">
+                  Return this application to {applicantName} without telling
+                  them. No email is sent.
+                </p>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="w-fit"
+                  disabled={move.isPending || forceWithdraw.isPending}
+                  onClick={forceWithdraw.openConfirm}
+                >
+                  <ACTION_ICONS.forceWithdraw />
+                  Force withdraw
+                </Button>
               </div>
             )}
 
@@ -204,6 +238,9 @@ export function ApplicationStatusDialog({
         </DialogContent>
       </Dialog>
       <ConfirmDialog {...move.confirmDialogProps} />
+      {canForceWithdraw && (
+        <ConfirmDialog {...forceWithdraw.confirmDialogProps} />
+      )}
     </>
   );
 }
