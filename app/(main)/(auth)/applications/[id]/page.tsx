@@ -12,6 +12,7 @@ import {
 import { CONCEPT_ICONS } from '@/lib/icons';
 
 import { ApplicationAnswersList } from '@/components/features/application-answers-list';
+import { DeadlineIndicator } from '@/components/features/deadline-indicator';
 import { MyApplicationPrimaryAction } from '@/components/features/my-application-primary-action';
 import { MyApplicationRowActions } from '@/components/features/my-application-row-actions';
 import { ApplicationStatusBadge } from '@/components/features/status-badge';
@@ -54,6 +55,8 @@ export default async function MyApplicationDetailPage({
   if (!application) notFound();
 
   const isDraft = application.status === 'draft';
+  const showDeadline = isDraft || application.status === 'withdrawn';
+  const now = new Date();
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -79,20 +82,32 @@ export default async function MyApplicationDetailPage({
             )
           }
         />
-        <p className="text-muted-foreground mt-1 text-sm">
-          {isDraft ? 'Draft · last saved ' : 'Applied '}
-          <LocalTime
-            date={application.lastSavedAt ?? application.submittedAt}
-            precision="date"
-          />{' '}
-          ·{' '}
+        <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm">
+          <span>
+            {isDraft ? 'Draft · last saved ' : 'Applied '}
+            <LocalTime
+              date={application.lastSavedAt ?? application.submittedAt}
+              precision="date"
+            />
+          </span>
+          <span aria-hidden="true">·</span>
           <Link
             href={`/positions/${application.position.id}`}
             className="underline"
           >
             View position
           </Link>
-        </p>
+          {showDeadline && (
+            <>
+              <span aria-hidden="true">·</span>
+              <DeadlineIndicator
+                position={application.position}
+                now={now}
+                emphasizeUrgency
+              />
+            </>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-col gap-4">

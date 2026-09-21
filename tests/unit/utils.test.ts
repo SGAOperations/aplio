@@ -24,6 +24,7 @@ import {
   formatTableCount,
   getApplicantName,
   getBulkDecisionEmailWarning,
+  getDeadlineInfo,
   getDecisionEmailWarning,
   getEmailLogDescription,
   getEmailLogOccurredAt,
@@ -247,6 +248,131 @@ describe('getPositionDateInfo', () => {
         NOW,
       ),
     ).toBeNull();
+  });
+});
+
+describe('getDeadlineInfo', () => {
+  it('returns null for an accepting position with no closesAt', () => {
+    expect(
+      getDeadlineInfo({ status: 'open', opensAt: null, closesAt: null }, NOW),
+    ).toBeNull();
+  });
+
+  it('reads past for a closed position with a past closesAt', () => {
+    const closesAt = new Date(NOW);
+    closesAt.setDate(closesAt.getDate() - 5);
+    expect(
+      getDeadlineInfo({ status: 'closed', opensAt: null, closesAt }, NOW),
+    ).toEqual({
+      tier: 'past',
+      label: 'Closed',
+      date: closesAt,
+      compactCountdown: null,
+    });
+  });
+
+  it('reads past for an open position past its close date', () => {
+    const closesAt = new Date(NOW.getTime() - 1);
+    expect(
+      getDeadlineInfo({ status: 'open', opensAt: null, closesAt }, NOW),
+    ).toEqual({
+      tier: 'past',
+      label: 'Closed',
+      date: closesAt,
+      compactCountdown: null,
+    });
+  });
+
+  it('is urgent at exactly the 24-hour boundary (inclusive)', () => {
+    const closesAt = new Date(NOW.getTime() + 24 * 60 * 60 * 1000);
+    const info = getDeadlineInfo(
+      { status: 'open', opensAt: null, closesAt },
+      NOW,
+    );
+    expect(info).toEqual({
+      tier: 'urgent',
+      label: 'Closes',
+      date: closesAt,
+      compactCountdown: '24h',
+    });
+  });
+
+  it('is still urgent at 23 hours 59 minutes', () => {
+    const closesAt = new Date(NOW.getTime() + (23 * 60 + 59) * 60 * 1000);
+    const info = getDeadlineInfo(
+      { status: 'open', opensAt: null, closesAt },
+      NOW,
+    );
+    expect(info?.tier).toBe('urgent');
+  });
+
+  it('is soon at 25 hours, just past the 24-hour boundary', () => {
+    const closesAt = new Date(NOW.getTime() + 25 * 60 * 60 * 1000);
+    const info = getDeadlineInfo(
+      { status: 'open', opensAt: null, closesAt },
+      NOW,
+    );
+    expect(info?.tier).toBe('soon');
+  });
+
+  it('is soon at exactly the 7-day boundary (inclusive), with no countdown', () => {
+    const closesAt = new Date(NOW.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const info = getDeadlineInfo(
+      { status: 'open', opensAt: null, closesAt },
+      NOW,
+    );
+    expect(info).toEqual({
+      tier: 'soon',
+      label: 'Closes',
+      date: closesAt,
+      compactCountdown: null,
+    });
+  });
+
+  it('is distant just past the 7-day boundary', () => {
+    const closesAt = new Date(NOW.getTime() + 7 * 24 * 60 * 60 * 1000 + 60_000);
+    const info = getDeadlineInfo(
+      { status: 'open', opensAt: null, closesAt },
+      NOW,
+    );
+    expect(info).toEqual({
+      tier: 'distant',
+      label: 'Closes',
+      date: closesAt,
+      compactCountdown: null,
+    });
+  });
+
+  it('is upcoming for an open position not yet open, with no countdown', () => {
+    const opensAt = new Date(NOW);
+    opensAt.setDate(opensAt.getDate() + 5);
+    expect(
+      getDeadlineInfo({ status: 'open', opensAt, closesAt: null }, NOW),
+    ).toEqual({
+      tier: 'upcoming',
+      label: 'Opens',
+      date: opensAt,
+      compactCountdown: null,
+    });
+  });
+
+  it('formats the compact countdown in hours below the day boundary', () => {
+    const closesAt = new Date(NOW.getTime() + 30 * 60 * 1000);
+    const info = getDeadlineInfo(
+      { status: 'open', opensAt: null, closesAt },
+      NOW,
+    );
+    expect(info?.compactCountdown).toBe('1h');
+  });
+
+  it('has no compact countdown at the soon tier', () => {
+    const closesAt = new Date(NOW.getTime() + 3 * 24 * 60 * 60 * 1000);
+    const info = getDeadlineInfo(
+      { status: 'open', opensAt: null, closesAt },
+      NOW,
+    );
+    expect(info?.tier).toBe('soon');
+    expect(info?.compactCountdown).toBeNull();
   });
 });
 

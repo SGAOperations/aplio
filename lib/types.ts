@@ -255,6 +255,18 @@ export type PositionDateInfo = {
   emphasis: 'live' | 'calm' | 'stale';
 };
 
+// Applicant-facing deadline urgency — distinct from PositionDateInfo's
+// emphasis tiers (see lib/utils.ts#getDeadlineInfo for why they don't merge).
+export type DeadlineTier = 'upcoming' | 'distant' | 'soon' | 'urgent' | 'past';
+
+export type DeadlineInfo = {
+  tier: DeadlineTier;
+  label: 'Opens' | 'Closes' | 'Closed';
+  date: Date;
+  // Short form ("5d"); null when no countdown applies.
+  compactCountdown: string | null;
+};
+
 // Admin-gated contexts only.
 export type OpenPositionSummaryItem = Prisma.PositionGetPayload<{
   select: { id: true; title: true; _count: { select: { applications: true } } };

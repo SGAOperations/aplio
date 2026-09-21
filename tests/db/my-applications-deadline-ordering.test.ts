@@ -1,0 +1,182 @@
+import {
+  cleanupFixtures,
+  createTestApplication,
+  createTestPosition,
+  createTestUser,
+} from '@/tests/helpers/fixtures';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+import type { Application, User } from '@/prisma/client';
+import {
+  getClosingSoonCount,
+  getRecentMyApplications,
+} from '@/prisma/data/applications';
+
+// Fixed anchor so the fixtures' relative offsets never straddle a boundary.
+const NOW = new Date('2026-08-15T12:00:00Z');
+const HOUR = 60 * 60 * 1000;
+const DAY = 24 * HOUR;
+const OLD = new Date(NOW.getTime() - 21 * DAY);
+
+let applicant: User;
+
+let draftUrgent: Application;
+let draftSoonOld: Application;
+let draftPastDue: Application;
+let draftNotYetOpen: Application;
+let draftUnpublishedPosition: Application;
+let draftDeletedPosition: Application;
+let withdrawnUrgent: Application;
+let withdrawnSoon: Application;
+let withdrawnPastDue: Application;
+let submittedRecent: Application;
+
+beforeAll(async () => {
+  const admin = await createTestUser({ isAdmin: true });
+  applicant = await createTestUser();
+
+  const posUrgent = await createTestPosition(admin, {
+    status: 'open',
+    closesAt: new Date(NOW.getTime() + 10 * HOUR),
+  });
+  const posSoon = await createTestPosition(admin, {
+    status: 'open',
+    closesAt: new Date(NOW.getTime() + 2 * DAY),
+  });
+  const posPastDue = await createTestPosition(admin, {
+    status: 'open',
+    closesAt: new Date(NOW.getTime() - 1 * DAY),
+  });
+  const posNotYetOpen = await createTestPosition(admin, {
+    status: 'open',
+    opensAt: new Date(NOW.getTime() + 1 * DAY),
+    closesAt: new Date(NOW.getTime() + 3 * DAY),
+  });
+  const posUnpublished = await createTestPosition(admin, {
+    status: 'draft',
+    closesAt: new Date(NOW.getTime() + 2 * DAY),
+  });
+  const posDeleted = await createTestPosition(admin, {
+    status: 'open',
+    closesAt: new Date(NOW.getTime() + 2 * DAY),
+    deletedAt: new Date(NOW.getTime() - 1 * HOUR),
+  });
+  const posWithdrawnUrgent = await createTestPosition(admin, {
+    status: 'open',
+    closesAt: new Date(NOW.getTime() + 15 * HOUR),
+  });
+  const posWithdrawnSoon = await createTestPosition(admin, {
+    status: 'open',
+    closesAt: new Date(NOW.getTime() + 4 * DAY),
+  });
+  const posWithdrawnPastDue = await createTestPosition(admin, {
+    status: 'open',
+    closesAt: new Date(NOW.getTime() - 1 * DAY),
+  });
+  const posRecent = await createTestPosition(admin, { status: 'open' });
+
+  // Fresh submittedAt (default now()) so it also qualifies for the recency
+  // query — the row this ticket's dedupe must collapse to one entry.
+  draftUrgent = await createTestApplication(applicant, posUrgent, {
+    status: 'draft',
+  });
+  // Created three weeks ago — the exact bug this ticket fixes: a stale
+  // submittedAt would otherwise sink this row out of a take-bounded recency query.
+  draftSoonOld = await createTestApplication(applicant, posSoon, {
+    status: 'draft',
+    submittedAt: OLD,
+    createdAt: OLD,
+  });
+  draftPastDue = await createTestApplication(applicant, posPastDue, {
+    status: 'draft',
+  });
+  draftNotYetOpen = await createTestApplication(applicant, posNotYetOpen, {
+    status: 'draft',
+  });
+  draftUnpublishedPosition = await createTestApplication(
+    applicant,
+    posUnpublished,
+    { status: 'draft' },
+  );
+  draftDeletedPosition = await createTestApplication(applicant, posDeleted, {
+    status: 'draft',
+  });
+  withdrawnUrgent = await createTestApplication(applicant, posWithdrawnUrgent, {
+    status: 'withdrawn',
+  });
+  withdrawnSoon = await createTestApplication(applicant, posWithdrawnSoon, {
+    status: 'withdrawn',
+  });
+  withdrawnPastDue = await createTestApplication(
+    applicant,
+    posWithdrawnPastDue,
+    { status: 'withdrawn' },
+  );
+  submittedRecent = await createTestApplication(applicant, posRecent, {
+    status: 'applied',
+    submittedAt: NOW,
+  });
+});
+
+afterAll(async () => {
+  await cleanupFixtures();
+});
+
+describe('getRecentMyApplications', () => {
+  it('floats at-risk drafts and withdrawn apps ahead of recency order, nearest deadline first', async () => {
+    const rows = await getRecentMyApplications(applicant.id, 10, NOW);
+    const ids = rows.map((r) => r.id);
+    expect(ids.slice(0, 4)).toEqual([
+      draftUrgent.id,
+      withdrawnUrgent.id,
+      draftSoonOld.id,
+      withdrawnSoon.id,
+    ]);
+  });
+
+  it('dedupes a row that qualifies for both the at-risk and recency queries', async () => {
+    const rows = await getRecentMyApplications(applicant.id, 10, NOW);
+    const occurrences = rows.filter((r) => r.id === draftUrgent.id).length;
+    expect(occurrences).toBe(1);
+  });
+
+  it('respects take, keeping the nearest at-risk rows first', async () => {
+    const rows = await getRecentMyApplications(applicant.id, 3, NOW);
+    expect(rows.map((r) => r.id)).toEqual([
+      draftUrgent.id,
+      withdrawnUrgent.id,
+      draftSoonOld.id,
+    ]);
+  });
+
+  it('excludes a past-due draft or withdrawn app from the float', async () => {
+    const rows = await getRecentMyApplications(applicant.id, 10, NOW);
+    const floated = rows.slice(0, 3).map((r) => r.id);
+    expect(floated).not.toContain(draftPastDue.id);
+    expect(floated).not.toContain(withdrawnPastDue.id);
+  });
+
+  it('excludes a not-yet-open draft from the float', async () => {
+    const rows = await getRecentMyApplications(applicant.id, 10, NOW);
+    expect(rows.slice(0, 3).map((r) => r.id)).not.toContain(draftNotYetOpen.id);
+  });
+
+  it('excludes drafts on unpublished or soft-deleted positions from the float', async () => {
+    const rows = await getRecentMyApplications(applicant.id, 10, NOW);
+    const floated = rows.slice(0, 3).map((r) => r.id);
+    expect(floated).not.toContain(draftUnpublishedPosition.id);
+    expect(floated).not.toContain(draftDeletedPosition.id);
+  });
+
+  it('still includes recency rows after the float', async () => {
+    const rows = await getRecentMyApplications(applicant.id, 10, NOW);
+    expect(rows.map((r) => r.id)).toContain(submittedRecent.id);
+  });
+});
+
+describe('getClosingSoonCount', () => {
+  // 4, not 10 — the other six apps share buildAtRiskWhere, so a mismatch here is a drift bug.
+  it('counts at-risk drafts and withdrawn apps, matching the float', async () => {
+    expect(await getClosingSoonCount(applicant.id, NOW)).toBe(4);
+  });
+});
