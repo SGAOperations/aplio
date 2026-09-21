@@ -34,12 +34,7 @@ interface ApplicationStatusHeaderActionsProps {
   history: ApplicationStatusHistoryEntry[];
 }
 
-// PageHeader's actions slot: an unresolved status gets a split button whose
-// caret dropdown includes "See more" to open the status dialog; every other
-// status (terminal decision or non-reviewable) gets a standalone caret with
-// the same dropdown, since there's no next step to make primary. Drafts
-// never reach this component — getApplicationForReview is listable-scoped.
-// Move-backs never appear here — only in the dialog's any-status Select.
+// Unresolved gets a split button; everything else gets a standalone caret — same dropdown either way.
 export function ApplicationStatusHeaderActions({
   applicationId,
   currentStatus,
