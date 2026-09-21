@@ -13,6 +13,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   createOrUpdateApplicationAnswer,
   deleteDraftApplication,
+  forceWithdrawApplication,
   submitApplication,
   updateApplicationStatus,
   updateApplicationStatuses,
@@ -23,6 +24,7 @@ import { getApplicationStatusHistory } from '@/prisma/data/applications';
 
 import {
   APPLICANT_EDITABLE_APPLICATION_STATUSES,
+  APPLICATION_DRAFT_NOT_WITHDRAWABLE_MESSAGE,
   APPLICATION_STATUS_LABELS,
   APPLICATION_STATUS_VALUES,
   NON_REVIEWABLE_APPLICATION_STATUSES,
@@ -133,6 +135,133 @@ describe('withdrawApplication', () => {
       else expect(result).toEqual({ error: WITHDRAW_NOT_ALLOWED_MESSAGE });
     });
   }
+});
+
+describe('forceWithdrawApplication', () => {
+  const LEGAL_STATUSES: $Enums.ApplicationStatus[] = [
+    'applied',
+    'reached_out',
+    'interview_scheduled',
+    'reviewing',
+    'accepted',
+    'rejected',
+  ];
+
+  for (const status of ALL_STATUSES) {
+    const isLegal = LEGAL_STATUSES.includes(status);
+
+    it(`${isLegal ? 'allows' : 'blocks'} force withdraw from ${status}`, async () => {
+      const applicant = await createTestUser();
+      const application = await createTestApplication(applicant, openPosition, {
+        status,
+      });
+
+      actAs(admin);
+      const result = await forceWithdrawApplication({
+        applicationId: application.id,
+      });
+
+      if (isLegal) {
+        expect(result).toBeUndefined();
+        const updated = await prisma.application.findUniqueOrThrow({
+          where: { id: application.id },
+          select: { status: true },
+        });
+        expect(updated.status).toBe('withdrawn');
+        const event = await prisma.applicationStatusEvent.findFirstOrThrow({
+          where: { applicationId: application.id },
+          orderBy: { createdAt: 'desc' },
+        });
+        expect(event.from).toBe(status);
+        expect(event.to).toBe('withdrawn');
+        expect(event.changedById).toBe(admin.id);
+      } else if (status === 'draft') {
+        expect(result).toEqual({
+          error: APPLICATION_DRAFT_NOT_WITHDRAWABLE_MESSAGE,
+        });
+      } else {
+        expect(result).toEqual({
+          error: `This application is already ${APPLICATION_STATUS_LABELS.withdrawn}.`,
+        });
+      }
+    });
+  }
+
+  it('rejects a manager of the position, not just admins', async () => {
+    const manager = await createTestUser({ isAdmin: false });
+    const position = await createTestPosition(admin, { managers: [manager] });
+    const applicant = await createTestUser();
+    const application = await createTestApplication(applicant, position, {
+      status: 'applied',
+    });
+
+    actAs(manager);
+    await expect(
+      forceWithdrawApplication({ applicationId: application.id }),
+    ).rejects.toThrow();
+
+    const untouched = await prisma.application.findUniqueOrThrow({
+      where: { id: application.id },
+      select: { status: true },
+    });
+    expect(untouched.status).toBe('applied');
+  });
+
+  it('rejects the owning applicant', async () => {
+    const applicant = await createTestUser();
+    const application = await createTestApplication(applicant, openPosition, {
+      status: 'applied',
+    });
+
+    actAs(applicant);
+    await expect(
+      forceWithdrawApplication({ applicationId: application.id }),
+    ).rejects.toThrow();
+
+    const untouched = await prisma.application.findUniqueOrThrow({
+      where: { id: application.id },
+      select: { status: true },
+    });
+    expect(untouched.status).toBe('applied');
+  });
+
+  it('sends no email — no EmailLog row is created', async () => {
+    const applicant = await createTestUser();
+    const application = await createTestApplication(applicant, openPosition, {
+      status: 'applied',
+    });
+
+    actAs(admin);
+    await forceWithdrawApplication({ applicationId: application.id });
+
+    const logs = await prisma.emailLog.findMany({
+      where: { applicationId: application.id },
+    });
+    expect(logs).toHaveLength(0);
+  });
+
+  it('resolves exactly one of two concurrent calls, with exactly one new event', async () => {
+    const applicant = await createTestUser();
+    const application = await createTestApplication(applicant, openPosition, {
+      status: 'applied',
+    });
+
+    actAs(admin);
+    const results = await Promise.all([
+      forceWithdrawApplication({ applicationId: application.id }),
+      forceWithdrawApplication({ applicationId: application.id }),
+    ]);
+
+    const successes = results.filter((r) => r === undefined);
+    const errors = results.filter((r) => r && 'error' in r);
+    expect(successes).toHaveLength(1);
+    expect(errors).toHaveLength(1);
+
+    const events = await prisma.applicationStatusEvent.findMany({
+      where: { applicationId: application.id },
+    });
+    expect(events).toHaveLength(1);
+  });
 });
 
 describe('deleteDraftApplication', () => {
