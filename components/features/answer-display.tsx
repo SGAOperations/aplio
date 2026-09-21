@@ -28,6 +28,7 @@ export function AnswerDisplay({
           id={noticeId}
           values={orphaned}
           questionType={question.type}
+          format={question.format}
         />
       )}
 
