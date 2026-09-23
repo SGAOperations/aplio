@@ -51,14 +51,13 @@ function buildColumns(now: Date): DataTableColumn<MyApplicationListItem>[] {
     {
       key: 'applied',
       header: 'Applied',
-      // Drafts get createdAt as submittedAt, so null here for the null-last sort.
-      sortAccessor: (a) => (a.status === 'draft' ? null : a.submittedAt),
+      sortAccessor: (a) => a.submittedAt,
       cellClassName: 'text-muted-foreground',
       cell: (a) =>
-        a.status === 'draft' ? (
-          '—'
-        ) : (
+        a.submittedAt ? (
           <LocalTime date={a.submittedAt} precision="date" />
+        ) : (
+          '—'
         ),
     },
     {
@@ -164,10 +163,10 @@ export function MyApplicationsTable({
           />
           <div className="flex items-center justify-between gap-2">
             <span className="text-muted-foreground text-sm">
-              {app.status === 'draft' ? (
-                'Draft'
-              ) : (
+              {app.submittedAt ? (
                 <LocalTime date={app.submittedAt} precision="date" />
+              ) : (
+                'Draft'
               )}
             </span>
             <div className="flex items-center gap-2">

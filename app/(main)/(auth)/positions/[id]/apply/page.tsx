@@ -104,13 +104,15 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
               </h2>
               <div className="mt-2 flex items-center gap-2">
                 <ApplicationStatusBadge status={activeApplication.status} />
-                <span className="text-muted-foreground text-sm">
-                  Submitted{' '}
-                  <LocalTime
-                    date={activeApplication.submittedAt}
-                    precision="date"
-                  />
-                </span>
+                {activeApplication.submittedAt && (
+                  <span className="text-muted-foreground text-sm">
+                    Submitted{' '}
+                    <LocalTime
+                      date={activeApplication.submittedAt}
+                      precision="date"
+                    />
+                  </span>
+                )}
               </div>
               <p className="text-muted-foreground mt-3 text-sm">
                 {activeApplication.status === 'applied'

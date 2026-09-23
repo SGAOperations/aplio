@@ -83,13 +83,19 @@ export default async function MyApplicationDetailPage({
           }
         />
         <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm">
-          <span>
-            {isDraft ? 'Draft · last saved ' : 'Applied '}
-            <LocalTime
-              date={application.lastSavedAt ?? application.submittedAt}
-              precision="date"
-            />
-          </span>
+          {application.lastSavedAt ? (
+            <span>
+              Draft · last saved{' '}
+              <LocalTime date={application.lastSavedAt} precision="date" />
+            </span>
+          ) : (
+            application.submittedAt && (
+              <span>
+                Applied{' '}
+                <LocalTime date={application.submittedAt} precision="date" />
+              </span>
+            )
+          )}
           <span aria-hidden="true">·</span>
           <Link
             href={`/positions/${application.position.id}`}

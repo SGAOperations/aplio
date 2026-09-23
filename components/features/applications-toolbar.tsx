@@ -39,7 +39,7 @@ export function ApplicationsToolbar({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // Drafts have no submittedAt, so buildDraftListWhere's q filter never searches by date.
+  // A draft's submittedAt is null, so buildDraftListWhere's q filter never matches one by date.
   const isDraftView = filters.status === 'draft';
 
   // Only ambiguous names get the disambiguating email suffix.

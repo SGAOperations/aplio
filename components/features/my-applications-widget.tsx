@@ -120,8 +120,10 @@ function ApplicationList({
                 now={now}
                 emphasizeUrgency
               />
-            ) : (
+            ) : app.submittedAt ? (
               <LocalTime date={app.submittedAt} precision="date" />
+            ) : (
+              '—'
             )}
           </span>
           <ApplicationStatusBadge status={app.status} />

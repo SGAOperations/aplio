@@ -302,8 +302,8 @@ export function ApplicationsTable(props: ApplicationsTableProps) {
     {
       key: 'date',
       header: 'Submitted',
-      // Drafts have no submittedAt in this shape — updatedAt is the closest
-      // recency signal, and matches this view's drafts-by-updatedAt sort.
+      // Drafts show updatedAt — the closest recency signal, matching this
+      // view's drafts-by-updatedAt sort.
       sortAccessor: (a) => (a.isDraft ? a.updatedAt : a.submittedAt),
       cellClassName: 'text-muted-foreground',
       cell: (app) =>
