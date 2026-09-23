@@ -154,6 +154,12 @@ describe('getDraftApplications / getDraftApplicationsCount', () => {
     }
   });
 
+  it('has a null submittedAt for every draft row', async () => {
+    const rows = await getDraftApplications(managerA, {});
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) expect(row.submittedAt).toBeNull();
+  });
+
   it('still 404s (returns null) for getApplicationForReview on a draft', async () => {
     expect(
       await getApplicationForReview(draftApplicationA.id, managerA),

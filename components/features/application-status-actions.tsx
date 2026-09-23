@@ -7,10 +7,7 @@ import { toast } from 'sonner';
 import { loadApplicationStatusHistory } from '@/prisma/actions/applications';
 import type { $Enums } from '@/prisma/client';
 
-import {
-  isNonReviewableApplicationStatus,
-  isTerminalDecisionApplicationStatus,
-} from '@/lib/constants';
+import { isNonReviewableApplicationStatus } from '@/lib/constants';
 import { ACTION_ICONS } from '@/lib/icons';
 import type { ApplicationStatusHistoryEntry } from '@/lib/types';
 import { isError } from '@/lib/utils';
@@ -56,8 +53,9 @@ export function ApplicationStatusActions({
   const [historyFailed, setHistoryFailed] = useState(false);
   const requestIdRef = useRef(0);
 
-  if (isNonReviewableApplicationStatus(currentStatus)) return null;
-  if (isTerminalDecisionApplicationStatus(currentStatus)) return null;
+  // Dialog's Select still offers a move for either terminal — only draft
+  // and withdrawn lose it.
+  const isChangeable = !isNonReviewableApplicationStatus(currentStatus);
 
   // Opens immediately and fetches in the same handler — no table pre-fetch
   // of history for every visible row; re-fetches on every open.
@@ -90,7 +88,11 @@ export function ApplicationStatusActions({
           <Button
             variant="ghost"
             size="icon"
-            aria-label={`Change status for ${displayName}`}
+            aria-label={
+              isChangeable
+                ? `Change status for ${displayName}`
+                : `Status history for ${displayName}`
+            }
             disabled={isPending}
           >
             <ACTION_ICONS.more />

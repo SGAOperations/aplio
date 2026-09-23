@@ -13,6 +13,7 @@ import {
 } from '@/lib/auth/scopes';
 import {
   APPLICATIONS_PAGE_SIZE,
+  DEADLINE_SOON_DAYS,
   PUBLIC_APPLICATION_STATUS,
   PUBLISHED_POSITION_WHERE,
   type PublicApplicationStatus,
@@ -34,6 +35,7 @@ import {
   type MyApplicationDetail,
   type MyApplicationListItem,
   type MyPositionApplication,
+  type MySubmittedApplicationListItem,
   type PositionApplicationStats,
   type ReviewableApplicant,
   type Reviewer,
@@ -44,6 +46,19 @@ import {
   getEmailLogOccurredAt,
   isPositionActive,
 } from '@/lib/utils';
+
+// Drafts are the only null source, and every caller below excludes them via
+// its own `where` — narrow back to Date at this boundary instead of `!`/`??` at render.
+function requireSubmittedAt(submittedAt: Date | null): Date {
+  if (!submittedAt) throw new Error('Submitted application has no submittedAt');
+  return submittedAt;
+}
+
+function withSubmittedAt<T extends { submittedAt: Date | null }>(
+  row: T,
+): Omit<T, 'submittedAt'> & { submittedAt: Date } {
+  return { ...row, submittedAt: requireSubmittedAt(row.submittedAt) };
+}
 
 // Maps status to the public value and updatedAt to lastSavedAt — null once
 // submitted, so a submitted row never carries a "last touched" timestamp.
@@ -208,24 +223,72 @@ export async function getMyApplications(
   const applications = await prisma.application.findMany({
     where: { userId, deletedAt: null, position: PUBLISHED_POSITION_WHERE },
     select: applicationSelect,
-    orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
+    orderBy: [
+      { submittedAt: { sort: 'desc', nulls: 'first' } },
+      { id: 'desc' },
+    ],
   });
 
   return applications.map(toPublicApplication);
 }
 
+// Shared by getRecentMyApplications and getClosingSoonCount so they can't disagree; opens gate keeps a not-yet-open position from floating.
+function buildAtRiskWhere(
+  userId: string,
+  now: Date,
+): Prisma.ApplicationWhereInput {
+  const soonCutoff = new Date(
+    now.getTime() + DEADLINE_SOON_DAYS * 24 * 60 * 60 * 1000,
+  );
+
+  return {
+    userId,
+    deletedAt: null,
+    status: { in: ['draft', 'withdrawn'] },
+    position: {
+      ...PUBLISHED_POSITION_WHERE,
+      status: 'open',
+      closesAt: { gt: now, lte: soonCutoff },
+      OR: [{ opensAt: null }, { opensAt: { lte: now } }],
+    },
+  };
+}
+
+// Floats at-risk drafts/withdrawn ahead of recency order — a take-bounded recency query alone can hide one entirely.
 export async function getRecentMyApplications(
   userId: string,
   take = 5,
+  now: Date = new Date(),
 ): Promise<MyApplicationListItem[]> {
-  const applications = await prisma.application.findMany({
-    where: { userId, deletedAt: null, position: PUBLISHED_POSITION_WHERE },
-    select: applicationSelect,
-    orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
-    take,
-  });
+  const [atRisk, recent] = await Promise.all([
+    prisma.application.findMany({
+      where: buildAtRiskWhere(userId, now),
+      select: applicationSelect,
+      orderBy: [{ position: { closesAt: 'asc' } }, { id: 'desc' }],
+      take,
+    }),
+    prisma.application.findMany({
+      where: { userId, deletedAt: null, position: PUBLISHED_POSITION_WHERE },
+      select: applicationSelect,
+      orderBy: [
+        { submittedAt: { sort: 'desc', nulls: 'first' } },
+        { id: 'desc' },
+      ],
+      take,
+    }),
+  ]);
 
-  return applications.map(toPublicApplication);
+  const atRiskIds = new Set(atRisk.map((a) => a.id));
+  const merged = [...atRisk, ...recent.filter((a) => !atRiskIds.has(a.id))];
+
+  return merged.slice(0, take).map(toPublicApplication);
+}
+
+export async function getClosingSoonCount(
+  userId: string,
+  now: Date = new Date(),
+): Promise<number> {
+  return prisma.application.count({ where: buildAtRiskWhere(userId, now) });
 }
 
 // No status filter — caller needs draft/withdrawn too; one row per position via the [userId, positionId] unique constraint.
@@ -304,6 +367,7 @@ export async function getApplicationForReview(
 
   return {
     ...rest,
+    submittedAt: requireSubmittedAt(rest.submittedAt),
     position: positionRest,
     hasPositionQuestions: questions.length > 0,
     ...normalizeApplicationAnswers(application, questions),
@@ -422,7 +486,7 @@ export async function getApplicantOtherApplications(
     .map((application) => ({
       id: application.id,
       status: application.status,
-      submittedAt: application.submittedAt,
+      submittedAt: requireSubmittedAt(application.submittedAt),
       position: {
         id: application.position.id,
         title: application.position.title,
@@ -469,7 +533,7 @@ export async function getRecentApplications(
   reviewer: Reviewer,
   take = 10,
 ): Promise<AdminApplicationListItem[]> {
-  return prisma.application.findMany({
+  const applications = await prisma.application.findMany({
     where: buildApplicationWhere(reviewer, 'reviewable'),
     select: {
       id: true,
@@ -482,6 +546,8 @@ export async function getRecentApplications(
     orderBy: { submittedAt: 'desc' },
     take,
   });
+
+  return applications.map(withSubmittedAt);
 }
 
 // Prisma DateTime filters are range-based, so a date query becomes a range.
@@ -628,8 +694,8 @@ function compareByIdDesc(a: { id: string }, b: { id: string }): number {
 // Mirrors buildApplicationListOrderBy's field/direction/tiebreak semantics for
 // the in-memory merge in the default (no status filter) view, so drafts and
 // admin rows sort as one list instead of two independently-sorted arrays laid
-// end to end. Draft rows have no submittedAt/status — they compare as
-// null/'draft', same as they would if a single query had produced this list.
+// end to end. A draft's submittedAt is a real null and its status has no
+// column at all — the 'draft' fallback below stands in for the latter.
 export function compareMergedApplicationRows(
   sort: ApplicationFilters['sort'],
 ): (a: ApplicationTableRow, b: ApplicationTableRow) => number {
@@ -666,8 +732,8 @@ export function compareMergedApplicationRows(
     const { direction } = sort;
     return (a, b) =>
       compareNullableByDirection(
-        a.isDraft ? null : a.submittedAt,
-        b.isDraft ? null : b.submittedAt,
+        a.submittedAt,
+        b.submittedAt,
         direction,
         compareDates,
       ) || compareByIdDesc(a, b);
@@ -678,8 +744,8 @@ export function compareMergedApplicationRows(
   // query already fetched them in, rather than an id tiebreak.
   return (a, b) => {
     const bySubmittedAt = compareNullableByDirection(
-      a.isDraft ? null : a.submittedAt,
-      b.isDraft ? null : b.submittedAt,
+      a.submittedAt,
+      b.submittedAt,
       'desc',
       compareDates,
     );
@@ -695,7 +761,7 @@ export async function getApplications(
   filters: ApplicationFilters,
   page = 1,
 ): Promise<AdminApplicationListItem[]> {
-  return prisma.application.findMany({
+  const applications = await prisma.application.findMany({
     where: buildApplicationListWhere(user, filters),
     select: {
       id: true,
@@ -709,6 +775,8 @@ export async function getApplications(
     take: APPLICATIONS_PAGE_SIZE,
     skip: (page - 1) * APPLICATIONS_PAGE_SIZE,
   });
+
+  return applications.map(withSubmittedAt);
 }
 
 // Must share buildApplicationListWhere with getApplications — a count built
@@ -729,7 +797,7 @@ export async function getAllApplications(
   user: Reviewer,
   filters: ApplicationFilters,
 ): Promise<AdminApplicationListItem[]> {
-  return prisma.application.findMany({
+  const applications = await prisma.application.findMany({
     where: buildApplicationListWhere(user, filters),
     select: {
       id: true,
@@ -741,10 +809,12 @@ export async function getAllApplications(
     },
     orderBy: buildApplicationListOrderBy(filters.sort),
   });
+
+  return applications.map(withSubmittedAt);
 }
 
 // Shared by getDraftApplications and getDraftApplicationsCount. No date
-// branch — a draft has no meaningful submittedAt to search on.
+// branch — a draft's submittedAt is null, so a range filter would never match one.
 function buildDraftListWhere(
   user: Reviewer,
   filters: ApplicationFilters,
@@ -807,6 +877,7 @@ export async function getDraftApplications(
       id: true,
       createdAt: true,
       updatedAt: true,
+      submittedAt: true,
       position: { select: { id: true, title: true } },
       user: { select: { id: true, name: true, email: true } },
     },
@@ -839,6 +910,7 @@ export async function getAllDraftApplications(
       id: true,
       createdAt: true,
       updatedAt: true,
+      submittedAt: true,
       position: { select: { id: true, title: true } },
       user: { select: { id: true, name: true, email: true } },
     },
@@ -861,7 +933,7 @@ export async function getMySubmittedCount(userId: string): Promise<number> {
 export async function getMyRecentActivity(
   userId: string,
   take = 10,
-): Promise<MyApplicationListItem[]> {
+): Promise<MySubmittedApplicationListItem[]> {
   const applications = await prisma.application.findMany({
     where: {
       userId,
@@ -874,7 +946,7 @@ export async function getMyRecentActivity(
     take,
   });
 
-  return applications.map(toPublicApplication);
+  return applications.map(toPublicApplication).map(withSubmittedAt);
 }
 
 export async function getReviewablePositions(

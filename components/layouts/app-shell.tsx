@@ -49,7 +49,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
         />
         <main
           id="main-content"
-          className="flex flex-1 flex-col overflow-y-auto scroll-smooth motion-reduce:scroll-auto"
+          className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto scroll-smooth motion-reduce:scroll-auto"
         >
           <div className="flex-1 p-6">{children}</div>
           <AppFooter />

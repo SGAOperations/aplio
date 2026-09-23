@@ -148,25 +148,42 @@ export type MyApplicationDetail = MyApplicationListItem & {
   hasPositionQuestions: boolean;
 };
 
-// Exposes applicant identity — admin-gated contexts only, never a non-admin client.
-export type AdminApplicationListItem = Prisma.ApplicationGetPayload<{
-  select: {
-    id: true;
-    status: true;
-    submittedAt: true;
-    applicantName: true;
-    position: { select: { id: true; title: true } };
-    user: { select: { id: true; name: true; email: true } };
-  };
-}>;
+// Mirrors prisma/data/applications.ts's runtime withSubmittedAt helper — both
+// narrow a row whose query excludes drafts, so submittedAt is never null.
+export type WithSubmittedAt<T extends { submittedAt: Date | null }> = Omit<
+  T,
+  'submittedAt'
+> & { submittedAt: Date };
+
+// getMyRecentActivity excludes drafts, so its rows are narrowed to a real submittedAt.
+export type MySubmittedApplicationListItem =
+  WithSubmittedAt<MyApplicationListItem>;
+
+// Exposes applicant identity — admin-gated contexts only, never a non-admin
+// client. submittedAt narrowed to Date: every query producing this type
+// excludes drafts (buildApplicationWhere's 'listable'/'reviewable' scopes).
+export type AdminApplicationListItem = WithSubmittedAt<
+  Prisma.ApplicationGetPayload<{
+    select: {
+      id: true;
+      status: true;
+      submittedAt: true;
+      applicantName: true;
+      position: { select: { id: true; title: true } };
+      user: { select: { id: true; name: true; email: true } };
+    };
+  }>
+>;
 
 // Identity and timestamps only — no status, applicantName or answer relation,
-// so no answer/file/completion signal is reachable from a component using this.
+// so no answer/file/completion signal is reachable from a component using
+// this. submittedAt is always null here — every row is a draft.
 export type DraftApplicationListItem = Prisma.ApplicationGetPayload<{
   select: {
     id: true;
     createdAt: true;
     updatedAt: true;
+    submittedAt: true;
     position: { select: { id: true; title: true } };
     user: { select: { id: true; name: true; email: true } };
   };
@@ -255,6 +272,18 @@ export type PositionDateInfo = {
   emphasis: 'live' | 'calm' | 'stale';
 };
 
+// Applicant-facing deadline urgency — distinct from PositionDateInfo's
+// emphasis tiers (see lib/utils.ts#getDeadlineInfo for why they don't merge).
+export type DeadlineTier = 'upcoming' | 'distant' | 'soon' | 'urgent' | 'past';
+
+export type DeadlineInfo = {
+  tier: DeadlineTier;
+  label: 'Opens' | 'Closes' | 'Closed';
+  date: Date;
+  // Short form ("5d"); null when no countdown applies.
+  compactCountdown: string | null;
+};
+
 // Admin-gated contexts only.
 export type OpenPositionSummaryItem = Prisma.PositionGetPayload<{
   select: { id: true; title: true; _count: { select: { applications: true } } };
@@ -317,16 +346,19 @@ export type ApplicationReviewAnswer = {
 };
 
 // Answer arrays overridden with the shape getApplicationForReview maps into.
-export type ApplicationForReview = Prisma.ApplicationGetPayload<{
-  select: {
-    id: true;
-    status: true;
-    submittedAt: true;
-    applicantName: true;
-    user: { select: { name: true; email: true } };
-    position: { select: { id: true; title: true } };
-  };
-}> & {
+// submittedAt narrowed to Date — buildApplicationWhere's 'listable' scope excludes drafts.
+export type ApplicationForReview = WithSubmittedAt<
+  Prisma.ApplicationGetPayload<{
+    select: {
+      id: true;
+      status: true;
+      submittedAt: true;
+      applicantName: true;
+      user: { select: { name: true; email: true } };
+      position: { select: { id: true; title: true } };
+    };
+  }>
+> & {
   globalAnswers: ApplicationReviewAnswer[];
   positionAnswers: ApplicationReviewAnswer[];
   hasPositionQuestions: boolean;

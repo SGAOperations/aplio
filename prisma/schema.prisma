@@ -212,7 +212,7 @@ model Application {
   userId      String
   positionId  String
   status      ApplicationStatus @default(applied)
-  submittedAt DateTime          @default(now())
+  submittedAt DateTime?
   // Frozen User.name at submission; null until then.
   applicantName String?
   createdAt     DateTime  @default(now())

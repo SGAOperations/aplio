@@ -272,7 +272,19 @@ export function ApplicationsTable(props: ApplicationsTableProps) {
       header: 'Status',
       sortAccessor: (a) => (a.isDraft ? 'draft' : a.status),
       cell: (app) => {
-        if (app.isDraft) return <ApplicationStatusBadge status="draft" />;
+        if (app.isDraft) {
+          return (
+            <div className="flex items-center gap-1">
+              <ApplicationStatusBadge status="draft" />
+              <ApplicationStatusActions
+                applicationId={app.id}
+                currentStatus="draft"
+                applicantName={displayUserName(app.user)}
+                applicantEmail={app.user.email}
+              />
+            </div>
+          );
+        }
         const { displayName } = displayInfo.get(app.id)!;
         return (
           <div className="flex items-center gap-1">
@@ -290,8 +302,8 @@ export function ApplicationsTable(props: ApplicationsTableProps) {
     {
       key: 'date',
       header: 'Submitted',
-      // Drafts have no submittedAt in this shape — updatedAt is the closest
-      // recency signal, and matches this view's drafts-by-updatedAt sort.
+      // Drafts show updatedAt — the closest recency signal, matching this
+      // view's drafts-by-updatedAt sort.
       sortAccessor: (a) => (a.isDraft ? a.updatedAt : a.submittedAt),
       cellClassName: 'text-muted-foreground',
       cell: (app) =>
@@ -415,7 +427,15 @@ export function ApplicationsTable(props: ApplicationsTableProps) {
                     <span className="min-w-0 truncate font-medium">
                       {displayUserName(app.user)}
                     </span>
-                    <ApplicationStatusBadge status="draft" />
+                    <div className="flex shrink-0 items-center gap-1">
+                      <ApplicationStatusBadge status="draft" />
+                      <ApplicationStatusActions
+                        applicationId={app.id}
+                        currentStatus="draft"
+                        applicantName={displayUserName(app.user)}
+                        applicantEmail={app.user.email}
+                      />
+                    </div>
                   </div>
                   {app.user.name && (
                     <span className="text-muted-foreground truncate text-xs">

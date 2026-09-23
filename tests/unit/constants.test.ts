@@ -18,6 +18,7 @@ import {
   NON_TERMINAL_APPLICATION_STATUSES,
   POSITION_CLOSES_AT_ORDER_ERROR,
   POSITION_CLOSES_AT_PAST_ERROR,
+  POSITION_DATE_INCOMPLETE_ERROR,
   POSITION_OPENS_AT_ORDER_ERROR,
   POSITION_OPENS_AT_PAST_ERROR,
   POSITION_STATUS_TRANSITIONS,
@@ -30,7 +31,9 @@ import {
   getStatusOptions,
   makePositionFormSchema,
   matchesShortAnswerFormat,
+  positionDateOrderIssues,
   positionPastDateIssues,
+  positionScheduleIssues,
 } from '@/lib/constants';
 import { toOrgDayString } from '@/lib/dates';
 
@@ -563,6 +566,96 @@ describe('positionPastDateIssues — the schedule autosave pair', () => {
   // The ordering case itself is covered above, via makePositionFormSchema's
   // 'rejects an inverted pair' test — validatePositionDates is the same
   // refinement makePositionFormSchema runs.
+});
+
+describe('positionDateOrderIssues', () => {
+  it('rejects an inverted pair, naming both fields', () => {
+    const issues = positionDateOrderIssues({
+      opensAt: '2026-01-31',
+      closesAt: '2026-01-01',
+    });
+    expect(issues).toEqual([
+      { path: 'opensAt', message: POSITION_OPENS_AT_ORDER_ERROR },
+      { path: 'closesAt', message: POSITION_CLOSES_AT_ORDER_ERROR },
+    ]);
+  });
+
+  it('is silent when either side is missing', () => {
+    expect(positionDateOrderIssues({ opensAt: '2026-01-31' })).toEqual([]);
+    expect(positionDateOrderIssues({ closesAt: '2026-01-01' })).toEqual([]);
+  });
+});
+
+describe('positionScheduleIssues — the Clear-control commit decision', () => {
+  const today = '2026-06-01';
+
+  it('yields only the incomplete error on an incomplete field, suppressing order and past checks', () => {
+    const issues = positionScheduleIssues(
+      { opensAt: '', closesAt: '2026-05-01' },
+      { opensAt: true, closesAt: false },
+      today,
+      {},
+    );
+    expect(issues).toEqual([
+      { path: 'opensAt', message: POSITION_DATE_INCOMPLETE_ERROR },
+    ]);
+  });
+
+  it('reports both incomplete fields and nothing else, even with an otherwise valid other change', () => {
+    const issues = positionScheduleIssues(
+      { opensAt: '', closesAt: '' },
+      { opensAt: true, closesAt: true },
+      today,
+      { opensAt: '2026-06-10', closesAt: '2026-06-20' },
+    );
+    expect(issues).toEqual([
+      { path: 'opensAt', message: POSITION_DATE_INCOMPLETE_ERROR },
+      { path: 'closesAt', message: POSITION_DATE_INCOMPLETE_ERROR },
+    ]);
+  });
+
+  it('allows an explicit clear of both fields when neither is incomplete', () => {
+    const issues = positionScheduleIssues(
+      { opensAt: '', closesAt: '' },
+      { opensAt: false, closesAt: false },
+      today,
+      { opensAt: '2026-06-10', closesAt: '2026-06-20' },
+    );
+    expect(issues).toEqual([]);
+  });
+
+  it('allows clearing one field while the other holds an unchanged past date', () => {
+    const issues = positionScheduleIssues(
+      { opensAt: '', closesAt: '2026-05-01' },
+      { opensAt: false, closesAt: false },
+      today,
+      { opensAt: '2026-05-15', closesAt: '2026-05-01' },
+    );
+    expect(issues).toEqual([]);
+  });
+
+  it('allows clearing a field whose previous value is in the past', () => {
+    const issues = positionScheduleIssues(
+      { opensAt: '', closesAt: '' },
+      { opensAt: false, closesAt: false },
+      today,
+      { opensAt: '2026-05-01', closesAt: '2026-05-15' },
+    );
+    expect(issues).toEqual([]);
+  });
+
+  it('still reports both order messages for an out-of-order pair', () => {
+    const issues = positionScheduleIssues(
+      { opensAt: '2026-06-20', closesAt: '2026-06-10' },
+      { opensAt: false, closesAt: false },
+      today,
+      {},
+    );
+    expect(issues).toEqual([
+      { path: 'opensAt', message: POSITION_OPENS_AT_ORDER_ERROR },
+      { path: 'closesAt', message: POSITION_CLOSES_AT_ORDER_ERROR },
+    ]);
+  });
 });
 
 describe('POSITION_TRANSITION_ACTIONS', () => {
