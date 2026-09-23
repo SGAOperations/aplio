@@ -148,16 +148,21 @@ export type MyApplicationDetail = MyApplicationListItem & {
   hasPositionQuestions: boolean;
 };
 
-// getMyRecentActivity excludes drafts, so its rows are narrowed to a real submittedAt.
-export type MySubmittedApplicationListItem = Omit<
-  MyApplicationListItem,
+// Mirrors prisma/data/applications.ts's runtime withSubmittedAt helper — both
+// narrow a row whose query excludes drafts, so submittedAt is never null.
+export type WithSubmittedAt<T extends { submittedAt: Date | null }> = Omit<
+  T,
   'submittedAt'
 > & { submittedAt: Date };
+
+// getMyRecentActivity excludes drafts, so its rows are narrowed to a real submittedAt.
+export type MySubmittedApplicationListItem =
+  WithSubmittedAt<MyApplicationListItem>;
 
 // Exposes applicant identity — admin-gated contexts only, never a non-admin
 // client. submittedAt narrowed to Date: every query producing this type
 // excludes drafts (buildApplicationWhere's 'listable'/'reviewable' scopes).
-export type AdminApplicationListItem = Omit<
+export type AdminApplicationListItem = WithSubmittedAt<
   Prisma.ApplicationGetPayload<{
     select: {
       id: true;
@@ -167,9 +172,8 @@ export type AdminApplicationListItem = Omit<
       position: { select: { id: true; title: true } };
       user: { select: { id: true; name: true; email: true } };
     };
-  }>,
-  'submittedAt'
-> & { submittedAt: Date };
+  }>
+>;
 
 // Identity and timestamps only — no status, applicantName or answer relation,
 // so no answer/file/completion signal is reachable from a component using
@@ -343,7 +347,7 @@ export type ApplicationReviewAnswer = {
 
 // Answer arrays overridden with the shape getApplicationForReview maps into.
 // submittedAt narrowed to Date — buildApplicationWhere's 'listable' scope excludes drafts.
-export type ApplicationForReview = Omit<
+export type ApplicationForReview = WithSubmittedAt<
   Prisma.ApplicationGetPayload<{
     select: {
       id: true;
@@ -353,10 +357,8 @@ export type ApplicationForReview = Omit<
       user: { select: { name: true; email: true } };
       position: { select: { id: true; title: true } };
     };
-  }>,
-  'submittedAt'
+  }>
 > & {
-  submittedAt: Date;
   globalAnswers: ApplicationReviewAnswer[];
   positionAnswers: ApplicationReviewAnswer[];
   hasPositionQuestions: boolean;
