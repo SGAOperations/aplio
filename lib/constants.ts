@@ -661,23 +661,28 @@ export const POSITION_CLOSES_AT_ORDER_ERROR =
 
 // YYYY-MM-DD strings sort lexically the same as calendar order, so a plain
 // comparison is exact without parsing into org-day boundaries.
+export function positionDateOrderIssues(data: {
+  opensAt?: string;
+  closesAt?: string;
+}): { path: 'opensAt' | 'closesAt'; message: string }[] {
+  if (!data.opensAt || !data.closesAt || data.opensAt <= data.closesAt)
+    return [];
+  return [
+    { path: 'opensAt', message: POSITION_OPENS_AT_ORDER_ERROR },
+    { path: 'closesAt', message: POSITION_CLOSES_AT_ORDER_ERROR },
+  ];
+}
+
 export function validatePositionDates(
   data: { opensAt?: string; closesAt?: string },
   ctx: z.RefinementCtx,
 ) {
-  if (!data.opensAt || !data.closesAt) return;
-  if (data.opensAt > data.closesAt) {
+  for (const issue of positionDateOrderIssues(data))
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      path: ['opensAt'],
-      message: POSITION_OPENS_AT_ORDER_ERROR,
+      path: [issue.path],
+      message: issue.message,
     });
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['closesAt'],
-      message: POSITION_CLOSES_AT_ORDER_ERROR,
-    });
-  }
 }
 
 export const POSITION_OPENS_AT_PAST_ERROR =
@@ -709,6 +714,44 @@ export function positionPastDateIssues(
     issues.push({ path: 'closesAt', message: POSITION_CLOSES_AT_PAST_ERROR });
 
   return issues;
+}
+
+// Client-only: a partial date never leaves the browser, so the server has
+// no counterpart to validate.
+export const POSITION_DATE_INCOMPLETE_ERROR =
+  'This date is incomplete. Finish it, or use Clear to remove it.';
+
+// Surfaced on the field being cleared when its own Clear is blocked by the
+// other field, so it doesn't look cleared while nothing actually saved.
+export const POSITION_DATE_CLEAR_BLOCKED_ERROR =
+  'Not cleared — finish or clear the other date first.';
+
+// The schedule autosave blur decision: an incomplete field blocks the pair
+// and suppresses order/past checks; otherwise those checks run as usual.
+export function positionScheduleIssues(
+  values: { opensAt?: string; closesAt?: string },
+  incomplete: { opensAt?: boolean; closesAt?: boolean },
+  today: string,
+  previous?: { opensAt?: string; closesAt?: string },
+): { path: 'opensAt' | 'closesAt'; message: string }[] {
+  const incompleteIssues: { path: 'opensAt' | 'closesAt'; message: string }[] =
+    [];
+  if (incomplete.opensAt)
+    incompleteIssues.push({
+      path: 'opensAt',
+      message: POSITION_DATE_INCOMPLETE_ERROR,
+    });
+  if (incomplete.closesAt)
+    incompleteIssues.push({
+      path: 'closesAt',
+      message: POSITION_DATE_INCOMPLETE_ERROR,
+    });
+  if (incompleteIssues.length > 0) return incompleteIssues;
+
+  return [
+    ...positionDateOrderIssues(values),
+    ...positionPastDateIssues(values, today, previous),
+  ];
 }
 
 // Ordering plus past-date, for the client form and createPosition —
@@ -894,7 +937,8 @@ export const POSITION_TRANSITION_ACTIONS: Record<
 export const POSITION_DESCRIPTION_MAX_LENGTH = 10000;
 export const MARKDOWN_GUIDE_URL = 'https://www.markdownguide.org/basic-syntax/';
 
-// Mirrors updatePositionSchema — keep the shapes in sync.
+// Spread into both makePositionFormSchema and updatePositionScheduleSchema
+// below; '' normalises to null in updatePositionSchedule.
 const orgDayInputSchema = z.union([z.iso.date(), z.literal('')], {
   error: 'Enter a valid date',
 });

@@ -1,19 +1,20 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { updatePositionSchedule } from '@/prisma/actions/position-actions';
 
 import {
-  POSITION_CLOSES_AT_ORDER_ERROR,
-  POSITION_OPENS_AT_ORDER_ERROR,
-  positionPastDateIssues,
+  POSITION_DATE_CLEAR_BLOCKED_ERROR,
+  positionScheduleIssues,
 } from '@/lib/constants';
 import { toOrgDayString } from '@/lib/dates';
+import { ACTION_ICONS } from '@/lib/icons';
 import { autosaveStatusText, useAutosave } from '@/lib/use-autosave';
 import { ActionError, isError } from '@/lib/utils';
 
+import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
@@ -29,6 +30,33 @@ interface ScheduleValues {
   opensAt: string;
   closesAt: string;
 }
+
+interface ScheduleFieldConfig {
+  name: keyof ScheduleValues;
+  label: string;
+  clearLabel: string;
+  setDescription: string;
+  emptyDescription: string;
+}
+
+const SCHEDULE_FIELDS: ScheduleFieldConfig[] = [
+  {
+    name: 'opensAt',
+    label: 'Opens At',
+    clearLabel: 'Clear open date',
+    setDescription: 'Applications open at 12:00 AM Eastern on this day.',
+    emptyDescription:
+      'No open date — applications open as soon as this position is open.',
+  },
+  {
+    name: 'closesAt',
+    label: 'Closes At',
+    clearLabel: 'Clear close date',
+    setDescription: 'Applications close at 11:59 PM Eastern on this day.',
+    emptyDescription:
+      'No close date — applications stay open until you close this position.',
+  },
+];
 
 interface PositionAvailabilitySectionProps {
   positionId: string;
@@ -51,6 +79,16 @@ export function PositionAvailabilitySection({
   // changed since this, so an untouched past date stays saveable.
   const lastSavedRef = useRef<ScheduleValues>(initial);
 
+  const opensAtRef = useRef<HTMLInputElement | null>(null);
+  const closesAtRef = useRef<HTMLInputElement | null>(null);
+  const fieldRefs = { opensAt: opensAtRef, closesAt: closesAtRef };
+
+  // Drives Clear-button visibility only — badInputFromRefs() is the
+  // authority read at commit time, since it can't go stale mid-render.
+  const [incomplete, setIncomplete] = useState<
+    Record<keyof ScheduleValues, boolean>
+  >({ opensAt: false, closesAt: false });
+
   const scheduleAutosave = useAutosave({
     initialValue: initial,
     save: async (value: ScheduleValues) => {
@@ -64,31 +102,46 @@ export function PositionAvailabilitySection({
     },
   });
 
-  function validate(values: ScheduleValues): boolean {
-    form.clearErrors();
-    let valid = true;
-
-    if (values.opensAt && values.closesAt && values.opensAt > values.closesAt) {
-      form.setError('opensAt', { message: POSITION_OPENS_AT_ORDER_ERROR });
-      form.setError('closesAt', { message: POSITION_CLOSES_AT_ORDER_ERROR });
-      valid = false;
-    }
-
-    for (const issue of positionPastDateIssues(
-      values,
-      toOrgDayString(new Date()),
-      lastSavedRef.current,
-    )) {
-      form.setError(issue.path, { message: issue.message });
-      valid = false;
-    }
-
-    return valid;
+  function badInputFromRefs(): Record<keyof ScheduleValues, boolean> {
+    return {
+      opensAt: opensAtRef.current?.validity.badInput ?? false,
+      closesAt: closesAtRef.current?.validity.badInput ?? false,
+    };
   }
 
-  function handleFieldBlur() {
-    const values = form.getValues();
-    if (validate(values)) scheduleAutosave.commit(values);
+  function commitIfValid() {
+    form.clearErrors();
+    const issues = positionScheduleIssues(
+      form.getValues(),
+      badInputFromRefs(),
+      toOrgDayString(new Date()),
+      lastSavedRef.current,
+    );
+    if (issues.length > 0) {
+      for (const issue of issues)
+        form.setError(issue.path, { message: issue.message });
+      return issues;
+    }
+    scheduleAutosave.commit(form.getValues());
+    return [];
+  }
+
+  function handleClear(name: keyof ScheduleValues) {
+    const ref = fieldRefs[name].current;
+    const previousValue = form.getValues(name);
+    if (ref) ref.value = '';
+    form.setValue(name, '', { shouldDirty: true });
+    setIncomplete((prev) => ({ ...prev, [name]: false }));
+
+    const issues = commitIfValid();
+    // Blocked purely by the sibling — revert so this field doesn't look
+    // cleared while nothing actually committed, and flag it too.
+    if (issues.length > 0 && !issues.some((issue) => issue.path === name)) {
+      if (ref) ref.value = previousValue;
+      form.setValue(name, previousValue);
+      form.setError(name, { message: POSITION_DATE_CLEAR_BLOCKED_ERROR });
+    }
+    ref?.focus();
   }
 
   const statusText = autosaveStatusText(
@@ -100,55 +153,65 @@ export function PositionAvailabilitySection({
     <Form {...form}>
       <div className="flex flex-col gap-4">
         <div className="grid gap-4 md:grid-cols-2">
-          <FormField
-            control={form.control}
-            name="opensAt"
-            render={({ field }) => (
-              <FormItem className="min-w-0">
-                <FormLabel>Opens At</FormLabel>
-                <FormControl>
-                  <Input
-                    type="date"
-                    disabled={scheduleAutosave.status === 'saving'}
-                    {...field}
-                    onBlur={() => {
-                      field.onBlur();
-                      handleFieldBlur();
-                    }}
-                  />
-                </FormControl>
-                <FormDescription>
-                  Applications open at 12:00 AM Eastern on this day.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="closesAt"
-            render={({ field }) => (
-              <FormItem className="min-w-0">
-                <FormLabel>Closes At</FormLabel>
-                <FormControl>
-                  <Input
-                    type="date"
-                    disabled={scheduleAutosave.status === 'saving'}
-                    {...field}
-                    onBlur={() => {
-                      field.onBlur();
-                      handleFieldBlur();
-                    }}
-                  />
-                </FormControl>
-                <FormDescription>
-                  Applications close at 11:59 PM Eastern on this day.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {SCHEDULE_FIELDS.map((config) => (
+            <FormField
+              key={config.name}
+              control={form.control}
+              name={config.name}
+              render={({ field }) => {
+                const showClear =
+                  Boolean(field.value) || incomplete[config.name];
+                return (
+                  <FormItem className="min-w-0">
+                    <FormLabel>{config.label}</FormLabel>
+                    <div className="flex items-center gap-2">
+                      <FormControl>
+                        <Input
+                          type="date"
+                          className="flex-1"
+                          {...field}
+                          ref={(node) => {
+                            field.ref(node);
+                            fieldRefs[config.name].current = node;
+                          }}
+                          onChange={(e) => {
+                            field.onChange(e);
+                            setIncomplete((prev) => ({
+                              ...prev,
+                              [config.name]: e.target.validity.badInput,
+                            }));
+                          }}
+                          onBlur={() => {
+                            field.onBlur();
+                            commitIfValid();
+                          }}
+                        />
+                      </FormControl>
+                      <div className="w-11 shrink-0 md:w-9">
+                        {showClear && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label={config.clearLabel}
+                            onClick={() => handleClear(config.name)}
+                          >
+                            <ACTION_ICONS.dismiss />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    <FormDescription>
+                      {field.value
+                        ? config.setDescription
+                        : config.emptyDescription}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
+            />
+          ))}
         </div>
 
         {statusText && (
