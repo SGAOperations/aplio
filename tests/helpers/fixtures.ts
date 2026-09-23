@@ -55,12 +55,16 @@ export async function createTestApplication(
   position: Position,
   overrides: Partial<Prisma.ApplicationUncheckedCreateInput> = {},
 ): Promise<Application> {
+  const status = overrides.status ?? 'applied';
   return prisma.application.create({
     data: {
       userId: user.id,
       positionId: position.id,
       createdById: user.id,
       updatedById: user.id,
+      // No DB default anymore — mirror submitApplication so ~140 existing
+      // non-draft fixtures keep a real submittedAt without touching every call site.
+      submittedAt: status === 'draft' ? null : new Date(),
       ...overrides,
     },
   });
