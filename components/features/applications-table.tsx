@@ -282,6 +282,7 @@ export function ApplicationsTable(props: ApplicationsTableProps) {
                 currentStatus="draft"
                 applicantName={displayUserName(app.user)}
                 applicantEmail={app.user.email}
+                isAdmin={isAdmin}
               />
             </div>
           );
@@ -436,6 +437,7 @@ export function ApplicationsTable(props: ApplicationsTableProps) {
                         currentStatus="draft"
                         applicantName={displayUserName(app.user)}
                         applicantEmail={app.user.email}
+                        isAdmin={isAdmin}
                       />
                     </div>
                   </div>
