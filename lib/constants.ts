@@ -189,9 +189,7 @@ export function normalizeShortAnswerValue(
   value: string,
   format: ShortAnswerFormatValue,
 ): string {
-  return format === 'phone_number'
-    ? normalizePhoneNumber(value.trim())
-    : value.trim();
+  return format === 'phone_number' ? normalizePhoneNumber(value) : value.trim();
 }
 
 // Identity for every format except phone_number, which masks US-shaped values.
