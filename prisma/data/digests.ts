@@ -66,7 +66,7 @@ async function fetchNewApplications(
 ): Promise<{ positionId: string; submittedAt: Date }[]> {
   if (positionIds.length === 0) return [];
 
-  return prisma.application.findMany({
+  const rows = await prisma.application.findMany({
     where: {
       positionId: { in: positionIds },
       deletedAt: null,
@@ -76,6 +76,13 @@ async function fetchNewApplications(
     },
     select: { positionId: true, submittedAt: true },
   });
+
+  // Only a draft has a null submittedAt, and drafts are already excluded by
+  // status above — this narrows the type back from the nullable column.
+  return rows.filter(
+    (row): row is { positionId: string; submittedAt: Date } =>
+      row.submittedAt !== null,
+  );
 }
 
 // A manager's own last `manager_daily_digest` row (success or failure — a
