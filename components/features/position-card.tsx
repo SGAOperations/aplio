@@ -283,8 +283,15 @@ export function PositionCardSkeleton({
           className={cn(hasStats && 'sm:flex sm:min-w-0 sm:flex-1 sm:flex-col')}
         >
           <CardHeader className="p-4 pb-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <Skeleton className="h-6 w-48" />
+            <div
+              className={cn(
+                'flex flex-wrap items-center gap-2',
+                !hasStats && 'justify-between',
+              )}
+            >
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-6 w-48" />
+              </div>
               <Skeleton className="h-5.5 w-16 rounded-md" />
             </div>
             <Skeleton className="mt-1 h-5 w-40" />

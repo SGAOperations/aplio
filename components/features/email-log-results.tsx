@@ -3,6 +3,7 @@ import 'server-only';
 import { getEmailLogs, getEmailLogsCount } from '@/prisma/data/emails';
 
 import { EMAIL_LOG_PAGE_SIZE } from '@/lib/constants';
+import { DATA_TABLE_RESULTS_CLASS } from '@/lib/data-table';
 import type { EmailLogFilters } from '@/lib/types';
 import { buildEmailLogHref, getPaginationBounds } from '@/lib/utils';
 
@@ -13,8 +14,6 @@ import {
 } from '@/components/ui/data-table-skeleton';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TablePagination } from '@/components/ui/table-pagination';
-
-const RESULTS_CLASS = 'flex flex-col gap-3';
 
 interface EmailLogResultsProps {
   filters: EmailLogFilters;
@@ -44,7 +43,7 @@ export async function EmailLogResults({
       : initialRows;
 
   return (
-    <div className={RESULTS_CLASS}>
+    <div className={DATA_TABLE_RESULTS_CLASS}>
       <EmailLogTable emails={rows} hasActiveFilters={hasActiveFilters} />
       <TablePagination
         buildHref={(p) => buildEmailLogHref(filters, p)}
@@ -70,8 +69,11 @@ const EMAIL_LOG_SKELETON_COLUMNS: DataTableSkeletonColumn[] = [
 
 export function EmailLogResultsSkeleton() {
   return (
-    <div className={RESULTS_CLASS}>
-      <DataTableSkeleton columns={EMAIL_LOG_SKELETON_COLUMNS} />
+    <div className={DATA_TABLE_RESULTS_CLASS}>
+      <DataTableSkeleton
+        columns={EMAIL_LOG_SKELETON_COLUMNS}
+        mobileGap="gap-1"
+      />
       <Skeleton className="h-5 w-56" />
     </div>
   );

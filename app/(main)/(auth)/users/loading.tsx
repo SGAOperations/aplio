@@ -27,7 +27,7 @@ export default function UsersLoading() {
         fields={['sm:w-48', 'sm:w-48', 'sm:w-64']}
         hasTrailingCount
       />
-      <DataTableSkeleton columns={COLUMNS} />
+      <DataTableSkeleton columns={COLUMNS} mobileGap="gap-3" />
     </div>
   );
 }

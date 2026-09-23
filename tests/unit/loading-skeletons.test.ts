@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 const BESPOKE_HEADER_EXCEPTIONS = [
   join('app', '(main)', 'positions', '[id]', 'loading.tsx'),
 ];
-// Owned by #666 (PR #690) — leave untouched until that follow-up.
+// Owned by a follow-up ticket rewriting this page's tier — leave untouched.
 const OWNED_BY_OTHER_TICKET_EXCEPTIONS = [
   join(
     'app',

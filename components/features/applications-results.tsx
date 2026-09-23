@@ -11,6 +11,7 @@ import {
 } from '@/prisma/data/applications';
 
 import { APPLICATIONS_PAGE_SIZE } from '@/lib/constants';
+import { DATA_TABLE_RESULTS_CLASS } from '@/lib/data-table';
 import { STATE_ICONS } from '@/lib/icons';
 import type {
   ApplicationFilters,
@@ -26,8 +27,6 @@ import {
 } from '@/components/ui/data-table-skeleton';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TablePagination } from '@/components/ui/table-pagination';
-
-const RESULTS_CLASS = 'flex flex-col gap-3';
 
 interface ApplicationsResultsProps {
   user: Reviewer;
@@ -106,7 +105,7 @@ export async function ApplicationsResults({
       );
 
     return (
-      <div className={RESULTS_CLASS}>
+      <div className={DATA_TABLE_RESULTS_CLASS}>
         <p className="text-muted-foreground flex items-start gap-2 text-sm">
           <STATE_ICONS.hidden className="mt-0.5 size-4 shrink-0" />
           You can see who started an application, not what they&apos;ve written.
@@ -155,7 +154,7 @@ export async function ApplicationsResults({
       paginateRows(merged, page);
 
     return (
-      <div className={RESULTS_CLASS}>
+      <div className={DATA_TABLE_RESULTS_CLASS}>
         <ApplicationsTable
           applications={rows}
           hasActiveFilters={hasActiveFilters}
@@ -178,7 +177,7 @@ export async function ApplicationsResults({
     await fetchPage(getApplicationsCount, getApplications, user, filters, page);
 
   return (
-    <div className={RESULTS_CLASS}>
+    <div className={DATA_TABLE_RESULTS_CLASS}>
       <ApplicationsTable
         applications={rows.map((a) => ({ ...a, isDraft: false as const }))}
         hasActiveFilters={hasActiveFilters}
@@ -223,9 +222,13 @@ export function ApplicationsResultsSkeleton({
   ];
 
   return (
-    <div className={RESULTS_CLASS}>
+    <div className={DATA_TABLE_RESULTS_CLASS}>
       {isDraftView && <Skeleton className="h-5 w-full max-w-lg" />}
-      <DataTableSkeleton columns={columns} />
+      <DataTableSkeleton
+        columns={columns}
+        mobileGap="gap-1"
+        mobileRowGap="gap-3"
+      />
       <Skeleton className="h-5 w-56" />
     </div>
   );

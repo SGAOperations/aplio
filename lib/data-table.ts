@@ -4,6 +4,8 @@ export const DATA_TABLE_STACK_CLASS = 'flex flex-col gap-2';
 export const DATA_TABLE_SHELL_CLASS = 'gap-0 overflow-hidden p-0';
 export const DATA_TABLE_DESKTOP_CLASS = 'hidden md:block';
 export const DATA_TABLE_MOBILE_CLASS = 'flex flex-col divide-y md:hidden';
+// Wraps a table plus its adjoining pagination/filter-summary line.
+export const DATA_TABLE_RESULTS_CLASS = 'flex flex-col gap-3';
 
 export type SortDirection = 'asc' | 'desc';
 
