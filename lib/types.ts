@@ -148,25 +148,38 @@ export type MyApplicationDetail = MyApplicationListItem & {
   hasPositionQuestions: boolean;
 };
 
-// Exposes applicant identity — admin-gated contexts only, never a non-admin client.
-export type AdminApplicationListItem = Prisma.ApplicationGetPayload<{
-  select: {
-    id: true;
-    status: true;
-    submittedAt: true;
-    applicantName: true;
-    position: { select: { id: true; title: true } };
-    user: { select: { id: true; name: true; email: true } };
-  };
-}>;
+// getMyRecentActivity excludes drafts, so its rows are narrowed to a real submittedAt.
+export type MySubmittedApplicationListItem = Omit<
+  MyApplicationListItem,
+  'submittedAt'
+> & { submittedAt: Date };
+
+// Exposes applicant identity — admin-gated contexts only, never a non-admin
+// client. submittedAt narrowed to Date: every query producing this type
+// excludes drafts (buildApplicationWhere's 'listable'/'reviewable' scopes).
+export type AdminApplicationListItem = Omit<
+  Prisma.ApplicationGetPayload<{
+    select: {
+      id: true;
+      status: true;
+      submittedAt: true;
+      applicantName: true;
+      position: { select: { id: true; title: true } };
+      user: { select: { id: true; name: true; email: true } };
+    };
+  }>,
+  'submittedAt'
+> & { submittedAt: Date };
 
 // Identity and timestamps only — no status, applicantName or answer relation,
-// so no answer/file/completion signal is reachable from a component using this.
+// so no answer/file/completion signal is reachable from a component using
+// this. submittedAt is always null here — every row is a draft.
 export type DraftApplicationListItem = Prisma.ApplicationGetPayload<{
   select: {
     id: true;
     createdAt: true;
     updatedAt: true;
+    submittedAt: true;
     position: { select: { id: true; title: true } };
     user: { select: { id: true; name: true; email: true } };
   };
@@ -329,16 +342,21 @@ export type ApplicationReviewAnswer = {
 };
 
 // Answer arrays overridden with the shape getApplicationForReview maps into.
-export type ApplicationForReview = Prisma.ApplicationGetPayload<{
-  select: {
-    id: true;
-    status: true;
-    submittedAt: true;
-    applicantName: true;
-    user: { select: { name: true; email: true } };
-    position: { select: { id: true; title: true } };
-  };
-}> & {
+// submittedAt narrowed to Date — buildApplicationWhere's 'listable' scope excludes drafts.
+export type ApplicationForReview = Omit<
+  Prisma.ApplicationGetPayload<{
+    select: {
+      id: true;
+      status: true;
+      submittedAt: true;
+      applicantName: true;
+      user: { select: { name: true; email: true } };
+      position: { select: { id: true; title: true } };
+    };
+  }>,
+  'submittedAt'
+> & {
+  submittedAt: Date;
   globalAnswers: ApplicationReviewAnswer[];
   positionAnswers: ApplicationReviewAnswer[];
   hasPositionQuestions: boolean;
