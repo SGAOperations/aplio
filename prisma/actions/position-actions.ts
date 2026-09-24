@@ -274,11 +274,8 @@ export async function updatePositionStatus(
   );
   if (transitionError) return { error: transitionError };
 
-  // Folded into the where (not a separate count) so a concurrent first
-  // application, or a concurrent status change, can't slip past the checks
-  // above — same shape as deletePosition. status: existing.status is a
-  // compare-and-swap: it makes the event's `from` provably the replaced
-  // status, and stops a concurrent double-open from writing two events.
+  // status: existing.status is the CAS — a concurrent status change can't
+  // slip past, and can't double-write the event.
   const updateCount = await prisma.$transaction(async (tx) => {
     const updateResult = await tx.position.updateMany({
       where: {

@@ -1012,7 +1012,7 @@ describe('getActivityGroups composition and scoping', () => {
     expect(sentences).toContain(`${position.title} was opened`);
   });
 
-  it('reopening (open -> closed -> open) shows "was reopened"; the close produces no item', async () => {
+  it('reopening (open -> closed -> open) shows both "was closed" and "was reopened"', async () => {
     const manager = await createTestUser();
     const position = await createTestPosition(admin, {
       managers: [manager],
@@ -1026,7 +1026,130 @@ describe('getActivityGroups composition and scoping', () => {
     const groups = await getActivityGroups(manager.id, false);
     const sentences = groups.reviewed.map((i) => i.sentence);
     expect(sentences).toContain(`${position.title} was reopened`);
+    expect(sentences).toContain(`${position.title} was closed`);
+  });
+
+  it('manual close: the listed manager sees a "was closed" item linking to the position', async () => {
+    const manager = await createTestUser();
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'open',
+    });
+
+    actAs(admin);
+    const result = await updatePositionStatus({
+      id: position.id,
+      status: 'closed',
+    });
+    expect(result).toBeUndefined();
+
+    const groups = await getActivityGroups(manager.id, false);
+    const item = groups.reviewed.find((i) =>
+      i.sentence.includes(position.title),
+    );
+    expect(item).toBeDefined();
+    expect(item?.sentence).toBe(`${position.title} was closed`);
+    expect(item?.href).toBe(`/positions/${position.id}`);
+  });
+
+  it('a manager of a different position does not see the close', async () => {
+    const manager = await createTestUser();
+    const otherManager = await createTestUser();
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'open',
+    });
+
+    actAs(admin);
+    await updatePositionStatus({ id: position.id, status: 'closed' });
+
+    const groups = await getActivityGroups(otherManager.id, false);
+    const sentences = groups.reviewed.map((i) => i.sentence);
     expect(sentences).not.toContain(`${position.title} was closed`);
+  });
+
+  it('an applicant on the position never sees the close', async () => {
+    const manager = await createTestUser();
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'open',
+    });
+    const positionApplicant = await createTestUser();
+    await createTestApplication(positionApplicant, position, {
+      status: 'applied',
+    });
+
+    actAs(admin);
+    await updatePositionStatus({ id: position.id, status: 'closed' });
+
+    const groups = await getActivityGroups(positionApplicant.id, false);
+    expect(groups.scope).toBe('none');
+    expect(groups.reviewed).toEqual([]);
+  });
+
+  it('deadline close: an open position past closesAt shows a derived "closed" item with no "was"', async () => {
+    const manager = await createTestUser();
+    const past = new Date(Date.now() - 60 * 60 * 1000);
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'open',
+      closesAt: past,
+    });
+
+    const groups = await getActivityGroups(manager.id, false);
+    const item = groups.reviewed.find((i) =>
+      i.sentence.includes(position.title),
+    );
+    expect(item).toBeDefined();
+    expect(item?.sentence).toBe(`${position.title} closed`);
+    expect(item?.href).toBe(`/positions/${position.id}`);
+  });
+
+  it('deadline close: scoped like other rows — a different manager and an applicant never see it', async () => {
+    const manager = await createTestUser();
+    const otherManager = await createTestUser();
+    const past = new Date(Date.now() - 60 * 60 * 1000);
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'open',
+      closesAt: past,
+    });
+    const positionApplicant = await createTestUser();
+    await createTestApplication(positionApplicant, position, {
+      status: 'applied',
+    });
+
+    const otherGroups = await getActivityGroups(otherManager.id, false);
+    expect(otherGroups.reviewed.map((i) => i.sentence)).not.toContain(
+      `${position.title} closed`,
+    );
+
+    const applicantGroups = await getActivityGroups(
+      positionApplicant.id,
+      false,
+    );
+    expect(applicantGroups.scope).toBe('none');
+    expect(applicantGroups.reviewed).toEqual([]);
+  });
+
+  it('no duplicates: a manually-closed position never also gets the derived deadline-close row', async () => {
+    const manager = await createTestUser();
+    const past = new Date(Date.now() - 60 * 60 * 1000);
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'open',
+      closesAt: past,
+    });
+
+    actAs(admin);
+    await updatePositionStatus({ id: position.id, status: 'closed' });
+
+    const groups = await getActivityGroups(manager.id, false);
+    const matching = groups.reviewed.filter((i) =>
+      i.sentence.includes(position.title),
+    );
+    expect(matching).toHaveLength(1);
+    expect(matching[0]?.sentence).toBe(`${position.title} was closed`);
   });
 
   it('returning to draft after opening drops the item for the manager', async () => {

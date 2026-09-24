@@ -15,10 +15,11 @@ import {
   type ManagedPosition,
   type ManagedPositionSummaryItem,
   type OpenPositionSummaryItem,
+  type PositionDeadlineCloseActivity,
   type PositionDeletionSummary,
   type PositionDetail,
   type PositionForEdit,
-  type PositionOpeningActivity,
+  type PositionStatusActivity,
   type PositionWithQuestions,
   type Reviewer,
 } from '@/lib/types';
@@ -382,22 +383,47 @@ export async function getPositionDeletionSummary(
   return { submittedCount, draftCount };
 }
 
-// Feeds the activity panel's reviewer group — scoped identically to
-// getRecentApplications, so a position leaving the reviewer's scope (returned
-// to draft, or the reviewer no longer manages it) drops its opening out too.
-export async function getRecentPositionOpenings(
+// Scoped identically to getRecentApplications so drift can't desync the two feeds.
+export async function getRecentPositionStatusEvents(
   reviewer: Reviewer,
   take: number,
-): Promise<PositionOpeningActivity[]> {
+): Promise<PositionStatusActivity[]> {
   return prisma.positionStatusEvent.findMany({
-    where: { to: 'open', position: buildReviewablePositionWhere(reviewer) },
+    where: {
+      to: { in: ['open', 'closed'] },
+      position: buildReviewablePositionWhere(reviewer),
+    },
     select: {
       id: true,
       from: true,
+      to: true,
       createdAt: true,
       position: { select: { id: true, title: true } },
     },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take,
+  });
+}
+
+// No PositionStatusEvent exists for a deadline lapse — nothing runs on a
+// schedule to write one — so this reads closesAt straight off an open position.
+// status: 'open' also keeps a manually-closed position from double-reporting.
+export async function getRecentPositionDeadlineCloses(
+  reviewer: Reviewer,
+  take: number,
+): Promise<PositionDeadlineCloseActivity[]> {
+  const now = new Date();
+  const cutoff = new Date(now);
+  cutoff.setDate(cutoff.getDate() - RECENTLY_CLOSED_WINDOW_DAYS);
+
+  return prisma.position.findMany({
+    where: {
+      ...buildReviewablePositionWhere(reviewer),
+      status: 'open',
+      closesAt: { gte: cutoff, lte: now },
+    },
+    select: { id: true, title: true, closesAt: true },
+    orderBy: [{ closesAt: 'desc' }, { id: 'desc' }],
     take,
   });
 }

@@ -1153,6 +1153,14 @@ export const POSITION_ACTIVITY_SENTENCE: Record<
   closed: (title) => `${title} was reopened`,
 };
 
+// "to: closed" event copy — always from 'open', the only legal transition in.
+export const POSITION_CLOSED_SENTENCE = (title: string) =>
+  `${title} was closed`;
+
+// Derived deadline-close copy (no event, so no "was" — nothing acted on it).
+export const POSITION_CLOSED_BY_DATE_SENTENCE = (title: string) =>
+  `${title} closed`;
+
 // Order is meaningful — rendered left to right on position cards.
 export const POSITION_CARD_STAT_STATUSES = [
   'applied',
