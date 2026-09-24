@@ -353,7 +353,7 @@ export function isOpenPastCloseDate(
   return getPositionAvailability(position, now) === 'closed_by_date';
 }
 
-/** `null` while accepting; otherwise the reason draft/withdrawn's Continue is disabled. */
+/** `null` while accepting; otherwise the reason the draft/withdrawn action is disabled. */
 export function getApplicantActionBlockedReason(
   position: PositionWindow,
   now?: Date,

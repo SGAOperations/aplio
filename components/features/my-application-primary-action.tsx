@@ -16,9 +16,7 @@ interface MyApplicationPrimaryActionProps {
 export function MyApplicationPrimaryAction({
   application,
 }: MyApplicationPrimaryActionProps) {
-  // Called unconditionally, before any early return (rules of hooks) — the
-  // table renders both the row and the mobile card for every application, so
-  // an id derived from application.id would be duplicated in the DOM.
+  // Unconditional before the early return (rules of hooks) — needed for both row and mobile-card renders.
   const reasonId = useId();
 
   if (application.status !== 'draft' && application.status !== 'withdrawn')
