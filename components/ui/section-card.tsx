@@ -123,7 +123,6 @@ type SectionCardSkeletonRowShape =
   | 'meta'
   | 'badge-meta'
   | 'stacked-action'
-  | 'timeline'
   | 'badge-stacked'
   | 'form-field';
 
@@ -198,14 +197,6 @@ function SectionCardSkeletonRow({
             </div>
             <Skeleton className="h-8 w-16 rounded-md" />
           </div>
-        </div>
-      );
-    case 'timeline':
-      return (
-        <div className="flex items-center gap-3 border-b px-4 py-3 last:border-0">
-          <Skeleton className="size-2 shrink-0 rounded-full" />
-          <Skeleton className="h-4 flex-1" />
-          <Skeleton className="h-3 w-12" />
         </div>
       );
     case 'badge-stacked':

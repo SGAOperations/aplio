@@ -420,6 +420,17 @@ export type ActivityItem = {
   timestamp: Date;
 };
 
+// 'none' (plain applicant), 'managed' (manages ≥1 position), 'all' (admin).
+export type ActivityScope = 'none' | 'managed' | 'all';
+
+// mine is always the caller's own submitted applications; reviewed is the
+// self-filtered reviewer feed, empty when scope is 'none'.
+export type ActivityGroups = {
+  scope: ActivityScope;
+  mine: ActivityItem[];
+  reviewed: ActivityItem[];
+};
+
 // Exposes other users' identities — admin-gated contexts only, never a non-admin client.
 export type AdminUserListItem = Prisma.UserGetPayload<{
   select: {

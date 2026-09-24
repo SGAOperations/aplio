@@ -2,7 +2,6 @@ import { Suspense } from 'react';
 
 import { type Reviewer } from '@/lib/types';
 
-import { ReviewerActivityFeed } from '@/components/features/activity-feed';
 import { OpenPositionsSummary } from '@/components/features/open-positions-summary';
 import {
   PipelineSummary,
@@ -35,14 +34,6 @@ export function AdminDashboard({ reviewer }: AdminDashboardProps) {
 
       <Suspense fallback={<SectionCardSkeleton rowShape="meta" />}>
         <OpenPositionsSummary take={3} />
-      </Suspense>
-
-      <Suspense
-        fallback={
-          <SectionCardSkeleton rowShape="timeline" rows={10} hasLink={false} />
-        }
-      >
-        <ReviewerActivityFeed reviewer={reviewer} />
       </Suspense>
     </div>
   );

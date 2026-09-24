@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 
 import type { NavIdentity } from '@/lib/types';
 
@@ -14,12 +15,14 @@ interface SidebarProps {
   isAdmin: boolean;
   identity: NavIdentity | null;
   canReviewApplications: boolean;
+  activityPanel?: ReactNode;
 }
 
 export function Sidebar({
   isAdmin,
   identity,
   canReviewApplications,
+  activityPanel,
 }: SidebarProps) {
   const { topLevelItems, groups, logoHref, isActive } = useNavItems({
     identity,
@@ -41,6 +44,7 @@ export function Sidebar({
             )}
           </span>
         </Link>
+        {activityPanel && <div className="ml-auto">{activityPanel}</div>}
       </div>
 
       <NavList
