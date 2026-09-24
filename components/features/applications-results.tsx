@@ -229,6 +229,7 @@ export function ApplicationsResultsSkeleton({
         mobileGap="gap-1"
         mobileRowGap="gap-3"
       />
+      {/* Single-page summary line only — multi-page controls row height is unknowable until fetch. */}
       <Skeleton className="h-5 w-56" />
     </div>
   );

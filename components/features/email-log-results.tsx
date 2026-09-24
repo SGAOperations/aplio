@@ -74,6 +74,7 @@ export function EmailLogResultsSkeleton() {
         columns={EMAIL_LOG_SKELETON_COLUMNS}
         mobileGap="gap-1"
       />
+      {/* Single-page summary line only — multi-page controls row height is unknowable until fetch. */}
       <Skeleton className="h-5 w-56" />
     </div>
   );
