@@ -21,6 +21,7 @@ import {
   updateGlobalQuestion,
 } from '@/prisma/actions/global-questions';
 import {
+  deletePosition,
   searchUsers,
   updatePositionStatus,
 } from '@/prisma/actions/position-actions';
@@ -1165,6 +1166,89 @@ describe('getActivityGroups composition and scoping', () => {
 
     const groups = await getActivityGroups(manager.id, false);
     const sentences = groups.reviewed.map((i) => i.sentence);
+    expect(sentences).not.toContain(`${position.title} was opened`);
+  });
+
+  it('deletion of a published position: the listed manager sees an unlinked "was deleted" item', async () => {
+    const manager = await createTestUser();
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'open',
+    });
+
+    actAs(admin);
+    const result = await deletePosition({ id: position.id });
+    expect(result).toBeUndefined();
+
+    const groups = await getActivityGroups(manager.id, false);
+    const item = groups.reviewed.find((i) =>
+      i.sentence.includes(position.title),
+    );
+    expect(item).toBeDefined();
+    expect(item?.sentence).toBe(`${position.title} was deleted`);
+    expect(item?.href).toBeUndefined();
+  });
+
+  it('deletion of a draft position produces no row', async () => {
+    const manager = await createTestUser();
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'draft',
+    });
+
+    actAs(admin);
+    await deletePosition({ id: position.id });
+
+    const groups = await getActivityGroups(manager.id, false);
+    const sentences = groups.reviewed.map((i) => i.sentence);
+    expect(sentences).not.toContain(`${position.title} was deleted`);
+  });
+
+  it('deletion: scoped like other rows — a different manager and an applicant never see it', async () => {
+    const manager = await createTestUser();
+    const otherManager = await createTestUser();
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'closed',
+    });
+    const positionApplicant = await createTestUser();
+    await createTestApplication(positionApplicant, position, {
+      status: 'draft',
+    });
+
+    actAs(admin);
+    const deleteResult = await deletePosition({ id: position.id });
+    expect(deleteResult).toBeUndefined();
+
+    const otherGroups = await getActivityGroups(otherManager.id, false);
+    expect(otherGroups.reviewed.map((i) => i.sentence)).not.toContain(
+      `${position.title} was deleted`,
+    );
+
+    const applicantGroups = await getActivityGroups(
+      positionApplicant.id,
+      false,
+    );
+    expect(applicantGroups.reviewed.map((i) => i.sentence)).not.toContain(
+      `${position.title} was deleted`,
+    );
+  });
+
+  it('deletion: an admin sees it under "all", and the earlier opening drops out', async () => {
+    const manager = await createTestUser();
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'draft',
+    });
+
+    actAs(admin);
+    await updatePositionStatus({ id: position.id, status: 'open' });
+    await deletePosition({ id: position.id });
+
+    const groups = await getActivityGroups(admin.id, true);
+    expect(groups.scope).toBe('all');
+    const sentences = groups.reviewed.map((i) => i.sentence);
+    expect(sentences).toContain(`${position.title} was deleted`);
     expect(sentences).not.toContain(`${position.title} was opened`);
   });
 

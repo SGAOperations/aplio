@@ -451,6 +451,12 @@ export type PositionDeadlineCloseActivity = Prisma.PositionGetPayload<{
   select: { id: true; title: true; closesAt: true };
 }>;
 
+// Matches getRecentPositionDeletions's select — no event backs this row either,
+// so deletedAt (guaranteed non-null by that query's where) is the timestamp.
+export type PositionDeletionActivity = Prisma.PositionGetPayload<{
+  select: { id: true; title: true; deletedAt: true };
+}>;
+
 // Exposes other users' identities — admin-gated contexts only, never a non-admin client.
 export type AdminUserListItem = Prisma.UserGetPayload<{
   select: {

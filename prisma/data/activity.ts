@@ -9,6 +9,7 @@ import {
 import { isManager } from '@/prisma/data/managers';
 import {
   getRecentPositionDeadlineCloses,
+  getRecentPositionDeletions,
   getRecentPositionStatusEvents,
 } from '@/prisma/data/positions';
 
@@ -18,6 +19,7 @@ import {
   POSITION_ACTIVITY_SENTENCE,
   POSITION_CLOSED_BY_DATE_SENTENCE,
   POSITION_CLOSED_SENTENCE,
+  POSITION_DELETED_SENTENCE,
   POSITION_STATUS_BADGE_VARIANT,
 } from '@/lib/constants';
 import { type ActivityGroups, type ActivityItem } from '@/lib/types';
@@ -30,28 +32,31 @@ export const getActivityGroups = cache(async function getActivityGroups(
   userId: string,
   isAdmin: boolean,
 ): Promise<ActivityGroups> {
+  // Fetched unconditionally: deleting a manager's only position drops it from
+  // isManager's non-deleted count, so this alone must still unlock 'managed'.
+  const [applications, isUserManager, deletions] = await Promise.all([
+    getMyRecentActivity(userId, ACTIVITY_TAKE),
+    isAdmin ? Promise.resolve(true) : isManager(userId),
+    getRecentPositionDeletions({ id: userId, isAdmin }, ACTIVITY_TAKE),
+  ]);
+
   const scope = isAdmin
     ? 'all'
-    : (await isManager(userId))
+    : isUserManager || deletions.length > 0
       ? 'managed'
       : 'none';
 
-  const [applications, reviewed, statusEvents, deadlineCloses] =
-    await Promise.all([
-      getMyRecentActivity(userId, ACTIVITY_TAKE),
-      scope !== 'none'
-        ? getRecentApplications({ id: userId, isAdmin }, ACTIVITY_TAKE)
-        : Promise.resolve([]),
-      scope !== 'none'
-        ? getRecentPositionStatusEvents({ id: userId, isAdmin }, ACTIVITY_TAKE)
-        : Promise.resolve([]),
-      scope !== 'none'
-        ? getRecentPositionDeadlineCloses(
-            { id: userId, isAdmin },
-            ACTIVITY_TAKE,
-          )
-        : Promise.resolve([]),
-    ]);
+  const [reviewed, statusEvents, deadlineCloses] = await Promise.all([
+    scope !== 'none'
+      ? getRecentApplications({ id: userId, isAdmin }, ACTIVITY_TAKE)
+      : Promise.resolve([]),
+    scope !== 'none'
+      ? getRecentPositionStatusEvents({ id: userId, isAdmin }, ACTIVITY_TAKE)
+      : Promise.resolve([]),
+    scope !== 'none'
+      ? getRecentPositionDeadlineCloses({ id: userId, isAdmin }, ACTIVITY_TAKE)
+      : Promise.resolve([]),
+  ]);
 
   const mine: ActivityItem[] = applications.map((app) => {
     const statusLabel = APPLICATION_STATUS_LABELS[app.status];
@@ -118,11 +123,26 @@ export const getActivityGroups = cache(async function getActivityGroups(
       href: `/positions/${position.id}`,
     }));
 
+  // deletedAt is guaranteed non-null by the query's where — narrow, not cast.
+  // Not linked — the position page no longer exists.
+  const deletionItems: ActivityItem[] = deletions
+    .filter(
+      (position): position is typeof position & { deletedAt: Date } =>
+        position.deletedAt !== null,
+    )
+    .map((position) => ({
+      id: `deletion-${position.id}`,
+      statusVariant: 'destructive',
+      sentence: POSITION_DELETED_SENTENCE(position.title),
+      timestamp: position.deletedAt,
+    }));
+
   const reviewedItems = [
     ...applicationItems,
     ...openingItems,
     ...closedItems,
     ...deadlineCloseItems,
+    ...deletionItems,
   ]
     .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
     .slice(0, ACTIVITY_TAKE);

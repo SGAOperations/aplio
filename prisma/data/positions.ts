@@ -2,7 +2,10 @@ import 'server-only';
 
 import { cache } from 'react';
 
-import { buildReviewablePositionWhere } from '@/lib/auth/scopes';
+import {
+  buildDeletedPositionWhere,
+  buildReviewablePositionWhere,
+} from '@/lib/auth/scopes';
 import {
   MANAGED_POSITIONS_WINDOW_DAYS,
   NON_REVIEWABLE_APPLICATION_STATUSES,
@@ -16,6 +19,7 @@ import {
   type ManagedPositionSummaryItem,
   type OpenPositionSummaryItem,
   type PositionDeadlineCloseActivity,
+  type PositionDeletionActivity,
   type PositionDeletionSummary,
   type PositionDetail,
   type PositionForEdit,
@@ -405,9 +409,7 @@ export async function getRecentPositionStatusEvents(
   });
 }
 
-// No PositionStatusEvent exists for a deadline lapse — nothing runs on a
-// schedule to write one — so this reads closesAt straight off an open position.
-// status: 'open' also keeps a manually-closed position from double-reporting.
+// No event backs a deadline lapse, so this derives from closesAt; status: 'open' excludes a manually-closed position from double-reporting.
 export async function getRecentPositionDeadlineCloses(
   reviewer: Reviewer,
   take: number,
@@ -424,6 +426,20 @@ export async function getRecentPositionDeadlineCloses(
     },
     select: { id: true, title: true, closesAt: true },
     orderBy: [{ closesAt: 'desc' }, { id: 'desc' }],
+    take,
+  });
+}
+
+// buildDeletedPositionWhere, not buildReviewablePositionWhere, since these
+// rows are excluded by the latter's deletedAt: null.
+export async function getRecentPositionDeletions(
+  reviewer: Reviewer,
+  take: number,
+): Promise<PositionDeletionActivity[]> {
+  return prisma.position.findMany({
+    where: buildDeletedPositionWhere(reviewer),
+    select: { id: true, title: true, deletedAt: true },
+    orderBy: [{ deletedAt: 'desc' }, { id: 'desc' }],
     take,
   });
 }

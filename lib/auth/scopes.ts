@@ -17,6 +17,15 @@ export function buildReviewablePositionWhere(
     : { ...PUBLISHED_POSITION_WHERE, managers: { some: { id: user.id } } };
 }
 
+// Same admin/manager split as buildReviewablePositionWhere, but for the deleted
+// rows PUBLISHED_POSITION_WHERE always excludes.
+export function buildDeletedPositionWhere(
+  user: Reviewer,
+): Prisma.PositionWhereInput {
+  const base = { deletedAt: { not: null }, status: { not: 'draft' } } as const;
+  return user.isAdmin ? base : { ...base, managers: { some: { id: user.id } } };
+}
+
 // `status` omitted so a caller's own filter can't overwrite the position scoping.
 export function buildApplicationScopeWhere(
   user: Reviewer,

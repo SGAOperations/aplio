@@ -1161,6 +1161,9 @@ export const POSITION_CLOSED_SENTENCE = (title: string) =>
 export const POSITION_CLOSED_BY_DATE_SENTENCE = (title: string) =>
   `${title} closed`;
 
+export const POSITION_DELETED_SENTENCE = (title: string) =>
+  `${title} was deleted`;
+
 // Order is meaningful — rendered left to right on position cards.
 export const POSITION_CARD_STAT_STATUSES = [
   'applied',
