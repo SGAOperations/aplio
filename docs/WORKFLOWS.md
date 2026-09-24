@@ -21,7 +21,7 @@ Behaviour shared by many workflows is stated once under [Cross-cutting behaviour
 
 ## Table of contents
 
-**[Cross-cutting behaviours](#cross-cutting-behaviours)** — [XC-1](#xc-1-sign-in-gate-and-the-redirectto-round-trip) · [XC-2](#xc-2-name-gate) · [XC-3](#xc-3-profile-completeness) · [XC-4](#xc-4-denial-shape) · [XC-5](#xc-5-errors-and-feedback) · [XC-6](#xc-6-rate-limiting) · [XC-7](#xc-7-deactivated-account) · [XC-8](#xc-8-applicant-facing-status-grouping) · [XC-9](#xc-9-applicant-email)
+**[Cross-cutting behaviours](#cross-cutting-behaviours)** — [XC-1](#xc-1-sign-in-gate-and-the-redirectto-round-trip) · [XC-2](#xc-2-name-gate) · [XC-3](#xc-3-profile-completeness) · [XC-4](#xc-4-denial-shape) · [XC-5](#xc-5-errors-and-feedback) · [XC-6](#xc-6-rate-limiting) · [XC-7](#xc-7-deactivated-account) · [XC-8](#xc-8-applicant-facing-status-grouping) · [XC-9](#xc-9-applicant-email) · [XC-10](#xc-10-activity-panel)
 
 **[Anonymous (AN)](#anonymous-an)** — [AN-1](#an-1-browse-positions) · [AN-2](#an-2-view-a-position) · [AN-3](#an-3-start-applying-from-a-position) · [AN-4](#an-4-sign-in-with-an-email-code) · [AN-5](#an-5-request-a-new-code) · [AN-6](#an-6-set-your-name-on-first-sign-in) · [AN-7](#an-7-read-the-legal-pages) · [AN-8](#an-8-dev-bypass-sign-in)
 
@@ -91,6 +91,17 @@ Three applicant-facing email _events_, over two rendered templates, all through 
 - **No email at all** on any in-group move (`reached_out` / `interview_scheduled` / `reviewing`) or on withdrawal — only a decision or a submission ever emails the applicant.
 - **A failed send never fails the mutation.** The status write (or the submission) has already committed by the time the email is attempted; the send is a side effect dispatched in `after()`, and a provider failure is logged to `EmailLog` as `failed` and surfaced nowhere — not to the reviewer, not to the applicant.
 - **No opt-out, no preferences, no per-position copy.**
+
+### XC-10 Activity panel
+
+A `Sheet` reachable from every authenticated page, not just the dashboard — top-right of the sidebar's `h-14` header bar on desktop, and immediately left of the hamburger menu on mobile, so the control lands in the same visual position at both breakpoints. Hidden entirely for anonymous visitors. Opens from the right (`side="right"`), so it never reads as the same surface as `MobileNav`'s `side="left"` menu drawer.
+
+- **Composition** — everyone always gets **their own** non-draft applications on published positions, with public status only ([XC-8](#xc-8-applicant-facing-status-grouping)) — this covers a manager or admin who has also applied. Managers and admins additionally get a reviewer group: managed positions only for a manager, every published position for an admin, scoped the same way as [PM-8](#pm-8-work-the-application-queue)'s queue (`buildApplicationScopeWhere`). Both groups render when both apply.
+- **Self-filter** — a row in the reviewer group for the viewer's own application is dropped; it already appears in "Your applications", and without the filter a manager or admin who applied to a position they review would see their own application twice.
+- **Newest 10 per group** — each group is independently capped at 10, newest `submittedAt` first. The filter runs after the cap, so the reviewer group can show fewer than 10 when some of the newest rows are the viewer's own.
+- **Group headings** — only for a viewer with a reviewer group at all. "Your applications" first, then "Positions you manage" (manager) or "All positions" (admin); a group with no items is omitted. A plain applicant (no reviewer group) sees one flat list with no heading at all.
+- **Empty** — only when every visible group is empty: "No recent activity" plus a scope-specific description ("Updates to your applications will show up here." / "…and new applications to the positions you manage will show up here." / "…and new applications across all positions will show up here.").
+- **Freshness** — the panel lives in the shared layout, so Next keeps it across client-side navigations. It refreshes on a hard load, `router.refresh()`, or any server action whose `revalidatePath`/`revalidateTag` covers the layout — not on a plain link navigation. There is no unread state, badge, or mark-as-read, so this cannot tell a manager that something changed without them opening it and reading it.
 
 ---
 
@@ -195,7 +206,7 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 ### AP-1 See your dashboard
 
 - **Trigger** — signing in, the logo, or the Home nav item (`/`).
-- **Happy path** — `UserDashboard` renders "Welcome back, <first name>" and streams five independently-suspended sections: the profile-completeness banner, an application summary, the three most recent applications, the three open positions closing soonest, and an activity feed. Each has its own skeleton. The applications widget's row is `title · trailing slot · status badge`; for a draft or withdrawn application the trailing slot carries the deadline instead of the usual submitted date — plain muted text normally, bold red `text-destructive-text` with the warning icon for any future deadline (`distant`, `soon`, or `urgent`) once the row is editable ([AP-10](#ap-10-track-your-applications)) — with the bare date, or the compact countdown (`Nh left`) once inside 24 hours, no `Closes`/`Closed` prefix. A `past` deadline always renders the plain muted date, regardless of status. And its subtitle appends `N closing soon` when any at-risk draft or withdrawn application exists, so one that would otherwise sit outside the top-3 by recency still surfaces here.
+- **Happy path** — `UserDashboard` renders "Welcome back, <first name>" and streams four independently-suspended sections: the profile-completeness banner, an application summary, the three most recent applications, and the three open positions closing soonest. Each has its own skeleton. The applications widget's row is `title · trailing slot · status badge`; for a draft or withdrawn application the trailing slot carries the deadline instead of the usual submitted date — plain muted text normally, bold red `text-destructive-text` with the warning icon for any future deadline (`distant`, `soon`, or `urgent`) once the row is editable ([AP-10](#ap-10-track-your-applications)) — with the bare date, or the compact countdown (`Nh left`) once inside 24 hours, no `Closes`/`Closed` prefix. A `past` deadline always renders the plain muted date, regardless of status. And its subtitle appends `N closing soon` when any at-risk draft or withdrawn application exists, so one that would otherwise sit outside the top-3 by recency still surfaces here. Recent activity lives in the activity panel, reachable from every page ([XC-10](#xc-10-activity-panel)), not on the dashboard.
 - **Failure / edge**
   - Anonymous → `redirect('/positions')` — routing, not denial.
   - No name → [XC-2](#xc-2-name-gate).
@@ -398,7 +409,7 @@ A user who manages at least one non-deleted position. Manager status is **derive
 ### PM-1 See your dashboard
 
 - **Trigger** — Home (`/`).
-- **Happy path** — `ManagerDashboard` — "Overview of applications for the positions you manage." — streams a pipeline summary, the three most recent applications, three managed positions, an activity feed, and the manager's own applications widget. Every section is scoped to positions they manage.
+- **Happy path** — `ManagerDashboard` — "Overview of applications for the positions you manage." — streams a pipeline summary, the three most recent applications, three managed positions, and the manager's own applications widget. Every section is scoped to positions they manage. Recent activity — a manager's own application activity as well as new applications to their managed positions — lives in the activity panel instead ([XC-10](#xc-10-activity-panel)).
 - **Failure / edge** — as [AP-1](#ap-1-see-your-dashboard); an admin gets `AdminDashboard` instead.
 - **End state** — read-only.
 
@@ -579,7 +590,7 @@ A user who manages at least one non-deleted position. Manager status is **derive
 
 ## Admin (AD)
 
-An admin is a **manager on every position**: every [Position manager](#position-manager-pm) workflow applies unchanged, with the scope widened from "positions I manage" to all of them (`buildReviewablePositionWhere`), and draft positions visible everywhere. Admins are exempt from the archived-position edit block ([PM-4](#pm-4-edit-position-details)) and from the self-removal rule ([PM-7](#pm-7-remove-a-manager)). Admins alone may set a position to `open`, from `draft` or `closed` ([PM-4](#pm-4-edit-position-details)) — publishing is a permission, not a workflow: no queue, no approve/reject, no notification back to the manager. This section covers only the admin-exclusive surfaces. The sidebar gains a **Settings** group with **Users**, **Global Questions** and **Email Log**, alongside the **Manage** group with **Manage Positions** and Applications a manager already sees ([PM intro](#position-manager-pm)).
+An admin is a **manager on every position**: every [Position manager](#position-manager-pm) workflow applies unchanged, with the scope widened from "positions I manage" to all of them (`buildReviewablePositionWhere`), and draft positions visible everywhere. Admins are exempt from the archived-position edit block ([PM-4](#pm-4-edit-position-details)) and from the self-removal rule ([PM-7](#pm-7-remove-a-manager)). Admins alone may set a position to `open`, from `draft` or `closed` ([PM-4](#pm-4-edit-position-details)) — publishing is a permission, not a workflow: no queue, no approve/reject, no notification back to the manager. This section covers only the admin-exclusive surfaces. The sidebar gains a **Settings** group with **Users**, **Global Questions** and **Email Log**, alongside the **Manage** group with **Manage Positions** and Applications a manager already sees ([PM intro](#position-manager-pm)). The activity panel's `all` scope follows the same widening — an admin's reviewer group covers every published position, alongside their own application activity ([XC-10](#xc-10-activity-panel)).
 
 ### AD-1 See every position
 

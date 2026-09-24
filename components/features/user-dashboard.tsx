@@ -2,7 +2,6 @@ import { Suspense } from 'react';
 
 import { getFirstName } from '@/lib/utils';
 
-import { ApplicantActivityFeed } from '@/components/features/activity-feed';
 import {
   ApplicantSummary,
   ApplicantSummarySkeleton,
@@ -47,14 +46,6 @@ export function UserDashboard({ userId, userName }: UserDashboardProps) {
 
       <Suspense fallback={<SectionCardSkeleton rowShape="stacked-action" />}>
         <OpenPositionsWidget limit={3} />
-      </Suspense>
-
-      <Suspense
-        fallback={
-          <SectionCardSkeleton rowShape="timeline" rows={10} hasLink={false} />
-        }
-      >
-        <ApplicantActivityFeed userId={userId} />
       </Suspense>
     </div>
   );

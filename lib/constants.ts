@@ -3,7 +3,11 @@ import { z } from 'zod/v4';
 import { $Enums } from '@/prisma/client';
 import type { PositionStatus, Prisma, QuestionType } from '@/prisma/client';
 
-import type { PositionAvailability, UserRoleFilter } from '@/lib/types';
+import type {
+  ActivityScope,
+  PositionAvailability,
+  UserRoleFilter,
+} from '@/lib/types';
 
 import type { BadgeVariant } from '@/components/ui/badge';
 
@@ -1108,6 +1112,32 @@ export const STATUS_BADGE_VARIANT_TO_DOT: Record<BadgeVariant, string> = {
   secondary: 'bg-muted-foreground',
   default: 'bg-primary',
   outline: 'bg-border',
+};
+
+// Heading for the activity panel's applicant-scoped group — the only group
+// a 'none'-scope user sees, rendered with no heading at all in that case.
+export const ACTIVITY_MINE_TITLE = 'Your applications';
+
+// Drives the activity panel's empty state, keyed by the caller's derived
+// scope (lib/types.ts#ActivityScope).
+export const ACTIVITY_FEED_COPY: Record<
+  ActivityScope,
+  { emptyDescription: string; reviewedTitle: string | null }
+> = {
+  none: {
+    emptyDescription: 'Updates to your applications will show up here.',
+    reviewedTitle: null,
+  },
+  managed: {
+    emptyDescription:
+      'Updates to your applications and new applications to the positions you manage will show up here.',
+    reviewedTitle: 'Positions you manage',
+  },
+  all: {
+    emptyDescription:
+      'Updates to your applications and new applications across all positions will show up here.',
+    reviewedTitle: 'All positions',
+  },
 };
 
 // Order is meaningful — rendered left to right on position cards.

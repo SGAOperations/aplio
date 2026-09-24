@@ -2,7 +2,6 @@ import { Suspense } from 'react';
 
 import { type Reviewer } from '@/lib/types';
 
-import { ReviewerActivityFeed } from '@/components/features/activity-feed';
 import {
   ManagedPositionsWidget,
   ManagedPositionsWidgetSkeleton,
@@ -39,14 +38,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
 
       <Suspense fallback={<ManagedPositionsWidgetSkeleton />}>
         <ManagedPositionsWidget userId={user.id} take={3} />
-      </Suspense>
-
-      <Suspense
-        fallback={
-          <SectionCardSkeleton rowShape="timeline" rows={10} hasLink={false} />
-        }
-      >
-        <ReviewerActivityFeed reviewer={user} />
       </Suspense>
 
       <Suspense
