@@ -51,30 +51,18 @@ function GatedActionButton({
   pending: boolean;
   onClick: () => void;
 }) {
-  const button = (
-    <Button
-      variant="default"
-      size="sm"
-      className="min-h-11 sm:min-h-9"
-      disabled={disabled}
-      onClick={onClick}
-    >
-      {pending && <ACTION_ICONS.pending className="animate-spin" />}
-      {label}
-    </Button>
-  );
-
   return (
     <DisabledActionTooltip reason={disabledReason}>
-      {(describedBy) =>
-        describedBy ? (
-          <span tabIndex={0} aria-describedby={describedBy}>
-            {button}
-          </span>
-        ) : (
-          button
-        )
-      }
+      <Button
+        variant="default"
+        size="sm"
+        className="min-h-11 sm:min-h-9"
+        disabled={disabled}
+        onClick={onClick}
+      >
+        {pending && <ACTION_ICONS.pending className="animate-spin" />}
+        {label}
+      </Button>
     </DisabledActionTooltip>
   );
 }

@@ -40,19 +40,16 @@ export function MyApplicationPrimaryAction({
 
   return (
     <DisabledActionTooltip reason={reason}>
-      {(describedBy) => (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          aria-disabled="true"
-          aria-label={ariaLabel}
-          aria-describedby={describedBy}
-          className="aria-disabled:pointer-events-none aria-disabled:opacity-50"
-        >
-          {label}
-        </Button>
-      )}
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        aria-disabled="true"
+        aria-label={ariaLabel}
+        className="aria-disabled:pointer-events-none aria-disabled:opacity-50"
+      >
+        {label}
+      </Button>
     </DisabledActionTooltip>
   );
 }
