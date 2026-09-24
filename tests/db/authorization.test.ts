@@ -20,7 +20,10 @@ import {
   deleteGlobalQuestion,
   updateGlobalQuestion,
 } from '@/prisma/actions/global-questions';
-import { searchUsers } from '@/prisma/actions/position-actions';
+import {
+  searchUsers,
+  updatePositionStatus,
+} from '@/prisma/actions/position-actions';
 import {
   createPositionQuestion,
   deletePositionQuestion,
@@ -931,5 +934,137 @@ describe('getActivityGroups composition and scoping', () => {
     expect(reviewedIds).not.toContain(adminApp.id);
     expect(reviewedIds).not.toContain(onDraftPosition.id);
     expect(reviewedIds).not.toContain(onDeletedPosition.id);
+  });
+
+  it('admin opens a draft: the listed manager sees a "was opened" item linking to the position', async () => {
+    const manager = await createTestUser();
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'draft',
+    });
+
+    actAs(admin);
+    const result = await updatePositionStatus({
+      id: position.id,
+      status: 'open',
+    });
+    expect(result).toBeUndefined();
+
+    const groups = await getActivityGroups(manager.id, false);
+    expect(groups.scope).toBe('managed');
+    const item = groups.reviewed.find((i) =>
+      i.sentence.includes(position.title),
+    );
+    expect(item).toBeDefined();
+    expect(item?.sentence).toBe(`${position.title} was opened`);
+    expect(item?.href).toBe(`/positions/${position.id}`);
+  });
+
+  it('a manager of a different position does not see the opening', async () => {
+    const manager = await createTestUser();
+    const otherManager = await createTestUser();
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'draft',
+    });
+
+    actAs(admin);
+    await updatePositionStatus({ id: position.id, status: 'open' });
+
+    const groups = await getActivityGroups(otherManager.id, false);
+    const ids = groups.reviewed.map((i) => i.sentence);
+    expect(ids).not.toContain(`${position.title} was opened`);
+  });
+
+  it('an applicant on the position (not a manager) never gets a reviewer group', async () => {
+    const manager = await createTestUser();
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'draft',
+    });
+
+    actAs(admin);
+    await updatePositionStatus({ id: position.id, status: 'open' });
+
+    const positionApplicant = await createTestUser();
+    await createTestApplication(positionApplicant, position, {
+      status: 'applied',
+    });
+
+    const groups = await getActivityGroups(positionApplicant.id, false);
+    expect(groups.scope).toBe('none');
+    expect(groups.reviewed).toEqual([]);
+  });
+
+  it('an admin sees the opening under "all" with no self-filter', async () => {
+    const manager = await createTestUser();
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'draft',
+    });
+
+    actAs(admin);
+    await updatePositionStatus({ id: position.id, status: 'open' });
+
+    const groups = await getActivityGroups(admin.id, true);
+    expect(groups.scope).toBe('all');
+    const sentences = groups.reviewed.map((i) => i.sentence);
+    expect(sentences).toContain(`${position.title} was opened`);
+  });
+
+  it('reopening (open -> closed -> open) shows "was reopened"; the close produces no item', async () => {
+    const manager = await createTestUser();
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'open',
+    });
+
+    actAs(admin);
+    await updatePositionStatus({ id: position.id, status: 'closed' });
+    await updatePositionStatus({ id: position.id, status: 'open' });
+
+    const groups = await getActivityGroups(manager.id, false);
+    const sentences = groups.reviewed.map((i) => i.sentence);
+    expect(sentences).toContain(`${position.title} was reopened`);
+    expect(sentences).not.toContain(`${position.title} was closed`);
+  });
+
+  it('returning to draft after opening drops the item for the manager', async () => {
+    const manager = await createTestUser();
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'draft',
+    });
+
+    actAs(admin);
+    await updatePositionStatus({ id: position.id, status: 'open' });
+    await updatePositionStatus({ id: position.id, status: 'draft' });
+
+    const groups = await getActivityGroups(manager.id, false);
+    const sentences = groups.reviewed.map((i) => i.sentence);
+    expect(sentences).not.toContain(`${position.title} was opened`);
+  });
+
+  it('merges openings with applications by time and caps the combined feed at 10', async () => {
+    const manager = await createTestUser();
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'draft',
+    });
+
+    actAs(admin);
+    await updatePositionStatus({ id: position.id, status: 'open' });
+
+    const newerApplicant = await createTestUser();
+    const newerApplication = await createTestApplication(
+      newerApplicant,
+      position,
+      { status: 'applied' },
+    );
+
+    const groups = await getActivityGroups(manager.id, false);
+    expect(groups.reviewed.length).toBeLessThanOrEqual(10);
+    const newestId = groups.reviewed[0]?.id;
+    expect(newestId).toBe(newerApplication.id);
   });
 });

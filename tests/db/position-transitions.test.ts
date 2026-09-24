@@ -51,6 +51,13 @@ async function status(id: string): Promise<string> {
   return row.status;
 }
 
+async function events(positionId: string) {
+  return prisma.positionStatusEvent.findMany({
+    where: { positionId },
+    orderBy: { createdAt: 'asc' },
+  });
+}
+
 beforeAll(async () => {
   admin = await createTestUser({ isAdmin: true });
   manager = await createTestUser();
@@ -197,5 +204,76 @@ describe('unchanged status', () => {
     });
     expect(result).toBeUndefined();
     expect(await status(position.id)).toBe('open');
+
+    expect(await events(position.id)).toEqual([]);
+  });
+});
+
+describe('PositionStatusEvent writes', () => {
+  it('writes exactly one event with the right from/to/changedById for each legal transition', async () => {
+    const position = await makePosition({ status: 'draft' });
+
+    actAs(admin);
+    await updatePositionStatus({ id: position.id, status: 'open' });
+    let rows = await events(position.id);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      from: 'draft',
+      to: 'open',
+      changedById: admin.id,
+    });
+
+    actAs(manager);
+    await updatePositionStatus({ id: position.id, status: 'closed' });
+    rows = await events(position.id);
+    expect(rows).toHaveLength(2);
+    expect(rows[1]).toMatchObject({
+      from: 'open',
+      to: 'closed',
+      changedById: manager.id,
+    });
+
+    actAs(admin);
+    await updatePositionStatus({ id: position.id, status: 'open' });
+    rows = await events(position.id);
+    expect(rows).toHaveLength(3);
+    expect(rows[2]).toMatchObject({
+      from: 'closed',
+      to: 'open',
+      changedById: admin.id,
+    });
+
+    actAs(manager);
+    await updatePositionStatus({ id: position.id, status: 'draft' });
+    rows = await events(position.id);
+    expect(rows).toHaveLength(4);
+    expect(rows[3]).toMatchObject({
+      from: 'open',
+      to: 'draft',
+      changedById: manager.id,
+    });
+  });
+
+  it('writes no event on a same-status save', async () => {
+    const position = await makePosition({ status: 'open' });
+    await createTestApplication(applicant, position, { status: 'applied' });
+
+    actAs(manager);
+    await updatePositionStatus({ id: position.id, status: 'open' });
+
+    expect(await events(position.id)).toEqual([]);
+  });
+
+  it('writes no event on a blocked transition', async () => {
+    const position = await makePosition({ status: 'draft' });
+
+    actAs(manager);
+    const result = await updatePositionStatus({
+      id: position.id,
+      status: 'closed',
+    });
+    expect(result).toEqual({ error: POSITION_DRAFT_CLOSE_BLOCKED_ERROR });
+
+    expect(await events(position.id)).toEqual([]);
   });
 });
