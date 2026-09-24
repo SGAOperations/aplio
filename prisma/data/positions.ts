@@ -2,6 +2,7 @@ import 'server-only';
 
 import { cache } from 'react';
 
+import { buildReviewablePositionWhere } from '@/lib/auth/scopes';
 import {
   MANAGED_POSITIONS_WINDOW_DAYS,
   NON_REVIEWABLE_APPLICATION_STATUSES,
@@ -17,7 +18,9 @@ import {
   type PositionDeletionSummary,
   type PositionDetail,
   type PositionForEdit,
+  type PositionOpeningActivity,
   type PositionWithQuestions,
+  type Reviewer,
 } from '@/lib/types';
 import {
   getPositionAvailability,
@@ -377,4 +380,24 @@ export async function getPositionDeletionSummary(
   ]);
 
   return { submittedCount, draftCount };
+}
+
+// Feeds the activity panel's reviewer group — scoped identically to
+// getRecentApplications, so a position leaving the reviewer's scope (returned
+// to draft, or the reviewer no longer manages it) drops its opening out too.
+export async function getRecentPositionOpenings(
+  reviewer: Reviewer,
+  take: number,
+): Promise<PositionOpeningActivity[]> {
+  return prisma.positionStatusEvent.findMany({
+    where: { to: 'open', position: buildReviewablePositionWhere(reviewer) },
+    select: {
+      id: true,
+      from: true,
+      createdAt: true,
+      position: { select: { id: true, title: true } },
+    },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take,
+  });
 }

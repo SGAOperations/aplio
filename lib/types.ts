@@ -413,11 +413,14 @@ export type QuestionFileDownload = {
 };
 
 // sentence is pre-rendered safe copy; statusVariant drives the dot color.
+// href is set only for rows that link somewhere (position openings); plain
+// application rows leave it undefined and render as static text.
 export type ActivityItem = {
   id: string;
   statusVariant: BadgeVariant;
   sentence: string;
   timestamp: Date;
+  href?: string;
 };
 
 // 'none' (plain applicant), 'managed' (manages ≥1 position), 'all' (admin).
@@ -430,6 +433,17 @@ export type ActivityGroups = {
   mine: ActivityItem[];
   reviewed: ActivityItem[];
 };
+
+// Matches getRecentPositionOpenings's select in prisma/data/positions.ts.
+// No actor identity selected — changedBy never reaches the activity panel.
+export type PositionOpeningActivity = Prisma.PositionStatusEventGetPayload<{
+  select: {
+    id: true;
+    from: true;
+    createdAt: true;
+    position: { select: { id: true; title: true } };
+  };
+}>;
 
 // Exposes other users' identities — admin-gated contexts only, never a non-admin client.
 export type AdminUserListItem = Prisma.UserGetPayload<{
