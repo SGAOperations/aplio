@@ -88,11 +88,13 @@ export async function ActivityFeed({ userId, isAdmin }: ActivityFeedProps) {
 
   if (mine.length === 0 && reviewed.length === 0)
     return (
-      <SectionCardEmpty
-        icon={CONCEPT_ICONS.activity}
-        title="No recent activity"
-        description={copy.emptyDescription}
-      />
+      <div className="px-4">
+        <SectionCardEmpty
+          icon={CONCEPT_ICONS.activity}
+          title="No recent activity"
+          description={copy.emptyDescription}
+        />
+      </div>
     );
 
   if (scope === 'none') return <ActivityFeedList items={mine} />;

@@ -1118,31 +1118,22 @@ export const STATUS_BADGE_VARIANT_TO_DOT: Record<BadgeVariant, string> = {
 // a 'none'-scope user sees, rendered with no heading at all in that case.
 export const ACTIVITY_MINE_TITLE = 'Your applications';
 
-// Drives the activity panel's Sheet description and its empty state, keyed
-// by the caller's derived scope (lib/types.ts#ActivityScope).
+// Drives the activity panel's empty state, keyed by the caller's derived
+// scope (lib/types.ts#ActivityScope).
 export const ACTIVITY_FEED_COPY: Record<
   ActivityScope,
-  {
-    description: string;
-    emptyDescription: string;
-    reviewedTitle: string | null;
-  }
+  { emptyDescription: string; reviewedTitle: string | null }
 > = {
   none: {
-    description: 'Updates to your applications.',
     emptyDescription: 'Updates to your applications will show up here.',
     reviewedTitle: null,
   },
   managed: {
-    description:
-      'Updates to your applications and new applications to the positions you manage.',
     emptyDescription:
       'Updates to your applications and new applications to the positions you manage will show up here.',
     reviewedTitle: 'Positions you manage',
   },
   all: {
-    description:
-      'Updates to your applications and new applications across all positions.',
     emptyDescription:
       'Updates to your applications and new applications across all positions will show up here.',
     reviewedTitle: 'All positions',

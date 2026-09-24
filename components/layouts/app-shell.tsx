@@ -3,7 +3,6 @@ import { type ReactNode, Suspense } from 'react';
 import { isManager } from '@/prisma/data/managers';
 
 import { getIsBypass, getOptionalUser } from '@/lib/auth/server';
-import { ACTIVITY_FEED_COPY } from '@/lib/constants';
 import type { ActivityScope, NavIdentity } from '@/lib/types';
 
 import {
@@ -47,7 +46,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
         : 'none';
 
     activityPanel = (
-      <ActivityPanel description={ACTIVITY_FEED_COPY[scope].description}>
+      <ActivityPanel>
         <Suspense fallback={<ActivityFeedListSkeleton scope={scope} />}>
           <ActivityFeed userId={user.id} isAdmin={user.isAdmin} />
         </Suspense>

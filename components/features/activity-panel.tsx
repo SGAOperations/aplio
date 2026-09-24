@@ -8,17 +8,15 @@ import { Button } from '@/components/ui/button';
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
 
 interface ActivityPanelProps {
-  description: string;
   children: ReactNode;
 }
 
-export function ActivityPanel({ description, children }: ActivityPanelProps) {
+export function ActivityPanel({ children }: ActivityPanelProps) {
   const [open, setOpen] = useState(false);
   const ActivityIcon = CONCEPT_ICONS.activity;
 
@@ -29,10 +27,13 @@ export function ActivityPanel({ description, children }: ActivityPanelProps) {
           <ActivityIcon className="size-5" />
         </Button>
       </SheetTrigger>
-      <SheetContent side="right" className="flex flex-col gap-0 p-0">
+      <SheetContent
+        side="right"
+        className="flex flex-col gap-0 p-0"
+        aria-describedby={undefined}
+      >
         <div className="border-b px-4 py-3 pr-12">
           <SheetTitle className="text-base">Recent activity</SheetTitle>
-          <SheetDescription>{description}</SheetDescription>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
       </SheetContent>
