@@ -1038,6 +1038,17 @@ export const POSITION_AVAILABILITY_BADGE_VARIANT: Record<
   unavailable: 'outline',
 };
 
+// Reason shown beside a disabled Continue/Edit & resubmit — draft and
+// withdrawn share one gate, so the copy can't drift between them.
+export const APPLICANT_ACTION_BLOCKED_REASONS: Record<
+  Exclude<PositionAvailability, 'accepting'>,
+  string
+> = {
+  closed_by_date: 'Deadline passed',
+  unavailable: 'Position closed',
+  upcoming: 'Not open yet',
+};
+
 export const PRIVACY_HREF = '/privacy';
 export const TERMS_HREF = '/terms';
 
