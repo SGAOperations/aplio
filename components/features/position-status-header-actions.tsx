@@ -17,6 +17,7 @@ import {
 import { ACTION_ICONS } from '@/lib/icons';
 import { isError } from '@/lib/utils';
 
+import { DisabledActionTooltip } from '@/components/features/disabled-action-tooltip';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
@@ -25,12 +26,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 
 interface PositionStatusHeaderActionsProps {
   positionId: string;
@@ -69,17 +64,18 @@ function GatedActionButton({
     </Button>
   );
 
-  if (!disabledReason) return button;
-
   return (
-    <TooltipProvider delayDuration={300}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span tabIndex={0}>{button}</span>
-        </TooltipTrigger>
-        <TooltipContent>{disabledReason}</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <DisabledActionTooltip reason={disabledReason}>
+      {(describedBy) =>
+        describedBy ? (
+          <span tabIndex={0} aria-describedby={describedBy}>
+            {button}
+          </span>
+        ) : (
+          button
+        )
+      }
+    </DisabledActionTooltip>
   );
 }
 
