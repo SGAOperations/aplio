@@ -28,7 +28,12 @@ export default function GlobalQuestionsLoading() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeaderSkeleton actions={['w-32']} actionSize="sm" />
-      <DataTableSkeleton columns={COLUMNS} hasReorderHandle mobileGap="gap-3" />
+      <DataTableSkeleton
+        columns={COLUMNS}
+        hasReorderHandle
+        mobileGap="gap-3"
+        mobileRowGap="gap-0"
+      />
     </div>
   );
 }

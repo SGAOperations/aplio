@@ -36,7 +36,7 @@ export interface DataTableSkeletonColumn {
   mobile?: DataTableSkeletonMobileRole;
 }
 
-type DataTableSkeletonGap = 'gap-1' | 'gap-2' | 'gap-3';
+type DataTableSkeletonGap = 'gap-0' | 'gap-1' | 'gap-2' | 'gap-3';
 
 interface DataTableSkeletonProps {
   columns: DataTableSkeletonColumn[];
