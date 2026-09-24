@@ -4,6 +4,7 @@ import { twMerge } from 'tailwind-merge';
 import type { $Enums } from '@/prisma/client';
 
 import {
+  APPLICANT_ACTION_BLOCKED_REASONS,
   APPLICATION_STATUS_LABELS,
   DEADLINE_SOON_DAYS,
   DEADLINE_URGENT_HOURS,
@@ -350,6 +351,16 @@ export function isOpenPastCloseDate(
   now?: Date,
 ): boolean {
   return getPositionAvailability(position, now) === 'closed_by_date';
+}
+
+/** `null` while accepting; otherwise the reason draft/withdrawn's Continue is disabled. */
+export function getApplicantActionBlockedReason(
+  position: PositionWindow,
+  now?: Date,
+): string | null {
+  const availability = getPositionAvailability(position, now);
+  if (availability === 'accepting') return null;
+  return APPLICANT_ACTION_BLOCKED_REASONS[availability];
 }
 
 export function getPositionDateInfo(

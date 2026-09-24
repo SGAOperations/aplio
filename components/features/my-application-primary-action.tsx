@@ -1,7 +1,8 @@
 import Link from 'next/link';
+import { useId } from 'react';
 
 import { type MyApplicationListItem } from '@/lib/types';
-import { isAcceptingApplications } from '@/lib/utils';
+import { getApplicantActionBlockedReason } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
 
@@ -15,30 +16,52 @@ interface MyApplicationPrimaryActionProps {
 export function MyApplicationPrimaryAction({
   application,
 }: MyApplicationPrimaryActionProps) {
-  if (application.status === 'draft')
+  // Called unconditionally, before any early return (rules of hooks) — the
+  // table renders both the row and the mobile card for every application, so
+  // an id derived from application.id would be duplicated in the DOM.
+  const reasonId = useId();
+
+  if (application.status !== 'draft' && application.status !== 'withdrawn')
+    return null;
+
+  const isDraft = application.status === 'draft';
+  const label = isDraft ? 'Continue' : 'Edit & resubmit';
+  const ariaLabel = isDraft
+    ? `Continue application for ${application.position.title}`
+    : `Edit and resubmit application for ${application.position.title}`;
+  const reason = getApplicantActionBlockedReason(application.position);
+
+  if (reason === null)
     return (
       <Button variant="outline" size="sm" asChild>
-        <Link href={`/positions/${application.positionId}/apply`}>
-          Continue
+        <Link
+          href={`/positions/${application.positionId}/apply`}
+          aria-label={ariaLabel}
+        >
+          {label}
         </Link>
       </Button>
     );
 
-  if (application.status !== 'withdrawn') return null;
-
-  if (!isAcceptingApplications(application.position))
-    return (
-      <span className="text-muted-foreground text-sm">Position closed</span>
-    );
-
   return (
-    <Button variant="outline" size="sm" asChild>
-      <Link
-        href={`/positions/${application.positionId}/apply`}
-        aria-label={`Edit and resubmit application for ${application.position.title}`}
+    <span className="flex items-center gap-2">
+      <span
+        id={reasonId}
+        className="text-muted-foreground text-sm whitespace-nowrap"
       >
-        Edit &amp; resubmit
-      </Link>
-    </Button>
+        {reason}
+      </span>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        aria-disabled="true"
+        aria-label={ariaLabel}
+        aria-describedby={reasonId}
+        className="aria-disabled:pointer-events-none aria-disabled:opacity-50"
+      >
+        {label}
+      </Button>
+    </span>
   );
 }
