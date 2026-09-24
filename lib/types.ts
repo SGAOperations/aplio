@@ -491,10 +491,17 @@ export interface SectionNavItem {
   label: string;
 }
 
-// One IntersectionObserver entry, reduced to what selectActiveSectionId needs.
-export interface SectionVisibility {
+// A section's top offset in px from the scroll root's top edge.
+export interface SectionPosition {
   id: string;
-  isIntersecting: boolean;
+  top: number;
+}
+
+// The scroll root's (#main-content) current scroll geometry.
+export interface SectionScrollMetrics {
+  scrollTop: number;
+  scrollHeight: number;
+  clientHeight: number;
 }
 
 export type EmailStatusFilter = (typeof EMAIL_STATUS_VALUES)[number];
