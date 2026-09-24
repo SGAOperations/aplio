@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 import { getActivityGroups } from '@/prisma/data/activity';
 
 import {
@@ -10,34 +12,49 @@ import { type ActivityItem, type ActivityScope } from '@/lib/types';
 
 import { LocalTime } from '@/components/ui/local-time';
 import { SectionCardEmpty } from '@/components/ui/section-card';
+import { SheetClose } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
+
+function ActivityFeedRowContent({ item }: { item: ActivityItem }) {
+  const dotClass = STATUS_BADGE_VARIANT_TO_DOT[item.statusVariant];
+
+  return (
+    <>
+      <span
+        className={`mt-1.5 size-2 shrink-0 rounded-full ${dotClass}`}
+        aria-hidden="true"
+      />
+      <p className="line-clamp-3 min-w-0 flex-1 text-sm">{item.sentence}</p>
+      <LocalTime
+        date={item.timestamp}
+        precision="relative"
+        className="text-muted-foreground ml-auto shrink-0 text-xs tabular-nums"
+      />
+    </>
+  );
+}
 
 export function ActivityFeedList({ items }: { items: ActivityItem[] }) {
   return (
     <ol>
-      {items.map((item) => {
-        const dotClass = STATUS_BADGE_VARIANT_TO_DOT[item.statusVariant];
-
-        return (
-          <li
-            key={item.id}
-            className="flex items-start gap-3 border-b px-4 py-3 last:border-0"
-          >
-            <span
-              className={`mt-1.5 size-2 shrink-0 rounded-full ${dotClass}`}
-              aria-hidden="true"
-            />
-            <p className="line-clamp-3 min-w-0 flex-1 text-sm">
-              {item.sentence}
-            </p>
-            <LocalTime
-              date={item.timestamp}
-              precision="relative"
-              className="text-muted-foreground ml-auto shrink-0 text-xs tabular-nums"
-            />
-          </li>
-        );
-      })}
+      {items.map((item) => (
+        <li key={item.id} className="border-b last:border-0">
+          {item.href ? (
+            <SheetClose asChild>
+              <Link
+                href={item.href}
+                className="hover:bg-muted/50 focus-visible:ring-ring flex items-start gap-3 px-4 py-3 outline-none focus-visible:ring-2"
+              >
+                <ActivityFeedRowContent item={item} />
+              </Link>
+            </SheetClose>
+          ) : (
+            <div className="flex items-start gap-3 px-4 py-3">
+              <ActivityFeedRowContent item={item} />
+            </div>
+          )}
+        </li>
+      ))}
     </ol>
   );
 }
