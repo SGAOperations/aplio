@@ -48,7 +48,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
 
     activityPanel = (
       <ActivityPanel description={ACTIVITY_FEED_COPY[scope].description}>
-        <Suspense fallback={<ActivityFeedListSkeleton />}>
+        <Suspense fallback={<ActivityFeedListSkeleton scope={scope} />}>
           <ActivityFeed userId={user.id} isAdmin={user.isAdmin} />
         </Suspense>
       </ActivityPanel>
