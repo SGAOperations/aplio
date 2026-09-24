@@ -413,7 +413,7 @@ export type QuestionFileDownload = {
 };
 
 // sentence is pre-rendered safe copy; statusVariant drives the dot color.
-// href is set only for linkable rows (position opens/closes).
+// href is unset for a deleted position's rows — the page no longer exists.
 export type ActivityItem = {
   id: string;
   statusVariant: BadgeVariant;
@@ -435,20 +435,22 @@ export type ActivityGroups = {
 
 // Matches getRecentPositionStatusEvents's select in prisma/data/positions.ts.
 // No actor identity selected — changedBy never reaches the activity panel.
+// position.deletedAt drives whether the row renders unlinked.
 export type PositionStatusActivity = Prisma.PositionStatusEventGetPayload<{
   select: {
     id: true;
     from: true;
     to: true;
     createdAt: true;
-    position: { select: { id: true; title: true } };
+    position: { select: { id: true; title: true; deletedAt: true } };
   };
 }>;
 
 // Matches getRecentPositionDeadlineCloses's select — no event backs this row,
-// so closesAt itself (guaranteed non-null by that query's where) is the timestamp.
+// so closesAt itself (guaranteed non-null by that query's where) is the
+// timestamp; deletedAt drives whether it renders unlinked.
 export type PositionDeadlineCloseActivity = Prisma.PositionGetPayload<{
-  select: { id: true; title: true; closesAt: true };
+  select: { id: true; title: true; closesAt: true; deletedAt: true };
 }>;
 
 // Matches getRecentPositionDeletions's select — no event backs this row either,

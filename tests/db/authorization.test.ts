@@ -1181,6 +1181,7 @@ describe('getActivityGroups composition and scoping', () => {
     expect(result).toBeUndefined();
 
     const groups = await getActivityGroups(manager.id, false);
+    expect(groups.scope).toBe('managed');
     const item = groups.reviewed.find((i) =>
       i.sentence.includes(position.title),
     );
@@ -1234,7 +1235,7 @@ describe('getActivityGroups composition and scoping', () => {
     );
   });
 
-  it('deletion: an admin sees it under "all", and the earlier opening drops out', async () => {
+  it('deletion: an admin sees it under "all", and the earlier opened/closed rows persist unlinked', async () => {
     const manager = await createTestUser();
     const position = await createTestPosition(admin, {
       managers: [manager],
@@ -1243,13 +1244,62 @@ describe('getActivityGroups composition and scoping', () => {
 
     actAs(admin);
     await updatePositionStatus({ id: position.id, status: 'open' });
+    await updatePositionStatus({ id: position.id, status: 'closed' });
     await deletePosition({ id: position.id });
 
     const groups = await getActivityGroups(admin.id, true);
     expect(groups.scope).toBe('all');
+    const opened = groups.reviewed.find(
+      (i) => i.sentence === `${position.title} was opened`,
+    );
+    const closed = groups.reviewed.find(
+      (i) => i.sentence === `${position.title} was closed`,
+    );
+    const deleted = groups.reviewed.find(
+      (i) => i.sentence === `${position.title} was deleted`,
+    );
+    expect(opened).toBeDefined();
+    expect(opened?.href).toBeUndefined();
+    expect(closed).toBeDefined();
+    expect(closed?.href).toBeUndefined();
+    expect(deleted).toBeDefined();
+  });
+
+  it('deletion: a deadline-close row already produced before deletion persists unlinked', async () => {
+    const manager = await createTestUser();
+    const past = new Date(Date.now() - 60 * 60 * 1000);
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'open',
+      closesAt: past,
+    });
+
+    actAs(admin);
+    await deletePosition({ id: position.id });
+
+    const groups = await getActivityGroups(manager.id, false);
+    const item = groups.reviewed.find(
+      (i) => i.sentence === `${position.title} closed`,
+    );
+    expect(item).toBeDefined();
+    expect(item?.href).toBeUndefined();
+  });
+
+  it('deletion: a deadline lapsing only after deletion produces no row', async () => {
+    const manager = await createTestUser();
+    const deletedAt = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    const closesAt = new Date(Date.now() - 60 * 60 * 1000);
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'open',
+      closesAt,
+      deletedAt,
+      deletedById: admin.id,
+    });
+
+    const groups = await getActivityGroups(manager.id, false);
     const sentences = groups.reviewed.map((i) => i.sentence);
-    expect(sentences).toContain(`${position.title} was deleted`);
-    expect(sentences).not.toContain(`${position.title} was opened`);
+    expect(sentences).not.toContain(`${position.title} closed`);
   });
 
   it('merges openings with applications by time and caps the combined feed at 10', async () => {

@@ -1008,6 +1008,10 @@ export const POSITION_STATUS_BADGE_VARIANT: Record<
   BadgeVariant
 > = { draft: 'secondary', open: 'default', closed: 'outline' };
 
+// No 'deleted' member on PositionStatus, so the deletion activity row's badge
+// isn't part of the map above.
+export const POSITION_DELETED_BADGE_VARIANT: BadgeVariant = 'destructive';
+
 // Position-scoped surfaces (draft still shows its applications); PUBLISHED is for cross-position ones.
 export const VISIBLE_POSITION_WHERE = {
   deletedAt: null,

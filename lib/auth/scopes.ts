@@ -26,6 +26,16 @@ export function buildDeletedPositionWhere(
   return user.isAdmin ? base : { ...base, managers: { some: { id: user.id } } };
 }
 
+// Same admin/manager split, but omits buildReviewablePositionWhere's deletedAt:
+// null — for activity rows a position already produced, which must survive
+// its own later deletion.
+export function buildPositionHistoryWhere(
+  user: Reviewer,
+): Prisma.PositionWhereInput {
+  const base = { status: { not: 'draft' } } as const;
+  return user.isAdmin ? base : { ...base, managers: { some: { id: user.id } } };
+}
+
 // `status` omitted so a caller's own filter can't overwrite the position scoping.
 export function buildApplicationScopeWhere(
   user: Reviewer,

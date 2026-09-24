@@ -4,7 +4,7 @@ import { cache } from 'react';
 
 import {
   buildDeletedPositionWhere,
-  buildReviewablePositionWhere,
+  buildPositionHistoryWhere,
 } from '@/lib/auth/scopes';
 import {
   MANAGED_POSITIONS_WINDOW_DAYS,
@@ -387,7 +387,8 @@ export async function getPositionDeletionSummary(
   return { submittedCount, draftCount };
 }
 
-// Scoped identically to getRecentApplications so drift can't desync the two feeds.
+// buildPositionHistoryWhere, not buildReviewablePositionWhere, so opened/closed
+// rows outlive the position's own later deletion.
 export async function getRecentPositionStatusEvents(
   reviewer: Reviewer,
   take: number,
@@ -395,21 +396,22 @@ export async function getRecentPositionStatusEvents(
   return prisma.positionStatusEvent.findMany({
     where: {
       to: { in: ['open', 'closed'] },
-      position: buildReviewablePositionWhere(reviewer),
+      position: buildPositionHistoryWhere(reviewer),
     },
     select: {
       id: true,
       from: true,
       to: true,
       createdAt: true,
-      position: { select: { id: true, title: true } },
+      position: { select: { id: true, title: true, deletedAt: true } },
     },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take,
   });
 }
 
-// No event backs a deadline lapse, so this derives from closesAt; status: 'open' excludes a manually-closed position from double-reporting.
+// No event backs a deadline lapse, so this derives from closesAt; status: 'open'
+// excludes a manually-closed position from double-reporting.
 export async function getRecentPositionDeadlineCloses(
   reviewer: Reviewer,
   take: number,
@@ -418,16 +420,21 @@ export async function getRecentPositionDeadlineCloses(
   const cutoff = new Date(now);
   cutoff.setDate(cutoff.getDate() - RECENTLY_CLOSED_WINDOW_DAYS);
 
-  return prisma.position.findMany({
+  const positions = await prisma.position.findMany({
     where: {
-      ...buildReviewablePositionWhere(reviewer),
+      ...buildPositionHistoryWhere(reviewer),
       status: 'open',
       closesAt: { gte: cutoff, lte: now },
     },
-    select: { id: true, title: true, closesAt: true },
+    select: { id: true, title: true, closesAt: true, deletedAt: true },
     orderBy: [{ closesAt: 'desc' }, { id: 'desc' }],
-    take,
   });
+
+  // Excludes a deadline lapsing only after deletion — Prisma can't compare two
+  // columns of one row in a where, so this runs post-fetch.
+  return positions
+    .filter((p) => p.deletedAt === null || p.closesAt! <= p.deletedAt)
+    .slice(0, take);
 }
 
 // buildDeletedPositionWhere, not buildReviewablePositionWhere, since these
