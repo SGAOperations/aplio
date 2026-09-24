@@ -4,6 +4,7 @@ import {
   type DataTableColumn,
   compareValues,
   filterRows,
+  sortRows,
 } from '@/lib/data-table';
 
 describe('compareValues', () => {
@@ -89,5 +90,45 @@ describe('filterRows', () => {
         filters: [{ key: 'position', value: 'p2' }],
       }),
     ).toEqual([]);
+  });
+});
+
+interface DatedRow {
+  id: string;
+  lastLoginAt: Date | null;
+}
+
+const datedRows: DatedRow[] = [
+  { id: 'null-1', lastLoginAt: null },
+  { id: 'old', lastLoginAt: new Date('2026-01-01T00:00:00Z') },
+  { id: 'new', lastLoginAt: new Date('2026-03-01T00:00:00Z') },
+  { id: 'null-2', lastLoginAt: null },
+];
+
+const lastLoginColumn: DataTableColumn<DatedRow> = {
+  key: 'lastLoginAt',
+  header: 'Last sign-in',
+  cell: (r) => r.lastLoginAt?.toISOString() ?? '',
+  sortAccessor: (r) => r.lastLoginAt,
+};
+
+describe('sortRows', () => {
+  it('orders dated rows oldest-first ascending, with nulls last', () => {
+    const result = sortRows(datedRows, lastLoginColumn, 'asc');
+    expect(result.map((r) => r.id)).toEqual(['old', 'new', 'null-1', 'null-2']);
+  });
+
+  it('orders dated rows newest-first descending, with nulls still last', () => {
+    const result = sortRows(datedRows, lastLoginColumn, 'desc');
+    expect(result.map((r) => r.id)).toEqual(['new', 'old', 'null-1', 'null-2']);
+  });
+
+  it('returns the rows unchanged when the column has no sortAccessor', () => {
+    const unsortable: DataTableColumn<DatedRow> = {
+      key: 'lastLoginAt',
+      header: 'Last sign-in',
+      cell: (r) => r.lastLoginAt?.toISOString() ?? '',
+    };
+    expect(sortRows(datedRows, unsortable, 'asc')).toBe(datedRows);
   });
 });
