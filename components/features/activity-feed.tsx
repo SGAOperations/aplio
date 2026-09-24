@@ -27,7 +27,7 @@ export function ActivityFeedList({ items }: { items: ActivityItem[] }) {
               className={`mt-1.5 size-2 shrink-0 rounded-full ${dotClass}`}
               aria-hidden="true"
             />
-            <p className="line-clamp-2 min-w-0 flex-1 text-sm">
+            <p className="line-clamp-3 min-w-0 flex-1 text-sm">
               {item.sentence}
             </p>
             <LocalTime
