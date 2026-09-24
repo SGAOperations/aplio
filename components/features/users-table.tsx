@@ -551,10 +551,6 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
               );
             }}
           />
-          <p className="text-muted-foreground text-xs">
-            &ldquo;—&rdquo; means no sign-in has been recorded since sign-in
-            tracking began.
-          </p>
         </div>
       </TooltipProvider>
 
