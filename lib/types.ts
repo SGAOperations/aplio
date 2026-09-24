@@ -439,6 +439,7 @@ export type AdminUserListItem = Prisma.UserGetPayload<{
     email: true;
     isAdmin: true;
     createdAt: true;
+    lastLoginAt: true;
     managedPositions: { select: { id: true; title: true } };
     _count: {
       select: {

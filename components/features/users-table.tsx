@@ -179,6 +179,20 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
         cell: (u) => <LocalTime date={u.createdAt} precision="date" />,
       },
       {
+        key: 'lastSignIn',
+        header: 'Last sign-in',
+        sortAccessor: (u) => u.lastLoginAt,
+        cell: (u) =>
+          u.lastLoginAt ? (
+            <LocalTime date={u.lastLoginAt} precision="relative" />
+          ) : (
+            <span className="text-muted-foreground">
+              <span aria-hidden>—</span>
+              <span className="sr-only">No sign-in recorded</span>
+            </span>
+          ),
+      },
+      {
         key: 'applications',
         header: 'Applications',
         sortAccessor: (u) => u._count.applications,
@@ -457,6 +471,19 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
                       Joined{' '}
                       <LocalTime date={user.createdAt} precision="date" />
                     </span>
+                    <span className="text-muted-foreground">
+                      {user.lastLoginAt ? (
+                        <>
+                          Last sign-in{' '}
+                          <LocalTime
+                            date={user.lastLoginAt}
+                            precision="relative"
+                          />
+                        </>
+                      ) : (
+                        'No sign-in recorded'
+                      )}
+                    </span>
                     {appCount > 0 ? (
                       <Button
                         variant="link"
@@ -524,6 +551,10 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
               );
             }}
           />
+          <p className="text-muted-foreground text-xs">
+            &ldquo;—&rdquo; means no sign-in has been recorded since sign-in
+            tracking began.
+          </p>
         </div>
       </TooltipProvider>
 
