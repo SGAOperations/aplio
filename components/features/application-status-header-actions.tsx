@@ -110,10 +110,15 @@ export function ApplicationStatusHeaderActions({
               isPending={move.isPending}
               onSelect={move.selectTarget}
               onSeeMore={() => setDialogOpen(true)}
+              canForceWithdraw={canForceWithdraw}
+              onForceWithdraw={forceWithdraw.openConfirm}
             />
           </DropdownMenuContent>
         </DropdownMenu>
         {confirmDialog}
+        {canForceWithdraw && (
+          <ConfirmDialog {...forceWithdraw.confirmDialogProps} />
+        )}
         {dialog}
       </>
     );
