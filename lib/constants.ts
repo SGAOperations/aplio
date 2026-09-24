@@ -824,6 +824,9 @@ export const POSITION_CLOSED_DRAFT_BLOCKED_ERROR =
   'A closed position cannot go back to draft. Reopen it instead, or leave it closed.';
 export const POSITION_UNPUBLISH_BLOCKED_ERROR =
   'Someone has already started an application, so this position cannot go back to draft. Close it instead.';
+// A concurrent save changed the position's status between load and submit.
+export const POSITION_STATUS_CHANGED_ERROR =
+  'This position just changed. Refresh to see its current status.';
 export const POSITION_REOPEN_PAST_CLOSE_ERROR =
   "This position's close date has passed. Clear or extend the close date to reopen it.";
 
@@ -1138,6 +1141,16 @@ export const ACTIVITY_FEED_COPY: Record<
       'Updates to your applications and new applications across all positions will show up here.',
     reviewedTitle: 'All positions',
   },
+};
+
+// Activity panel copy for a position's "to: open" event, keyed by the status
+// it moved from — reopened (from closed) reads differently than opened.
+export const POSITION_ACTIVITY_SENTENCE: Record<
+  'draft' | 'closed',
+  (title: string) => string
+> = {
+  draft: (title) => `${title} was opened`,
+  closed: (title) => `${title} was reopened`,
 };
 
 // Order is meaningful — rendered left to right on position cards.

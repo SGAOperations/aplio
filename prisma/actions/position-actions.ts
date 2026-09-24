@@ -22,6 +22,7 @@ import {
   POSITION_OPENS_AT_ORDER_ERROR,
   POSITION_OPENS_AT_PAST_ERROR,
   POSITION_OPEN_REQUIRES_ADMIN_ERROR,
+  POSITION_STATUS_CHANGED_ERROR,
   POSITION_STATUS_VALUES,
   POSITION_UNPUBLISH_BLOCKED_ERROR,
   createPositionFormSchema,
@@ -274,27 +275,47 @@ export async function updatePositionStatus(
   if (transitionError) return { error: transitionError };
 
   // Folded into the where (not a separate count) so a concurrent first
-  // application can't slip past the check above — same shape as deletePosition.
-  const updateResult = await prisma.position.updateMany({
-    where: {
-      id,
-      deletedAt: null,
-      ...(isUnpublishing
-        ? { applications: { none: { deletedAt: null } } }
-        : {}),
-    },
-    data: { status, updatedById: user.id },
+  // application, or a concurrent status change, can't slip past the checks
+  // above — same shape as deletePosition. status: existing.status is a
+  // compare-and-swap: it makes the event's `from` provably the replaced
+  // status, and stops a concurrent double-open from writing two events.
+  const updateCount = await prisma.$transaction(async (tx) => {
+    const updateResult = await tx.position.updateMany({
+      where: {
+        id,
+        deletedAt: null,
+        status: existing.status,
+        ...(isUnpublishing
+          ? { applications: { none: { deletedAt: null } } }
+          : {}),
+      },
+      data: { status, updatedById: user.id },
+    });
+
+    if (updateResult.count === 1 && existing.status !== status)
+      await tx.positionStatusEvent.create({
+        data: {
+          positionId: id,
+          from: existing.status,
+          to: status,
+          changedById: user.id,
+        },
+      });
+
+    return updateResult.count;
   });
 
-  if (updateResult.count === 0) {
-    const stillExists = await prisma.position.findFirst({
+  if (updateCount === 0) {
+    const current = await prisma.position.findFirst({
       where: { id, deletedAt: null },
-      select: { id: true },
+      select: { status: true },
     });
+    if (!current) return { error: 'This position no longer exists.' };
     return {
-      error: stillExists
-        ? POSITION_UNPUBLISH_BLOCKED_ERROR
-        : 'This position no longer exists.',
+      error:
+        current.status !== existing.status
+          ? POSITION_STATUS_CHANGED_ERROR
+          : POSITION_UNPUBLISH_BLOCKED_ERROR,
     };
   }
 
