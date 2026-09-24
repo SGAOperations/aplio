@@ -18,7 +18,10 @@ export function ProgressRing({
     <span
       role="img"
       aria-label={`${percent}% complete`}
-      className={cn('inline-flex shrink-0 items-center gap-1.5', className)}
+      className={cn(
+        'ml-2 inline-flex shrink-0 items-center gap-1.5',
+        className,
+      )}
     >
       <svg
         viewBox="0 0 36 36"

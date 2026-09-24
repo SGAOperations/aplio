@@ -293,13 +293,6 @@ export function ApplicationsTable(props: ApplicationsTableProps) {
             <div className="flex items-center gap-1">
               <ApplicationStatusBadge status="draft" />
               {entry && <ProgressRing percent={entry.percent} size="sm" />}
-              <ApplicationStatusActions
-                applicationId={app.id}
-                currentStatus="draft"
-                applicantName={displayUserName(app.user)}
-                applicantEmail={app.user.email}
-                isAdmin={isAdmin}
-              />
             </div>
           );
         }
@@ -457,13 +450,6 @@ export function ApplicationsTable(props: ApplicationsTableProps) {
                       {entry && (
                         <ProgressRing percent={entry.percent} size="sm" />
                       )}
-                      <ApplicationStatusActions
-                        applicationId={app.id}
-                        currentStatus="draft"
-                        applicantName={displayUserName(app.user)}
-                        applicantEmail={app.user.email}
-                        isAdmin={isAdmin}
-                      />
                     </div>
                   </div>
                   {app.user.name && (

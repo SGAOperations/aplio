@@ -138,17 +138,15 @@ function ApplicationList({
               {app.position.title}
             </Link>
             <ApplicationStatusBadge status={app.status} />
+            {entry && <ProgressRing percent={entry.percent} size="sm" />}
             <span className="text-muted-foreground flex shrink-0 items-center gap-1 text-xs">
               {app.status === 'draft' || app.status === 'withdrawn' ? (
-                <>
-                  <DeadlineIndicator
-                    variant="compact"
-                    position={app.position}
-                    now={now}
-                    emphasizeUrgency
-                  />
-                  {entry && <ProgressRing percent={entry.percent} size="sm" />}
-                </>
+                <DeadlineIndicator
+                  variant="compact"
+                  position={app.position}
+                  now={now}
+                  emphasizeUrgency
+                />
               ) : app.submittedAt ? (
                 <LocalTime date={app.submittedAt} precision="date" />
               ) : (
