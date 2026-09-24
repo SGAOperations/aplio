@@ -65,57 +65,105 @@ describe('buildSectionNavItems', () => {
 });
 
 describe('selectActiveSectionId', () => {
-  it('picks the first intersecting entry in document order', () => {
+  const metrics = { scrollTop: 1200, scrollHeight: 3000, clientHeight: 800 };
+
+  it('returns null for an empty section list', () => {
+    expect(selectActiveSectionId([], metrics, null)).toBeNull();
+  });
+
+  it('ignores an edge-only overlap and picks the section below it', () => {
+    const sections = [
+      { id: 'a', top: 0 },
+      { id: 'b', top: 24 },
+    ];
+    expect(selectActiveSectionId(sections, metrics, null)).toBe('b');
+  });
+
+  it('picks the lower section once its top has crossed the reading line, even with the upper tail visible', () => {
+    const sections = [
+      { id: 'a', top: -500 },
+      { id: 'b', top: 300 },
+    ];
+    expect(selectActiveSectionId(sections, metrics, null)).toBe('b');
+  });
+
+  it('keeps the upper section while the lower section has not crossed the reading line', () => {
+    const sections = [
+      { id: 'a', top: -100 },
+      { id: 'b', top: 500 },
+    ];
+    expect(selectActiveSectionId(sections, metrics, null)).toBe('a');
+  });
+
+  it('picks the last section at the bottom of the page, even when its top is below the reading line', () => {
+    const sections = [
+      { id: 'a', top: -400 },
+      { id: 'b', top: 600 },
+    ];
     expect(
       selectActiveSectionId(
-        [
-          { id: 'a', isIntersecting: false },
-          { id: 'b', isIntersecting: true },
-          { id: 'c', isIntersecting: true },
-        ],
+        sections,
+        { scrollTop: 2200, scrollHeight: 3000, clientHeight: 800 },
         null,
       ),
     ).toBe('b');
   });
 
-  it('keeps the previous id when nothing intersects and it is still present', () => {
+  it('picks the first section at the top of the page, even when the second section is above the reading line', () => {
+    const sections = [
+      { id: 'a', top: 0 },
+      { id: 'b', top: -50 },
+    ];
     expect(
       selectActiveSectionId(
-        [
-          { id: 'a', isIntersecting: false },
-          { id: 'b', isIntersecting: false },
-        ],
-        'b',
-      ),
-    ).toBe('b');
-  });
-
-  it('falls back to the first entry when the previous id is gone', () => {
-    expect(
-      selectActiveSectionId(
-        [
-          { id: 'a', isIntersecting: false },
-          { id: 'b', isIntersecting: false },
-        ],
-        'z',
+        sections,
+        { scrollTop: 0, scrollHeight: 3000, clientHeight: 800 },
+        null,
       ),
     ).toBe('a');
   });
 
-  it('falls back to the first entry scrolled past the last section', () => {
+  it('a pinned id beats the top, bottom and reading-line rules', () => {
+    const sections = [
+      { id: 'a', top: -400 },
+      { id: 'b', top: 600 },
+    ];
     expect(
       selectActiveSectionId(
-        [
-          { id: 'a', isIntersecting: false },
-          { id: 'b', isIntersecting: false },
-          { id: 'c', isIntersecting: false },
-        ],
-        'c',
+        sections,
+        { scrollTop: 2200, scrollHeight: 3000, clientHeight: 800 },
+        'a',
       ),
-    ).toBe('c');
+    ).toBe('a');
   });
 
-  it('returns null for an empty visibility list', () => {
-    expect(selectActiveSectionId([], 'a')).toBeNull();
+  it('ignores a pinned id that is not in the section list', () => {
+    const sections = [
+      { id: 'a', top: -100 },
+      { id: 'b', top: 500 },
+    ];
+    expect(selectActiveSectionId(sections, metrics, 'z')).toBe('a');
+  });
+
+  it('falls back to the first section when none has crossed the reading line', () => {
+    const sections = [
+      { id: 'a', top: 450 },
+      { id: 'b', top: 900 },
+    ];
+    expect(selectActiveSectionId(sections, metrics, null)).toBe('a');
+  });
+
+  it('returns the first section on a page that does not scroll', () => {
+    const sections = [
+      { id: 'a', top: 0 },
+      { id: 'b', top: 200 },
+    ];
+    expect(
+      selectActiveSectionId(
+        sections,
+        { scrollTop: 0, scrollHeight: 800, clientHeight: 800 },
+        null,
+      ),
+    ).toBe('a');
   });
 });

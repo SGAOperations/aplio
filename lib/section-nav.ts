@@ -1,10 +1,17 @@
-import type { SectionNavItem, SectionVisibility } from '@/lib/types';
+import type {
+  SectionNavItem,
+  SectionPosition,
+  SectionScrollMetrics,
+} from '@/lib/types';
 
 // Discovery selector for use-section-nav's querySelectorAll/MutationObserver scan.
 export const SECTION_NAV_SELECTOR = '[data-section-nav][id]';
 
-// Top 30% of <main> — tall enough that some section overlaps it at any mid-page scroll position.
-export const SECTION_NAV_ROOT_MARGIN = '0px 0px -70% 0px';
+// Reading line: the fraction of clientHeight a section's top must cross to win.
+export const SECTION_NAV_READING_LINE = 0.5;
+
+// Slack for the top/bottom-of-page checks, in px.
+export const SECTION_NAV_EDGE_TOLERANCE_PX = 1;
 
 // Preserves document order; drops empty/duplicate ids or labels; fewer than
 // two survivors means no sub-nav.
@@ -24,20 +31,32 @@ export function buildSectionNavItems(
   return items.length >= 2 ? items : [];
 }
 
-// First intersecting entry in document order wins. When none intersects,
-// keep previousId if it's still in the list, else fall back to the first.
+// Order: pinned id, top of page, bottom of page, else the last section whose
+// top has crossed the reading line (falling back to the first).
 export function selectActiveSectionId(
-  visibility: SectionVisibility[],
-  previousId: string | null,
+  sections: SectionPosition[],
+  metrics: SectionScrollMetrics,
+  pinnedId: string | null,
 ): string | null {
-  const [first] = visibility;
+  const [first] = sections;
   if (!first) return null;
 
-  const intersecting = visibility.find((entry) => entry.isIntersecting);
-  if (intersecting) return intersecting.id;
+  if (pinnedId && sections.some((section) => section.id === pinnedId))
+    return pinnedId;
 
-  if (previousId && visibility.some((entry) => entry.id === previousId))
-    return previousId;
+  const { scrollTop, scrollHeight, clientHeight } = metrics;
+  if (scrollTop <= SECTION_NAV_EDGE_TOLERANCE_PX) return first.id;
+
+  const last = sections[sections.length - 1];
+  if (
+    last &&
+    scrollTop + clientHeight >= scrollHeight - SECTION_NAV_EDGE_TOLERANCE_PX
+  )
+    return last.id;
+
+  const readingLine = clientHeight * SECTION_NAV_READING_LINE;
+  for (const section of [...sections].reverse())
+    if (section.top <= readingLine) return section.id;
 
   return first.id;
 }
