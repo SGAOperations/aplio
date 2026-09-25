@@ -824,6 +824,9 @@ export const POSITION_CLOSED_DRAFT_BLOCKED_ERROR =
   'A closed position cannot go back to draft. Reopen it instead, or leave it closed.';
 export const POSITION_UNPUBLISH_BLOCKED_ERROR =
   'Someone has already started an application, so this position cannot go back to draft. Close it instead.';
+// A concurrent save changed the position's status between load and submit.
+export const POSITION_STATUS_CHANGED_ERROR =
+  'This position just changed. Refresh to see its current status.';
 export const POSITION_REOPEN_PAST_CLOSE_ERROR =
   "This position's close date has passed. Clear or extend the close date to reopen it.";
 
@@ -1005,6 +1008,10 @@ export const POSITION_STATUS_BADGE_VARIANT: Record<
   BadgeVariant
 > = { draft: 'secondary', open: 'default', closed: 'outline' };
 
+// No 'deleted' member on PositionStatus, so the deletion activity row's badge
+// isn't part of the map above.
+export const POSITION_DELETED_BADGE_VARIANT: BadgeVariant = 'destructive';
+
 // Position-scoped surfaces (draft still shows its applications); PUBLISHED is for cross-position ones.
 export const VISIBLE_POSITION_WHERE = {
   deletedAt: null,
@@ -1139,6 +1146,27 @@ export const ACTIVITY_FEED_COPY: Record<
     reviewedTitle: 'All positions',
   },
 };
+
+// Activity panel copy for a position's "to: open" event, keyed by the status
+// it moved from — reopened (from closed) reads differently than opened.
+export const POSITION_ACTIVITY_SENTENCE: Record<
+  'draft' | 'closed',
+  (title: string) => string
+> = {
+  draft: (title) => `${title} was opened`,
+  closed: (title) => `${title} was reopened`,
+};
+
+// "to: closed" event copy — always from 'open', the only legal transition in.
+export const POSITION_CLOSED_SENTENCE = (title: string) =>
+  `${title} was closed`;
+
+// Derived deadline-close copy (no event, so no "was" — nothing acted on it).
+export const POSITION_CLOSED_BY_DATE_SENTENCE = (title: string) =>
+  `${title} closed`;
+
+export const POSITION_DELETED_SENTENCE = (title: string) =>
+  `${title} was deleted`;
 
 // Order is meaningful — rendered left to right on position cards.
 export const POSITION_CARD_STAT_STATUSES = [

@@ -20,7 +20,11 @@ import {
   deleteGlobalQuestion,
   updateGlobalQuestion,
 } from '@/prisma/actions/global-questions';
-import { searchUsers } from '@/prisma/actions/position-actions';
+import {
+  deletePosition,
+  searchUsers,
+  updatePositionStatus,
+} from '@/prisma/actions/position-actions';
 import {
   createPositionQuestion,
   deletePositionQuestion,
@@ -931,5 +935,393 @@ describe('getActivityGroups composition and scoping', () => {
     expect(reviewedIds).not.toContain(adminApp.id);
     expect(reviewedIds).not.toContain(onDraftPosition.id);
     expect(reviewedIds).not.toContain(onDeletedPosition.id);
+  });
+
+  it('admin opens a draft: the listed manager sees a "was opened" item linking to the position', async () => {
+    const manager = await createTestUser();
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'draft',
+    });
+
+    actAs(admin);
+    const result = await updatePositionStatus({
+      id: position.id,
+      status: 'open',
+    });
+    expect(result).toBeUndefined();
+
+    const groups = await getActivityGroups(manager.id, false);
+    expect(groups.scope).toBe('managed');
+    const item = groups.reviewed.find((i) =>
+      i.sentence.includes(position.title),
+    );
+    expect(item).toBeDefined();
+    expect(item?.sentence).toBe(`${position.title} was opened`);
+    expect(item?.href).toBe(`/positions/${position.id}`);
+  });
+
+  it('a manager of a different position does not see the opening', async () => {
+    const manager = await createTestUser();
+    const otherManager = await createTestUser();
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'draft',
+    });
+
+    actAs(admin);
+    await updatePositionStatus({ id: position.id, status: 'open' });
+
+    const groups = await getActivityGroups(otherManager.id, false);
+    const ids = groups.reviewed.map((i) => i.sentence);
+    expect(ids).not.toContain(`${position.title} was opened`);
+  });
+
+  it('an applicant on the position (not a manager) never gets a reviewer group', async () => {
+    const manager = await createTestUser();
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'draft',
+    });
+
+    actAs(admin);
+    await updatePositionStatus({ id: position.id, status: 'open' });
+
+    const positionApplicant = await createTestUser();
+    await createTestApplication(positionApplicant, position, {
+      status: 'applied',
+    });
+
+    const groups = await getActivityGroups(positionApplicant.id, false);
+    expect(groups.scope).toBe('none');
+    expect(groups.reviewed).toEqual([]);
+  });
+
+  it('an admin sees the opening under "all" with no self-filter', async () => {
+    const manager = await createTestUser();
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'draft',
+    });
+
+    actAs(admin);
+    await updatePositionStatus({ id: position.id, status: 'open' });
+
+    const groups = await getActivityGroups(admin.id, true);
+    expect(groups.scope).toBe('all');
+    const sentences = groups.reviewed.map((i) => i.sentence);
+    expect(sentences).toContain(`${position.title} was opened`);
+  });
+
+  it('reopening (open -> closed -> open) shows both "was closed" and "was reopened"', async () => {
+    const manager = await createTestUser();
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'open',
+    });
+
+    actAs(admin);
+    await updatePositionStatus({ id: position.id, status: 'closed' });
+    await updatePositionStatus({ id: position.id, status: 'open' });
+
+    const groups = await getActivityGroups(manager.id, false);
+    const sentences = groups.reviewed.map((i) => i.sentence);
+    expect(sentences).toContain(`${position.title} was reopened`);
+    expect(sentences).toContain(`${position.title} was closed`);
+  });
+
+  it('manual close: the listed manager sees a "was closed" item linking to the position', async () => {
+    const manager = await createTestUser();
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'open',
+    });
+
+    actAs(admin);
+    const result = await updatePositionStatus({
+      id: position.id,
+      status: 'closed',
+    });
+    expect(result).toBeUndefined();
+
+    const groups = await getActivityGroups(manager.id, false);
+    const item = groups.reviewed.find((i) =>
+      i.sentence.includes(position.title),
+    );
+    expect(item).toBeDefined();
+    expect(item?.sentence).toBe(`${position.title} was closed`);
+    expect(item?.href).toBe(`/positions/${position.id}`);
+  });
+
+  it('a manager of a different position does not see the close', async () => {
+    const manager = await createTestUser();
+    const otherManager = await createTestUser();
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'open',
+    });
+
+    actAs(admin);
+    await updatePositionStatus({ id: position.id, status: 'closed' });
+
+    const groups = await getActivityGroups(otherManager.id, false);
+    const sentences = groups.reviewed.map((i) => i.sentence);
+    expect(sentences).not.toContain(`${position.title} was closed`);
+  });
+
+  it('an applicant on the position never sees the close', async () => {
+    const manager = await createTestUser();
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'open',
+    });
+    const positionApplicant = await createTestUser();
+    await createTestApplication(positionApplicant, position, {
+      status: 'applied',
+    });
+
+    actAs(admin);
+    await updatePositionStatus({ id: position.id, status: 'closed' });
+
+    const groups = await getActivityGroups(positionApplicant.id, false);
+    expect(groups.scope).toBe('none');
+    expect(groups.reviewed).toEqual([]);
+  });
+
+  it('deadline close: an open position past closesAt shows a derived "closed" item with no "was"', async () => {
+    const manager = await createTestUser();
+    const past = new Date(Date.now() - 60 * 60 * 1000);
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'open',
+      closesAt: past,
+    });
+
+    const groups = await getActivityGroups(manager.id, false);
+    const item = groups.reviewed.find((i) =>
+      i.sentence.includes(position.title),
+    );
+    expect(item).toBeDefined();
+    expect(item?.sentence).toBe(`${position.title} closed`);
+    expect(item?.href).toBe(`/positions/${position.id}`);
+  });
+
+  it('deadline close: scoped like other rows — a different manager and an applicant never see it', async () => {
+    const manager = await createTestUser();
+    const otherManager = await createTestUser();
+    const past = new Date(Date.now() - 60 * 60 * 1000);
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'open',
+      closesAt: past,
+    });
+    const positionApplicant = await createTestUser();
+    await createTestApplication(positionApplicant, position, {
+      status: 'applied',
+    });
+
+    const otherGroups = await getActivityGroups(otherManager.id, false);
+    expect(otherGroups.reviewed.map((i) => i.sentence)).not.toContain(
+      `${position.title} closed`,
+    );
+
+    const applicantGroups = await getActivityGroups(
+      positionApplicant.id,
+      false,
+    );
+    expect(applicantGroups.scope).toBe('none');
+    expect(applicantGroups.reviewed).toEqual([]);
+  });
+
+  it('no duplicates: a manually-closed position never also gets the derived deadline-close row', async () => {
+    const manager = await createTestUser();
+    const past = new Date(Date.now() - 60 * 60 * 1000);
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'open',
+      closesAt: past,
+    });
+
+    actAs(admin);
+    await updatePositionStatus({ id: position.id, status: 'closed' });
+
+    const groups = await getActivityGroups(manager.id, false);
+    const matching = groups.reviewed.filter((i) =>
+      i.sentence.includes(position.title),
+    );
+    expect(matching).toHaveLength(1);
+    expect(matching[0]?.sentence).toBe(`${position.title} was closed`);
+  });
+
+  it('returning to draft after opening drops the item for the manager', async () => {
+    const manager = await createTestUser();
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'draft',
+    });
+
+    actAs(admin);
+    await updatePositionStatus({ id: position.id, status: 'open' });
+    await updatePositionStatus({ id: position.id, status: 'draft' });
+
+    const groups = await getActivityGroups(manager.id, false);
+    const sentences = groups.reviewed.map((i) => i.sentence);
+    expect(sentences).not.toContain(`${position.title} was opened`);
+  });
+
+  it('deletion of a published position: the listed manager sees an unlinked "was deleted" item', async () => {
+    const manager = await createTestUser();
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'open',
+    });
+
+    actAs(admin);
+    const result = await deletePosition({ id: position.id });
+    expect(result).toBeUndefined();
+
+    const groups = await getActivityGroups(manager.id, false);
+    expect(groups.scope).toBe('managed');
+    const item = groups.reviewed.find((i) =>
+      i.sentence.includes(position.title),
+    );
+    expect(item).toBeDefined();
+    expect(item?.sentence).toBe(`${position.title} was deleted`);
+    expect(item?.href).toBeUndefined();
+  });
+
+  it('deletion of a draft position produces no row', async () => {
+    const manager = await createTestUser();
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'draft',
+    });
+
+    actAs(admin);
+    await deletePosition({ id: position.id });
+
+    const groups = await getActivityGroups(manager.id, false);
+    const sentences = groups.reviewed.map((i) => i.sentence);
+    expect(sentences).not.toContain(`${position.title} was deleted`);
+  });
+
+  it('deletion: scoped like other rows — a different manager and an applicant never see it', async () => {
+    const manager = await createTestUser();
+    const otherManager = await createTestUser();
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'closed',
+    });
+    const positionApplicant = await createTestUser();
+    await createTestApplication(positionApplicant, position, {
+      status: 'draft',
+    });
+
+    actAs(admin);
+    const deleteResult = await deletePosition({ id: position.id });
+    expect(deleteResult).toBeUndefined();
+
+    const otherGroups = await getActivityGroups(otherManager.id, false);
+    expect(otherGroups.reviewed.map((i) => i.sentence)).not.toContain(
+      `${position.title} was deleted`,
+    );
+
+    const applicantGroups = await getActivityGroups(
+      positionApplicant.id,
+      false,
+    );
+    expect(applicantGroups.reviewed.map((i) => i.sentence)).not.toContain(
+      `${position.title} was deleted`,
+    );
+  });
+
+  it('deletion: an admin sees it under "all", and the earlier opened/closed rows persist unlinked', async () => {
+    const manager = await createTestUser();
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'draft',
+    });
+
+    actAs(admin);
+    await updatePositionStatus({ id: position.id, status: 'open' });
+    await updatePositionStatus({ id: position.id, status: 'closed' });
+    await deletePosition({ id: position.id });
+
+    const groups = await getActivityGroups(admin.id, true);
+    expect(groups.scope).toBe('all');
+    const opened = groups.reviewed.find(
+      (i) => i.sentence === `${position.title} was opened`,
+    );
+    const closed = groups.reviewed.find(
+      (i) => i.sentence === `${position.title} was closed`,
+    );
+    const deleted = groups.reviewed.find(
+      (i) => i.sentence === `${position.title} was deleted`,
+    );
+    expect(opened).toBeDefined();
+    expect(opened?.href).toBeUndefined();
+    expect(closed).toBeDefined();
+    expect(closed?.href).toBeUndefined();
+    expect(deleted).toBeDefined();
+  });
+
+  it('deletion: a deadline-close row already produced before deletion persists unlinked', async () => {
+    const manager = await createTestUser();
+    const past = new Date(Date.now() - 60 * 60 * 1000);
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'open',
+      closesAt: past,
+    });
+
+    actAs(admin);
+    await deletePosition({ id: position.id });
+
+    const groups = await getActivityGroups(manager.id, false);
+    const item = groups.reviewed.find(
+      (i) => i.sentence === `${position.title} closed`,
+    );
+    expect(item).toBeDefined();
+    expect(item?.href).toBeUndefined();
+  });
+
+  it('deletion: a deadline lapsing only after deletion produces no row', async () => {
+    const manager = await createTestUser();
+    const deletedAt = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    const closesAt = new Date(Date.now() - 60 * 60 * 1000);
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'open',
+      closesAt,
+      deletedAt,
+      deletedById: admin.id,
+    });
+
+    const groups = await getActivityGroups(manager.id, false);
+    const sentences = groups.reviewed.map((i) => i.sentence);
+    expect(sentences).not.toContain(`${position.title} closed`);
+  });
+
+  it('merges openings with applications by time and caps the combined feed at 10', async () => {
+    const manager = await createTestUser();
+    const position = await createTestPosition(admin, {
+      managers: [manager],
+      status: 'draft',
+    });
+
+    actAs(admin);
+    await updatePositionStatus({ id: position.id, status: 'open' });
+
+    const newerApplicant = await createTestUser();
+    const newerApplication = await createTestApplication(
+      newerApplicant,
+      position,
+      { status: 'applied' },
+    );
+
+    const groups = await getActivityGroups(manager.id, false);
+    expect(groups.reviewed.length).toBeLessThanOrEqual(10);
+    const newestId = groups.reviewed[0]?.id;
+    expect(newestId).toBe(newerApplication.id);
   });
 });

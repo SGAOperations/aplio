@@ -111,6 +111,7 @@ model User {
   updatedPositionAppAnswers PositionApplicationAnswer[] @relation("PositionApplicationAnswerUpdatedBy")
   deletedPositionAppAnswers PositionApplicationAnswer[] @relation("PositionApplicationAnswerDeletedBy")
   applicationStatusEvents   ApplicationStatusEvent[]    @relation("ApplicationStatusEventChangedBy")
+  positionStatusEvents      PositionStatusEvent[]       @relation("PositionStatusEventChangedBy")
 }
 
 model Position {
@@ -131,9 +132,10 @@ model Position {
   updatedBy User  @relation("PositionUpdatedBy", fields: [updatedById], references: [id])
   deletedBy User? @relation("PositionDeletedBy", fields: [deletedById], references: [id])
 
-  managers     User[]             @relation("PositionManagers")
+  managers     User[]                @relation("PositionManagers")
   questions    PositionQuestion[]
   applications Application[]
+  statusEvents PositionStatusEvent[]
 }
 
 model GlobalQuestion {
@@ -248,6 +250,21 @@ model ApplicationStatusEvent {
   changedBy   User        @relation("ApplicationStatusEventChangedBy", fields: [changedById], references: [id])
 
   @@index([applicationId, createdAt])
+}
+
+model PositionStatusEvent {
+  id          String         @id @default(uuid(7))
+  positionId  String
+  from        PositionStatus
+  to          PositionStatus
+  changedById String
+  createdAt   DateTime       @default(now())
+
+  position  Position @relation(fields: [positionId], references: [id])
+  changedBy User     @relation("PositionStatusEventChangedBy", fields: [changedById], references: [id])
+
+  @@index([positionId, createdAt])
+  @@index([to, createdAt])
 }
 
 model GlobalApplicationAnswer {
