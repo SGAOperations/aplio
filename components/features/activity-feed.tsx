@@ -1,134 +1,176 @@
-import {
-  getMyRecentActivity,
-  getRecentApplications,
-} from '@/prisma/data/applications';
+import Link from 'next/link';
+
+import { getActivityGroups } from '@/prisma/data/activity';
 
 import {
-  APPLICATION_STATUS_BADGE_VARIANT,
-  APPLICATION_STATUS_LABELS,
+  ACTIVITY_FEED_COPY,
+  ACTIVITY_MINE_TITLE,
   STATUS_BADGE_VARIANT_TO_DOT,
 } from '@/lib/constants';
 import { CONCEPT_ICONS } from '@/lib/icons';
-import { type ActivityItem, type Reviewer } from '@/lib/types';
-import { getDisplayName, getRenamedTo } from '@/lib/utils';
+import { type ActivityItem, type ActivityScope } from '@/lib/types';
 
 import { LocalTime } from '@/components/ui/local-time';
-import { SectionCard, SectionCardEmpty } from '@/components/ui/section-card';
+import { SectionCardEmpty } from '@/components/ui/section-card';
+import { SheetClose } from '@/components/ui/sheet';
+import { Skeleton } from '@/components/ui/skeleton';
 
-// ─── Presentational leaf ─────────────────────────────────────────────────────
+function ActivityFeedRowContent({ item }: { item: ActivityItem }) {
+  const dotClass = STATUS_BADGE_VARIANT_TO_DOT[item.statusVariant];
 
-interface ActivityFeedListProps {
-  items: ActivityItem[];
-  emptyDescription: string;
+  return (
+    <>
+      <span
+        className={`mt-1.5 size-2 shrink-0 rounded-full ${dotClass}`}
+        aria-hidden="true"
+      />
+      <p className="line-clamp-3 min-w-0 flex-1 text-sm">{item.sentence}</p>
+      <LocalTime
+        date={item.timestamp}
+        precision="relative"
+        className="text-muted-foreground ml-auto shrink-0 text-xs tabular-nums"
+      />
+    </>
+  );
 }
 
-function ActivityFeedList({ items, emptyDescription }: ActivityFeedListProps) {
+export function ActivityFeedList({ items }: { items: ActivityItem[] }) {
   return (
-    <SectionCard
-      title="Recent Activity"
-      icon={CONCEPT_ICONS.activity}
-      sectionLabel="Recent activity"
-    >
-      {items.length === 0 ? (
+    <ol>
+      {items.map((item) => (
+        <li key={item.id} className="border-b last:border-0">
+          {item.href ? (
+            <SheetClose asChild>
+              <Link
+                href={item.href}
+                className="hover:bg-muted/50 focus-visible:ring-ring flex items-start gap-3 px-4 py-3 outline-none focus-visible:ring-2"
+              >
+                <ActivityFeedRowContent item={item} />
+              </Link>
+            </SheetClose>
+          ) : (
+            <div className="flex items-start gap-3 px-4 py-3">
+              <ActivityFeedRowContent item={item} />
+            </div>
+          )}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function ActivityFeedGroup({
+  id,
+  title,
+  items,
+}: {
+  id: string;
+  title: string;
+  items: ActivityItem[];
+}) {
+  return (
+    <section aria-labelledby={id}>
+      <h3
+        id={id}
+        className="text-muted-foreground px-4 pt-4 pb-1 text-xs font-medium"
+      >
+        {title}
+      </h3>
+      <ActivityFeedList items={items} />
+    </section>
+  );
+}
+
+interface ActivityFeedProps {
+  userId: string;
+  isAdmin: boolean;
+}
+
+export async function ActivityFeed({ userId, isAdmin }: ActivityFeedProps) {
+  let groups;
+  try {
+    groups = await getActivityGroups(userId, isAdmin);
+  } catch (error) {
+    console.error('getActivityGroups failed', error);
+    return (
+      <SectionCardEmpty
+        variant="compact"
+        message="Couldn't load recent activity."
+      />
+    );
+  }
+
+  const { scope, mine, reviewed } = groups;
+  const copy = ACTIVITY_FEED_COPY[scope];
+
+  if (mine.length === 0 && reviewed.length === 0)
+    return (
+      <div className="px-4">
         <SectionCardEmpty
           icon={CONCEPT_ICONS.activity}
           title="No recent activity"
-          description={emptyDescription}
+          description={copy.emptyDescription}
         />
-      ) : (
-        <ol>
-          {items.map((item) => {
-            const dotClass = STATUS_BADGE_VARIANT_TO_DOT[item.statusVariant];
+      </div>
+    );
 
-            return (
-              <li
-                key={item.id}
-                className="flex items-start gap-3 border-b px-4 py-3 last:border-0"
-              >
-                <span
-                  className={`mt-1.5 size-2 shrink-0 rounded-full ${dotClass}`}
-                  aria-hidden="true"
-                />
-                <p className="line-clamp-2 min-w-0 flex-1 text-sm">
-                  {item.sentence}
-                </p>
-                <LocalTime
-                  date={item.timestamp}
-                  precision="relative"
-                  className="text-muted-foreground ml-auto shrink-0 text-xs tabular-nums"
-                />
-              </li>
-            );
-          })}
-        </ol>
+  if (scope === 'none') return <ActivityFeedList items={mine} />;
+
+  return (
+    <>
+      {mine.length > 0 && (
+        <ActivityFeedGroup
+          id="activity-mine"
+          title={ACTIVITY_MINE_TITLE}
+          items={mine}
+        />
       )}
-    </SectionCard>
+      {reviewed.length > 0 && copy.reviewedTitle && (
+        <ActivityFeedGroup
+          id="activity-reviewed"
+          title={copy.reviewedTitle}
+          items={reviewed}
+        />
+      )}
+    </>
   );
 }
 
-// ─── Applicant feed wrapper ───────────────────────────────────────────────────
-
-interface ApplicantActivityFeedProps {
-  userId: string;
-}
-
-// States the current status only — no status-history table, so no from-state to assert.
-export async function ApplicantActivityFeed({
-  userId,
-}: ApplicantActivityFeedProps) {
-  const applications = await getMyRecentActivity(userId, 10);
-
-  const items: ActivityItem[] = applications.map((app) => {
-    const statusLabel = APPLICATION_STATUS_LABELS[app.status];
-    const variant = APPLICATION_STATUS_BADGE_VARIANT[app.status];
-    return {
-      id: app.id,
-      statusVariant: variant,
-      sentence: `Your application for ${app.position.title} is ${statusLabel}`,
-      timestamp: app.submittedAt,
-    };
-  });
-
+function ActivityFeedRowsSkeleton({ count }: { count: number }) {
   return (
-    <ActivityFeedList
-      items={items}
-      emptyDescription="Updates to your applications will show up here."
-    />
+    <ol>
+      {Array.from({ length: count }).map((_, i) => (
+        <li
+          key={i}
+          className="flex items-center gap-3 border-b px-4 py-3 last:border-0"
+        >
+          <Skeleton className="size-2 shrink-0 rounded-full" />
+          <Skeleton className="h-4 flex-1" />
+          <Skeleton className="h-3 w-12" />
+        </li>
+      ))}
+    </ol>
   );
 }
 
-// ─── Reviewer feed wrapper ─────────────────────────────────────────────────────
-
-interface ReviewerActivityFeedProps {
-  reviewer: Reviewer;
+function ActivityFeedGroupSkeleton() {
+  return (
+    <div>
+      <div className="px-4 pt-4 pb-1">
+        <Skeleton className="h-3 w-28" />
+      </div>
+      <ActivityFeedRowsSkeleton count={5} />
+    </div>
+  );
 }
 
-// Ordered by submittedAt (a provable event stream); cross-user data, reviewer-gated only.
-export async function ReviewerActivityFeed({
-  reviewer,
-}: ReviewerActivityFeedProps) {
-  const applications = await getRecentApplications(reviewer, 10);
-
-  const items: ActivityItem[] = applications.map((app) => {
-    const applicantLabel = getDisplayName(app);
-    const renamedTo = getRenamedTo(app);
-    const variant = APPLICATION_STATUS_BADGE_VARIANT[app.status];
-    return {
-      id: app.id,
-      statusVariant: variant,
-      sentence: `${applicantLabel}${renamedTo ? ` (${renamedTo})` : ''} applied for ${app.position.title}`,
-      timestamp: app.submittedAt,
-    };
-  });
+export function ActivityFeedListSkeleton({ scope }: { scope: ActivityScope }) {
+  if (scope === 'none') return <ActivityFeedRowsSkeleton count={10} />;
 
   return (
-    <ActivityFeedList
-      items={items}
-      emptyDescription={
-        reviewer.isAdmin
-          ? 'New applications across all positions will show up here.'
-          : 'New applications to the positions you manage will show up here.'
-      }
-    />
+    <>
+      <ActivityFeedGroupSkeleton />
+      <ActivityFeedGroupSkeleton />
+    </>
   );
 }

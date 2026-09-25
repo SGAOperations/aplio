@@ -3,7 +3,11 @@ import { z } from 'zod/v4';
 import { $Enums } from '@/prisma/client';
 import type { PositionStatus, Prisma, QuestionType } from '@/prisma/client';
 
-import type { PositionAvailability, UserRoleFilter } from '@/lib/types';
+import type {
+  ActivityScope,
+  PositionAvailability,
+  UserRoleFilter,
+} from '@/lib/types';
 
 import type { BadgeVariant } from '@/components/ui/badge';
 
@@ -820,6 +824,9 @@ export const POSITION_CLOSED_DRAFT_BLOCKED_ERROR =
   'A closed position cannot go back to draft. Reopen it instead, or leave it closed.';
 export const POSITION_UNPUBLISH_BLOCKED_ERROR =
   'Someone has already started an application, so this position cannot go back to draft. Close it instead.';
+// A concurrent save changed the position's status between load and submit.
+export const POSITION_STATUS_CHANGED_ERROR =
+  'This position just changed. Refresh to see its current status.';
 export const POSITION_REOPEN_PAST_CLOSE_ERROR =
   "This position's close date has passed. Clear or extend the close date to reopen it.";
 
@@ -1001,6 +1008,10 @@ export const POSITION_STATUS_BADGE_VARIANT: Record<
   BadgeVariant
 > = { draft: 'secondary', open: 'default', closed: 'outline' };
 
+// No 'deleted' member on PositionStatus, so the deletion activity row's badge
+// isn't part of the map above.
+export const POSITION_DELETED_BADGE_VARIANT: BadgeVariant = 'destructive';
+
 // Position-scoped surfaces (draft still shows its applications); PUBLISHED is for cross-position ones.
 export const VISIBLE_POSITION_WHERE = {
   deletedAt: null,
@@ -1036,6 +1047,17 @@ export const POSITION_AVAILABILITY_BADGE_VARIANT: Record<
   upcoming: 'secondary',
   closed_by_date: 'outline',
   unavailable: 'outline',
+};
+
+// Reason shown beside a disabled Continue/Edit & resubmit — draft and
+// withdrawn share one gate, so the copy can't drift between them.
+export const APPLICANT_ACTION_BLOCKED_REASONS: Record<
+  Exclude<PositionAvailability, 'accepting'>,
+  string
+> = {
+  closed_by_date: 'Deadline passed',
+  unavailable: 'Position closed',
+  upcoming: 'Not open yet',
 };
 
 export const PRIVACY_HREF = '/privacy';
@@ -1098,6 +1120,53 @@ export const STATUS_BADGE_VARIANT_TO_DOT: Record<BadgeVariant, string> = {
   default: 'bg-primary',
   outline: 'bg-border',
 };
+
+// Heading for the activity panel's applicant-scoped group — the only group
+// a 'none'-scope user sees, rendered with no heading at all in that case.
+export const ACTIVITY_MINE_TITLE = 'Your applications';
+
+// Drives the activity panel's empty state, keyed by the caller's derived
+// scope (lib/types.ts#ActivityScope).
+export const ACTIVITY_FEED_COPY: Record<
+  ActivityScope,
+  { emptyDescription: string; reviewedTitle: string | null }
+> = {
+  none: {
+    emptyDescription: 'Updates to your applications will show up here.',
+    reviewedTitle: null,
+  },
+  managed: {
+    emptyDescription:
+      'Updates to your applications and new applications to the positions you manage will show up here.',
+    reviewedTitle: 'Positions you manage',
+  },
+  all: {
+    emptyDescription:
+      'Updates to your applications and new applications across all positions will show up here.',
+    reviewedTitle: 'All positions',
+  },
+};
+
+// Activity panel copy for a position's "to: open" event, keyed by the status
+// it moved from — reopened (from closed) reads differently than opened.
+export const POSITION_ACTIVITY_SENTENCE: Record<
+  'draft' | 'closed',
+  (title: string) => string
+> = {
+  draft: (title) => `${title} was opened`,
+  closed: (title) => `${title} was reopened`,
+};
+
+// "to: closed" event copy — always from 'open', the only legal transition in.
+export const POSITION_CLOSED_SENTENCE = (title: string) =>
+  `${title} was closed`;
+
+// Derived deadline-close copy (no event, so no "was" — nothing acted on it).
+export const POSITION_CLOSED_BY_DATE_SENTENCE = (title: string) =>
+  `${title} closed`;
+
+export const POSITION_DELETED_SENTENCE = (title: string) =>
+  `${title} was deleted`;
 
 // Order is meaningful — rendered left to right on position cards.
 export const POSITION_CARD_STAT_STATUSES = [

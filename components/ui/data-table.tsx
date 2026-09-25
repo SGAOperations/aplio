@@ -9,7 +9,7 @@ import {
   type DataTableColumn,
   type SortDirection,
   type SortState,
-  compareValues,
+  sortRows,
 } from '@/lib/data-table';
 import { ACTION_ICONS } from '@/lib/icons';
 import { cn } from '@/lib/utils';
@@ -268,19 +268,9 @@ export function DataTable<T>({
   const sortedRows = useMemo(() => {
     if (controlled || !sort.key) return rows;
     const column = columns.find((c) => c.key === sort.key && c.sortAccessor);
-    if (!column?.sortAccessor) return rows;
+    if (!column) return rows;
 
-    return [...rows].sort((a, b) => {
-      const valA = column.sortAccessor?.(a);
-      const valB = column.sortAccessor?.(b);
-
-      if (valA == null && valB == null) return 0;
-      if (valA == null) return 1;
-      if (valB == null) return -1;
-
-      const cmp = compareValues(valA, valB);
-      return sort.direction === 'desc' ? -cmp : cmp;
-    });
+    return sortRows(rows, column, sort.direction);
   }, [controlled, rows, columns, sort.key, sort.direction]);
 
   function ariaSort(key: string): 'ascending' | 'descending' | 'none' {

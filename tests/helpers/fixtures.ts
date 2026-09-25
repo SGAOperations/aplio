@@ -189,6 +189,10 @@ export async function cleanupFixtures(): Promise<void> {
     },
   });
 
+  await prisma.positionStatusEvent.deleteMany({
+    where: { OR: [{ changedBy: testUser }, { position: testPosition }] },
+  });
+
   await prisma.application.deleteMany({
     where: { OR: [{ user: testUser }, { position: testPosition }] },
   });
