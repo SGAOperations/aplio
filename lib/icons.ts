@@ -157,7 +157,8 @@ type Action =
   | 'expand'
   | 'sortAsc'
   | 'sortDesc'
-  | 'sortNone';
+  | 'sortNone'
+  | 'forceWithdraw';
 
 export const ACTION_ICONS: Record<Action, LucideIcon> = {
   create: Plus,
@@ -185,6 +186,7 @@ export const ACTION_ICONS: Record<Action, LucideIcon> = {
   sortAsc: ArrowUp,
   sortDesc: ArrowDown,
   sortNone: ArrowUpDown,
+  forceWithdraw: CircleSlash,
 };
 
 type State =

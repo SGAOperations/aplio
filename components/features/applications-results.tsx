@@ -117,6 +117,7 @@ export async function ApplicationsResults({
           applications={rows}
           hasActiveFilters={hasActiveFilters}
           sort={filters.sort}
+          isAdmin={user.isAdmin}
         />
         <TablePagination
           buildHref={(p) => buildApplicationsHref(filters, p)}
@@ -159,6 +160,7 @@ export async function ApplicationsResults({
           applications={rows}
           hasActiveFilters={hasActiveFilters}
           sort={filters.sort}
+          isAdmin={user.isAdmin}
         />
         <TablePagination
           buildHref={(p) => buildApplicationsHref(filters, p)}
@@ -182,6 +184,7 @@ export async function ApplicationsResults({
         applications={rows.map((a) => ({ ...a, isDraft: false as const }))}
         hasActiveFilters={hasActiveFilters}
         sort={filters.sort}
+        isAdmin={user.isAdmin}
       />
       <TablePagination
         buildHref={(p) => buildApplicationsHref(filters, p)}

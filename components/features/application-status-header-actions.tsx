@@ -18,6 +18,7 @@ import type { ApplicationStatusHistoryEntry } from '@/lib/types';
 import { ApplicationStatusDialog } from '@/components/features/application-status-dialog';
 import { ApplicationStatusMenu } from '@/components/features/application-status-menu';
 import { useApplicationStatusMove } from '@/components/features/use-application-status-move';
+import { useForceWithdrawApplication } from '@/components/features/use-force-withdraw-application';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
@@ -32,6 +33,7 @@ interface ApplicationStatusHeaderActionsProps {
   applicantName: string;
   applicantEmail: string;
   history: ApplicationStatusHistoryEntry[];
+  isAdmin: boolean;
 }
 
 // Unresolved gets a split button; everything else gets a standalone caret — same dropdown either way.
@@ -41,6 +43,7 @@ export function ApplicationStatusHeaderActions({
   applicantName,
   applicantEmail,
   history,
+  isAdmin,
 }: ApplicationStatusHeaderActionsProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const move = useApplicationStatusMove({
@@ -49,6 +52,13 @@ export function ApplicationStatusHeaderActions({
     applicantEmail,
     currentStatus,
   });
+  const forceWithdraw = useForceWithdrawApplication({
+    applicationId,
+    applicantName,
+    currentStatus,
+  });
+  const canForceWithdraw =
+    isAdmin && !isNonReviewableApplicationStatus(currentStatus);
 
   const dialog = (
     <ApplicationStatusDialog
@@ -57,6 +67,7 @@ export function ApplicationStatusHeaderActions({
       applicantEmail={applicantEmail}
       currentStatus={currentStatus}
       history={history}
+      isAdmin={isAdmin}
       open={dialogOpen}
       onOpenChange={setDialogOpen}
     />
@@ -99,10 +110,15 @@ export function ApplicationStatusHeaderActions({
               isPending={move.isPending}
               onSelect={move.selectTarget}
               onSeeMore={() => setDialogOpen(true)}
+              canForceWithdraw={canForceWithdraw}
+              onForceWithdraw={forceWithdraw.openConfirm}
             />
           </DropdownMenuContent>
         </DropdownMenu>
         {confirmDialog}
+        {canForceWithdraw && (
+          <ConfirmDialog {...forceWithdraw.confirmDialogProps} />
+        )}
         {dialog}
       </>
     );
@@ -145,12 +161,17 @@ export function ApplicationStatusHeaderActions({
               isPending={move.isPending}
               onSelect={move.selectTarget}
               onSeeMore={() => setDialogOpen(true)}
+              canForceWithdraw={canForceWithdraw}
+              onForceWithdraw={forceWithdraw.openConfirm}
             />
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
 
       {confirmDialog}
+      {canForceWithdraw && (
+        <ConfirmDialog {...forceWithdraw.confirmDialogProps} />
+      )}
       {dialog}
     </>
   );

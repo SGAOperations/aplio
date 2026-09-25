@@ -39,6 +39,7 @@ import { LocalTime } from '@/components/ui/local-time';
 interface BaseApplicationsTableProps {
   hasActiveFilters: boolean;
   sort?: ApplicationSort;
+  isAdmin: boolean;
 }
 
 // Discriminated on isDraftView: true is the explicit "Draft" filter (pure
@@ -58,7 +59,7 @@ function isAdminRow(
 }
 
 export function ApplicationsTable(props: ApplicationsTableProps) {
-  const { hasActiveFilters, sort } = props;
+  const { hasActiveFilters, sort, isAdmin } = props;
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -281,6 +282,7 @@ export function ApplicationsTable(props: ApplicationsTableProps) {
                 currentStatus="draft"
                 applicantName={displayUserName(app.user)}
                 applicantEmail={app.user.email}
+                isAdmin={isAdmin}
               />
             </div>
           );
@@ -294,6 +296,7 @@ export function ApplicationsTable(props: ApplicationsTableProps) {
               currentStatus={app.status}
               applicantName={displayName}
               applicantEmail={app.user.email}
+              isAdmin={isAdmin}
             />
           </div>
         );
@@ -434,6 +437,7 @@ export function ApplicationsTable(props: ApplicationsTableProps) {
                         currentStatus="draft"
                         applicantName={displayUserName(app.user)}
                         applicantEmail={app.user.email}
+                        isAdmin={isAdmin}
                       />
                     </div>
                   </div>
@@ -485,6 +489,7 @@ export function ApplicationsTable(props: ApplicationsTableProps) {
                       currentStatus={app.status}
                       applicantName={displayName}
                       applicantEmail={app.user.email}
+                      isAdmin={isAdmin}
                     />
                   </div>
                 </div>
