@@ -64,6 +64,29 @@ export function compareValues(
   return arrA.length - arrB.length;
 }
 
+// Nulls sort last regardless of direction — the null check runs before the
+// direction negation below.
+export function sortRows<T>(
+  rows: T[],
+  column: DataTableColumn<T>,
+  direction: SortDirection,
+): T[] {
+  if (!column.sortAccessor) return rows;
+  const sortAccessor = column.sortAccessor;
+
+  return [...rows].sort((a, b) => {
+    const valA = sortAccessor(a);
+    const valB = sortAccessor(b);
+
+    if (valA == null && valB == null) return 0;
+    if (valA == null) return 1;
+    if (valB == null) return -1;
+
+    const cmp = compareValues(valA, valB);
+    return direction === 'desc' ? -cmp : cmp;
+  });
+}
+
 export interface DataTableFilter {
   key: string;
   value: string;

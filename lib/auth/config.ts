@@ -4,12 +4,14 @@ import { nextCookies } from 'better-auth/next-js';
 
 import { prismaAdapter } from '@better-auth/prisma-adapter';
 import { betterAuth } from 'better-auth';
-import { APIError } from 'better-auth/api';
 import { emailOTP } from 'better-auth/plugins';
 
 import { buildOtpSignInUrl } from '@/lib/auth/otp-link';
+import {
+  assertSessionUserActive,
+  recordSignIn,
+} from '@/lib/auth/session-hooks';
 import { getBaseUrl } from '@/lib/base-url';
-import { ACCOUNT_DEACTIVATED_ERROR_CODE } from '@/lib/constants';
 import { sendEmail } from '@/lib/email/resend';
 import { otpEmail } from '@/lib/email/templates';
 import { prisma } from '@/lib/prisma';
@@ -62,17 +64,13 @@ export const auth = betterAuth({
     },
     session: {
       create: {
-        // Throws — returning false leaves callers dereferencing a null session's .token.
         before: async (session) => {
-          const user = await prisma.user.findUnique({
-            where: { id: session.userId },
-            select: { deletedAt: true },
-          });
-          if (user?.deletedAt)
-            throw APIError.from('FORBIDDEN', {
-              code: ACCOUNT_DEACTIVATED_ERROR_CODE,
-              message: 'This account has been deactivated.',
-            });
+          await assertSessionUserActive(session.userId);
+        },
+        // A blocked (before-thrown) sign-in never reaches after, so this only
+        // stamps committed sessions.
+        after: async (session) => {
+          await recordSignIn(session.userId);
         },
       },
     },
