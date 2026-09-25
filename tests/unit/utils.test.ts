@@ -22,6 +22,7 @@ import {
   formatCountdown,
   formatPaginationSummary,
   formatTableCount,
+  getApplicantActionBlockedReason,
   getApplicantName,
   getBulkDecisionEmailWarning,
   getDeadlineInfo,
@@ -102,6 +103,66 @@ describe('getPositionAvailability', () => {
     expect(
       getPositionAvailability({ status: 'open', opensAt: null, closesAt }, NOW),
     ).toBe('accepting');
+  });
+});
+
+describe('getApplicantActionBlockedReason', () => {
+  it('is null when open with no window', () => {
+    expect(
+      getApplicantActionBlockedReason(
+        { status: 'open', opensAt: null, closesAt: null },
+        NOW,
+      ),
+    ).toBeNull();
+  });
+
+  it('is null at exactly closesAt (inclusive)', () => {
+    const closesAt = new Date(NOW);
+    expect(
+      getApplicantActionBlockedReason(
+        { status: 'open', opensAt: null, closesAt },
+        NOW,
+      ),
+    ).toBeNull();
+  });
+
+  it('is "Deadline passed" once now passes closesAt', () => {
+    const closesAt = new Date(NOW.getTime() - 1);
+    expect(
+      getApplicantActionBlockedReason(
+        { status: 'open', opensAt: null, closesAt },
+        NOW,
+      ),
+    ).toBe('Deadline passed');
+  });
+
+  it('is "Not open yet" while opensAt is in the future', () => {
+    const opensAt = new Date(NOW);
+    opensAt.setDate(opensAt.getDate() + 5);
+    expect(
+      getApplicantActionBlockedReason(
+        { status: 'open', opensAt, closesAt: null },
+        NOW,
+      ),
+    ).toBe('Not open yet');
+  });
+
+  it('is "Position closed" for status closed', () => {
+    expect(
+      getApplicantActionBlockedReason(
+        { status: 'closed', opensAt: null, closesAt: null },
+        NOW,
+      ),
+    ).toBe('Position closed');
+  });
+
+  it('is "Position closed" for status draft', () => {
+    expect(
+      getApplicantActionBlockedReason(
+        { status: 'draft', opensAt: null, closesAt: null },
+        NOW,
+      ),
+    ).toBe('Position closed');
   });
 });
 
@@ -1629,14 +1690,14 @@ describe('getEmailLogDescription', () => {
     expect(
       getEmailLogDescription({ status: 'bounced', bounceType: 'Permanent' }),
     ).toBe(
-      'The address rejected it permanently — the applicant did not receive this.',
+      'The address rejected it permanently — the recipient did not receive this.',
     );
   });
 
   it('describes a transient bounce', () => {
     expect(
       getEmailLogDescription({ status: 'bounced', bounceType: 'Transient' }),
-    ).toBe('Temporarily undeliverable — the applicant did not receive this.');
+    ).toBe('Temporarily undeliverable — the recipient did not receive this.');
   });
 
   it('describes a bounce with no bounceType', () => {

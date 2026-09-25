@@ -413,12 +413,51 @@ export type QuestionFileDownload = {
 };
 
 // sentence is pre-rendered safe copy; statusVariant drives the dot color.
+// href is unset for a deleted position's rows — the page no longer exists.
 export type ActivityItem = {
   id: string;
   statusVariant: BadgeVariant;
   sentence: string;
   timestamp: Date;
+  href?: string;
 };
+
+// 'none' (plain applicant), 'managed' (manages ≥1 position), 'all' (admin).
+export type ActivityScope = 'none' | 'managed' | 'all';
+
+// mine is always the caller's own submitted applications; reviewed is the
+// self-filtered reviewer feed, empty when scope is 'none'.
+export type ActivityGroups = {
+  scope: ActivityScope;
+  mine: ActivityItem[];
+  reviewed: ActivityItem[];
+};
+
+// Matches getRecentPositionStatusEvents's select in prisma/data/positions.ts.
+// No actor identity selected — changedBy never reaches the activity panel.
+// position.deletedAt drives whether the row renders unlinked.
+export type PositionStatusActivity = Prisma.PositionStatusEventGetPayload<{
+  select: {
+    id: true;
+    from: true;
+    to: true;
+    createdAt: true;
+    position: { select: { id: true; title: true; deletedAt: true } };
+  };
+}>;
+
+// Matches getRecentPositionDeadlineCloses's select — no event backs this row,
+// so closesAt itself (guaranteed non-null by that query's where) is the
+// timestamp; deletedAt drives whether it renders unlinked.
+export type PositionDeadlineCloseActivity = Prisma.PositionGetPayload<{
+  select: { id: true; title: true; closesAt: true; deletedAt: true };
+}>;
+
+// Matches getRecentPositionDeletions's select — no event backs this row either,
+// so deletedAt (guaranteed non-null by that query's where) is the timestamp.
+export type PositionDeletionActivity = Prisma.PositionGetPayload<{
+  select: { id: true; title: true; deletedAt: true };
+}>;
 
 // Exposes other users' identities — admin-gated contexts only, never a non-admin client.
 export type AdminUserListItem = Prisma.UserGetPayload<{
@@ -428,6 +467,7 @@ export type AdminUserListItem = Prisma.UserGetPayload<{
     email: true;
     isAdmin: true;
     createdAt: true;
+    lastLoginAt: true;
     managedPositions: { select: { id: true; title: true } };
     _count: {
       select: {
@@ -491,10 +531,17 @@ export interface SectionNavItem {
   label: string;
 }
 
-// One IntersectionObserver entry, reduced to what selectActiveSectionId needs.
-export interface SectionVisibility {
+// A section's top offset in px from the scroll root's top edge.
+export interface SectionPosition {
   id: string;
-  isIntersecting: boolean;
+  top: number;
+}
+
+// The scroll root's (#main-content) current scroll geometry.
+export interface SectionScrollMetrics {
+  scrollTop: number;
+  scrollHeight: number;
+  clientHeight: number;
 }
 
 export type EmailStatusFilter = (typeof EMAIL_STATUS_VALUES)[number];
@@ -527,3 +574,33 @@ export type EmailLogListItem = Prisma.EmailLogGetPayload<{
 
 export type EmailFailureStatus = (typeof EMAIL_FAILURE_STATUSES)[number];
 export type EmailFailureCounts = Record<EmailFailureStatus, number>;
+
+export type ManagerDigestPosition = {
+  positionId: string;
+  title: string;
+  newApplications: number;
+};
+
+export type DailyDigestRecipient = {
+  userId: string;
+  email: string;
+  name: string | null;
+  since: Date;
+  positions: ManagerDigestPosition[];
+  total: number;
+};
+
+// status is always one of UNRESOLVED_APPLICATION_STATUSES — never a terminal decision.
+export type WeeklyDigestStatusCount = {
+  status: $Enums.ApplicationStatus;
+  count: number;
+};
+
+export type WeeklyDigestRecipient = {
+  userId: string;
+  email: string;
+  name: string | null;
+  asOfDay: string;
+  statusCounts: WeeklyDigestStatusCount[];
+  openPositions: Pick<ManagerDigestPosition, 'positionId' | 'title'>[];
+};

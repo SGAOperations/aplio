@@ -101,7 +101,7 @@ export function MyApplicationRowActions({
     );
   }
 
-  // withdrawn: the cell already carries the primary action (Edit & resubmit / Position closed).
+  // withdrawn: the primary action carries Edit & resubmit (or its disabled state).
   if (status === 'withdrawn') return null;
 
   // Desktop placeholder for these lives in the column cell, not here.

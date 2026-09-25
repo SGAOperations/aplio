@@ -1,8 +1,9 @@
 import Link from 'next/link';
 
 import { type MyApplicationListItem } from '@/lib/types';
-import { isAcceptingApplications } from '@/lib/utils';
+import { getApplicantActionBlockedReason } from '@/lib/utils';
 
+import { DisabledActionTooltip } from '@/components/features/disabled-action-tooltip';
 import { Button } from '@/components/ui/button';
 
 interface MyApplicationPrimaryActionProps {
@@ -15,30 +16,40 @@ interface MyApplicationPrimaryActionProps {
 export function MyApplicationPrimaryAction({
   application,
 }: MyApplicationPrimaryActionProps) {
-  if (application.status === 'draft')
+  if (application.status !== 'draft' && application.status !== 'withdrawn')
+    return null;
+
+  const isDraft = application.status === 'draft';
+  const label = isDraft ? 'Continue' : 'Edit & resubmit';
+  const ariaLabel = isDraft
+    ? `Continue application for ${application.position.title}`
+    : `Edit and resubmit application for ${application.position.title}`;
+  const reason = getApplicantActionBlockedReason(application.position);
+
+  if (reason === null)
     return (
       <Button variant="outline" size="sm" asChild>
-        <Link href={`/positions/${application.positionId}/apply`}>
-          Continue
+        <Link
+          href={`/positions/${application.positionId}/apply`}
+          aria-label={ariaLabel}
+        >
+          {label}
         </Link>
       </Button>
     );
 
-  if (application.status !== 'withdrawn') return null;
-
-  if (!isAcceptingApplications(application.position))
-    return (
-      <span className="text-muted-foreground text-sm">Position closed</span>
-    );
-
   return (
-    <Button variant="outline" size="sm" asChild>
-      <Link
-        href={`/positions/${application.positionId}/apply`}
-        aria-label={`Edit and resubmit application for ${application.position.title}`}
+    <DisabledActionTooltip reason={reason}>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        aria-disabled="true"
+        aria-label={ariaLabel}
+        className="aria-disabled:pointer-events-none aria-disabled:opacity-50"
       >
-        Edit &amp; resubmit
-      </Link>
-    </Button>
+        {label}
+      </Button>
+    </DisabledActionTooltip>
   );
 }

@@ -14,6 +14,7 @@ export async function getUsersForAdmin(): Promise<AdminUserListItem[]> {
       email: true,
       isAdmin: true,
       createdAt: true,
+      lastLoginAt: true,
       managedPositions: {
         where: { deletedAt: null },
         select: { id: true, title: true },

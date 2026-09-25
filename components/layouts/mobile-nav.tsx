@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 
 import { Menu } from 'lucide-react';
 
@@ -23,12 +23,14 @@ interface MobileNavProps {
   isAdmin: boolean;
   identity: NavIdentity | null;
   canReviewApplications: boolean;
+  activityPanel?: ReactNode;
 }
 
 export function MobileNav({
   isAdmin,
   identity,
   canReviewApplications,
+  activityPanel,
 }: MobileNavProps) {
   const [open, setOpen] = useState(false);
   const { topLevelItems, groups, logoHref, isActive } = useNavItems({
@@ -51,7 +53,8 @@ export function MobileNav({
         </span>
       </Link>
 
-      <div className="ml-auto">
+      <div className="ml-auto flex items-center gap-1">
+        {activityPanel}
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" aria-label="Open menu">

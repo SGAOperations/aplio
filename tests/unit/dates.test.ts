@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  currentOrgWeekStart,
   formatInstant,
   formatRelativeTime,
   orgDayEnd,
   orgDayStart,
+  previousOrgDay,
   toOrgDayString,
 } from '@/lib/dates';
+
+function noonOn(day: string): Date {
+  return new Date(orgDayStart(day).getTime() + 12 * 60 * 60 * 1000);
+}
 
 describe('orgDayStart', () => {
   it('resolves a summer day to EDT (UTC-4)', () => {
@@ -79,6 +85,36 @@ describe('toOrgDayString', () => {
       const end = orgDayEnd(day);
       expect(orgDayEnd(toOrgDayString(end))).toEqual(end);
     }
+  });
+});
+
+describe('previousOrgDay', () => {
+  it('returns the org day before now, across the spring-forward transition', () => {
+    const { day, start, end } = previousOrgDay(noonOn('2026-03-09'));
+    expect(day).toBe('2026-03-08');
+    expect(start).toEqual(orgDayStart('2026-03-08'));
+    expect(end).toEqual(orgDayEnd('2026-03-08'));
+  });
+
+  it('returns the org day before now, across the fall-back transition', () => {
+    const { day, start, end } = previousOrgDay(noonOn('2026-11-02'));
+    expect(day).toBe('2026-11-01');
+    expect(start).toEqual(orgDayStart('2026-11-01'));
+    expect(end).toEqual(orgDayEnd('2026-11-01'));
+  });
+
+  it('rolls back across a month boundary', () => {
+    expect(previousOrgDay(noonOn('2026-04-01')).day).toBe('2026-03-31');
+  });
+});
+
+describe('currentOrgWeekStart', () => {
+  it('resolves a Sunday to the Monday that started its week', () => {
+    expect(currentOrgWeekStart(noonOn('2026-03-08'))).toBe('2026-03-02');
+  });
+
+  it('resolves a Monday to itself', () => {
+    expect(currentOrgWeekStart(noonOn('2026-03-09'))).toBe('2026-03-09');
   });
 });
 

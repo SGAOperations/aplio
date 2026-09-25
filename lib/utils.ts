@@ -4,6 +4,7 @@ import { twMerge } from 'tailwind-merge';
 import type { $Enums } from '@/prisma/client';
 
 import {
+  APPLICANT_ACTION_BLOCKED_REASONS,
   APPLICATION_STATUS_LABELS,
   DEADLINE_SOON_DAYS,
   DEADLINE_URGENT_HOURS,
@@ -93,9 +94,9 @@ export function getEmailLogDescription(entry: {
     return EMAIL_STATUS_DESCRIPTIONS[entry.status];
 
   if (entry.bounceType === 'Permanent')
-    return 'The address rejected it permanently — the applicant did not receive this.';
+    return 'The address rejected it permanently — the recipient did not receive this.';
   if (entry.bounceType === 'Transient')
-    return 'Temporarily undeliverable — the applicant did not receive this.';
+    return 'Temporarily undeliverable — the recipient did not receive this.';
   return 'This could not be delivered.';
 }
 
@@ -350,6 +351,16 @@ export function isOpenPastCloseDate(
   now?: Date,
 ): boolean {
   return getPositionAvailability(position, now) === 'closed_by_date';
+}
+
+/** `null` while accepting; otherwise the reason the draft/withdrawn action is disabled. */
+export function getApplicantActionBlockedReason(
+  position: PositionWindow,
+  now?: Date,
+): string | null {
+  const availability = getPositionAvailability(position, now);
+  if (availability === 'accepting') return null;
+  return APPLICANT_ACTION_BLOCKED_REASONS[availability];
 }
 
 export function getPositionDateInfo(

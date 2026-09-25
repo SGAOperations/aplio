@@ -5,6 +5,8 @@ import type { MouseEvent } from 'react';
 import type { SectionNavItem } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
+import { scrollToSection } from '@/components/layouts/use-section-nav';
+
 interface SectionNavListProps {
   sections: SectionNavItem[];
   activeId: string | null;
@@ -59,6 +61,6 @@ function handleClick(
   );
   onNavigate?.();
   requestAnimationFrame(() => {
-    document.getElementById(id)?.scrollIntoView({ block: 'start' });
+    scrollToSection(id);
   });
 }
