@@ -82,6 +82,7 @@ export function AnswerField({
       id={noticeId}
       values={orphaned}
       questionType={question.type}
+      format={question.format}
     />
   );
 
