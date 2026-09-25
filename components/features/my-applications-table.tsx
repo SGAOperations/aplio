@@ -9,7 +9,10 @@ import {
 } from '@/lib/constants';
 import { type DataTableColumn } from '@/lib/data-table';
 import { CONCEPT_ICONS } from '@/lib/icons';
-import { type MyApplicationListItem } from '@/lib/types';
+import {
+  type ApplicationCompletion,
+  type MyApplicationListItem,
+} from '@/lib/types';
 import { getDeadlineInfo } from '@/lib/utils';
 
 import { DeadlineIndicator } from '@/components/features/deadline-indicator';
@@ -20,13 +23,18 @@ import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LocalTime } from '@/components/ui/local-time';
+import { ProgressRing } from '@/components/ui/progress-ring';
 
 interface MyApplicationsTableProps {
   applications: MyApplicationListItem[];
   now: Date;
+  completion: Record<string, ApplicationCompletion>;
 }
 
-function buildColumns(now: Date): DataTableColumn<MyApplicationListItem>[] {
+function buildColumns(
+  now: Date,
+  completion: Record<string, ApplicationCompletion>,
+): DataTableColumn<MyApplicationListItem>[] {
   return [
     {
       key: 'position',
@@ -46,7 +54,15 @@ function buildColumns(now: Date): DataTableColumn<MyApplicationListItem>[] {
       header: 'Status',
       // Sort by human label A-Z so order matches what the user reads in the badge.
       sortAccessor: (a) => APPLICATION_STATUS_LABELS[a.status],
-      cell: (a) => <ApplicationStatusBadge status={a.status} />,
+      cell: (a) => {
+        const entry = a.status === 'draft' ? completion[a.id] : undefined;
+        return (
+          <div className="flex items-center gap-1">
+            <ApplicationStatusBadge status={a.status} />
+            {entry && <ProgressRing percent={entry.percent} size="sm" />}
+          </div>
+        );
+      },
     },
     {
       key: 'applied',
@@ -106,8 +122,12 @@ function atRiskDeadlineDate(a: MyApplicationListItem, now: Date): Date | null {
 export function MyApplicationsTable({
   applications,
   now,
+  completion,
 }: MyApplicationsTableProps) {
-  const columns = useMemo(() => buildColumns(now), [now]);
+  const columns = useMemo(
+    () => buildColumns(now, completion),
+    [now, completion],
+  );
 
   // At-risk drafts float to the top, nearest deadline first; sort.key stays null so a header click still takes over.
   const rows = useMemo(() => {
@@ -143,43 +163,49 @@ export function MyApplicationsTable({
       columns={columns}
       getRowKey={(a) => a.id}
       caption="My applications"
-      mobileCard={(app) => (
-        <div className="flex flex-col gap-2 p-4">
-          <div className="flex items-center justify-between gap-2">
-            <Link
-              href={`/applications/${app.id}`}
-              className="font-medium hover:underline"
-            >
-              {app.position.title}
-            </Link>
-            <ApplicationStatusBadge status={app.status} />
-          </div>
-          <DeadlineIndicator
-            position={app.position}
-            now={now}
-            emphasizeUrgency={
-              app.status === 'draft' || app.status === 'withdrawn'
-            }
-          />
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-muted-foreground text-sm">
-              {app.submittedAt ? (
-                <LocalTime date={app.submittedAt} precision="date" />
-              ) : (
-                'Draft'
-              )}
-            </span>
-            <div className="flex items-center gap-2">
-              <MyApplicationPrimaryAction application={app} />
-              <MyApplicationRowActions
-                applicationId={app.id}
-                status={app.status}
-                positionTitle={app.position.title}
-              />
+      mobileCard={(app) => {
+        const entry = app.status === 'draft' ? completion[app.id] : undefined;
+        return (
+          <div className="flex flex-col gap-2 p-4">
+            <div className="flex items-center justify-between gap-2">
+              <Link
+                href={`/applications/${app.id}`}
+                className="font-medium hover:underline"
+              >
+                {app.position.title}
+              </Link>
+              <div className="flex shrink-0 items-center gap-1">
+                <ApplicationStatusBadge status={app.status} />
+                {entry && <ProgressRing percent={entry.percent} size="sm" />}
+              </div>
+            </div>
+            <DeadlineIndicator
+              position={app.position}
+              now={now}
+              emphasizeUrgency={
+                app.status === 'draft' || app.status === 'withdrawn'
+              }
+            />
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-muted-foreground text-sm">
+                {app.submittedAt ? (
+                  <LocalTime date={app.submittedAt} precision="date" />
+                ) : (
+                  'Draft'
+                )}
+              </span>
+              <div className="flex items-center gap-2">
+                <MyApplicationPrimaryAction application={app} />
+                <MyApplicationRowActions
+                  applicationId={app.id}
+                  status={app.status}
+                  positionTitle={app.position.title}
+                />
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      }}
     />
   );
 }

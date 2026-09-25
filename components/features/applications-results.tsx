@@ -4,6 +4,7 @@ import {
   compareMergedApplicationRows,
   getAllApplications,
   getAllDraftApplications,
+  getApplicationCompletion,
   getApplications,
   getApplicationsCount,
   getDraftApplications,
@@ -103,18 +104,27 @@ export async function ApplicationsResults({
         filters,
         page,
       );
+    const completion = await getApplicationCompletion(
+      rows.map((r) => ({
+        id: r.id,
+        positionId: r.position.id,
+        userId: r.user.id,
+      })),
+    );
 
     return (
       <div className={DATA_TABLE_RESULTS_CLASS}>
         <p className="text-muted-foreground flex items-start gap-2 text-sm">
           <STATE_ICONS.hidden className="mt-0.5 size-4 shrink-0" />
-          You can see who started an application, not what they&apos;ve written.
-          Draft answers stay private until the applicant submits.
+          You can see who started an application and how far along it is, not
+          what they&apos;ve written. Draft answers stay private until the
+          applicant submits.
         </p>
 
         <ApplicationsTable
           isDraftView
           applications={rows}
+          completion={completion}
           hasActiveFilters={hasActiveFilters}
           sort={filters.sort}
           isAdmin={user.isAdmin}
@@ -153,11 +163,21 @@ export async function ApplicationsResults({
 
     const { rows, total, totalPages, currentPage, rangeStart, rangeEnd } =
       paginateRows(merged, page);
+    const completion = await getApplicationCompletion(
+      rows
+        .filter((r) => r.isDraft)
+        .map((r) => ({
+          id: r.id,
+          positionId: r.position.id,
+          userId: r.user.id,
+        })),
+    );
 
     return (
       <div className={DATA_TABLE_RESULTS_CLASS}>
         <ApplicationsTable
           applications={rows}
+          completion={completion}
           hasActiveFilters={hasActiveFilters}
           sort={filters.sort}
           isAdmin={user.isAdmin}
@@ -182,6 +202,7 @@ export async function ApplicationsResults({
     <div className={DATA_TABLE_RESULTS_CLASS}>
       <ApplicationsTable
         applications={rows.map((a) => ({ ...a, isDraft: false as const }))}
+        completion={{}}
         hasActiveFilters={hasActiveFilters}
         sort={filters.sort}
         isAdmin={user.isAdmin}
@@ -206,23 +227,27 @@ interface ApplicationsResultsSkeletonProps {
 export function ApplicationsResultsSkeleton({
   isDraftView = false,
 }: ApplicationsResultsSkeletonProps) {
-  const columns: DataTableSkeletonColumn[] = [
-    ...(isDraftView
-      ? []
-      : ([
-          {
-            head: 'w-10',
-            shape: 'checkbox',
-            headClassName: 'w-10',
-            cellClassName: 'w-10',
-            mobile: 'leading',
-          },
-        ] satisfies DataTableSkeletonColumn[])),
-    { head: 'w-24', cell: 'w-36', subCell: 'w-48', mobile: 'primary' },
-    { head: 'w-20', cell: 'w-28' },
-    { head: 'w-16', cell: 'w-20', shape: 'badge', mobile: 'trailing' },
-    { head: 'w-24', cell: 'w-20' },
-  ];
+  const columns: DataTableSkeletonColumn[] = isDraftView
+    ? [
+        { head: 'w-24', cell: 'w-36', subCell: 'w-48', mobile: 'primary' },
+        { head: 'w-20', cell: 'w-28' },
+        { head: 'w-16', cell: 'w-16' },
+        { head: 'w-20', cell: 'w-24' },
+        { head: 'w-24', cell: 'w-20' },
+      ]
+    : [
+        {
+          head: 'w-10',
+          shape: 'checkbox',
+          headClassName: 'w-10',
+          cellClassName: 'w-10',
+          mobile: 'leading',
+        },
+        { head: 'w-24', cell: 'w-36', subCell: 'w-48', mobile: 'primary' },
+        { head: 'w-20', cell: 'w-28' },
+        { head: 'w-16', cell: 'w-20', shape: 'badge', mobile: 'trailing' },
+        { head: 'w-24', cell: 'w-20' },
+      ];
 
   return (
     <div className={DATA_TABLE_RESULTS_CLASS}>

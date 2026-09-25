@@ -14,6 +14,7 @@ import {
   STATE_ICONS,
 } from '@/lib/icons';
 import type {
+  ApplicationCompletion,
   ApplicationSort,
   ApplicationSortDirection,
   ApplicationSortField,
@@ -35,11 +36,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { DataTable } from '@/components/ui/data-table';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LocalTime } from '@/components/ui/local-time';
+import { ProgressRing } from '@/components/ui/progress-ring';
 
 interface BaseApplicationsTableProps {
   hasActiveFilters: boolean;
   sort?: ApplicationSort;
   isAdmin: boolean;
+  completion: Record<string, ApplicationCompletion>;
 }
 
 // Discriminated on isDraftView: true is the explicit "Draft" filter (pure
@@ -59,7 +62,7 @@ function isAdminRow(
 }
 
 export function ApplicationsTable(props: ApplicationsTableProps) {
-  const { hasActiveFilters, sort, isAdmin } = props;
+  const { hasActiveFilters, sort, isAdmin, completion } = props;
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -173,6 +176,17 @@ export function ApplicationsTable(props: ApplicationsTableProps) {
       ),
     },
     {
+      key: 'progress',
+      header: 'Progress',
+      // Server-side pagination sorts on ApplicationSortField, which progress isn't.
+      cell: (app) => {
+        const entry = completion[app.id];
+        return entry ? (
+          <ProgressRing percent={entry.percent} size="sm" />
+        ) : null;
+      },
+    },
+    {
       key: 'started',
       header: 'Started',
       cellClassName: 'text-muted-foreground',
@@ -274,16 +288,11 @@ export function ApplicationsTable(props: ApplicationsTableProps) {
       sortAccessor: (a) => (a.isDraft ? 'draft' : a.status),
       cell: (app) => {
         if (app.isDraft) {
+          const entry = completion[app.id];
           return (
             <div className="flex items-center gap-1">
               <ApplicationStatusBadge status="draft" />
-              <ApplicationStatusActions
-                applicationId={app.id}
-                currentStatus="draft"
-                applicantName={displayUserName(app.user)}
-                applicantEmail={app.user.email}
-                isAdmin={isAdmin}
-              />
+              {entry && <ProgressRing percent={entry.percent} size="sm" />}
             </div>
           );
         }
@@ -366,9 +375,14 @@ export function ApplicationsTable(props: ApplicationsTableProps) {
             >
               {app.position.title}
             </Link>
-            <span className="text-muted-foreground text-xs">
-              Started <LocalTime date={app.createdAt} precision="date" /> ·
-              Updated <LocalTime date={app.updatedAt} precision="date" />
+            <span className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
+              <span>
+                Started <LocalTime date={app.createdAt} precision="date" /> ·
+                Updated <LocalTime date={app.updatedAt} precision="date" />
+              </span>
+              {completion[app.id] && (
+                <ProgressRing percent={completion[app.id]!.percent} size="sm" />
+              )}
             </span>
           </div>
         )}
@@ -422,6 +436,7 @@ export function ApplicationsTable(props: ApplicationsTableProps) {
         onSortToggle={(key) => toggleSort(key as ApplicationSortField)}
         mobileCard={(app) => {
           if (app.isDraft) {
+            const entry = completion[app.id];
             return (
               <div className="flex gap-3 p-4">
                 <div className="w-4 shrink-0" aria-hidden />
@@ -432,13 +447,9 @@ export function ApplicationsTable(props: ApplicationsTableProps) {
                     </span>
                     <div className="flex shrink-0 items-center gap-1">
                       <ApplicationStatusBadge status="draft" />
-                      <ApplicationStatusActions
-                        applicationId={app.id}
-                        currentStatus="draft"
-                        applicantName={displayUserName(app.user)}
-                        applicantEmail={app.user.email}
-                        isAdmin={isAdmin}
-                      />
+                      {entry && (
+                        <ProgressRing percent={entry.percent} size="sm" />
+                      )}
                     </div>
                   </div>
                   {app.user.name && (

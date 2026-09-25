@@ -23,6 +23,7 @@ import { prisma } from '@/lib/prisma';
 import {
   type AdminApplicationListItem,
   type ApplicantOtherApplication,
+  type ApplicationCompletion,
   type ApplicationEmailEntry,
   type ApplicationFilters,
   type ApplicationForReview,
@@ -41,10 +42,12 @@ import {
   type Reviewer,
 } from '@/lib/types';
 import {
+  calculateAnswerCompletion,
   canReviewPosition,
   displayUserName,
   getEmailLogOccurredAt,
   isPositionActive,
+  resolveGlobalAnswerValues,
 } from '@/lib/utils';
 
 // Drafts are the only null source, and every caller below excludes them via
@@ -306,10 +309,19 @@ export async function getMyApplicationsByPosition(
     select: { id: true, positionId: true, status: true },
   });
 
+  const drafts = applications.filter((a) => a.status === 'draft');
+  const completion = await getApplicationCompletion(
+    drafts.map((a) => ({ id: a.id, positionId: a.positionId, userId })),
+  );
+
   return new Map(
     applications.map((a) => [
       a.positionId,
-      { ...a, status: PUBLIC_APPLICATION_STATUS[a.status] },
+      {
+        ...a,
+        status: PUBLIC_APPLICATION_STATUS[a.status],
+        completion: completion[a.id] ?? null,
+      },
     ]),
   );
 }
@@ -871,7 +883,8 @@ function buildDraftListOrderBy(
   return [{ updatedAt: 'desc' }, { id: 'desc' }];
 }
 
-// Identity/timestamps only — no answers/files/status; DraftApplicationListItem's select is the privacy contract.
+// Identity/timestamps only — no answers/files/status; DraftApplicationListItem's
+// select is the privacy contract. getApplicationCompletion adds a sibling count-only aggregate, never widening this select.
 export async function getDraftApplications(
   user: Reviewer,
   filters: ApplicationFilters,
@@ -1012,4 +1025,135 @@ export async function getPositionApplicationStats(
   }
 
   return map;
+}
+
+// Cross-user aggregate — pass only applications the caller may see. Five
+// queries flat, never per row; only calculateAnswerCompletion's counts leave.
+export async function getApplicationCompletion(
+  applications: { id: string; positionId: string; userId: string }[],
+): Promise<Record<string, ApplicationCompletion>> {
+  if (applications.length === 0) return {};
+
+  const applicationIds = applications.map((a) => a.id);
+  const positionIds = [...new Set(applications.map((a) => a.positionId))];
+  const userIds = [...new Set(applications.map((a) => a.userId))];
+
+  const [
+    globalQuestions,
+    positionQuestions,
+    globalAnswers,
+    positionAnswers,
+    profileAnswers,
+  ] = await Promise.all([
+    prisma.globalQuestion.findMany({
+      where: { required: true, deletedAt: null },
+      select: {
+        id: true,
+        label: true,
+        type: true,
+        required: true,
+        options: true,
+        allowOther: true,
+        format: true,
+      },
+    }),
+    prisma.positionQuestion.findMany({
+      where: {
+        positionId: { in: positionIds },
+        required: true,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        positionId: true,
+        label: true,
+        type: true,
+        required: true,
+        options: true,
+        allowOther: true,
+        format: true,
+      },
+    }),
+    prisma.globalApplicationAnswer.findMany({
+      where: { applicationId: { in: applicationIds }, deletedAt: null },
+      select: { applicationId: true, globalQuestionId: true, value: true },
+    }),
+    prisma.positionApplicationAnswer.findMany({
+      where: { applicationId: { in: applicationIds }, deletedAt: null },
+      select: { applicationId: true, positionQuestionId: true, value: true },
+    }),
+    prisma.globalAnswer.findMany({
+      where: { userId: { in: userIds }, deletedAt: null },
+      select: { userId: true, globalQuestionId: true, value: true },
+    }),
+  ]);
+
+  const globalQuestionIds = globalQuestions.map((q) => q.id);
+
+  const positionQuestionsByPosition = new Map<
+    string,
+    typeof positionQuestions
+  >();
+  for (const q of positionQuestions) {
+    const list = positionQuestionsByPosition.get(q.positionId) ?? [];
+    list.push(q);
+    positionQuestionsByPosition.set(q.positionId, list);
+  }
+
+  const globalAnswersByApplication = new Map<
+    string,
+    { globalQuestionId: string; value: string[] }[]
+  >();
+  for (const a of globalAnswers) {
+    const list = globalAnswersByApplication.get(a.applicationId) ?? [];
+    list.push(a);
+    globalAnswersByApplication.set(a.applicationId, list);
+  }
+
+  const positionAnswersByApplication = new Map<string, Map<string, string[]>>();
+  for (const a of positionAnswers) {
+    const map =
+      positionAnswersByApplication.get(a.applicationId) ??
+      new Map<string, string[]>();
+    map.set(a.positionQuestionId, a.value);
+    positionAnswersByApplication.set(a.applicationId, map);
+  }
+
+  const profileAnswersByUser = new Map<
+    string,
+    { globalQuestionId: string; value: string[] }[]
+  >();
+  for (const a of profileAnswers) {
+    const list = profileAnswersByUser.get(a.userId) ?? [];
+    list.push(a);
+    profileAnswersByUser.set(a.userId, list);
+  }
+
+  const result: Record<string, ApplicationCompletion> = {};
+
+  for (const app of applications) {
+    const positionRequired =
+      positionQuestionsByPosition.get(app.positionId) ?? [];
+
+    // Resolves through the profile, or a plain answer count under-reports
+    // every draft whose globals are only answered there.
+    const resolvedGlobals = resolveGlobalAnswerValues(
+      globalQuestionIds,
+      globalAnswersByApplication.get(app.id) ?? [],
+      profileAnswersByUser.get(app.userId) ?? [],
+    );
+    const positionValues =
+      positionAnswersByApplication.get(app.id) ?? new Map<string, string[]>();
+
+    const values = new Map<string, string[]>(resolvedGlobals);
+    for (const q of positionRequired)
+      values.set(q.id, positionValues.get(q.id) ?? []);
+
+    result[app.id] = calculateAnswerCompletion(
+      [...globalQuestions, ...positionRequired],
+      values,
+    );
+  }
+
+  return result;
 }
