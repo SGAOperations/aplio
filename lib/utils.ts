@@ -18,6 +18,7 @@ import {
 import type {
   AnswerPartition,
   AnswerQuestion,
+  ApplicationCompletion,
   ApplicationFilters,
   DeadlineInfo,
   EmailLogFilters,
@@ -234,6 +235,34 @@ export function partitionAnswerValue(
 /** True when the stored answer has any part that still fits the question's current shape. */
 export function isAnswered(question: AnswerQuestion, value: string[]): boolean {
   return partitionAnswerValue(question, value).fitted.length > 0;
+}
+
+/**
+ * Required-question completion, via `isAnswered` — the same rule Submit
+ * enforces. Zero required → 100%; otherwise 100%/0% only at full/no answers.
+ */
+export function calculateAnswerCompletion(
+  questions: AnswerQuestion[],
+  values: Map<string, string[]>,
+): ApplicationCompletion {
+  const required = questions.filter((q) => q.required);
+  const requiredCount = required.length;
+  if (requiredCount === 0)
+    return { answeredCount: 0, requiredCount: 0, percent: 100 };
+
+  const answeredCount = required.filter((q) =>
+    isAnswered(q, values.get(q.id) ?? []),
+  ).length;
+
+  if (answeredCount === requiredCount)
+    return { answeredCount, requiredCount, percent: 100 };
+  if (answeredCount === 0) return { answeredCount, requiredCount, percent: 0 };
+
+  const percent = Math.min(
+    99,
+    Math.max(1, Math.round((answeredCount / requiredCount) * 100)),
+  );
+  return { answeredCount, requiredCount, percent };
 }
 
 /** An application row wins even when empty (a deliberate clear); no row falls back to the profile. */

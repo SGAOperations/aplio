@@ -671,6 +671,13 @@ export function isTerminalDecisionApplicationStatus(
   return TERMINAL_DECISION_STATUSES.includes(status);
 }
 
+// Shared by updateApplicationStatus and forceWithdrawApplication — same CAS-loss sentence.
+export const APPLICATION_STATUS_CHANGED_MESSAGE =
+  'This application just changed. Refresh to see its current status.';
+
+export const APPLICATION_DRAFT_NOT_WITHDRAWABLE_MESSAGE =
+  "This application hasn't been submitted yet, so there's nothing to withdraw.";
+
 export const RECENTLY_CLOSED_WINDOW_DAYS = 7;
 
 // Sole owners of the applicant deadline-urgency boundaries — shared by

@@ -15,6 +15,7 @@ import { isError } from '@/lib/utils';
 import { ApplicationStatusDialog } from '@/components/features/application-status-dialog';
 import { ApplicationStatusMenu } from '@/components/features/application-status-menu';
 import { useApplicationStatusMove } from '@/components/features/use-application-status-move';
+import { useForceWithdrawApplication } from '@/components/features/use-force-withdraw-application';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
@@ -28,6 +29,7 @@ interface ApplicationStatusActionsProps {
   currentStatus: $Enums.ApplicationStatus;
   applicantName?: string;
   applicantEmail?: string;
+  isAdmin: boolean;
 }
 
 // Table row `⋯` menu only — the detail page's header actions live in
@@ -37,6 +39,7 @@ export function ApplicationStatusActions({
   currentStatus,
   applicantName,
   applicantEmail,
+  isAdmin,
 }: ApplicationStatusActionsProps) {
   const displayName = applicantName ?? 'this application';
   const { isPending, selectTarget, confirmDialogProps } =
@@ -46,6 +49,13 @@ export function ApplicationStatusActions({
       applicantEmail,
       currentStatus,
     });
+  const forceWithdraw = useForceWithdrawApplication({
+    applicationId,
+    applicantName,
+    currentStatus,
+  });
+  const canForceWithdraw =
+    isAdmin && !isNonReviewableApplicationStatus(currentStatus);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [history, setHistory] = useState<ApplicationStatusHistoryEntry[]>([]);
@@ -105,10 +115,15 @@ export function ApplicationStatusActions({
             isPending={isPending}
             onSelect={selectTarget}
             onSeeMore={openDialog}
+            canForceWithdraw={canForceWithdraw}
+            onForceWithdraw={forceWithdraw.openConfirm}
           />
         </DropdownMenuContent>
       </DropdownMenu>
       <ConfirmDialog {...confirmDialogProps} />
+      {canForceWithdraw && (
+        <ConfirmDialog {...forceWithdraw.confirmDialogProps} />
+      )}
       <ApplicationStatusDialog
         applicationId={applicationId}
         applicantName={displayName}
@@ -117,6 +132,7 @@ export function ApplicationStatusActions({
         history={history}
         isHistoryLoading={isHistoryLoading}
         historyFailed={historyFailed}
+        isAdmin={isAdmin}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
       />

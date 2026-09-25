@@ -20,6 +20,8 @@ interface ApplicationStatusMenuProps {
   isPending?: boolean;
   onSelect: (target: $Enums.ApplicationStatus) => void;
   onSeeMore: () => void;
+  canForceWithdraw?: boolean;
+  onForceWithdraw?: () => void;
 }
 
 // One menu shape for both surfaces — the only prop that differs is hoistNext.
@@ -29,6 +31,8 @@ export function ApplicationStatusMenu({
   isPending = false,
   onSelect,
   onSeeMore,
+  canForceWithdraw = false,
+  onForceWithdraw,
 }: ApplicationStatusMenuProps) {
   const { next, decisions } = getApplicationStatusMenu(status);
   const showNext = !hoistNext && next !== null;
@@ -61,6 +65,18 @@ export function ApplicationStatusMenu({
       ))}
       {(showNext || decisions.length > 0) && <DropdownMenuSeparator />}
       <DropdownMenuItem onSelect={onSeeMore}>See more</DropdownMenuItem>
+      {canForceWithdraw && (
+        <>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            variant="destructive"
+            disabled={isPending}
+            onSelect={onForceWithdraw}
+          >
+            Force withdraw
+          </DropdownMenuItem>
+        </>
+      )}
     </>
   );
 }
