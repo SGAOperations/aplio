@@ -227,23 +227,27 @@ interface ApplicationsResultsSkeletonProps {
 export function ApplicationsResultsSkeleton({
   isDraftView = false,
 }: ApplicationsResultsSkeletonProps) {
-  const columns: DataTableSkeletonColumn[] = [
-    ...(isDraftView
-      ? []
-      : ([
-          {
-            head: 'w-10',
-            shape: 'checkbox',
-            headClassName: 'w-10',
-            cellClassName: 'w-10',
-            mobile: 'leading',
-          },
-        ] satisfies DataTableSkeletonColumn[])),
-    { head: 'w-24', cell: 'w-36', subCell: 'w-48', mobile: 'primary' },
-    { head: 'w-20', cell: 'w-28' },
-    { head: 'w-16', cell: 'w-20', shape: 'badge', mobile: 'trailing' },
-    { head: 'w-24', cell: 'w-20' },
-  ];
+  const columns: DataTableSkeletonColumn[] = isDraftView
+    ? [
+        { head: 'w-24', cell: 'w-36', subCell: 'w-48', mobile: 'primary' },
+        { head: 'w-20', cell: 'w-28' },
+        { head: 'w-16', cell: 'w-16' },
+        { head: 'w-20', cell: 'w-24' },
+        { head: 'w-24', cell: 'w-20' },
+      ]
+    : [
+        {
+          head: 'w-10',
+          shape: 'checkbox',
+          headClassName: 'w-10',
+          cellClassName: 'w-10',
+          mobile: 'leading',
+        },
+        { head: 'w-24', cell: 'w-36', subCell: 'w-48', mobile: 'primary' },
+        { head: 'w-20', cell: 'w-28' },
+        { head: 'w-16', cell: 'w-20', shape: 'badge', mobile: 'trailing' },
+        { head: 'w-24', cell: 'w-20' },
+      ];
 
   return (
     <div className={DATA_TABLE_RESULTS_CLASS}>
