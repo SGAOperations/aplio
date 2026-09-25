@@ -1,24 +1,21 @@
-import { Card, CardHeader } from '@/components/ui/card';
+import { PositionCardSkeleton } from '@/components/features/position-card';
+import { PageHeaderSkeleton } from '@/components/layouts/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function PositionsLoading() {
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex flex-col gap-2">
-        <Skeleton className="h-8 w-40" />
-        <Skeleton className="h-4 w-72" />
-      </div>
+      <PageHeaderSkeleton titleWidth="w-40" />
       <div className="flex flex-col gap-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Card key={i} className="gap-0 p-0">
-            <CardHeader className="p-0">
-              <div className="flex w-full items-center justify-between p-6">
-                <Skeleton className="h-5 w-48" />
-                <Skeleton className="size-5 rounded" />
-              </div>
-            </CardHeader>
-          </Card>
-        ))}
+        <div className="flex items-center gap-2">
+          <Skeleton className="size-4 rounded" />
+          <Skeleton className="h-7 w-40" />
+        </div>
+        <div className="flex flex-col gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <PositionCardSkeleton key={i} actions={2} />
+          ))}
+        </div>
       </div>
     </div>
   );

@@ -16,8 +16,10 @@ import {
 } from '@/lib/constants';
 import type { ApplicationFilters } from '@/lib/types';
 
-import { ApplicationsResults } from '@/components/features/applications-results';
-import { ApplicationsTableSkeleton } from '@/components/features/applications-table-skeleton';
+import {
+  ApplicationsResults,
+  ApplicationsResultsSkeleton,
+} from '@/components/features/applications-results';
 import { ApplicationsToolbar } from '@/components/features/applications-toolbar';
 import { PageHeader } from '@/components/layouts/page-header';
 
@@ -105,7 +107,7 @@ export default async function ApplicationsPage({
 
       <Suspense
         key={JSON.stringify({ ...filters, page })}
-        fallback={<ApplicationsTableSkeleton showSelection={!isDraftView} />}
+        fallback={<ApplicationsResultsSkeleton isDraftView={isDraftView} />}
       >
         <ApplicationsResults
           user={user}

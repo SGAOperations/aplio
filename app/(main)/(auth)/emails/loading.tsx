@@ -1,37 +1,17 @@
 import { EmailFailureStripSkeleton } from '@/components/features/email-failure-strip';
-import { EmailLogTableSkeleton } from '@/components/features/email-log-table-skeleton';
+import { EmailLogResultsSkeleton } from '@/components/features/email-log-results';
+import { PageHeaderSkeleton } from '@/components/layouts/page-header';
+import { DataTableToolbarSkeleton } from '@/components/ui/data-table-toolbar';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function EmailsLoading() {
   return (
     <div className="flex flex-col gap-6">
-      {/* Header skeleton */}
-      <div className="flex flex-col gap-2">
-        <Skeleton className="h-7 w-32" />
-        <Skeleton className="h-4 w-80" />
-      </div>
-
+      <PageHeaderSkeleton titleWidth="w-32" />
       <EmailFailureStripSkeleton />
-
-      {/* Toolbar skeleton — Status Select + Template Select + Search Input */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-        <div className="flex w-full flex-col gap-1.5 sm:w-44">
-          <Skeleton className="h-3 w-10" />
-          <Skeleton className="h-11 w-full md:h-9" />
-        </div>
-        <div className="flex w-full flex-col gap-1.5 sm:w-52">
-          <Skeleton className="h-3 w-16" />
-          <Skeleton className="h-11 w-full md:h-9" />
-        </div>
-        <div className="flex w-full flex-col gap-1.5 sm:w-64">
-          <Skeleton className="h-3 w-12" />
-          <Skeleton className="h-11 w-full md:h-9" />
-        </div>
-      </div>
-
-      <Skeleton className="h-4 w-full max-w-md" />
-
-      <EmailLogTableSkeleton />
+      <DataTableToolbarSkeleton fields={['sm:w-44', 'sm:w-52', 'sm:w-64']} />
+      <Skeleton className="h-5 w-full max-w-md" />
+      <EmailLogResultsSkeleton />
     </div>
   );
 }
