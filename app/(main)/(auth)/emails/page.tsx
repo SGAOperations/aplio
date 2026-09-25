@@ -12,8 +12,10 @@ import {
   EmailFailureStrip,
   EmailFailureStripSkeleton,
 } from '@/components/features/email-failure-strip';
-import { EmailLogResults } from '@/components/features/email-log-results';
-import { EmailLogTableSkeleton } from '@/components/features/email-log-table-skeleton';
+import {
+  EmailLogResults,
+  EmailLogResultsSkeleton,
+} from '@/components/features/email-log-results';
 import { EmailLogToolbar } from '@/components/features/email-log-toolbar';
 import { PageHeader } from '@/components/layouts/page-header';
 
@@ -66,7 +68,7 @@ export default async function EmailsPage({ searchParams }: EmailsPageProps) {
 
       <Suspense
         key={JSON.stringify({ ...filters, page })}
-        fallback={<EmailLogTableSkeleton />}
+        fallback={<EmailLogResultsSkeleton />}
       >
         <EmailLogResults
           filters={filters}

@@ -4,12 +4,12 @@ export default function PositionDetailLoading() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <Skeleton className="mb-4 h-4 w-28" />
-        <div className="mt-2 flex items-center gap-3">
+        <Skeleton className="mb-4 h-5 w-28" />
+        <div className="mt-2 flex flex-wrap items-center gap-3">
           <Skeleton className="h-8 w-64" />
-          <Skeleton className="h-5 w-16 rounded-full" />
+          <Skeleton className="h-5.5 w-16 rounded-md" />
         </div>
-        <Skeleton className="mt-3 h-5 w-48" />
+        <Skeleton className="mt-3 h-6 w-48" />
       </div>
       <div className="max-w-2xl space-y-2">
         <Skeleton className="h-4 w-full" />

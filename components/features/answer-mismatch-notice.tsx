@@ -1,11 +1,17 @@
 import type { QuestionType } from '@/prisma/client';
 
+import {
+  type ShortAnswerFormatValue,
+  formatShortAnswerValue,
+} from '@/lib/constants';
+
 import { WarningCallout } from '@/components/ui/warning-callout';
 
 interface AnswerMismatchNoticeProps {
   id: string;
   values: string[];
   questionType: QuestionType;
+  format: ShortAnswerFormatValue | null;
 }
 
 // Callers wire `id` to the control's `aria-describedby`.
@@ -13,6 +19,7 @@ export function AnswerMismatchNotice({
   id,
   values,
   questionType,
+  format,
 }: AnswerMismatchNoticeProps) {
   if (values.length === 0) return null;
 
@@ -39,7 +46,7 @@ export function AnswerMismatchNotice({
           <ul className="mt-1 flex flex-col gap-0.5">
             {values.map((v, i) => (
               <li key={i} className="font-medium">
-                {v}
+                {formatShortAnswerValue(v, format)}
               </li>
             ))}
           </ul>

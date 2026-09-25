@@ -1,3 +1,4 @@
+import { formatShortAnswerValue } from '@/lib/constants';
 import { type ApplicationReviewAnswer } from '@/lib/types';
 
 import { AnswerFileLink } from '@/components/features/answer-file-link';
@@ -75,10 +76,16 @@ function AnswerValue({
     case 'short_answer':
       return answer.value.length > 1 ? (
         <dd>
-          <ChipList values={answer.value} />
+          <ChipList
+            values={answer.value.map((v) =>
+              formatShortAnswerValue(v, answer.format),
+            )}
+          />
         </dd>
       ) : (
-        <dd className="text-sm break-words">{answer.value[0]}</dd>
+        <dd className="text-sm break-words">
+          {formatShortAnswerValue(answer.value[0] ?? '', answer.format)}
+        </dd>
       );
     default: {
       const exhaustiveCheck: never = answer.type;

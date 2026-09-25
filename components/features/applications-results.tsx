@@ -11,6 +11,7 @@ import {
 } from '@/prisma/data/applications';
 
 import { APPLICATIONS_PAGE_SIZE } from '@/lib/constants';
+import { DATA_TABLE_RESULTS_CLASS } from '@/lib/data-table';
 import { STATE_ICONS } from '@/lib/icons';
 import type {
   ApplicationFilters,
@@ -20,6 +21,11 @@ import type {
 import { buildApplicationsHref, getPaginationBounds } from '@/lib/utils';
 
 import { ApplicationsTable } from '@/components/features/applications-table';
+import {
+  DataTableSkeleton,
+  type DataTableSkeletonColumn,
+} from '@/components/ui/data-table-skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 import { TablePagination } from '@/components/ui/table-pagination';
 
 interface ApplicationsResultsProps {
@@ -99,7 +105,7 @@ export async function ApplicationsResults({
       );
 
     return (
-      <div className="flex flex-col gap-3">
+      <div className={DATA_TABLE_RESULTS_CLASS}>
         <p className="text-muted-foreground flex items-start gap-2 text-sm">
           <STATE_ICONS.hidden className="mt-0.5 size-4 shrink-0" />
           You can see who started an application, not what they&apos;ve written.
@@ -148,7 +154,7 @@ export async function ApplicationsResults({
       paginateRows(merged, page);
 
     return (
-      <div className="flex flex-col gap-3">
+      <div className={DATA_TABLE_RESULTS_CLASS}>
         <ApplicationsTable
           applications={rows}
           hasActiveFilters={hasActiveFilters}
@@ -171,7 +177,7 @@ export async function ApplicationsResults({
     await fetchPage(getApplicationsCount, getApplications, user, filters, page);
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className={DATA_TABLE_RESULTS_CLASS}>
       <ApplicationsTable
         applications={rows.map((a) => ({ ...a, isDraft: false as const }))}
         hasActiveFilters={hasActiveFilters}
@@ -186,6 +192,45 @@ export async function ApplicationsResults({
         rangeEnd={rangeEnd}
         isFiltered={hasActiveFilters}
       />
+    </div>
+  );
+}
+
+interface ApplicationsResultsSkeletonProps {
+  isDraftView?: boolean;
+}
+
+export function ApplicationsResultsSkeleton({
+  isDraftView = false,
+}: ApplicationsResultsSkeletonProps) {
+  const columns: DataTableSkeletonColumn[] = [
+    ...(isDraftView
+      ? []
+      : ([
+          {
+            head: 'w-10',
+            shape: 'checkbox',
+            headClassName: 'w-10',
+            cellClassName: 'w-10',
+            mobile: 'leading',
+          },
+        ] satisfies DataTableSkeletonColumn[])),
+    { head: 'w-24', cell: 'w-36', subCell: 'w-48', mobile: 'primary' },
+    { head: 'w-20', cell: 'w-28' },
+    { head: 'w-16', cell: 'w-20', shape: 'badge', mobile: 'trailing' },
+    { head: 'w-24', cell: 'w-20' },
+  ];
+
+  return (
+    <div className={DATA_TABLE_RESULTS_CLASS}>
+      {isDraftView && <Skeleton className="h-5 w-full max-w-lg" />}
+      <DataTableSkeleton
+        columns={columns}
+        mobileGap="gap-1"
+        mobileRowGap="gap-3"
+      />
+      {/* Single-page summary line only — multi-page controls row height is unknowable until fetch. */}
+      <Skeleton className="h-5 w-56" />
     </div>
   );
 }

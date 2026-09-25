@@ -1,14 +1,11 @@
+import { PageHeaderSkeleton } from '@/components/layouts/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function ProfileLoading() {
   return (
     <div className="mx-auto max-w-2xl">
       <div className="flex flex-col gap-6">
-        {/* PageHeader skeleton */}
-        <div className="flex flex-col gap-2">
-          <Skeleton className="h-8 w-24" />
-          <Skeleton className="h-4 w-64" />
-        </div>
+        <PageHeaderSkeleton titleWidth="w-24" />
 
         {/* Edit toggle skeleton */}
         <div className="flex justify-end">

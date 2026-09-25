@@ -14,6 +14,7 @@ import {
   getAnswerValueError,
   matchesShortAnswerFormat,
   nameSchema,
+  normalizeShortAnswerValue,
 } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 import { type ErrorType, type ResponseType } from '@/lib/utils';
@@ -72,10 +73,11 @@ export async function updateGlobalAnswer(
   const answerError = getAnswerValueError(question, parsed.data.value);
   if (answerError) return { error: answerError };
 
-  // matchesShortAnswerFormat trims internally, so save the trimmed value.
+  // Trims every short-answer format; phone_number additionally normalizes to digits.
+  const format = question.format;
   const persistedValue =
-    question.type === 'short_answer' && question.format
-      ? parsed.data.value.map((v) => v.trim())
+    question.type === 'short_answer' && format
+      ? parsed.data.value.map((v) => normalizeShortAnswerValue(v, format))
       : parsed.data.value;
 
   const result = await prisma.globalAnswer.upsert({
