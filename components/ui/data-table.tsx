@@ -18,6 +18,7 @@ import {
 import { ACTION_ICONS } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
   SortableHandle,
@@ -169,14 +170,14 @@ function SortableMobileRow({
       style={style}
       className={cn(
         'flex items-start motion-reduce:transition-none',
-        isDragging && 'relative z-10',
+        isDragging && 'bg-card relative z-10 shadow-lg',
       )}
     >
       <SortableHandle
         label={handleLabel}
         handleProps={handleProps}
         disabled={handleDisabled}
-        className="ml-2 shrink-0"
+        className="mt-1.5 ml-2 shrink-0"
       />
       <div className="min-w-0 flex-1">{children}</div>
     </div>
@@ -269,6 +270,19 @@ export function DataTable<T>({
     [controlled, onSortToggle, params.sort, params.dir, setParams],
   );
 
+  // Restores the reorder column's ascending sort directly — never `toggle`,
+  // which would cycle to desc if that column is already sorted desc.
+  const restoreOrderSort = useCallback(
+    (key: string) => {
+      if (controlled) {
+        onSortToggle(key);
+        return;
+      }
+      void setParams({ sort: key, dir: 'asc' });
+    },
+    [controlled, onSortToggle, setParams],
+  );
+
   const sortedRows = useMemo(() => {
     if (controlled || !sort.key) return rows;
     const column = columns.find((c) => c.key === sort.key && c.sortAccessor);
@@ -291,11 +305,27 @@ export function DataTable<T>({
     sort.direction === 'asc';
   const dragLive = sortedByOrder && !reorder.disabled;
   const columnCount = columns.length + (showReorderColumn ? 1 : 0);
+  const orderColumnLabel = reorder
+    ? sortLabel(
+        columns.find((c) => c.key === reorder.orderKey)?.header,
+        reorder.orderKey,
+      )
+    : '';
 
   return (
     <div className={DATA_TABLE_STACK_CLASS}>
       {showReorderColumn && !sortedByOrder && (
-        <p className="text-muted-foreground text-sm">{reorder.sortHint}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-muted-foreground text-sm">{reorder.sortHint}</p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => restoreOrderSort(reorder.orderKey)}
+          >
+            Sort by {orderColumnLabel}
+          </Button>
+        </div>
       )}
       {/* overflow-hidden clips the header hover highlight to the card's rounded corners */}
       <Card className={DATA_TABLE_SHELL_CLASS}>
