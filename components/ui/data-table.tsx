@@ -56,6 +56,9 @@ interface DataTableProps<T> {
   caption: string;
   // Controlled sort mode: pass both to opt the caller's own state/URL contract in.
   sort?: SortState;
+  // Combined with `reorder`, this must also land on ascending when re-invoked
+  // for `reorder.orderKey` — the "Sort by <column>" restore button calls it
+  // directly, not through a toggle/cycle.
   onSortToggle?: (key: string) => void;
   // Drag-to-reorder, gated to sorting by `orderKey` ascending.
   reorder?: DataTableReorder<T>;
@@ -271,7 +274,8 @@ export function DataTable<T>({
   );
 
   // Restores the reorder column's ascending sort directly — never `toggle`,
-  // which would cycle to desc if that column is already sorted desc.
+  // which would cycle to desc if that column is already sorted desc. In
+  // controlled mode this relies on `onSortToggle` honoring that contract too.
   const restoreOrderSort = useCallback(
     (key: string) => {
       if (controlled) {
