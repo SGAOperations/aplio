@@ -631,10 +631,11 @@ describe('updateApplicationStatuses', () => {
   });
 });
 
-describe('getApplicationStatusCounts / getRecentApplications listable vs reviewable', () => {
-  it('excludes withdrawn from the reviewable pair while getApplications keeps it', async () => {
+describe('getApplicationStatusCounts / getRecentApplications position scope vs reviewable', () => {
+  it('counts draft and withdrawn (position-scoped only) while getRecentApplications stays reviewer-gated', async () => {
     const counts = await getApplicationStatusCounts(managerA);
-    expect(counts.withdrawn).toBeUndefined();
+    expect(counts.draft).toBeGreaterThan(0);
+    expect(counts.withdrawn).toBeGreaterThan(0);
 
     const recent = (await getRecentApplications(managerA)).map((a) => a.id);
     expect(recent).not.toContain(withdrawnApplicationA.id);
@@ -650,6 +651,22 @@ describe('getApplicationStatusCounts / getRecentApplications listable vs reviewa
     );
     expect(recentAsManagerB).not.toContain(applicationA1.id);
     expect(recentAsManagerB).toContain(applicationB1.id);
+  });
+
+  it("excludes another manager's draft/withdrawn rows from the count", async () => {
+    const managerC = await createTestUser();
+    const positionC = await createTestPosition(admin, { managers: [managerC] });
+    const applicantC = await createTestUser();
+    await createTestApplication(applicantC, positionC, { status: 'applied' });
+
+    const countsAsManagerC = await getApplicationStatusCounts(managerC);
+    expect(countsAsManagerC.draft ?? 0).toBe(0);
+    expect(countsAsManagerC.withdrawn ?? 0).toBe(0);
+    expect(countsAsManagerC.applied).toBe(1);
+
+    const countsAsManagerA = await getApplicationStatusCounts(managerA);
+    expect(countsAsManagerA.draft).toBeGreaterThan(0);
+    expect(countsAsManagerA.withdrawn).toBeGreaterThan(0);
   });
 });
 

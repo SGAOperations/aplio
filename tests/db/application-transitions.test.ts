@@ -45,10 +45,7 @@ const POSITION_NOT_ACCEPTING_MESSAGE =
 const MISSING_POSITION_ANSWERS_MESSAGE =
   'Please answer all required questions before submitting.';
 
-const ALL_STATUSES: $Enums.ApplicationStatus[] = [
-  ...APPLICATION_STATUS_VALUES,
-  'withdrawn',
-];
+const ALL_STATUSES: $Enums.ApplicationStatus[] = [...APPLICATION_STATUS_VALUES];
 
 let admin: User;
 let openPosition: Position;
