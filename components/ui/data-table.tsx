@@ -18,6 +18,7 @@ import {
 import { ACTION_ICONS } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
   SortableHandle,
@@ -55,6 +56,9 @@ interface DataTableProps<T> {
   caption: string;
   // Controlled sort mode: pass both to opt the caller's own state/URL contract in.
   sort?: SortState;
+  // Combined with `reorder`, this must also land on ascending when re-invoked
+  // for `reorder.orderKey` — the "Sort by <column>" restore button calls it
+  // directly, not through a toggle/cycle.
   onSortToggle?: (key: string) => void;
   // Drag-to-reorder, gated to sorting by `orderKey` ascending.
   reorder?: DataTableReorder<T>;
@@ -150,6 +154,9 @@ function SortableTableRow<T>({
   );
 }
 
+// No separate drag handle on mobile — the whole card is the drag target, so
+// `touch-manipulation` (not `touch-none`) keeps native scroll working; the
+// TouchSensor's long-press delay is what tells a drag apart from a scroll.
 function SortableMobileRow({
   id,
   handleLabel,
@@ -168,17 +175,14 @@ function SortableMobileRow({
       ref={setNodeRef}
       style={style}
       className={cn(
-        'flex items-start motion-reduce:transition-none',
-        isDragging && 'relative z-10',
+        'touch-manipulation motion-reduce:transition-none',
+        !handleDisabled && 'cursor-grab active:cursor-grabbing',
+        isDragging && 'bg-card relative z-10 shadow-lg',
       )}
+      aria-label={handleDisabled ? undefined : `Reorder ${handleLabel}`}
+      {...(handleDisabled ? {} : handleProps)}
     >
-      <SortableHandle
-        label={handleLabel}
-        handleProps={handleProps}
-        disabled={handleDisabled}
-        className="ml-2 shrink-0"
-      />
-      <div className="min-w-0 flex-1">{children}</div>
+      {children}
     </div>
   );
 }
@@ -269,6 +273,20 @@ export function DataTable<T>({
     [controlled, onSortToggle, params.sort, params.dir, setParams],
   );
 
+  // Restores the reorder column's ascending sort directly — never `toggle`,
+  // which would cycle to desc if that column is already sorted desc. In
+  // controlled mode this relies on `onSortToggle` honoring that contract too.
+  const restoreOrderSort = useCallback(
+    (key: string) => {
+      if (controlled) {
+        onSortToggle(key);
+        return;
+      }
+      void setParams({ sort: key, dir: 'asc' });
+    },
+    [controlled, onSortToggle, setParams],
+  );
+
   const sortedRows = useMemo(() => {
     if (controlled || !sort.key) return rows;
     const column = columns.find((c) => c.key === sort.key && c.sortAccessor);
@@ -291,11 +309,27 @@ export function DataTable<T>({
     sort.direction === 'asc';
   const dragLive = sortedByOrder && !reorder.disabled;
   const columnCount = columns.length + (showReorderColumn ? 1 : 0);
+  const orderColumnLabel = reorder
+    ? sortLabel(
+        columns.find((c) => c.key === reorder.orderKey)?.header,
+        reorder.orderKey,
+      )
+    : '';
 
   return (
     <div className={DATA_TABLE_STACK_CLASS}>
       {showReorderColumn && !sortedByOrder && (
-        <p className="text-muted-foreground text-sm">{reorder.sortHint}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-muted-foreground text-sm">{reorder.sortHint}</p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => restoreOrderSort(reorder.orderKey)}
+          >
+            Sort by {orderColumnLabel}
+          </Button>
+        </div>
       )}
       {/* overflow-hidden clips the header hover highlight to the card's rounded corners */}
       <Card className={DATA_TABLE_SHELL_CLASS}>
