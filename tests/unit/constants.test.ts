@@ -37,6 +37,7 @@ import {
   normalizeShortAnswerValue,
   positionDateOrderIssues,
   positionPastDateIssues,
+  positionScheduleClearIssues,
   positionScheduleIssues,
 } from '@/lib/constants';
 import { toOrgDayString } from '@/lib/dates';
@@ -745,6 +746,69 @@ describe('positionScheduleIssues — the Clear-control commit decision', () => {
     expect(issues).toEqual([
       { path: 'opensAt', message: POSITION_OPENS_AT_ORDER_ERROR },
       { path: 'closesAt', message: POSITION_CLOSES_AT_ORDER_ERROR },
+    ]);
+  });
+});
+
+describe('positionScheduleClearIssues — the mobile Clear-tap decision', () => {
+  const today = '2026-06-01';
+
+  it('is silent on the field being cleared even if its own node still reports badInput', () => {
+    const issues = positionScheduleClearIssues(
+      'opensAt',
+      { opensAt: '2026-06-10', closesAt: '' },
+      { opensAt: true, closesAt: false },
+      today,
+      {},
+    );
+    expect(issues).toEqual([]);
+  });
+
+  it('blocks on an incomplete sibling, naming only the sibling', () => {
+    const issues = positionScheduleClearIssues(
+      'opensAt',
+      { opensAt: '2026-06-10', closesAt: '' },
+      { opensAt: false, closesAt: true },
+      today,
+      {},
+    );
+    expect(issues).toEqual([
+      { path: 'closesAt', message: POSITION_DATE_INCOMPLETE_ERROR },
+    ]);
+  });
+
+  it('allows the clear when the sibling holds an unchanged past date', () => {
+    const issues = positionScheduleClearIssues(
+      'opensAt',
+      { opensAt: '2026-06-10', closesAt: '2026-05-01' },
+      { opensAt: false, closesAt: false },
+      today,
+      { opensAt: '2026-06-10', closesAt: '2026-05-01' },
+    );
+    expect(issues).toEqual([]);
+  });
+
+  it('allows clearing one half of an out-of-order pair', () => {
+    const issues = positionScheduleClearIssues(
+      'closesAt',
+      { opensAt: '2026-06-20', closesAt: '2026-06-10' },
+      { opensAt: false, closesAt: false },
+      today,
+      {},
+    );
+    expect(issues).toEqual([]);
+  });
+
+  it('blocks when the sibling was changed to a past date', () => {
+    const issues = positionScheduleClearIssues(
+      'opensAt',
+      { opensAt: '2026-06-10', closesAt: '2026-05-01' },
+      { opensAt: false, closesAt: false },
+      today,
+      { opensAt: '2026-06-10', closesAt: '2026-06-20' },
+    );
+    expect(issues).toEqual([
+      { path: 'closesAt', message: POSITION_CLOSES_AT_PAST_ERROR },
     ]);
   });
 });

@@ -803,6 +803,23 @@ export function positionScheduleIssues(
   ];
 }
 
+// The Clear-button commit decision: forces the cleared field empty and
+// not-incomplete first, so clearing one date can only ever be blocked by the other.
+export function positionScheduleClearIssues(
+  name: 'opensAt' | 'closesAt',
+  values: { opensAt?: string; closesAt?: string },
+  incomplete: { opensAt?: boolean; closesAt?: boolean },
+  today: string,
+  previous?: { opensAt?: string; closesAt?: string },
+): { path: 'opensAt' | 'closesAt'; message: string }[] {
+  return positionScheduleIssues(
+    { ...values, [name]: '' },
+    { ...incomplete, [name]: false },
+    today,
+    previous,
+  );
+}
+
 // Ordering plus past-date, for the client form and createPosition —
 // updatePositionSchedule runs positionPastDateIssues directly against its loaded row.
 export function positionDatesRefinement(
