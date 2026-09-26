@@ -395,8 +395,8 @@ export const APPLICATION_STATUS_BADGE_VARIANT: Record<
   withdrawn: 'outline',
 };
 
-// The /manage/applications queue's filter list — every status a manager can
-// filter for, including 'draft'. Excludes 'withdrawn': no consumer needs it.
+// The /manage/applications queue's filter list — every ApplicationStatus,
+// including 'draft' and 'withdrawn'.
 export const APPLICATION_STATUS_VALUES = [
   'draft',
   'applied',
@@ -405,6 +405,7 @@ export const APPLICATION_STATUS_VALUES = [
   'reviewing',
   'accepted',
   'rejected',
+  'withdrawn',
 ] as const satisfies $Enums.ApplicationStatus[];
 
 export const APPLICATION_STATUS_OPTIONS: {
@@ -428,8 +429,13 @@ export const REVIEWER_APPLICATION_STATUSES = [
   ...Exclude<$Enums.ApplicationStatus, 'draft'>[],
 ];
 
-export const REVIEWER_APPLICATION_STATUS_OPTIONS =
-  APPLICATION_STATUS_OPTIONS.filter((o) => o.value !== 'draft');
+export const REVIEWER_APPLICATION_STATUS_OPTIONS: {
+  value: $Enums.ApplicationStatus;
+  label: string;
+}[] = REVIEWER_APPLICATION_STATUSES.map((value) => ({
+  value,
+  label: APPLICATION_STATUS_LABELS[value],
+}));
 
 // Collapses reviewer-internal statuses to what an applicant may see: the
 // four in-review statuses all read as 'applied'; everything else maps to
@@ -1180,7 +1186,7 @@ export const STATUS_BADGE_VARIANT_TO_DOT: Record<BadgeVariant, string> = {
   destructive: 'bg-destructive',
   secondary: 'bg-muted-foreground',
   default: 'bg-primary',
-  outline: 'bg-border',
+  outline: 'border-2 border-muted-foreground',
 };
 
 // Heading for the activity panel's applicant-scoped group — the only group
@@ -1329,6 +1335,7 @@ export const EMAIL_FAILURE_STATUSES = [
 ] as const satisfies $Enums.EmailStatus[];
 
 // Statuses surfaced in the reviewer dashboard's PipelineSummary (excludes draft).
+// Also what Total sums — PIPELINE_SUMMARY_STATUSES adds draft/withdrawn beside it.
 export const APPLICATION_PIPELINE_STATUSES = [
   'applied',
   'reached_out',
@@ -1336,4 +1343,12 @@ export const APPLICATION_PIPELINE_STATUSES = [
   'reviewing',
   'accepted',
   'rejected',
+] as const satisfies $Enums.ApplicationStatus[];
+
+// All nine PipelineSummary cards, in display order — draft leads the pipeline
+// six, and withdrawn trails them all.
+export const PIPELINE_SUMMARY_STATUSES = [
+  'draft',
+  ...APPLICATION_PIPELINE_STATUSES,
+  'withdrawn',
 ] as const satisfies $Enums.ApplicationStatus[];

@@ -15,10 +15,7 @@ import {
 } from '@/lib/constants';
 import { getApplicationStatusHistoryRowLabel } from '@/lib/utils';
 
-const ALL_STATUSES: $Enums.ApplicationStatus[] = [
-  ...APPLICATION_STATUS_VALUES,
-  'withdrawn',
-];
+const ALL_STATUSES: $Enums.ApplicationStatus[] = [...APPLICATION_STATUS_VALUES];
 
 describe('getNextApplicationStatus', () => {
   it('walks the path forward for every unresolved status', () => {
