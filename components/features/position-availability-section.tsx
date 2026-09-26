@@ -7,6 +7,7 @@ import { updatePositionSchedule } from '@/prisma/actions/position-actions';
 
 import {
   POSITION_DATE_CLEAR_BLOCKED_ERROR,
+  positionScheduleClearIssues,
   positionScheduleIssues,
 } from '@/lib/constants';
 import { toOrgDayString } from '@/lib/dates';
@@ -126,22 +127,33 @@ export function PositionAvailabilitySection({
     return [];
   }
 
-  function handleClear(name: keyof ScheduleValues) {
+  function handleClear(
+    name: keyof ScheduleValues,
+    { restoreFocus }: { restoreFocus: boolean },
+  ) {
+    form.clearErrors();
+    const issues = positionScheduleClearIssues(
+      name,
+      form.getValues(),
+      badInputFromRefs(),
+      toOrgDayString(new Date()),
+      lastSavedRef.current,
+    );
+    // Only the sibling can block a clear now — decide before touching anything,
+    // so a blocked clear never blanks the field it couldn't actually clear.
+    if (issues.length > 0) {
+      for (const issue of issues)
+        form.setError(issue.path, { message: issue.message });
+      form.setError(name, { message: POSITION_DATE_CLEAR_BLOCKED_ERROR });
+      return;
+    }
+
     const ref = fieldRefs[name].current;
-    const previousValue = form.getValues(name);
     if (ref) ref.value = '';
     form.setValue(name, '', { shouldDirty: true });
     setIncomplete((prev) => ({ ...prev, [name]: false }));
-
-    const issues = commitIfValid();
-    // Blocked purely by the sibling — revert so this field doesn't look
-    // cleared while nothing actually committed, and flag it too.
-    if (issues.length > 0 && !issues.some((issue) => issue.path === name)) {
-      if (ref) ref.value = previousValue;
-      form.setValue(name, previousValue);
-      form.setError(name, { message: POSITION_DATE_CLEAR_BLOCKED_ERROR });
-    }
-    ref?.focus();
+    scheduleAutosave.commit({ ...form.getValues(), [name]: '' });
+    if (restoreFocus) ref?.focus();
   }
 
   const statusText = autosaveStatusText(
@@ -194,7 +206,13 @@ export function PositionAvailabilitySection({
                             variant="ghost"
                             size="icon"
                             aria-label={config.clearLabel}
-                            onClick={() => handleClear(config.name)}
+                            // Keeps focus on the input so its blur-commit can't re-render under the finger.
+                            onPointerDown={(e) => e.preventDefault()}
+                            onClick={(e) =>
+                              handleClear(config.name, {
+                                restoreFocus: e.detail === 0, // 0 = keyboard activation
+                              })
+                            }
                           >
                             <ACTION_ICONS.dismiss />
                           </Button>
