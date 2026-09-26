@@ -14,8 +14,7 @@ const COLUMNS: DataTableSkeletonColumn[] = [
   { head: 'w-24', headClassName: 'w-32', shape: 'action', cell: 'w-20' },
 ];
 
-// Mirrors GlobalQuestionsTable's mobileCard: label line, meta badge row,
-// chips row, then a two-square action row.
+// Mirrors GlobalQuestionsTable's mobileCard.
 function mobileCard() {
   return (
     <>
