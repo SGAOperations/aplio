@@ -154,6 +154,9 @@ function SortableTableRow<T>({
   );
 }
 
+// No separate drag handle on mobile — the whole card is the drag target, so
+// `touch-manipulation` (not `touch-none`) keeps native scroll working; the
+// TouchSensor's long-press delay is what tells a drag apart from a scroll.
 function SortableMobileRow({
   id,
   handleLabel,
@@ -172,17 +175,14 @@ function SortableMobileRow({
       ref={setNodeRef}
       style={style}
       className={cn(
-        'flex items-start motion-reduce:transition-none',
+        'touch-manipulation motion-reduce:transition-none',
+        !handleDisabled && 'cursor-grab active:cursor-grabbing',
         isDragging && 'bg-card relative z-10 shadow-lg',
       )}
+      aria-label={handleDisabled ? undefined : `Reorder ${handleLabel}`}
+      {...(handleDisabled ? {} : handleProps)}
     >
-      <SortableHandle
-        label={handleLabel}
-        handleProps={handleProps}
-        disabled={handleDisabled}
-        className="mt-1.5 ml-2 shrink-0"
-      />
-      <div className="min-w-0 flex-1">{children}</div>
+      {children}
     </div>
   );
 }

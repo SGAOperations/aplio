@@ -44,10 +44,11 @@ interface DataTableSkeletonProps {
   columns: DataTableSkeletonColumn[];
   rows?: number;
   mobileRows?: number;
+  // Desktop-only — mobile has no separate handle, the card itself is the drag target.
   hasReorderHandle?: boolean;
   // Vertical gap between stacked lines inside a mobile card — match the real table's mobile card.
   mobileGap?: DataTableSkeletonGap;
-  // Gap between the leading column/handle and the card body, when either is present.
+  // Gap between a leading column and the card body, when one is present.
   mobileRowGap?: DataTableSkeletonGap;
   // Full custom mobile card body — bypasses the generic column-role layout below
   // when a table's real mobile card doesn't fit that shape.
@@ -103,14 +104,12 @@ function resolveMobileRoles(
 function DataTableSkeletonMobileRow({
   columns,
   roles,
-  hasReorderHandle,
   mobileGap,
   mobileRowGap,
   mobileCard,
 }: {
   columns: DataTableSkeletonColumn[];
   roles: DataTableSkeletonMobileRole[];
-  hasReorderHandle: boolean;
   mobileGap: DataTableSkeletonGap;
   mobileRowGap: DataTableSkeletonGap;
   mobileCard?: () => ReactNode;
@@ -175,14 +174,11 @@ function DataTableSkeletonMobileRow({
     </div>
   );
 
-  if (!hasReorderHandle && leading.length === 0)
+  if (leading.length === 0)
     return <div className={cn('flex flex-col p-4', mobileGap)}>{body}</div>;
 
   return (
     <div className={cn('flex items-start p-4', mobileRowGap)}>
-      {hasReorderHandle && (
-        <Skeleton className="mt-1.5 ml-2 size-11 shrink-0 rounded-md" />
-      )}
       {leading.map((column, i) => (
         <div key={i} className="mt-0.5 shrink-0">
           {shapeSkeleton(column.shape, column.cell ?? column.head)}
@@ -257,7 +253,6 @@ export function DataTableSkeleton({
               key={rowIndex}
               columns={columns}
               roles={mobileRoles}
-              hasReorderHandle={hasReorderHandle}
               mobileGap={mobileGap}
               mobileRowGap={mobileRowGap}
               mobileCard={mobileCard}
