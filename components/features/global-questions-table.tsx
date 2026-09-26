@@ -194,35 +194,28 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
           orderKey: 'order',
           getItemLabel: (q) => q.label,
           onReorder: handleReorder,
-          sortHint: 'Sort by Order to drag questions into a new order.',
+          sortHint:
+            'Questions are sorted by another column — restore the Order sort to drag them into a new order.',
           disabled: isReordering,
         }}
         mobileCard={(question) => (
           <div className="flex flex-col gap-3 p-4">
-            <div className="flex items-start justify-between gap-2">
-              <p className="min-w-0 flex-1 font-medium [overflow-wrap:anywhere]">
-                {question.label}
-              </p>
-              <div className="flex shrink-0 flex-wrap items-center gap-2">
-                <Badge variant={QUESTION_TYPE_BADGE_VARIANT[question.type]}>
-                  {QUESTION_TYPE_LABELS[question.type]}
-                </Badge>
-                {question.format && (
-                  <Badge variant="outline">
-                    {SHORT_ANSWER_FORMAT_LABELS[question.format]}
-                  </Badge>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
+            <p className="font-medium [overflow-wrap:anywhere]">
+              {question.label}
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-muted-foreground text-xs">
-                Order: {question.order}
+                <span className="sr-only">Order </span>#{question.order}
               </span>
-              {question.required && (
-                <Badge variant="outline" className="text-xs">
-                  Required
+              <Badge variant={QUESTION_TYPE_BADGE_VARIANT[question.type]}>
+                {QUESTION_TYPE_LABELS[question.type]}
+              </Badge>
+              {question.format && (
+                <Badge variant="outline">
+                  {SHORT_ANSWER_FORMAT_LABELS[question.format]}
                 </Badge>
               )}
+              {question.required && <Badge variant="outline">Required</Badge>}
             </div>
             <QuestionOptionChips
               options={question.options}
