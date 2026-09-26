@@ -396,7 +396,7 @@ export const APPLICATION_STATUS_BADGE_VARIANT: Record<
 };
 
 // The /manage/applications queue's filter list — every ApplicationStatus,
-// including 'draft' and 'withdrawn' (the dashboard's Withdrawn card links here).
+// including 'draft' and 'withdrawn'.
 export const APPLICATION_STATUS_VALUES = [
   'draft',
   'applied',
