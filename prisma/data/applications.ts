@@ -539,7 +539,8 @@ export async function getApplicationStatusCounts(
 ): Promise<Partial<Record<$Enums.ApplicationStatus, number>>> {
   const rows = await prisma.application.groupBy({
     by: ['status'],
-    where: buildApplicationWhere(reviewer, 'reviewable'),
+    // Position-level scoping only — no status filter, so draft/withdrawn count too.
+    where: buildApplicationScopeWhere(reviewer),
     _count: true,
   });
 
