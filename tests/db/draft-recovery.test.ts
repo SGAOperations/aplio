@@ -184,6 +184,11 @@ describe('write paths still reject a stale-tab edit of a deleted draft', () => {
     actAs(applicant);
     await deleteDraftApplication(application.id);
 
+    const beforeDelete = await prisma.application.findUniqueOrThrow({
+      where: { id: application.id },
+      select: { updatedAt: true },
+    });
+
     const result = await createOrUpdateApplicationAnswer({
       applicationId: application.id,
       questionId: globalQuestion.id,
@@ -195,6 +200,14 @@ describe('write paths still reject a stale-tab edit of a deleted draft', () => {
       where: { applicationId: application.id },
     });
     expect(answers).toHaveLength(0);
+
+    const afterAttempt = await prisma.application.findUniqueOrThrow({
+      where: { id: application.id },
+      select: { updatedAt: true },
+    });
+    expect(afterAttempt.updatedAt.getTime()).toBe(
+      beforeDelete.updatedAt.getTime(),
+    );
   });
 
   it('submitApplication returns DRAFT_DELETED_MESSAGE and does not flip status', async () => {

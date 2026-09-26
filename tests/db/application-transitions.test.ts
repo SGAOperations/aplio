@@ -109,6 +109,94 @@ describe('createOrUpdateApplicationAnswer', () => {
       else expect(result).toEqual({ error: APPLICATION_NOT_EDITABLE_MESSAGE });
     });
   }
+
+  it('touches the application row so updatedAt tracks the edit', async () => {
+    const applicant = await createTestUser();
+    const application = await createTestApplication(applicant, openPosition, {
+      status: 'draft',
+    });
+    await prisma.application.update({
+      where: { id: application.id },
+      data: { updatedAt: new Date(Date.now() - 60_000) },
+    });
+    const before = await prisma.application.findUniqueOrThrow({
+      where: { id: application.id },
+      select: { updatedAt: true },
+    });
+
+    actAs(applicant);
+    const result = await createOrUpdateApplicationAnswer({
+      applicationId: application.id,
+      questionId: globalQuestion.id,
+      value: ['hello'],
+    });
+    expect(isError(result)).toBe(false);
+
+    const after = await prisma.application.findUniqueOrThrow({
+      where: { id: application.id },
+      select: { updatedAt: true, updatedById: true },
+    });
+    expect(after.updatedAt.getTime()).toBeGreaterThan(
+      before.updatedAt.getTime(),
+    );
+    expect(after.updatedById).toBe(applicant.id);
+  });
+
+  it('touches the application row when answering a withdrawn application', async () => {
+    const applicant = await createTestUser();
+    const application = await createTestApplication(applicant, openPosition, {
+      status: 'withdrawn',
+    });
+    await prisma.application.update({
+      where: { id: application.id },
+      data: { updatedAt: new Date(Date.now() - 60_000) },
+    });
+    const before = await prisma.application.findUniqueOrThrow({
+      where: { id: application.id },
+      select: { updatedAt: true },
+    });
+
+    actAs(applicant);
+    const result = await createOrUpdateApplicationAnswer({
+      applicationId: application.id,
+      questionId: globalQuestion.id,
+      value: ['hello'],
+    });
+    expect(isError(result)).toBe(false);
+
+    const after = await prisma.application.findUniqueOrThrow({
+      where: { id: application.id },
+      select: { updatedAt: true },
+    });
+    expect(after.updatedAt.getTime()).toBeGreaterThan(
+      before.updatedAt.getTime(),
+    );
+  });
+
+  it('leaves updatedAt untouched when the write is refused', async () => {
+    const applicant = await createTestUser();
+    const application = await createTestApplication(applicant, openPosition, {
+      status: 'applied',
+    });
+    const before = await prisma.application.findUniqueOrThrow({
+      where: { id: application.id },
+      select: { updatedAt: true },
+    });
+
+    actAs(applicant);
+    const result = await createOrUpdateApplicationAnswer({
+      applicationId: application.id,
+      questionId: globalQuestion.id,
+      value: ['hello'],
+    });
+    expect(result).toEqual({ error: APPLICATION_NOT_EDITABLE_MESSAGE });
+
+    const after = await prisma.application.findUniqueOrThrow({
+      where: { id: application.id },
+      select: { updatedAt: true },
+    });
+    expect(after.updatedAt.getTime()).toBe(before.updatedAt.getTime());
+  });
 });
 
 describe('withdrawApplication', () => {

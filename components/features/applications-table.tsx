@@ -197,7 +197,7 @@ export function ApplicationsTable(props: ApplicationsTableProps) {
       header: 'Last updated',
       sortAccessor: (a) => a.updatedAt,
       cellClassName: 'text-muted-foreground',
-      cell: (app) => <LocalTime date={app.updatedAt} precision="date" />,
+      cell: (app) => <LocalTime date={app.updatedAt} precision="relative" />,
     },
   ];
 
@@ -314,8 +314,7 @@ export function ApplicationsTable(props: ApplicationsTableProps) {
     {
       key: 'date',
       header: 'Submitted',
-      // Drafts show updatedAt — the closest recency signal, matching this
-      // view's drafts-by-updatedAt sort.
+      // Drafts have no submittedAt — their last-edit time stands in.
       sortAccessor: (a) => (a.isDraft ? a.updatedAt : a.submittedAt),
       cellClassName: 'text-muted-foreground',
       cell: (app) =>
@@ -378,7 +377,7 @@ export function ApplicationsTable(props: ApplicationsTableProps) {
             <span className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
               <span>
                 Started <LocalTime date={app.createdAt} precision="date" /> ·
-                Updated <LocalTime date={app.updatedAt} precision="date" />
+                Updated <LocalTime date={app.updatedAt} precision="relative" />
               </span>
               {completion[app.id] && (
                 <ProgressRing percent={completion[app.id]!.percent} size="sm" />

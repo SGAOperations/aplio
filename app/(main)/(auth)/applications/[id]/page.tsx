@@ -86,7 +86,7 @@ export default async function MyApplicationDetailPage({
           {application.lastSavedAt ? (
             <span>
               Draft · last saved{' '}
-              <LocalTime date={application.lastSavedAt} precision="date" />
+              <LocalTime date={application.lastSavedAt} precision="relative" />
             </span>
           ) : (
             application.submittedAt && (

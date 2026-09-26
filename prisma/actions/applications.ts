@@ -28,6 +28,7 @@ import { getCurrentUser } from '@/lib/auth/server';
 import {
   ANSWER_LONG_MAX_LENGTH,
   ANSWER_MAX_VALUES,
+  APPLICANT_EDITABLE_APPLICATION_STATUSES,
   APPLICATION_DRAFT_NOT_WITHDRAWABLE_MESSAGE,
   APPLICATION_NOT_EDITABLE_MESSAGE,
   APPLICATION_STATUS_CHANGED_MESSAGE,
@@ -287,67 +288,90 @@ export async function createOrUpdateApplicationAnswer(params: {
       ? value.map((v) => normalizeShortAnswerValue(v, format))
       : value;
 
-  if (isGlobal) {
-    // Never trust a client blob URL — copy the caller's own profile value.
-    const globalPersistedValue =
-      question.type === 'file_upload'
-        ? ((
-            await prisma.globalAnswer.findUnique({
-              where: {
-                userId_globalQuestionId: {
-                  userId: currentUser.id,
-                  globalQuestionId: questionId,
-                },
+  // Own profile value — read outside the tx, not part of the atomic write.
+  const globalPersistedValue =
+    isGlobal && question.type === 'file_upload'
+      ? ((
+          await prisma.globalAnswer.findUnique({
+            where: {
+              userId_globalQuestionId: {
+                userId: currentUser.id,
+                globalQuestionId: questionId,
               },
-              select: { value: true },
-            })
-          )?.value ?? [])
-        : persistedValue;
+            },
+            select: { value: true },
+          })
+        )?.value ?? [])
+      : persistedValue;
 
-    const result = await prisma.globalApplicationAnswer.upsert({
+  // Unreachable from the UI; file answers go through uploadQuestionFileAnswer.
+  if (!isGlobal && question.type === 'file_upload')
+    throw new Error('Invalid question type for this action');
+
+  const result = await prisma.$transaction(async (tx) => {
+    // Touch first (app, then answer) — count===0 means a race changed status/deletion since the pre-check.
+    const touched = await tx.application.updateMany({
       where: {
-        applicationId_globalQuestionId: {
+        id: applicationId,
+        userId: currentUser.id,
+        deletedAt: null,
+        status: { in: APPLICANT_EDITABLE_APPLICATION_STATUSES },
+      },
+      data: { updatedById: currentUser.id },
+    });
+
+    if (touched.count === 0) {
+      const current = await tx.application.findUnique({
+        where: { id: applicationId },
+        select: { deletedAt: true },
+      });
+      return current?.deletedAt
+        ? { error: DRAFT_DELETED_MESSAGE }
+        : { error: APPLICATION_NOT_EDITABLE_MESSAGE };
+    }
+
+    if (isGlobal)
+      return tx.globalApplicationAnswer.upsert({
+        where: {
+          applicationId_globalQuestionId: {
+            applicationId,
+            globalQuestionId: questionId,
+          },
+        },
+        update: { value: globalPersistedValue, updatedById: currentUser.id },
+        create: {
           applicationId,
           globalQuestionId: questionId,
+          questionLabel: question.label,
+          questionType: question.type,
+          value: globalPersistedValue,
+          createdById: currentUser.id,
+          updatedById: currentUser.id,
+        },
+      });
+
+    return tx.positionApplicationAnswer.upsert({
+      where: {
+        applicationId_positionQuestionId: {
+          applicationId,
+          positionQuestionId: questionId,
         },
       },
-      update: { value: globalPersistedValue, updatedById: currentUser.id },
+      update: { value: persistedValue, updatedById: currentUser.id },
       create: {
         applicationId,
-        globalQuestionId: questionId,
+        positionQuestionId: questionId,
         questionLabel: question.label,
         questionType: question.type,
-        value: globalPersistedValue,
+        value: persistedValue,
         createdById: currentUser.id,
         updatedById: currentUser.id,
       },
     });
-    revalidatePath(`/positions/${application.positionId}/apply`);
-    return result;
-  }
-
-  // Unreachable from the UI; file answers go through uploadQuestionFileAnswer.
-  if (question.type === 'file_upload')
-    throw new Error('Invalid question type for this action');
-
-  const result = await prisma.positionApplicationAnswer.upsert({
-    where: {
-      applicationId_positionQuestionId: {
-        applicationId,
-        positionQuestionId: questionId,
-      },
-    },
-    update: { value: persistedValue, updatedById: currentUser.id },
-    create: {
-      applicationId,
-      positionQuestionId: questionId,
-      questionLabel: question.label,
-      questionType: question.type,
-      value: persistedValue,
-      createdById: currentUser.id,
-      updatedById: currentUser.id,
-    },
   });
+
+  if (isError(result)) return result;
+
   revalidatePath(`/positions/${application.positionId}/apply`);
   return result;
 }
