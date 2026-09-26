@@ -66,7 +66,7 @@ export const getActivityGroups = cache(async function getActivityGroups(
       id: app.id,
       statusVariant: variant,
       sentence: `Your application for ${app.position.title} is ${statusLabel}`,
-      timestamp: app.submittedAt,
+      timestamp: app.statusChangedAt,
     };
   });
 

@@ -1324,4 +1324,123 @@ describe('getActivityGroups composition and scoping', () => {
     const newestId = groups.reviewed[0]?.id;
     expect(newestId).toBe(newerApplication.id);
   });
+
+  it('"your applications" timestamp is the public-status change time, not submittedAt', async () => {
+    const user = await createTestUser();
+    const position = await createTestPosition(admin, { managers: [managerA] });
+    const app = await createTestApplication(user, position, {
+      status: 'accepted',
+    });
+
+    const t0 = new Date(Date.now() - 3 * 60 * 60 * 1000);
+    const t1 = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    const t2 = new Date(Date.now() - 60 * 60 * 1000);
+    await prisma.applicationStatusEvent.createMany({
+      data: [
+        {
+          applicationId: app.id,
+          from: null,
+          to: 'applied',
+          changedById: user.id,
+          createdAt: t0,
+        },
+        {
+          applicationId: app.id,
+          from: 'applied',
+          to: 'reached_out',
+          changedById: managerA.id,
+          createdAt: t1,
+        },
+        {
+          applicationId: app.id,
+          from: 'reached_out',
+          to: 'accepted',
+          changedById: managerA.id,
+          createdAt: t2,
+        },
+      ],
+    });
+
+    const groups = await getActivityGroups(user.id, false);
+    const item = groups.mine.find((i) => i.id === app.id);
+    expect(item?.timestamp).toEqual(t2);
+  });
+
+  it('an in-review move keeps the applied timestamp, unlike a decision', async () => {
+    const user = await createTestUser();
+    const position = await createTestPosition(admin, { managers: [managerA] });
+    const app = await createTestApplication(user, position, {
+      status: 'reached_out',
+    });
+
+    const t0 = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    const t1 = new Date(Date.now() - 60 * 60 * 1000);
+    await prisma.applicationStatusEvent.createMany({
+      data: [
+        {
+          applicationId: app.id,
+          from: null,
+          to: 'applied',
+          changedById: user.id,
+          createdAt: t0,
+        },
+        {
+          applicationId: app.id,
+          from: 'applied',
+          to: 'reached_out',
+          changedById: managerA.id,
+          createdAt: t1,
+        },
+      ],
+    });
+
+    const groups = await getActivityGroups(user.id, false);
+    const item = groups.mine.find((i) => i.id === app.id);
+    expect(item?.timestamp).toEqual(t0);
+  });
+
+  it('a fresh decision sorts above an older still-Applied application', async () => {
+    const user = await createTestUser();
+    const positionX = await createTestPosition(admin, { managers: [managerA] });
+    const positionY = await createTestPosition(admin, { managers: [managerA] });
+
+    const older = await createTestApplication(user, positionX, {
+      status: 'applied',
+    });
+    await prisma.applicationStatusEvent.create({
+      data: {
+        applicationId: older.id,
+        from: null,
+        to: 'applied',
+        changedById: user.id,
+        createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000),
+      },
+    });
+
+    const decided = await createTestApplication(user, positionY, {
+      status: 'accepted',
+    });
+    await prisma.applicationStatusEvent.createMany({
+      data: [
+        {
+          applicationId: decided.id,
+          from: null,
+          to: 'applied',
+          changedById: user.id,
+          createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000),
+        },
+        {
+          applicationId: decided.id,
+          from: 'applied',
+          to: 'accepted',
+          changedById: managerA.id,
+          createdAt: new Date(Date.now() - 60 * 1000),
+        },
+      ],
+    });
+
+    const groups = await getActivityGroups(user.id, false);
+    const ids = groups.mine.map((i) => i.id);
+    expect(ids.indexOf(decided.id)).toBeLessThan(ids.indexOf(older.id));
+  });
 });

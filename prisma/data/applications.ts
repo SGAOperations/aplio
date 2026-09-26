@@ -33,10 +33,10 @@ import {
   type ApplicationTableRow,
   type DraftApplication,
   type DraftApplicationListItem,
+  type MyActivityApplication,
   type MyApplicationDetail,
   type MyApplicationListItem,
   type MyPositionApplication,
-  type MySubmittedApplicationListItem,
   type PositionApplicationStats,
   type ReviewableApplicant,
   type Reviewer,
@@ -46,6 +46,7 @@ import {
   canReviewPosition,
   displayUserName,
   getEmailLogOccurredAt,
+  getPublicStatusSince,
   isPositionActive,
   resolveGlobalAnswerValues,
 } from '@/lib/utils';
@@ -949,10 +950,13 @@ export async function getMySubmittedCount(userId: string): Promise<number> {
   });
 }
 
+// Unpaginated at the DB level — sorted and capped in memory by statusChangedAt
+// (not submittedAt) below, since the newest public-status change can belong
+// to any row, not just the most recently submitted one.
 export async function getMyRecentActivity(
   userId: string,
   take = 10,
-): Promise<MySubmittedApplicationListItem[]> {
+): Promise<MyActivityApplication[]> {
   const applications = await prisma.application.findMany({
     where: {
       userId,
@@ -960,12 +964,31 @@ export async function getMyRecentActivity(
       status: { not: 'draft' },
       position: PUBLISHED_POSITION_WHERE,
     },
-    select: applicationSelect,
-    orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
-    take,
+    select: {
+      ...applicationSelect,
+      statusEvents: {
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        select: { to: true, createdAt: true },
+      },
+    },
   });
 
-  return applications.map(toPublicApplication).map(withSubmittedAt);
+  return applications
+    .map(withSubmittedAt)
+    .map(({ statusEvents, ...app }) => ({
+      ...toPublicApplication(app),
+      statusChangedAt: getPublicStatusSince(
+        app.status,
+        statusEvents,
+        app.submittedAt,
+      ),
+    }))
+    .sort(
+      (a, b) =>
+        b.statusChangedAt.getTime() - a.statusChangedAt.getTime() ||
+        b.id.localeCompare(a.id),
+    )
+    .slice(0, take);
 }
 
 export async function getReviewablePositions(
