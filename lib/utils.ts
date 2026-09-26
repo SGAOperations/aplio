@@ -87,9 +87,8 @@ export function getApplicationStatusHistoryRowLabel(entry: {
   return `${APPLICATION_STATUS_LABELS[entry.from]} → ${APPLICATION_STATUS_LABELS[entry.to]}`;
 }
 
-/** When the current *public* status began: walks `events` (newest first)
- * while each still maps to the same public status as `status`, keeping the
- * oldest match; `fallback` covers no events or an immediate mismatch. */
+/** When the current *public* status began; walks `events` newest-first, keeping
+ * the oldest match; `fallback` covers no match. */
 export function getPublicStatusSince(
   status: $Enums.ApplicationStatus,
   events: { to: $Enums.ApplicationStatus; createdAt: Date }[],

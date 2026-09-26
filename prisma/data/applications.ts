@@ -950,9 +950,8 @@ export async function getMySubmittedCount(userId: string): Promise<number> {
   });
 }
 
-// Unpaginated at the DB level — sorted and capped in memory by statusChangedAt
-// (not submittedAt) below, since the newest public-status change can belong
-// to any row, not just the most recently submitted one.
+// Unpaginated — sorted/capped in memory by statusChangedAt, since the newest
+// change can belong to any row.
 export async function getMyRecentActivity(
   userId: string,
   take = 10,
