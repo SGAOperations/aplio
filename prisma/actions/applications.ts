@@ -288,9 +288,7 @@ export async function createOrUpdateApplicationAnswer(params: {
       ? value.map((v) => normalizeShortAnswerValue(v, format))
       : value;
 
-  // Never trust a client blob URL — copy the caller's own profile value. Read
-  // outside the transaction: it's the caller's own profile row, not part of
-  // the atomic write.
+  // Own profile value — read outside the tx, not part of the atomic write.
   const globalPersistedValue =
     isGlobal && question.type === 'file_upload'
       ? ((
@@ -311,9 +309,7 @@ export async function createOrUpdateApplicationAnswer(params: {
     throw new Error('Invalid question type for this action');
 
   const result = await prisma.$transaction(async (tx) => {
-    // Touch first (lock order: application, then answer) and re-check
-    // editability atomically — a second tab may have changed it since the
-    // pre-checks above. Writing updatedById is what fires @updatedAt.
+    // Touch first (app, then answer) — count===0 means a race changed status/deletion since the pre-check.
     const touched = await tx.application.updateMany({
       where: {
         id: applicationId,
