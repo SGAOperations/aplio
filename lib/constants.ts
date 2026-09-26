@@ -1345,10 +1345,10 @@ export const APPLICATION_PIPELINE_STATUSES = [
   'rejected',
 ] as const satisfies $Enums.ApplicationStatus[];
 
-// All nine PipelineSummary cards, in display order — the pipeline six plus
-// draft and withdrawn, which trail rather than sitting next to Total.
+// All nine PipelineSummary cards, in display order — draft leads the pipeline
+// six, and withdrawn trails them all.
 export const PIPELINE_SUMMARY_STATUSES = [
-  ...APPLICATION_PIPELINE_STATUSES,
   'draft',
+  ...APPLICATION_PIPELINE_STATUSES,
   'withdrawn',
 ] as const satisfies $Enums.ApplicationStatus[];
