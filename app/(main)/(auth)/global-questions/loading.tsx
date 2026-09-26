@@ -44,7 +44,6 @@ export default function GlobalQuestionsLoading() {
         columns={COLUMNS}
         hasReorderHandle
         mobileGap="gap-3"
-        mobileRowGap="gap-0"
         mobileCard={mobileCard}
       />
     </div>
