@@ -20,7 +20,7 @@ function mobileCard() {
     <>
       <div className="flex items-center justify-between gap-2">
         <Skeleton className="h-4 w-40" />
-        <Skeleton className="size-8 rounded-md" />
+        <Skeleton className="size-11 rounded-md" />
       </div>
       <div className="flex items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
