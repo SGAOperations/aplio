@@ -199,14 +199,14 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
           disabled: isReordering,
         }}
         mobileCard={(question, dragHandle) => (
-          <div className="flex flex-col gap-2 p-4">
-            <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-col gap-1.5 p-3">
+            <div className="flex items-center justify-between gap-1.5">
               <p className="min-w-0 flex-1 font-medium [overflow-wrap:anywhere]">
                 {question.label}
               </p>
               {dragHandle}
             </div>
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-1.5">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant={QUESTION_TYPE_BADGE_VARIANT[question.type]}>
                   {QUESTION_TYPE_LABELS[question.type]}
