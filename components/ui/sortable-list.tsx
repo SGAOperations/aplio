@@ -1,6 +1,10 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import type {
+  ReactNode,
+  PointerEvent as ReactPointerEvent,
+  TouchEvent as ReactTouchEvent,
+} from 'react';
 import { useMemo, useOptimistic, useTransition } from 'react';
 
 import {
@@ -9,7 +13,9 @@ import {
   type DragEndEvent,
   KeyboardSensor,
   PointerSensor,
+  type PointerSensorOptions,
   TouchSensor,
+  type TouchSensorOptions,
   closestCenter,
   useSensor,
   useSensors,
@@ -28,6 +34,42 @@ import { ACTION_ICONS } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
+
+// Marks an element (e.g. a row's Edit/Delete buttons) as excluded from
+// pointer/touch drag activation — see `SmartPointerSensor`/`SmartTouchSensor`.
+function isNoDndTarget(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest('[data-no-dnd]') !== null;
+}
+
+// dnd-kit's documented pattern for a whole-element drag surface that still
+// excludes specific interactive descendants: a custom sensor whose activator
+// bails out before the base sensor's own handler runs. Lets the mobile
+// question card itself be the drag target while Edit/Delete stay clickable.
+class SmartPointerSensor extends PointerSensor {
+  static activators = [
+    {
+      eventName: 'onPointerDown' as const,
+      handler: (event: ReactPointerEvent, options: PointerSensorOptions) => {
+        if (isNoDndTarget(event.nativeEvent.target)) return false;
+        // Non-null: dnd-kit's own PointerSensor always declares exactly one activator.
+        return PointerSensor.activators[0]!.handler(event, options);
+      },
+    },
+  ];
+}
+
+class SmartTouchSensor extends TouchSensor {
+  static activators = [
+    {
+      eventName: 'onTouchStart' as const,
+      handler: (event: ReactTouchEvent, options: TouchSensorOptions) => {
+        if (isNoDndTarget(event.nativeEvent.target)) return false;
+        // Non-null: dnd-kit's own TouchSensor always declares exactly one activator.
+        return TouchSensor.activators[0]!.handler(event, options);
+      },
+    },
+  ];
+}
 
 interface SortableProviderProps<T> {
   items: T[];
@@ -52,8 +94,8 @@ export function SortableProvider<T>({
   }, [items, getId, getLabel]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, {
+    useSensor(SmartPointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(SmartTouchSensor, {
       activationConstraint: { delay: 200, tolerance: 8 },
     }),
     useSensor(KeyboardSensor, {
@@ -138,6 +180,12 @@ export function useSortableItem(id: string) {
         : undefined,
       transition,
     },
+    // Split for callers (e.g. a whole-card drag surface) that need pointer/
+    // touch `listeners` without the `role`/`tabIndex` `attributes` carry —
+    // spreading those onto an element with real nested buttons is invalid
+    // ARIA. `handleProps` (both merged) still suits a dedicated handle button.
+    attributes,
+    listeners,
     handleProps: { ...attributes, ...listeners },
     isDragging,
   };

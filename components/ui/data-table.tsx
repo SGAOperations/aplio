@@ -154,9 +154,15 @@ function SortableTableRow<T>({
   );
 }
 
-// Dedicated handle, not the whole card — spreading dnd-kit's role/tabIndex
-// onto the card would nest the real Edit/Delete buttons inside a de-facto
-// <button>, which screen readers announce as one atomic control.
+// Whole card is the pointer/touch drag surface — only `listeners` lands on
+// it, never `attributes` (role/tabIndex), so it never nests the real
+// Edit/Delete buttons inside a de-facto <button> (invalid ARIA, and screen
+// readers announce the whole subtree as one atomic control). `data-no-dnd`
+// on `DataTableRowActions` keeps SmartPointerSensor/SmartTouchSensor from
+// swallowing taps on those buttons. `touch-manipulation` (not `touch-none`)
+// keeps native scroll working — the TouchSensor's long-press delay is what
+// tells a drag apart from a scroll. Keyboard/AT users get the small, real,
+// separately-focusable handle instead of the whole-card gesture.
 function SortableMobileRow({
   id,
   handleLabel,
@@ -168,24 +174,32 @@ function SortableMobileRow({
   handleDisabled: boolean;
   children: ReactNode;
 }) {
-  const { setNodeRef, style, handleProps, isDragging } = useSortableItem(id);
+  const { setNodeRef, style, attributes, listeners, isDragging } =
+    useSortableItem(id);
 
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
-        'flex items-start motion-reduce:transition-none',
+        'touch-manipulation motion-reduce:transition-none',
+        !handleDisabled && 'cursor-grab active:cursor-grabbing',
         isDragging && 'bg-card relative z-10 shadow-lg',
       )}
+      {...(handleDisabled ? {} : listeners)}
     >
-      <SortableHandle
-        label={handleLabel}
-        handleProps={handleProps}
-        disabled={handleDisabled}
-        className="mt-1.5 ml-2 shrink-0"
-      />
-      <div className="min-w-0 flex-1">{children}</div>
+      {children}
+      <div className="flex justify-end px-2 pb-2">
+        <SortableHandle
+          label={handleLabel}
+          handleProps={{ ...attributes, ...listeners }}
+          disabled={handleDisabled}
+          // Visually subtle (low opacity), but keeps the full touch target —
+          // the whole card handles casual drags; this is the explicit,
+          // keyboard/AT-reachable affordance, not a decoration.
+          className="opacity-60"
+        />
+      </div>
     </div>
   );
 }
@@ -461,6 +475,11 @@ export function DataTableRowActions({
   className?: string;
 }) {
   return (
-    <div className={cn('flex flex-wrap gap-2', className)}>{children}</div>
+    // `data-no-dnd` keeps SmartPointerSensor/SmartTouchSensor (sortable-list)
+    // from swallowing taps on these buttons when a whole row/card is also a
+    // drag surface (see `SortableMobileRow`).
+    <div data-no-dnd className={cn('flex flex-wrap gap-2', className)}>
+      {children}
+    </div>
   );
 }
