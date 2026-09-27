@@ -108,7 +108,10 @@ export default async function EditPositionPage({
           <p>
             This position is still a draft. It was scheduled to open on{' '}
             <LocalTime date={draftPastDate.date} precision="date" /> but
-            applicants cannot see it. Ask an admin to open this position.
+            applicants cannot see it.{' '}
+            {user.isAdmin
+              ? 'Choose Open position to open it now.'
+              : 'Ask an admin to open it.'}
           </p>
         </WarningCallout>
       )}

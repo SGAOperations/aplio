@@ -269,7 +269,7 @@ export function PositionAvailabilitySection({
                 <p>
                   {isAdmin
                     ? "It's still a draft. Choose Open position before then — once it's open, applications start on this date."
-                    : 'This position is still a draft. Ask an admin to open this position before the Opens At date.'}
+                    : "This position is still a draft. Ask an admin to open this position before the Opens At date — once it's open, applications start on this date."}
                 </p>
               </div>
             </WarningCallout>
