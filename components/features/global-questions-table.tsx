@@ -199,12 +199,12 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
           disabled: isReordering,
         }}
         mobileCard={(question, dragHandle) => (
-          <div className="flex flex-col gap-1.5 p-3">
+          <div className="flex flex-col gap-1 p-3">
             <div className="flex items-center justify-between gap-1.5">
               <p className="min-w-0 flex-1 font-medium [overflow-wrap:anywhere]">
                 {question.label}
               </p>
-              {dragHandle}
+              <div className="-mr-3.5">{dragHandle}</div>
             </div>
             <div className="flex items-center justify-between gap-1.5">
               <div className="flex flex-wrap items-center gap-2">
@@ -217,7 +217,7 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
                   </Badge>
                 )}
               </div>
-              <DataTableRowActions>
+              <DataTableRowActions className="-mr-3.5">
                 <GlobalQuestionDialog
                   trigger={
                     <Button

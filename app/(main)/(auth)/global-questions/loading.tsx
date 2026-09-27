@@ -20,14 +20,14 @@ function mobileCard() {
     <>
       <div className="flex items-center justify-between gap-1.5">
         <Skeleton className="h-4 w-40" />
-        <Skeleton className="size-11 rounded-md" />
+        <Skeleton className="-mr-3.5 size-11 rounded-md" />
       </div>
       <div className="flex items-center justify-between gap-1.5">
         <div className="flex flex-wrap items-center gap-2">
           <Skeleton className="h-5.5 w-24 rounded-md" />
           <Skeleton className="h-5.5 w-20 rounded-md" />
         </div>
-        <div className="flex gap-2">
+        <div className="-mr-3.5 flex gap-2">
           <Skeleton className="size-11 rounded-md" />
           <Skeleton className="size-11 rounded-md" />
         </div>
@@ -42,7 +42,7 @@ export default function GlobalQuestionsLoading() {
       <PageHeaderSkeleton actions={['w-32']} actionSize="sm" />
       <DataTableSkeleton
         columns={COLUMNS}
-        mobileGap="gap-1.5"
+        mobileGap="gap-1"
         mobilePadding="p-3"
         mobileCard={mobileCard}
       />
