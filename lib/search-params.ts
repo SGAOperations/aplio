@@ -23,9 +23,7 @@ import type {
   EmailLogFilters,
 } from '@/lib/types';
 
-// Allow-list enum arrays: canonical order (allowed's own order), deduped and
-// junk-filtered in one expression. Element-wise eq so nuqs can clear the
-// param on default and skip no-op writes.
+// Allow-list enum arrays in canonical order, deduped; eq lets nuqs skip no-op writes.
 function parseAsFilterEnum<T extends string>(allowed: readonly T[]) {
   return createMultiParser<T[]>({
     parse: (values) => allowed.filter((v) => values.includes(v)),
@@ -34,9 +32,7 @@ function parseAsFilterEnum<T extends string>(allowed: readonly T[]) {
   }).withDefault([]);
 }
 
-// Opaque ids (position/applicant ids): trims, drops empty/oversized entries,
-// dedupes, sorts for a stable cache key, caps at FILTER_PARAM_MAX_VALUES so a
-// crafted deep link can't build an unbounded `IN`.
+// Opaque ids: trims, dedupes, sorts, and caps at FILTER_PARAM_MAX_VALUES against an unbounded `IN`.
 const parseAsFilterIds = createMultiParser<string[]>({
   parse: (values) => {
     const cleaned = new Set<string>();
@@ -89,10 +85,7 @@ const parseAsApplicationSort = createParser<ApplicationSort>({
   eq: (a, b) => a.field === b.field && a.direction === b.direction,
 });
 
-// Field names go plural, URL param names stay singular and repeat — every
-// existing deep link (?positionId=, ?status=, ?userId=) keeps working.
-// Declared in emission order: createSerializer/buildApplicationsHref rely on
-// object-key order to match the hrefs generated before this migration.
+// Plural fields, singular/repeated URL params for back-compat; key order matters (buildApplicationsHref relies on it).
 export const applicationsSearchParams = {
   positionIds: parseAsFilterIds,
   statuses: parseAsFilterEnum(APPLICATION_STATUS_VALUES),

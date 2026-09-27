@@ -92,7 +92,7 @@ function paginateRows<T>(rows: T[], page: number) {
 
 // Whenever the selection explicitly includes draft — drafts-only or a mix —
 // the privacy boundary needs stating; the default empty selection does not.
-function showDraftNote(filters: ApplicationFilters): boolean {
+export function showDraftNote(filters: ApplicationFilters): boolean {
   return !!filters.statuses?.includes('draft');
 }
 
@@ -157,9 +157,7 @@ export async function ApplicationsResults({
     );
   }
 
-  // 'merged' — no status filter, or a selection mixing draft with submitted
-  // statuses. Two purpose-built queries, same as 'submitted' below; only the
-  // merge/sort/paginate happens here.
+  // 'merged' — no filter, or draft mixed with submitted; two queries, merged/sorted/paginated here.
   if (mode === 'merged') {
     const [allDrafts, allApplications] = await Promise.all([
       getAllDraftApplications(user, filters),

@@ -14,6 +14,7 @@ import { getApplicationViewMode } from '@/lib/utils';
 import {
   ApplicationsResults,
   ApplicationsResultsSkeleton,
+  showDraftNote,
 } from '@/components/features/applications-results';
 import { ApplicationsToolbar } from '@/components/features/applications-toolbar';
 import { PageHeader } from '@/components/layouts/page-header';
@@ -80,7 +81,7 @@ export default async function ApplicationsPage({
         fallback={
           <ApplicationsResultsSkeleton
             mode={viewMode}
-            showDraftNote={viewMode === 'drafts'}
+            showDraftNote={showDraftNote(filters)}
           />
         }
       >

@@ -2,6 +2,8 @@
 
 import { type ReactNode, useMemo, useState } from 'react';
 
+import { defaultFilter } from 'cmdk';
+
 import { FILTER_SELECT_MAX_VISIBLE } from '@/lib/constants';
 import { ACTION_ICONS } from '@/lib/icons';
 import { cn, formatMultiSelectSummary } from '@/lib/utils';
@@ -66,11 +68,7 @@ function SelectionMark({ selected }: { selected: boolean }) {
   );
 }
 
-/**
- * Shared multi-select filter dropdown (Popover + Command). Covers
- * single-selection-with-search call sites too — pick one option and the
- * trigger just reads that option's label.
- */
+/** Shared multi-select filter dropdown (Popover + Command); also covers single-selection-with-search call sites. */
 export function MultiSelect<T extends string = string>({
   id,
   options,
@@ -87,6 +85,10 @@ export function MultiSelect<T extends string = string>({
   className,
 }: MultiSelectProps<T>) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  // cmdk assigns CommandList's own id, so read it back for aria-controls
+  // rather than pointing at a wrapper that isn't the listbox itself.
+  const [listboxId, setListboxId] = useState<string | undefined>();
   const plural = pluralNoun ?? `${noun}s`;
 
   // A stale/foreign deep link — synthesized as a leading item so it stays
@@ -96,8 +98,17 @@ export function MultiSelect<T extends string = string>({
     [values, options],
   );
 
-  const visibleOptions = options.slice(0, FILTER_SELECT_MAX_VISIBLE);
-  const truncated = options.length > FILTER_SELECT_MAX_VISIBLE;
+  // Filter by the live query first, then cap the *displayed* results — a
+  // match past the cap must still be reachable by searching for it.
+  const matchedOptions = useMemo(
+    () =>
+      search
+        ? options.filter((o) => defaultFilter(o.label, search) > 0)
+        : options,
+    [options, search],
+  );
+  const visibleOptions = matchedOptions.slice(0, FILTER_SELECT_MAX_VISIBLE);
+  const truncated = matchedOptions.length > FILTER_SELECT_MAX_VISIBLE;
 
   function toggle(value: T) {
     onValuesChange(
@@ -116,8 +127,6 @@ export function MultiSelect<T extends string = string>({
     pluralNoun,
   });
 
-  const listId = `${id}-listbox`;
-
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -127,7 +136,7 @@ export function MultiSelect<T extends string = string>({
           role="combobox"
           aria-expanded={open}
           aria-haspopup="listbox"
-          aria-controls={listId}
+          aria-controls={listboxId}
           disabled={disabled}
           data-placeholder={values.length === 0 ? '' : undefined}
           data-size="default"
@@ -140,17 +149,22 @@ export function MultiSelect<T extends string = string>({
         </button>
       </PopoverTrigger>
       <PopoverContent
-        id={listId}
         align="start"
         className="w-[var(--radix-popover-trigger-width)] p-0"
       >
-        <Command>
+        <Command shouldFilter={false}>
           {searchable && (
             <CommandInput
               placeholder={searchPlaceholder ?? `Search ${plural}…`}
+              value={search}
+              onValueChange={setSearch}
             />
           )}
-          <CommandList aria-multiselectable="true" className="max-h-72">
+          <CommandList
+            ref={(node) => setListboxId(node?.id)}
+            aria-multiselectable="true"
+            className="max-h-72"
+          >
             <CommandEmpty>{emptyMessage ?? `No ${plural} found.`}</CommandEmpty>
             {unknownValues.map((value) => (
               <CommandItem
@@ -170,7 +184,7 @@ export function MultiSelect<T extends string = string>({
               return (
                 <CommandItem
                   key={option.value}
-                  value={option.label}
+                  value={option.value}
                   aria-checked={selected}
                   className="min-h-11 md:min-h-9"
                   onSelect={() => toggle(option.value)}
