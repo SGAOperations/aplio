@@ -41,10 +41,8 @@ function isNoDndTarget(target: EventTarget | null): boolean {
   return target instanceof Element && target.closest('[data-no-dnd]') !== null;
 }
 
-// dnd-kit's documented pattern for a whole-element drag surface that still
-// excludes specific interactive descendants: a custom sensor whose activator
-// bails out before the base sensor's own handler runs. Lets the mobile
-// question card itself be the drag target while Edit/Delete stay clickable.
+// Custom sensor whose activator bails out before the base one runs — dnd-kit's
+// pattern for a whole-element drag surface that excludes some descendants.
 class SmartPointerSensor extends PointerSensor {
   static activators = [
     {

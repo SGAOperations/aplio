@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import type { PointerEventHandler, ReactNode, TouchEventHandler } from 'react';
 import { useCallback, useMemo } from 'react';
 
 import { parseAsStringEnum, parseAsStringLiteral, useQueryStates } from 'nuqs';
@@ -154,15 +154,7 @@ function SortableTableRow<T>({
   );
 }
 
-// Whole card is the pointer/touch drag surface — only `listeners` lands on
-// it, never `attributes` (role/tabIndex), so it never nests the real
-// Edit/Delete buttons inside a de-facto <button> (invalid ARIA, and screen
-// readers announce the whole subtree as one atomic control). `data-no-dnd`
-// on `DataTableRowActions` keeps SmartPointerSensor/SmartTouchSensor from
-// swallowing taps on those buttons. `touch-manipulation` (not `touch-none`)
-// keeps native scroll working — the TouchSensor's long-press delay is what
-// tells a drag apart from a scroll. Keyboard/AT users get the small, real,
-// separately-focusable handle instead of the whole-card gesture.
+// Card is the pointer/touch drag surface; keyboard/AT use `SortableHandle`.
 function SortableMobileRow({
   id,
   handleLabel,
@@ -176,6 +168,22 @@ function SortableMobileRow({
 }) {
   const { setNodeRef, style, attributes, listeners, isDragging } =
     useSortableItem(id);
+  // Only pointer/touch — `listeners.onKeyDown` would hijack Enter/Space on
+  // the nested Edit/Delete buttons (`KeyboardSensor`'s own guard never engages here).
+  const dragListeners: {
+    onPointerDown?: PointerEventHandler<HTMLDivElement>;
+    onTouchStart?: TouchEventHandler<HTMLDivElement>;
+  } =
+    !handleDisabled && listeners
+      ? {
+          onPointerDown: listeners.onPointerDown as
+            | PointerEventHandler<HTMLDivElement>
+            | undefined,
+          onTouchStart: listeners.onTouchStart as
+            | TouchEventHandler<HTMLDivElement>
+            | undefined,
+        }
+      : {};
 
   return (
     <div
@@ -186,7 +194,7 @@ function SortableMobileRow({
         !handleDisabled && 'cursor-grab active:cursor-grabbing',
         isDragging && 'bg-card relative z-10 shadow-lg',
       )}
-      {...(handleDisabled ? {} : listeners)}
+      {...dragListeners}
     >
       {children}
       <div className="flex justify-end px-2 pb-2">
