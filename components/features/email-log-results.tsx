@@ -4,8 +4,9 @@ import { getEmailLogs, getEmailLogsCount } from '@/prisma/data/emails';
 
 import { EMAIL_LOG_PAGE_SIZE } from '@/lib/constants';
 import { DATA_TABLE_RESULTS_CLASS } from '@/lib/data-table';
+import { buildEmailLogHref } from '@/lib/search-params';
 import type { EmailLogFilters } from '@/lib/types';
-import { buildEmailLogHref, getPaginationBounds } from '@/lib/utils';
+import { getPaginationBounds } from '@/lib/utils';
 
 import { EmailLogTable } from '@/components/features/email-log-table';
 import {

@@ -6,8 +6,9 @@ import {
   APPLICATION_STATUS_LABELS,
   PIPELINE_SUMMARY_STATUSES,
 } from '@/lib/constants';
+import { buildApplicationsHref } from '@/lib/search-params';
 import { type Reviewer } from '@/lib/types';
-import { buildApplicationsHref, cn } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 import { StatCard } from '@/components/features/stat-card';
 import { Card, CardContent } from '@/components/ui/card';
@@ -52,7 +53,7 @@ export async function PipelineSummary({ reviewer }: PipelineSummaryProps) {
               label={label}
               value={count}
               dotVariant={APPLICATION_STATUS_BADGE_VARIANT[status]}
-              href={buildApplicationsHref({ status })}
+              href={buildApplicationsHref({ statuses: [status] })}
               linkLabel={statCardLinkLabel(label, count)}
             />
           );

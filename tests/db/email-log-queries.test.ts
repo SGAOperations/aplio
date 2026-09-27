@@ -68,9 +68,31 @@ describe('getEmailLogs / getEmailLogsCount filtering', () => {
       status: 'sent',
     });
 
-    const rows = await getEmailLogs({ q: marker, status: 'bounced' });
+    const rows = await getEmailLogs({ q: marker, statuses: ['bounced'] });
     expect(rows).toHaveLength(1);
     expect(rows[0]?.status).toBe('bounced');
+  });
+
+  it('a multi-value status filter matches any of them', async () => {
+    const marker = randomUUID();
+    await seedRow({
+      to: `${TEST_PREFIX}${marker}-bounced@example.com`,
+      status: 'bounced',
+    });
+    await seedRow({
+      to: `${TEST_PREFIX}${marker}-failed@example.com`,
+      status: 'failed',
+    });
+    await seedRow({
+      to: `${TEST_PREFIX}${marker}-sent@example.com`,
+      status: 'sent',
+    });
+
+    const rows = await getEmailLogs({
+      q: marker,
+      statuses: ['bounced', 'failed'],
+    });
+    expect(rows.map((r) => r.status).sort()).toEqual(['bounced', 'failed']);
   });
 
   it('the template filter narrows correctly', async () => {
@@ -86,7 +108,7 @@ describe('getEmailLogs / getEmailLogsCount filtering', () => {
 
     const rows = await getEmailLogs({
       q: marker,
-      template: 'manager_daily_digest',
+      templates: ['manager_daily_digest'],
     });
     expect(rows).toHaveLength(1);
     expect(rows[0]?.template).toBe('manager_daily_digest');
@@ -112,8 +134,8 @@ describe('getEmailLogs / getEmailLogsCount filtering', () => {
 
     const rows = await getEmailLogs({
       q: marker,
-      status: 'bounced',
-      template: 'otp',
+      statuses: ['bounced'],
+      templates: ['otp'],
     });
     expect(rows).toHaveLength(1);
     expect(rows[0]?.to).toBe(`${TEST_PREFIX}${marker}-match@example.com`);

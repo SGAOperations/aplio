@@ -20,9 +20,9 @@ import type {
   AnswerPartition,
   AnswerQuestion,
   ApplicationCompletion,
-  ApplicationFilters,
+  ApplicationStatusFilter,
+  ApplicationViewMode,
   DeadlineInfo,
-  EmailLogFilters,
   ManagedPositionRow,
   PositionActivity,
   PositionAvailability,
@@ -639,6 +639,54 @@ export function formatTableCount({
   return `${shown} / ${total} ${nounLabel}`;
 }
 
+interface MultiSelectOption {
+  value: string;
+  label: string;
+}
+
+interface FormatMultiSelectSummaryOptions {
+  values: string[];
+  options: MultiSelectOption[];
+  /** Label for a selected value absent from `options` — a stale/foreign deep link. */
+  unknownLabel?: string;
+  placeholder: string;
+  noun: string;
+  pluralNoun?: string;
+}
+
+/**
+ * MultiSelect trigger text: `placeholder` when nothing's selected, the one
+ * option's label (or `unknownLabel`) for a single pick, else "{n} {noun(s)}".
+ */
+export function formatMultiSelectSummary({
+  values,
+  options,
+  unknownLabel,
+  placeholder,
+  noun,
+  pluralNoun,
+}: FormatMultiSelectSummaryOptions): string {
+  if (values.length === 0) return placeholder;
+  if (values.length === 1) {
+    const value = values[0]!;
+    return (
+      options.find((o) => o.value === value)?.label ?? unknownLabel ?? value
+    );
+  }
+  const plural = pluralNoun ?? `${noun}s`;
+  return `${values.length} ${plural}`;
+}
+
+// empty → merged; exactly ['draft'] → drafts; no draft → submitted; mixed → merged.
+export function getApplicationViewMode(
+  statuses: ApplicationStatusFilter[] = [],
+): ApplicationViewMode {
+  if (statuses.length === 0) return 'merged';
+  if (statuses.length === 1 && statuses[0] === 'draft') return 'drafts';
+  if (statuses.includes('draft')) return 'merged';
+  return 'submitted';
+}
+
 /**
  * Page-number window for pagination nav: always first + last, current ±1,
  * `'ellipsis'` for gaps. Caps at 7 slots.
@@ -702,36 +750,6 @@ export function formatPaginationSummary({
   if (rangeStart === 1 && rangeEnd === total)
     return `${total} ${matching}${nounLabel}`;
   return `Showing ${rangeStart}–${rangeEnd} of ${total} ${matching}${nounLabel}`;
-}
-
-/** `/manage/applications` link for a filter set + page; omits `page=1`. */
-export function buildApplicationsHref(
-  filters: ApplicationFilters,
-  page?: number,
-): string {
-  const params = new URLSearchParams();
-  if (filters.positionId) params.set('positionId', filters.positionId);
-  if (filters.status) params.set('status', filters.status);
-  if (filters.userId) params.set('userId', filters.userId);
-  if (filters.q) params.set('q', filters.q);
-  if (filters.sort)
-    params.set('sort', `${filters.sort.field}:${filters.sort.direction}`);
-  if (page && page > 1) params.set('page', String(page));
-
-  const qs = params.toString();
-  return qs ? `/manage/applications?${qs}` : '/manage/applications';
-}
-
-/** `/emails` link for a filter set + page; omits `page=1`. */
-export function buildEmailLogHref(filters: EmailLogFilters, page?: number) {
-  const params = new URLSearchParams();
-  if (filters.q) params.set('q', filters.q);
-  if (filters.status) params.set('status', filters.status);
-  if (filters.template) params.set('template', filters.template);
-  if (page && page > 1) params.set('page', String(page));
-
-  const qs = params.toString();
-  return qs ? `/emails?${qs}` : '/emails';
 }
 
 interface PaginationBoundsInput {

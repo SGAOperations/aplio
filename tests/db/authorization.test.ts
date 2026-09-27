@@ -298,11 +298,13 @@ describe('getApplications / getApplicationsCount / getApplicationForReview / get
   });
 
   it('a draft status filter never returns draft rows and the total matches the unfiltered query', async () => {
-    const draftFiltered = await getApplications(managerA, { status: 'draft' });
+    const draftFiltered = await getApplications(managerA, {
+      statuses: ['draft'],
+    });
     expect(draftFiltered.map((a) => a.id)).not.toContain(draftApplicationA.id);
 
     const draftFilteredCount = await getApplicationsCount(managerA, {
-      status: 'draft',
+      statuses: ['draft'],
     });
     const unfilteredCount = await getApplicationsCount(managerA, {});
     expect(draftFilteredCount).toBe(unfilteredCount);

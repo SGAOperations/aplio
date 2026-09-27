@@ -650,15 +650,20 @@ function buildApplicationListWhere(
       }
     : {};
 
+  // 'draft' is filtered out first — it would otherwise overwrite baseWhere's
+  // own status: { not: 'draft' }. getDraftApplications is draft's only path;
+  // a selection of only 'draft' leaves nothing here, by design.
+  const submittedStatuses = (filters.statuses ?? []).filter(
+    (s) => s !== 'draft',
+  );
+
   return {
     ...baseWhere,
-    ...(filters.positionId ? { positionId: filters.positionId } : {}),
-    // 'draft' is never applied here — it would overwrite baseWhere's own
-    // status: { not: 'draft' }. getDraftApplications is draft's only path.
-    ...(filters.status && filters.status !== 'draft'
-      ? { status: filters.status }
+    ...(filters.positionIds?.length
+      ? { positionId: { in: filters.positionIds } }
       : {}),
-    ...(filters.userId ? { userId: filters.userId } : {}),
+    ...(submittedStatuses.length ? { status: { in: submittedStatuses } } : {}),
+    ...(filters.userIds?.length ? { userId: { in: filters.userIds } } : {}),
     ...textWhere,
   };
 }
@@ -842,8 +847,10 @@ function buildDraftListWhere(
   return {
     ...buildApplicationScopeWhere(user),
     status: 'draft',
-    ...(filters.positionId ? { positionId: filters.positionId } : {}),
-    ...(filters.userId ? { userId: filters.userId } : {}),
+    ...(filters.positionIds?.length
+      ? { positionId: { in: filters.positionIds } }
+      : {}),
+    ...(filters.userIds?.length ? { userId: { in: filters.userIds } } : {}),
     ...(filters.q
       ? {
           OR: [

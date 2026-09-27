@@ -66,28 +66,44 @@ describe('filterRows', () => {
 
   it('matches a `filters` entry only against columns with filterValue', () => {
     expect(
-      filterRows(rows, columns, { filters: [{ key: 'name', value: 'Alice' }] }),
+      filterRows(rows, columns, {
+        filters: [{ key: 'name', values: ['Alice'] }],
+      }),
     ).toEqual(rows);
 
     expect(
       filterRows(rows, columns, {
-        filters: [{ key: 'position', value: 'p2' }],
+        filters: [{ key: 'position', values: ['p2'] }],
       }),
     ).toEqual([rows[1]]);
+  });
+
+  it('matches "any of" a multi-value filter entry', () => {
+    expect(
+      filterRows(rows, columns, {
+        filters: [{ key: 'position', values: ['p1', 'p2'] }],
+      }),
+    ).toEqual([rows[0], rows[1]]);
+  });
+
+  it('skips a filter entry with no values', () => {
+    expect(
+      filterRows(rows, columns, { filters: [{ key: 'position', values: [] }] }),
+    ).toEqual(rows);
   });
 
   it('composes query and filters with AND', () => {
     expect(
       filterRows(rows, columns, {
         query: 'bob',
-        filters: [{ key: 'position', value: 'p2' }],
+        filters: [{ key: 'position', values: ['p2'] }],
       }),
     ).toEqual([rows[1]]);
 
     expect(
       filterRows(rows, columns, {
         query: 'alice',
-        filters: [{ key: 'position', value: 'p2' }],
+        filters: [{ key: 'position', values: ['p2'] }],
       }),
     ).toEqual([]);
   });

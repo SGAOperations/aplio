@@ -70,6 +70,7 @@ Any change to a brand/status token must keep ≥4.5:1 contrast against its paire
 - **Focus & overlays:** never `outline-none` without a visible replacement; rely on Radix focus trapping in dialogs/sheets — don't break it with custom wrappers.
 - **Section sub-nav.** A page section opts into the sidebar's in-page nav by giving its outermost `<section>` an `id` plus `data-section-nav="<Label>"` (matching its visible heading) and `scroll-mt-6`. The sidebar discovers these from the DOM under the active nav item — nothing to register elsewhere, and a group that never renders (e.g. an empty position status) contributes nothing. Fewer than two opted-in sections on a page renders no sub-nav. This is secondary navigation only — never the sole way to reach a section; every opted-in section must also be reachable by scrolling. The highlighted item is the last section whose top has crossed the middle of the scroll area. At the top of the page it is the first section, at the bottom the last, and after a click the clicked section until the user scrolls again.
 - **Status dots.** Always `StatusDot` / `ApplicationStatusDot` / `EmailStatusDot` — never a hand-rolled span. `size-2` everywhere except the position stat cluster, which uses `size-1.5`. Decorative (`aria-hidden`), always beside a text label.
+- **Table filters.** `MultiSelect` (`components/ui/multi-select.tsx`, Popover + Command) is the one filter dropdown for `DataTableToolbar` — single or multi-value, searchable or not — never a bespoke `Select`-based filter per call site.
 
 ## 6. Iconography
 
@@ -83,7 +84,7 @@ The vocabulary lives in `lib/icons.ts` as five separately-exported `Record<Enum,
 - **Tint:** `text-muted-foreground` by default; `text-destructive` / `text-warning` / `text-success` / `text-info` only where the icon carries that semantic. Never a hardcoded colour. Inside a coloured `Badge` the icon inherits the paired `-foreground` — set no tint.
 - **Icons never carry meaning alone.** Every icon sits beside a text label or an `aria-label`; colour + shape is a redundancy for WCAG 1.4.1, never the only channel.
 - **Icon-free by rule:** page titles (`PageHeader` h1), form labels and `FormMessage`, table body cells, data/value chips, role badges (`Admin` / `Manager`), and the `(legal)` prose pages plus `markdown.tsx` (user-authored content).
-- **shadcn CLI output is exempt.** `checkbox` `dialog` `dropdown-menu` `input-otp` `pagination` `radio-group` `select` `sheet` keep the CLI's emitted names (`XIcon`, `CheckIcon`, `MoreHorizontalIcon`, …) so re-running `shadcn add` produces no diff. Every other `components/ui/*` file is hand-written and bound by these rules.
+- **shadcn CLI output is exempt.** `checkbox` `command` `dialog` `dropdown-menu` `input-otp` `pagination` `popover` `radio-group` `select` `sheet` keep the CLI's emitted names (`XIcon`, `CheckIcon`, `MoreHorizontalIcon`, …) so re-running `shadcn add` produces no diff. Every other `components/ui/*` file is hand-written and bound by these rules.
 
 ## 7. Do / Don't
 

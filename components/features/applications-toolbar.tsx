@@ -1,12 +1,20 @@
 'use client';
 
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
 
-import { APPLICATION_STATUS_OPTIONS } from '@/lib/constants';
+import { debounce, useQueryStates } from 'nuqs';
+
+import {
+  APPLICATION_STATUS_OPTIONS,
+  FILTER_SEARCH_DEBOUNCE_MS,
+} from '@/lib/constants';
 import { ACTION_ICONS } from '@/lib/icons';
-import type { ApplicationFilters, ReviewableApplicant } from '@/lib/types';
-import { displayUserName } from '@/lib/utils';
+import {
+  applicationsSearchParams,
+  applicationsUrlKeys,
+} from '@/lib/search-params';
+import type { ReviewableApplicant } from '@/lib/types';
+import { displayUserName, getApplicationViewMode } from '@/lib/utils';
 
 import { ApplicationStatusDot } from '@/components/features/status-badge';
 import { Button } from '@/components/ui/button';
@@ -15,109 +23,62 @@ import {
   DataTableToolbarField,
 } from '@/components/ui/data-table-toolbar';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { MultiSelect } from '@/components/ui/multi-select';
 
 interface ApplicationsToolbarProps {
   positions: { id: string; title: string }[];
   applicants: ReviewableApplicant[];
-  filters: ApplicationFilters;
   hasActiveFilters: boolean;
 }
 
 export function ApplicationsToolbar({
   positions,
   applicants,
-  filters,
   hasActiveFilters,
 }: ApplicationsToolbarProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const [params, setParams] = useQueryStates(applicationsSearchParams, {
+    urlKeys: applicationsUrlKeys,
+    history: 'push',
+    shallow: false,
+    scroll: false,
+  });
 
   // A draft's submittedAt is null, so buildDraftListWhere's q filter never matches one by date.
-  const isDraftView = filters.status === 'draft';
+  const viewMode = getApplicationViewMode(params.statuses);
 
   // Only ambiguous names get the disambiguating email suffix.
-  const applicantLabels = useMemo(() => {
+  const applicantOptions = useMemo(() => {
     const nameCounts = new Map<string, number>();
     for (const a of applicants) {
       const key = displayUserName(a);
       nameCounts.set(key, (nameCounts.get(key) ?? 0) + 1);
     }
-    return new Map(
-      applicants.map((a) => {
-        const key = displayUserName(a);
-        const label =
-          (nameCounts.get(key) ?? 0) > 1 ? `${key} · ${a.email}` : key;
-        return [a.id, label] as const;
-      }),
-    );
+    return applicants.map((a) => {
+      const key = displayUserName(a);
+      const label =
+        (nameCounts.get(key) ?? 0) > 1 ? `${key} · ${a.email}` : key;
+      return { value: a.id, label };
+    });
   }, [applicants]);
 
-  // A stale or foreign deep link — keep it selected rather than falling back to the placeholder.
-  const unknownApplicantId =
-    filters.userId && !applicants.some((a) => a.id === filters.userId)
-      ? filters.userId
-      : undefined;
-
-  const debounceTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
-    undefined,
+  const positionOptions = useMemo(
+    () => positions.map((p) => ({ value: p.id, label: p.title })),
+    [positions],
   );
 
-  // Clears a stale closure's router.replace on unmount; a timer has no non-effect home.
-  useEffect(() => () => clearTimeout(debounceTimer.current), []);
-
-  // Tracks the input immediately, ahead of the debounced URL update.
-  const [searchValue, setSearchValue] = useState(filters.q ?? '');
-
-  function updateParam(key: string, value: string | undefined) {
-    const params = new URLSearchParams(searchParams.toString());
-    if (value) {
-      params.set(key, value);
-    } else {
-      params.delete(key);
-    }
-    // A filter change while on page 4 must land on page 1, not an empty page.
-    params.delete('page');
-    // userId survives filter changes so the per-user deep link stays intact.
-    router.push(`${pathname}?${params.toString()}`);
-  }
-
-  function handleSearch(value: string) {
-    setSearchValue(value);
-    clearTimeout(debounceTimer.current);
-    debounceTimer.current = setTimeout(() => {
-      const params = new URLSearchParams(searchParams.toString());
-      if (value.trim()) {
-        params.set('q', value.trim());
-      } else {
-        params.delete('q');
-      }
-      params.delete('page');
-      // Use replace for search so typing doesn't spam history.
-      router.replace(`${pathname}?${params.toString()}`);
-    }, 300);
-  }
-
-  function clearSearch() {
-    setSearchValue('');
-    clearTimeout(debounceTimer.current);
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete('q');
-    params.delete('page');
-    router.push(`${pathname}?${params.toString()}`);
-  }
+  const statusOptions = useMemo(
+    () =>
+      APPLICATION_STATUS_OPTIONS.map((opt) => ({
+        value: opt.value,
+        label: opt.label,
+        icon: <ApplicationStatusDot status={opt.value} />,
+      })),
+    [],
+  );
 
   function clearFilters() {
-    setSearchValue('');
     // Drops userId too, so a zero-result filter set isn't a per-user deep-link dead end.
-    router.push(pathname);
+    void setParams(null);
   }
 
   return (
@@ -127,23 +88,17 @@ export function ApplicationsToolbar({
         htmlFor="filter-position"
         className="w-full sm:w-48"
       >
-        <Select
-          value={filters.positionId ?? ''}
-          onValueChange={(v) => updateParam('positionId', v || undefined)}
-        >
-          <SelectTrigger id="filter-position" className="w-full">
-            <SelectValue placeholder="All positions" />
-          </SelectTrigger>
-          <SelectContent>
-            {/* "All positions" clears the filter */}
-            <SelectItem value="">All positions</SelectItem>
-            {positions.map((p) => (
-              <SelectItem key={p.id} value={p.id}>
-                {p.title}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <MultiSelect
+          id="filter-position"
+          options={positionOptions}
+          values={params.positionIds}
+          onValuesChange={(positionIds) =>
+            void setParams({ positionIds, page: null })
+          }
+          placeholder="All positions"
+          noun="position"
+          searchable
+        />
       </DataTableToolbarField>
 
       <DataTableToolbarField
@@ -151,33 +106,19 @@ export function ApplicationsToolbar({
         htmlFor="filter-applicant"
         className="w-full sm:w-56"
       >
-        <Select
-          value={filters.userId ?? ''}
-          onValueChange={(v) => updateParam('userId', v || undefined)}
+        <MultiSelect
+          id="filter-applicant"
+          options={applicantOptions}
+          values={params.userIds}
+          onValuesChange={(userIds) => void setParams({ userIds, page: null })}
+          placeholder={
+            applicants.length === 0 ? 'No applicants yet' : 'All applicants'
+          }
+          noun="applicant"
+          searchable
+          unknownLabel="Unknown applicant"
           disabled={applicants.length === 0}
-        >
-          <SelectTrigger id="filter-applicant" className="w-full">
-            <SelectValue
-              placeholder={
-                applicants.length === 0 ? 'No applicants yet' : 'All applicants'
-              }
-            />
-          </SelectTrigger>
-          <SelectContent>
-            {/* "All applicants" clears the filter */}
-            <SelectItem value="">All applicants</SelectItem>
-            {unknownApplicantId && (
-              <SelectItem value={unknownApplicantId}>
-                Unknown applicant
-              </SelectItem>
-            )}
-            {applicants.map((a) => (
-              <SelectItem key={a.id} value={a.id}>
-                {applicantLabels.get(a.id)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        />
       </DataTableToolbarField>
 
       <DataTableToolbarField
@@ -185,24 +126,17 @@ export function ApplicationsToolbar({
         htmlFor="filter-status"
         className="w-full sm:w-48"
       >
-        <Select
-          value={filters.status ?? ''}
-          onValueChange={(v) => updateParam('status', v || undefined)}
-        >
-          <SelectTrigger id="filter-status" className="w-full">
-            <SelectValue placeholder="All statuses" />
-          </SelectTrigger>
-          <SelectContent>
-            {/* "All statuses" clears the filter */}
-            <SelectItem value="">All statuses</SelectItem>
-            {APPLICATION_STATUS_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                <ApplicationStatusDot status={opt.value} />
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <MultiSelect
+          id="filter-status"
+          options={statusOptions}
+          values={params.statuses}
+          onValuesChange={(statuses) =>
+            void setParams({ statuses, page: null })
+          }
+          placeholder="All statuses"
+          noun="status"
+          pluralNoun="statuses"
+        />
       </DataTableToolbarField>
 
       <DataTableToolbarField
@@ -215,21 +149,29 @@ export function ApplicationsToolbar({
             id="filter-search"
             aria-label="Search applications"
             placeholder={
-              isDraftView
+              viewMode === 'drafts'
                 ? 'Name, email, or position'
                 : 'Name, email, position, or date'
             }
-            value={searchValue}
-            onChange={(e) => handleSearch(e.target.value)}
+            value={params.q ?? ''}
+            onChange={(e) =>
+              void setParams(
+                { q: e.target.value || null, page: null },
+                {
+                  history: 'replace',
+                  limitUrlUpdates: debounce(FILTER_SEARCH_DEBOUNCE_MS),
+                },
+              )
+            }
             className="w-full pr-12 md:pr-9"
           />
-          {searchValue && (
+          {params.q && (
             <Button
               type="button"
               variant="ghost"
               size="icon"
               aria-label="Clear search"
-              onClick={clearSearch}
+              onClick={() => void setParams({ q: null, page: null })}
               className="absolute top-1/2 right-1 -translate-y-1/2 md:size-7"
             >
               <ACTION_ICONS.dismiss />
