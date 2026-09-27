@@ -6,7 +6,7 @@ import {
   APPLICATION_STATUS_LABELS,
 } from '@/lib/constants';
 import { type Reviewer } from '@/lib/types';
-import { cn } from '@/lib/utils';
+import { buildApplicationsHref, cn } from '@/lib/utils';
 
 import { StatCard } from '@/components/features/stat-card';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,6 +14,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 interface PipelineSummaryProps {
   reviewer: Reviewer;
+}
+
+function statCardLinkLabel(label: string, count: number): string {
+  return `${label} — ${count} ${count === 1 ? 'application' : 'applications'}`;
 }
 
 export async function PipelineSummary({ reviewer }: PipelineSummaryProps) {
@@ -27,23 +31,28 @@ export async function PipelineSummary({ reviewer }: PipelineSummaryProps) {
   return (
     <section aria-label="Pipeline summary">
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-7">
-        {/* Leading "Total" card — sum of all non-draft pipeline statuses */}
+        {/* Leading "Total" card — sum of all non-draft pipeline statuses, links unfiltered */}
         <StatCard
           label="Total"
           value={total}
           dotVariant="default"
           className="col-span-2 md:col-span-1"
+          href={buildApplicationsHref({})}
+          linkLabel={statCardLinkLabel('Total', total)}
         />
 
         {APPLICATION_PIPELINE_STATUSES.map((status) => {
           const count = counts[status] ?? 0;
+          const label = APPLICATION_STATUS_LABELS[status];
 
           return (
             <StatCard
               key={status}
-              label={APPLICATION_STATUS_LABELS[status]}
+              label={label}
               value={count}
               dotVariant={APPLICATION_STATUS_BADGE_VARIANT[status]}
+              href={buildApplicationsHref({ status })}
+              linkLabel={statCardLinkLabel(label, count)}
             />
           );
         })}
