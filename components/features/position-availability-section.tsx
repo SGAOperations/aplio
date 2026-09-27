@@ -12,7 +12,7 @@ import {
   positionScheduleClearIssues,
   positionScheduleIssues,
 } from '@/lib/constants';
-import { formatInstant, orgDayStart, toOrgDayString } from '@/lib/dates';
+import { orgDayStart, toOrgDayString } from '@/lib/dates';
 import { ACTION_ICONS } from '@/lib/icons';
 import { autosaveStatusText, useAutosave } from '@/lib/use-autosave';
 import { ActionError, isDraftFutureOpenDate, isError } from '@/lib/utils';
@@ -28,6 +28,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { LocalTime } from '@/components/ui/local-time';
 import { WarningCallout } from '@/components/ui/warning-callout';
 
 interface ScheduleValues {
@@ -258,10 +259,11 @@ export function PositionAvailabilitySection({
               <div className="flex flex-col gap-1">
                 <p className="font-medium">
                   This position won&apos;t open on{' '}
-                  {formatInstant(orgDayStart(watchedOpensAt), {
-                    precision: 'date',
-                    timeZone: ORG_TIMEZONE,
-                  })}
+                  <LocalTime
+                    date={orgDayStart(watchedOpensAt)}
+                    precision="date"
+                    timeZone={ORG_TIMEZONE}
+                  />
                   .
                 </p>
                 <p>
