@@ -194,6 +194,9 @@ export default async function EditPositionPage({
                 closesAt={
                   position.closesAt ? toOrgDayString(position.closesAt) : null
                 }
+                status={position.status}
+                isAdmin={user.isAdmin}
+                today={toOrgDayString(new Date())}
               />
             </PositionDetailsSection>
           ) : (

@@ -1,19 +1,21 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 
 import { updatePositionSchedule } from '@/prisma/actions/position-actions';
+import type { PositionStatus } from '@/prisma/client';
 
 import {
+  ORG_TIMEZONE,
   POSITION_DATE_CLEAR_BLOCKED_ERROR,
   positionScheduleClearIssues,
   positionScheduleIssues,
 } from '@/lib/constants';
-import { toOrgDayString } from '@/lib/dates';
+import { formatInstant, orgDayStart, toOrgDayString } from '@/lib/dates';
 import { ACTION_ICONS } from '@/lib/icons';
 import { autosaveStatusText, useAutosave } from '@/lib/use-autosave';
-import { ActionError, isError } from '@/lib/utils';
+import { ActionError, isDraftFutureOpenDate, isError } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -26,6 +28,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { WarningCallout } from '@/components/ui/warning-callout';
 
 interface ScheduleValues {
   opensAt: string;
@@ -37,6 +40,7 @@ interface ScheduleFieldConfig {
   label: string;
   clearLabel: string;
   setDescription: string;
+  draftSetDescription?: string;
   emptyDescription: string;
 }
 
@@ -46,6 +50,8 @@ const SCHEDULE_FIELDS: ScheduleFieldConfig[] = [
     label: 'Opens At',
     clearLabel: 'Clear open date',
     setDescription: 'Applications open at 12:00 AM Eastern on this day.',
+    draftSetDescription:
+      'Once this position is open, applications open at 12:00 AM Eastern on this day.',
     emptyDescription:
       'No open date — applications open as soon as this position is open.',
   },
@@ -63,6 +69,9 @@ interface PositionAvailabilitySectionProps {
   positionId: string;
   opensAt: string | null;
   closesAt: string | null;
+  status: PositionStatus;
+  isAdmin: boolean;
+  today: string;
 }
 
 // No zodResolver — the pair saves together, so validation runs inside the commit handler instead.
@@ -70,12 +79,21 @@ export function PositionAvailabilitySection({
   positionId,
   opensAt,
   closesAt,
+  status,
+  isAdmin,
+  today,
 }: PositionAvailabilitySectionProps) {
   const initial: ScheduleValues = {
     opensAt: opensAt ?? '',
     closesAt: closesAt ?? '',
   };
   const form = useForm<ScheduleValues>({ defaultValues: initial });
+  const watchedOpensAt = useWatch({ control: form.control, name: 'opensAt' });
+  const showDraftOpenWarning = isDraftFutureOpenDate(
+    status,
+    watchedOpensAt,
+    today,
+  );
   // The last-saved pair — positionPastDateIssues only flags a date actually
   // changed since this, so an untouched past date stays saveable.
   const lastSavedRef = useRef<ScheduleValues>(initial);
@@ -221,7 +239,9 @@ export function PositionAvailabilitySection({
                     </div>
                     <FormDescription>
                       {field.value
-                        ? config.setDescription
+                        ? status === 'draft' && config.draftSetDescription
+                          ? config.draftSetDescription
+                          : config.setDescription
                         : config.emptyDescription}
                     </FormDescription>
                     <FormMessage />
@@ -230,6 +250,28 @@ export function PositionAvailabilitySection({
               }}
             />
           ))}
+        </div>
+
+        <div aria-live="polite">
+          {showDraftOpenWarning && (
+            <WarningCallout>
+              <div className="flex flex-col gap-1">
+                <p className="font-medium">
+                  This position won&apos;t open on{' '}
+                  {formatInstant(orgDayStart(watchedOpensAt), {
+                    precision: 'date',
+                    timeZone: ORG_TIMEZONE,
+                  })}
+                  .
+                </p>
+                <p>
+                  {isAdmin
+                    ? "It's still a draft. Choose Open position before then — once it's open, applications start on this date."
+                    : "It's still a draft, and only an admin can open it. Ask an admin to open it before then — once it's open, applications start on this date."}
+                </p>
+              </div>
+            </WarningCallout>
+          )}
         </div>
 
         {statusText && (

@@ -43,6 +43,7 @@ import {
   groupManagedPositions,
   isAnswered,
   isBypassAllowed,
+  isDraftFutureOpenDate,
   isError,
   isOpenPastCloseDate,
   isPositionActive,
@@ -311,6 +312,42 @@ describe('getPositionDateInfo', () => {
         NOW,
       ),
     ).toBeNull();
+  });
+});
+
+describe('isDraftFutureOpenDate', () => {
+  it('returns true for a draft with a future open date', () => {
+    expect(isDraftFutureOpenDate('draft', '2026-08-20', '2026-08-15')).toBe(
+      true,
+    );
+  });
+
+  it('returns false for a draft with today as the open date', () => {
+    expect(isDraftFutureOpenDate('draft', '2026-08-15', '2026-08-15')).toBe(
+      false,
+    );
+  });
+
+  it('returns false for a draft with a past open date', () => {
+    expect(isDraftFutureOpenDate('draft', '2026-08-10', '2026-08-15')).toBe(
+      false,
+    );
+  });
+
+  it('returns false for a draft with an empty open date', () => {
+    expect(isDraftFutureOpenDate('draft', '', '2026-08-15')).toBe(false);
+  });
+
+  it('returns false for an open position with a future open date', () => {
+    expect(isDraftFutureOpenDate('open', '2026-08-20', '2026-08-15')).toBe(
+      false,
+    );
+  });
+
+  it('returns false for a closed position with a future open date', () => {
+    expect(isDraftFutureOpenDate('closed', '2026-08-20', '2026-08-15')).toBe(
+      false,
+    );
   });
 });
 
