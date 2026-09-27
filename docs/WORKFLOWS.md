@@ -422,7 +422,7 @@ A user who manages at least one non-deleted position. Manager status is **derive
 - **Trigger** — Home (`/`).
 - **Happy path** — `ManagerDashboard` — "Overview of applications for the positions you manage." — streams a pipeline summary, the three most recent applications, three managed positions, and the manager's own applications widget. Every section is scoped to positions they manage. Recent activity — a manager's own application activity as well as new applications to their managed positions — lives in the activity panel instead ([XC-10](#xc-10-activity-panel)).
 - **Failure / edge** — as [AP-1](#ap-1-see-your-dashboard); an admin gets `AdminDashboard` instead.
-- **End state** — read-only.
+- **End state** — each pipeline summary card opens `/manage/applications` filtered to its status; **Total** opens it unfiltered.
 
 ### PM-2 See the positions you manage
 

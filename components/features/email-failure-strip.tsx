@@ -1,5 +1,3 @@
-import Link from 'next/link';
-
 import { getEmailFailureCounts } from '@/prisma/data/emails';
 
 import {
@@ -28,14 +26,14 @@ export async function EmailFailureStrip() {
           const variant = EMAIL_STATUS_BADGE_VARIANT[status];
           const label = EMAIL_STATUS_LABELS[status];
           return (
-            <Link
+            <StatCard
               key={status}
+              label={label}
+              value={count}
+              dotVariant={variant}
               href={buildEmailLogHref({ status })}
-              className="focus-visible:ring-ring/50 block rounded-lg outline-none focus-visible:ring-[3px]"
-              aria-label={`Filter by ${label.toLowerCase()} — ${count} in the last ${EMAIL_FAILURE_WINDOW_DAYS} days`}
-            >
-              <StatCard label={label} value={count} dotVariant={variant} />
-            </Link>
+              linkLabel={`Filter by ${label.toLowerCase()} — ${count} in the last ${EMAIL_FAILURE_WINDOW_DAYS} days`}
+            />
           );
         })}
       </div>

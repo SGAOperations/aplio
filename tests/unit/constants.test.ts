@@ -6,6 +6,7 @@ import {
   ANSWER_LONG_MAX_LENGTH,
   ANSWER_OTHER_MAX_LENGTH,
   ANSWER_SHORT_MAX_LENGTH,
+  APPLICATION_PIPELINE_STATUSES,
   APPLICATION_STATUS_VALUES,
   EMAIL_STATUS_BADGE_VARIANT,
   EMAIL_STATUS_DESCRIPTIONS,
@@ -378,6 +379,11 @@ describe('status-set invariants', () => {
   it("APPLICATION_STATUS_VALUES (the queue's filter list) includes draft", () => {
     expect(APPLICATION_STATUS_VALUES).toContain('draft');
     expect(REVIEWER_APPLICATION_STATUSES).not.toContain('draft');
+  });
+
+  it('APPLICATION_PIPELINE_STATUSES is a subset of APPLICATION_STATUS_VALUES', () => {
+    for (const status of APPLICATION_PIPELINE_STATUSES)
+      expect(APPLICATION_STATUS_VALUES).toContain(status);
   });
 
   it('UNRESOLVED_APPLICATION_STATUSES is a subset of NON_TERMINAL_APPLICATION_STATUSES', () => {
