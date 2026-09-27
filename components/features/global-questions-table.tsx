@@ -200,29 +200,23 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
         }}
         mobileCard={(question, dragHandle) => (
           <div className="flex flex-col gap-2 p-4">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span className="text-muted-foreground shrink-0 text-xs">
-                <span className="sr-only">Order </span>#{question.order}
-              </span>
+            <div className="flex items-center justify-between gap-2">
               <p className="min-w-0 flex-1 font-medium [overflow-wrap:anywhere]">
                 {question.label}
               </p>
-              <Badge variant={QUESTION_TYPE_BADGE_VARIANT[question.type]}>
-                {QUESTION_TYPE_LABELS[question.type]}
-              </Badge>
-              {question.format && (
-                <Badge variant="outline">
-                  {SHORT_ANSWER_FORMAT_LABELS[question.format]}
-                </Badge>
-              )}
-              {question.required && <Badge variant="outline">Required</Badge>}
+              {dragHandle}
             </div>
-            <QuestionOptionChips
-              options={question.options}
-              allowOther={question.allowOther}
-            />
             <div className="flex items-center justify-between gap-2">
-              {dragHandle ?? <div />}
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant={QUESTION_TYPE_BADGE_VARIANT[question.type]}>
+                  {QUESTION_TYPE_LABELS[question.type]}
+                </Badge>
+                {question.format && (
+                  <Badge variant="outline">
+                    {SHORT_ANSWER_FORMAT_LABELS[question.format]}
+                  </Badge>
+                )}
+              </div>
               <DataTableRowActions>
                 <GlobalQuestionDialog
                   trigger={

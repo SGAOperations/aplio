@@ -18,18 +18,15 @@ const COLUMNS: DataTableSkeletonColumn[] = [
 function mobileCard() {
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2">
-        <Skeleton className="h-3 w-6" />
+      <div className="flex items-center justify-between gap-2">
         <Skeleton className="h-4 w-40" />
-        <Skeleton className="h-5.5 w-24 rounded-md" />
-        <Skeleton className="h-5.5 w-20 rounded-md" />
-      </div>
-      <div className="flex flex-wrap gap-1">
-        <Skeleton className="h-5.5 w-16 rounded-md" />
-        <Skeleton className="h-5.5 w-12 rounded-md" />
+        <Skeleton className="size-8 rounded-md" />
       </div>
       <div className="flex items-center justify-between gap-2">
-        <Skeleton className="size-8 rounded-md" />
+        <div className="flex flex-wrap items-center gap-2">
+          <Skeleton className="h-5.5 w-24 rounded-md" />
+          <Skeleton className="h-5.5 w-20 rounded-md" />
+        </div>
         <div className="flex gap-2">
           <Skeleton className="size-11 rounded-md" />
           <Skeleton className="size-11 rounded-md" />
