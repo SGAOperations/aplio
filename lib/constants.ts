@@ -381,14 +381,15 @@ export const APPLICATION_STATUS_LABELS: Record<
   withdrawn: 'Withdrawn',
 };
 
+// 'info' is reserved for 'applied' alone; every in-review status is 'warning'.
 export const APPLICATION_STATUS_BADGE_VARIANT: Record<
   $Enums.ApplicationStatus,
   BadgeVariant
 > = {
   draft: 'secondary',
   applied: 'info',
-  reached_out: 'info',
-  interview_scheduled: 'info',
+  reached_out: 'warning',
+  interview_scheduled: 'warning',
   reviewing: 'warning',
   accepted: 'success',
   rejected: 'destructive',

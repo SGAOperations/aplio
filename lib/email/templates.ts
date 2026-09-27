@@ -340,14 +340,14 @@ export function managerDailyDigestEmail({
   };
 }
 
-// Matches the in-app status-dot palette — reviewing is the sole 'warning'
-// (APPLICATION_STATUS_BADGE_VARIANT), the rest are 'info'.
+// Matches the in-app status-dot palette — 'applied' is the sole 'info',
+// every other unresolved status (APPLICATION_STATUS_BADGE_VARIANT) is 'warning'.
 const DIGEST_STATUS_DOT_COLOR: Partial<
   Record<$Enums.ApplicationStatus, string>
 > = {
   applied: '#2563eb',
-  reached_out: '#2563eb',
-  interview_scheduled: '#2563eb',
+  reached_out: '#d97706',
+  interview_scheduled: '#d97706',
   reviewing: '#d97706',
 };
 
