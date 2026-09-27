@@ -65,7 +65,7 @@ export default async function PublicPositionDetailPage({
 
   if (view.user) await requireName(view.user);
 
-  const { position, canManage } = view;
+  const { position, user, canManage } = view;
   const shareUrl = `${getBaseUrl()}/positions/${id}`;
   const isAuthenticated = view.user !== null;
   const availability = getPositionAvailability(position);
@@ -108,8 +108,10 @@ export default async function PublicPositionDetailPage({
                 Only position managers and admins can see this page. Its
                 scheduled open date,{' '}
                 <LocalTime date={staleDraftDate.date} precision="date" /> has
-                already passed. To make it visible to applicants, ask an admin
-                to open it.
+                already passed. To make it visible to applicants,{' '}
+                {user?.isAdmin
+                  ? 'choose Open position to open it now.'
+                  : 'ask an admin to open it.'}
               </p>
             ) : (
               <>
