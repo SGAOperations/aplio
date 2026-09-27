@@ -27,10 +27,7 @@ import { isError } from '@/lib/utils';
 const APPLICATION_NOT_EDITABLE_MESSAGE =
   'This application has already been submitted. Withdraw it to make changes.';
 
-const ALL_STATUSES: $Enums.ApplicationStatus[] = [
-  ...APPLICATION_STATUS_VALUES,
-  'withdrawn',
-];
+const ALL_STATUSES: $Enums.ApplicationStatus[] = [...APPLICATION_STATUS_VALUES];
 
 const PDF_BYTES = new Uint8Array([
   0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34,

@@ -4,6 +4,7 @@ import {
   APPLICATION_PIPELINE_STATUSES,
   APPLICATION_STATUS_BADGE_VARIANT,
   APPLICATION_STATUS_LABELS,
+  PIPELINE_SUMMARY_STATUSES,
 } from '@/lib/constants';
 import { type Reviewer } from '@/lib/types';
 import { buildApplicationsHref, cn } from '@/lib/utils';
@@ -30,18 +31,18 @@ export async function PipelineSummary({ reviewer }: PipelineSummaryProps) {
 
   return (
     <section aria-label="Pipeline summary">
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-7">
-        {/* Leading "Total" card — sum of all non-draft pipeline statuses, links unfiltered */}
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
+        {/* Leading "Total" card — sum of the six pipeline statuses only */}
         <StatCard
           label="Total"
           value={total}
           dotVariant="default"
-          className="col-span-2 md:col-span-1"
+          className="col-span-2 md:col-span-1 lg:col-span-2"
           href={buildApplicationsHref({})}
           linkLabel={statCardLinkLabel('Total', total)}
         />
 
-        {APPLICATION_PIPELINE_STATUSES.map((status) => {
+        {PIPELINE_SUMMARY_STATUSES.map((status) => {
           const count = counts[status] ?? 0;
           const label = APPLICATION_STATUS_LABELS[status];
 
@@ -57,24 +58,35 @@ export async function PipelineSummary({ reviewer }: PipelineSummaryProps) {
           );
         })}
       </div>
+      <p className="text-muted-foreground mt-2 text-xs">
+        Total excludes drafts and withdrawn applications.
+      </p>
     </section>
   );
 }
 
 export function PipelineSummarySkeleton() {
   return (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-7">
-      {Array.from({ length: 7 }).map((_, i) => (
-        <Card
-          key={i}
-          className={cn('p-4', i === 0 && 'col-span-2 md:col-span-1')}
-        >
-          <CardContent className="p-0">
-            <Skeleton className="h-3 w-20" />
-            <Skeleton className="mt-2 h-8 w-12" />
-          </CardContent>
-        </Card>
-      ))}
+    <div>
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
+        {Array.from({ length: PIPELINE_SUMMARY_STATUSES.length + 1 }).map(
+          (_, i) => (
+            <Card
+              key={i}
+              className={cn(
+                'p-4',
+                i === 0 && 'col-span-2 md:col-span-1 lg:col-span-2',
+              )}
+            >
+              <CardContent className="p-0">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="mt-2 h-8 w-12" />
+              </CardContent>
+            </Card>
+          ),
+        )}
+      </div>
+      <Skeleton className="mt-2 h-3 w-64" />
     </div>
   );
 }
