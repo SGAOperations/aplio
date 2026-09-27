@@ -65,6 +65,10 @@ export default async function PublicPositionDetailPage({
   const isAuthenticated = view.user !== null;
   const availability = getPositionAvailability(position);
   const isAccepting = availability === 'accepting';
+  const opensAtPast =
+    position.status === 'draft' &&
+    position.opensAt !== null &&
+    new Date() > position.opensAt;
 
   return (
     <div className="flex flex-col gap-8">
@@ -89,7 +93,7 @@ export default async function PublicPositionDetailPage({
         <PositionDateLine position={position} className="mt-3 text-base" />
       </div>
 
-      {position.status === 'draft' && (
+      {opensAtPast && (
         <WarningCallout icon={STATE_ICONS.hidden}>
           <div className="flex flex-col gap-1">
             <p className="font-medium">This position is a draft.</p>
