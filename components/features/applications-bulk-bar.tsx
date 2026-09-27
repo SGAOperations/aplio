@@ -24,6 +24,7 @@ import {
   summarizeBulkStatusChange,
 } from '@/lib/utils';
 
+import { ApplicationStatusDot } from '@/components/features/status-badge';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Label } from '@/components/ui/label';
@@ -179,12 +180,13 @@ export function ApplicationsBulkBar({
           }
           disabled={isPending}
         >
-          <SelectTrigger id="bulk-status" className="w-44">
+          <SelectTrigger id="bulk-status" className="w-48">
             <SelectValue placeholder="Set status..." />
           </SelectTrigger>
           <SelectContent>
             {REVIEWER_APPLICATION_STATUS_OPTIONS.map((opt) => (
               <SelectItem key={opt.value} value={opt.value}>
+                <ApplicationStatusDot status={opt.value} />
                 {opt.label}
               </SelectItem>
             ))}

@@ -6,6 +6,8 @@ import {
   ANSWER_LONG_MAX_LENGTH,
   ANSWER_OTHER_MAX_LENGTH,
   ANSWER_SHORT_MAX_LENGTH,
+  APPLICATION_PIPELINE_STATUSES,
+  APPLICATION_STATUS_LABELS,
   APPLICATION_STATUS_VALUES,
   EMAIL_STATUS_BADGE_VARIANT,
   EMAIL_STATUS_DESCRIPTIONS,
@@ -24,6 +26,7 @@ import {
   POSITION_STATUS_TRANSITIONS,
   POSITION_TRANSITION_ACTIONS,
   REVIEWER_APPLICATION_STATUSES,
+  REVIEWER_APPLICATION_STATUS_OPTIONS,
   TERMINAL_DECISION_STATUSES,
   UNRESOLVED_APPLICATION_STATUSES,
   formatPhoneNumber,
@@ -37,6 +40,7 @@ import {
   normalizeShortAnswerValue,
   positionDateOrderIssues,
   positionPastDateIssues,
+  positionScheduleClearIssues,
   positionScheduleIssues,
 } from '@/lib/constants';
 import { toOrgDayString } from '@/lib/dates';
@@ -374,9 +378,27 @@ describe('status-set invariants', () => {
     expect(REVIEWER_APPLICATION_STATUSES).not.toContain('withdrawn');
   });
 
-  it("APPLICATION_STATUS_VALUES (the queue's filter list) includes draft", () => {
+  it("APPLICATION_STATUS_VALUES (the queue's filter list) includes draft and withdrawn", () => {
     expect(APPLICATION_STATUS_VALUES).toContain('draft');
+    expect(APPLICATION_STATUS_VALUES).toContain('withdrawn');
     expect(REVIEWER_APPLICATION_STATUSES).not.toContain('draft');
+  });
+
+  it('APPLICATION_PIPELINE_STATUSES is a subset of APPLICATION_STATUS_VALUES', () => {
+    for (const status of APPLICATION_PIPELINE_STATUSES)
+      expect(APPLICATION_STATUS_VALUES).toContain(status);
+  });
+
+  it('APPLICATION_STATUS_VALUES covers every key of APPLICATION_STATUS_LABELS', () => {
+    expect(new Set(APPLICATION_STATUS_VALUES)).toEqual(
+      new Set(Object.keys(APPLICATION_STATUS_LABELS)),
+    );
+  });
+
+  it('REVIEWER_APPLICATION_STATUS_OPTIONS contains neither draft nor withdrawn', () => {
+    const values = REVIEWER_APPLICATION_STATUS_OPTIONS.map((o) => o.value);
+    expect(values).not.toContain('draft');
+    expect(values).not.toContain('withdrawn');
   });
 
   it('UNRESOLVED_APPLICATION_STATUSES is a subset of NON_TERMINAL_APPLICATION_STATUSES', () => {
@@ -745,6 +767,69 @@ describe('positionScheduleIssues — the Clear-control commit decision', () => {
     expect(issues).toEqual([
       { path: 'opensAt', message: POSITION_OPENS_AT_ORDER_ERROR },
       { path: 'closesAt', message: POSITION_CLOSES_AT_ORDER_ERROR },
+    ]);
+  });
+});
+
+describe('positionScheduleClearIssues — the mobile Clear-tap decision', () => {
+  const today = '2026-06-01';
+
+  it('is silent on the field being cleared even if its own node still reports badInput', () => {
+    const issues = positionScheduleClearIssues(
+      'opensAt',
+      { opensAt: '2026-06-10', closesAt: '' },
+      { opensAt: true, closesAt: false },
+      today,
+      {},
+    );
+    expect(issues).toEqual([]);
+  });
+
+  it('blocks on an incomplete sibling, naming only the sibling', () => {
+    const issues = positionScheduleClearIssues(
+      'opensAt',
+      { opensAt: '2026-06-10', closesAt: '' },
+      { opensAt: false, closesAt: true },
+      today,
+      {},
+    );
+    expect(issues).toEqual([
+      { path: 'closesAt', message: POSITION_DATE_INCOMPLETE_ERROR },
+    ]);
+  });
+
+  it('allows the clear when the sibling holds an unchanged past date', () => {
+    const issues = positionScheduleClearIssues(
+      'opensAt',
+      { opensAt: '2026-06-10', closesAt: '2026-05-01' },
+      { opensAt: false, closesAt: false },
+      today,
+      { opensAt: '2026-06-10', closesAt: '2026-05-01' },
+    );
+    expect(issues).toEqual([]);
+  });
+
+  it('allows clearing one half of an out-of-order pair', () => {
+    const issues = positionScheduleClearIssues(
+      'closesAt',
+      { opensAt: '2026-06-20', closesAt: '2026-06-10' },
+      { opensAt: false, closesAt: false },
+      today,
+      {},
+    );
+    expect(issues).toEqual([]);
+  });
+
+  it('blocks when the sibling was changed to a past date', () => {
+    const issues = positionScheduleClearIssues(
+      'opensAt',
+      { opensAt: '2026-06-10', closesAt: '2026-05-01' },
+      { opensAt: false, closesAt: false },
+      today,
+      { opensAt: '2026-06-10', closesAt: '2026-06-20' },
+    );
+    expect(issues).toEqual([
+      { path: 'closesAt', message: POSITION_CLOSES_AT_PAST_ERROR },
     ]);
   });
 });

@@ -136,15 +136,18 @@ async function readAndWriteAnswerValue(
     return existing?.value[0] ?? null;
   }
 
-  const application = await tx.application.findFirst({
+  // Touch instead of a plain read, so @updatedAt reflects the edit — the
+  // caller-scoped write both guards and timestamps in one round trip.
+  const touched = await tx.application.updateMany({
     where: {
       id: target.applicationId,
+      userId,
       status: { in: [...APPLICANT_EDITABLE_APPLICATION_STATUSES] },
       deletedAt: null,
     },
-    select: { id: true },
+    data: { updatedById: userId },
   });
-  if (!application) throw new ApplicationNotEditableError();
+  if (touched.count === 0) throw new ApplicationNotEditableError();
 
   if (target.isGlobal) {
     const where = {

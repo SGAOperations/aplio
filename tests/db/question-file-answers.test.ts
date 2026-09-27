@@ -27,10 +27,7 @@ import { isError } from '@/lib/utils';
 const APPLICATION_NOT_EDITABLE_MESSAGE =
   'This application has already been submitted. Withdraw it to make changes.';
 
-const ALL_STATUSES: $Enums.ApplicationStatus[] = [
-  ...APPLICATION_STATUS_VALUES,
-  'withdrawn',
-];
+const ALL_STATUSES: $Enums.ApplicationStatus[] = [...APPLICATION_STATUS_VALUES];
 
 const PDF_BYTES = new Uint8Array([
   0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34,
@@ -143,6 +140,97 @@ describe.each([
           expect(result).toEqual({ error: APPLICATION_NOT_EDITABLE_MESSAGE });
       });
     }
+  });
+
+  it('upload touches the application row so updatedAt tracks the edit', async () => {
+    const applicant = await createTestUser();
+    const questionId = await createQuestion();
+    const application = await createTestApplication(applicant, position, {
+      status: 'draft',
+    });
+    await prisma.application.update({
+      where: { id: application.id },
+      data: { updatedAt: new Date(Date.now() - 60_000) },
+    });
+    const before = await prisma.application.findUniqueOrThrow({
+      where: { id: application.id },
+      select: { updatedAt: true },
+    });
+
+    actAs(applicant);
+    const result = await uploadQuestionFileAnswer(
+      buildFormData({ applicationId: application.id, questionId, isGlobal }),
+    );
+    expect(isError(result)).toBe(false);
+
+    const after = await prisma.application.findUniqueOrThrow({
+      where: { id: application.id },
+      select: { updatedAt: true },
+    });
+    expect(after.updatedAt.getTime()).toBeGreaterThan(
+      before.updatedAt.getTime(),
+    );
+  });
+
+  it('remove touches the application row so updatedAt tracks the edit', async () => {
+    const applicant = await createTestUser();
+    const questionId = await createQuestion();
+    const application = await createTestApplication(applicant, position, {
+      status: 'draft',
+    });
+
+    actAs(applicant);
+    await uploadQuestionFileAnswer(
+      buildFormData({ applicationId: application.id, questionId, isGlobal }),
+    );
+    await prisma.application.update({
+      where: { id: application.id },
+      data: { updatedAt: new Date(Date.now() - 60_000) },
+    });
+    const before = await prisma.application.findUniqueOrThrow({
+      where: { id: application.id },
+      select: { updatedAt: true },
+    });
+
+    const result = await removeQuestionFileAnswer({
+      scope: 'application',
+      applicationId: application.id,
+      questionId,
+      isGlobal,
+    });
+    expect(result).toBeUndefined();
+
+    const after = await prisma.application.findUniqueOrThrow({
+      where: { id: application.id },
+      select: { updatedAt: true },
+    });
+    expect(after.updatedAt.getTime()).toBeGreaterThan(
+      before.updatedAt.getTime(),
+    );
+  });
+
+  it('leaves updatedAt untouched when the write is refused', async () => {
+    const applicant = await createTestUser();
+    const questionId = await createQuestion();
+    const application = await createTestApplication(applicant, position, {
+      status: 'applied',
+    });
+    const before = await prisma.application.findUniqueOrThrow({
+      where: { id: application.id },
+      select: { updatedAt: true },
+    });
+
+    actAs(applicant);
+    const result = await uploadQuestionFileAnswer(
+      buildFormData({ applicationId: application.id, questionId, isGlobal }),
+    );
+    expect(result).toEqual({ error: APPLICATION_NOT_EDITABLE_MESSAGE });
+
+    const after = await prisma.application.findUniqueOrThrow({
+      where: { id: application.id },
+      select: { updatedAt: true },
+    });
+    expect(after.updatedAt.getTime()).toBe(before.updatedAt.getTime());
   });
 });
 

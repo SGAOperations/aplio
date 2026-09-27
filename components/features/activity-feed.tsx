@@ -2,11 +2,7 @@ import Link from 'next/link';
 
 import { getActivityGroups } from '@/prisma/data/activity';
 
-import {
-  ACTIVITY_FEED_COPY,
-  ACTIVITY_MINE_TITLE,
-  STATUS_BADGE_VARIANT_TO_DOT,
-} from '@/lib/constants';
+import { ACTIVITY_FEED_COPY, ACTIVITY_MINE_TITLE } from '@/lib/constants';
 import { CONCEPT_ICONS } from '@/lib/icons';
 import { type ActivityItem, type ActivityScope } from '@/lib/types';
 
@@ -14,16 +10,12 @@ import { LocalTime } from '@/components/ui/local-time';
 import { SectionCardEmpty } from '@/components/ui/section-card';
 import { SheetClose } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
+import { StatusDot } from '@/components/ui/status-dot';
 
 function ActivityFeedRowContent({ item }: { item: ActivityItem }) {
-  const dotClass = STATUS_BADGE_VARIANT_TO_DOT[item.statusVariant];
-
   return (
     <>
-      <span
-        className={`mt-1.5 size-2 shrink-0 rounded-full ${dotClass}`}
-        aria-hidden="true"
-      />
+      <StatusDot variant={item.statusVariant} className="mt-1.5" />
       <p className="line-clamp-3 min-w-0 flex-1 text-sm">{item.sentence}</p>
       <LocalTime
         date={item.timestamp}

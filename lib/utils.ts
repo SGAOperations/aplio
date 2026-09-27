@@ -11,6 +11,7 @@ import {
   DECISION_EMAIL_DELAY_SECONDS,
   EMAIL_STATUS_DESCRIPTIONS,
   MANAGED_POSITIONS_WINDOW_DAYS,
+  PUBLIC_APPLICATION_STATUS,
   USER_ROLE_FILTER_OPTIONS,
   getApplicationStatusRank,
   isNonReviewableApplicationStatus,
@@ -84,6 +85,22 @@ export function getApplicationStatusHistoryRowLabel(entry: {
   if (entry.from === null)
     return `Status recorded as ${APPLICATION_STATUS_LABELS[entry.to]}`;
   return `${APPLICATION_STATUS_LABELS[entry.from]} → ${APPLICATION_STATUS_LABELS[entry.to]}`;
+}
+
+/** When the current *public* status began; walks `events` newest-first, keeping
+ * the oldest match; `fallback` covers no match. */
+export function getPublicStatusSince(
+  status: $Enums.ApplicationStatus,
+  events: { to: $Enums.ApplicationStatus; createdAt: Date }[],
+  fallback: Date,
+): Date {
+  const target = PUBLIC_APPLICATION_STATUS[status];
+  let since = fallback;
+  for (const event of events) {
+    if (PUBLIC_APPLICATION_STATUS[event.to] !== target) break;
+    since = event.createdAt;
+  }
+  return since;
 }
 
 /** The one sentence for a row's status; `bounced` branches on `bounceType`. */

@@ -16,6 +16,7 @@ import {
   getDecisionEmailWarning,
 } from '@/lib/utils';
 
+import { ApplicationStatusDot } from '@/components/features/status-badge';
 import { useApplicationStatusMove } from '@/components/features/use-application-status-move';
 import { useForceWithdrawApplication } from '@/components/features/use-force-withdraw-application';
 import { Button } from '@/components/ui/button';
@@ -134,6 +135,7 @@ export function ApplicationStatusDialog({
                         (o) => o.value !== currentStatus,
                       ).map((o) => (
                         <SelectItem key={o.value} value={o.value}>
+                          <ApplicationStatusDot status={o.value} />
                           {o.label}
                         </SelectItem>
                       ))}

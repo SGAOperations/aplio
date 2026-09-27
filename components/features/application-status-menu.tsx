@@ -8,6 +8,7 @@ import {
   isTerminalDecisionApplicationStatus,
 } from '@/lib/constants';
 
+import { ApplicationStatusDot } from '@/components/features/status-badge';
 import {
   DropdownMenuItem,
   DropdownMenuSeparator,
@@ -48,6 +49,7 @@ export function ApplicationStatusMenu({
             disabled={isPending}
             onSelect={() => onSelect(next)}
           >
+            <ApplicationStatusDot status={next} />
             {APPLICATION_STATUS_ACTION_LABELS[next]}
           </DropdownMenuItem>
           {!nextIsDecision && <DropdownMenuSeparator />}
@@ -60,6 +62,7 @@ export function ApplicationStatusMenu({
           disabled={isPending}
           onSelect={() => onSelect(target)}
         >
+          <ApplicationStatusDot status={target} />
           {APPLICATION_STATUS_ACTION_LABELS[target]}
         </DropdownMenuItem>
       ))}
