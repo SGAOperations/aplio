@@ -325,4 +325,18 @@ describe('managerWeeklyDigestEmail', () => {
     expect(result.html).toContain('Mar 9, 2026');
     expect(result.html).toContain(MANAGER_EMAIL_FOOTER);
   });
+
+  it('colours only applied blue and every other status amber', () => {
+    const result = managerWeeklyDigestEmail({
+      ...base,
+      statusCounts: [
+        { status: 'applied', count: 1 },
+        { status: 'reached_out', count: 2 },
+        { status: 'interview_scheduled', count: 3 },
+        { status: 'reviewing', count: 4 },
+      ],
+    });
+    expect(result.html.split('#d97706').length - 1).toBe(3);
+    expect(result.html.split('#2563eb').length - 1).toBe(1);
+  });
 });
