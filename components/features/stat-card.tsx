@@ -35,7 +35,8 @@ export function StatCard({
     </CardContent>
   );
 
-  if (!href) return <Card className={cn('p-4', className)}>{content}</Card>;
+  if (!href || value === 0)
+    return <Card className={cn('p-4', className)}>{content}</Card>;
 
   return (
     <Link
