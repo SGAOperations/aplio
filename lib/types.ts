@@ -159,6 +159,12 @@ export type WithSubmittedAt<T extends { submittedAt: Date | null }> = Omit<
 export type MySubmittedApplicationListItem =
   WithSubmittedAt<MyApplicationListItem>;
 
+// getMyRecentActivity's own shape — statusChangedAt (getPublicStatusSince) is
+// when the current public status began, never the raw submission date.
+export type MyActivityApplication = MySubmittedApplicationListItem & {
+  statusChangedAt: Date;
+};
+
 // Exposes applicant identity — admin-gated contexts only, never a non-admin
 // client. submittedAt narrowed to Date: every query producing this type
 // excludes drafts (buildApplicationWhere's 'listable'/'reviewable' scopes).

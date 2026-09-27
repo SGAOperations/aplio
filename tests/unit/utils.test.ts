@@ -36,6 +36,7 @@ import {
   getPaginationRange,
   getPositionAvailability,
   getPositionDateInfo,
+  getPublicStatusSince,
   getUserName,
   getUserRoleRank,
   getUserRoleTokens,
@@ -2028,5 +2029,57 @@ describe('countBulkEmailRecipients', () => {
       { status: 'applied' as const },
     ];
     expect(countBulkEmailRecipients(rows, 'rejected')).toBe(1);
+  });
+});
+
+describe('getPublicStatusSince', () => {
+  const FALLBACK = new Date('2026-01-01T00:00:00Z');
+  const T0 = new Date('2026-01-02T00:00:00Z');
+  const T1 = new Date('2026-01-03T00:00:00Z');
+  const T2 = new Date('2026-01-04T00:00:00Z');
+
+  it('collapses the in-review group, returning the applied event’s time', () => {
+    const events = [
+      { to: 'reviewing' as const, createdAt: T2 },
+      { to: 'reached_out' as const, createdAt: T1 },
+      { to: 'applied' as const, createdAt: T0 },
+    ];
+    expect(getPublicStatusSince('reviewing', events, FALLBACK)).toEqual(T0);
+  });
+
+  it('returns the accept time for reviewing -> accepted', () => {
+    const events = [
+      { to: 'accepted' as const, createdAt: T1 },
+      { to: 'reviewing' as const, createdAt: T0 },
+    ];
+    expect(getPublicStatusSince('accepted', events, FALLBACK)).toEqual(T1);
+  });
+
+  it('returns the undo time for accepted undone back to reviewing', () => {
+    const events = [
+      { to: 'reviewing' as const, createdAt: T2 },
+      { to: 'accepted' as const, createdAt: T1 },
+      { to: 'reviewing' as const, createdAt: T0 },
+    ];
+    expect(getPublicStatusSince('reviewing', events, FALLBACK)).toEqual(T2);
+  });
+
+  it('returns the resubmit time for withdrawn -> resubmitted', () => {
+    const events = [
+      { to: 'applied' as const, createdAt: T1 },
+      { to: 'withdrawn' as const, createdAt: T0 },
+    ];
+    expect(getPublicStatusSince('applied', events, FALLBACK)).toEqual(T1);
+  });
+
+  it('falls back with no events', () => {
+    expect(getPublicStatusSince('applied', [], FALLBACK)).toEqual(FALLBACK);
+  });
+
+  it('falls back when the latest event no longer matches the current status', () => {
+    const events = [{ to: 'reviewing' as const, createdAt: T1 }];
+    expect(getPublicStatusSince('accepted', events, FALLBACK)).toEqual(
+      FALLBACK,
+    );
   });
 });
