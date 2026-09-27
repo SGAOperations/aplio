@@ -18,9 +18,9 @@ const COLUMNS: DataTableSkeletonColumn[] = [
 function mobileCard() {
   return (
     <>
-      <Skeleton className="h-4 w-56" />
       <div className="flex flex-wrap items-center gap-2">
         <Skeleton className="h-3 w-6" />
+        <Skeleton className="h-4 w-40" />
         <Skeleton className="h-5.5 w-24 rounded-md" />
         <Skeleton className="h-5.5 w-20 rounded-md" />
       </div>
@@ -28,9 +28,12 @@ function mobileCard() {
         <Skeleton className="h-5.5 w-16 rounded-md" />
         <Skeleton className="h-5.5 w-12 rounded-md" />
       </div>
-      <div className="flex gap-2">
-        <Skeleton className="size-11 rounded-md" />
-        <Skeleton className="size-11 rounded-md" />
+      <div className="flex items-center justify-between gap-2">
+        <Skeleton className="size-8 rounded-md" />
+        <div className="flex gap-2">
+          <Skeleton className="size-11 rounded-md" />
+          <Skeleton className="size-11 rounded-md" />
+        </div>
       </div>
     </>
   );
@@ -42,9 +45,7 @@ export default function GlobalQuestionsLoading() {
       <PageHeaderSkeleton actions={['w-32']} actionSize="sm" />
       <DataTableSkeleton
         columns={COLUMNS}
-        hasReorderHandle
-        mobileGap="gap-3"
-        mobileRowGap="gap-0"
+        mobileGap="gap-2"
         mobileCard={mobileCard}
       />
     </div>

@@ -47,7 +47,8 @@ interface DataTableProps<T> {
   rows: T[];
   columns: DataTableColumn<T>[];
   getRowKey: (row: T) => string;
-  mobileCard: (row: T) => ReactNode;
+  // `dragHandle` is only passed when `reorder` is active for this row.
+  mobileCard: (row: T, dragHandle?: ReactNode) => ReactNode;
   // Shown in place of the whole table when `rows` is empty and no filter is active.
   emptyState?: ReactNode;
   noMatchMessage?: string;
@@ -154,17 +155,20 @@ function SortableTableRow<T>({
   );
 }
 
-// Card is the pointer/touch drag surface; keyboard/AT use `SortableHandle`.
-function SortableMobileRow({
+// Card is the pointer/touch drag surface; keyboard/AT use `SortableHandle`,
+// which `mobileCard` positions itself (see `GlobalQuestionsTable`).
+function SortableMobileRow<T>({
   id,
+  row,
+  mobileCard,
   handleLabel,
   handleDisabled,
-  children,
 }: {
   id: string;
+  row: T;
+  mobileCard: (row: T, dragHandle: ReactNode) => ReactNode;
   handleLabel: string;
   handleDisabled: boolean;
-  children: ReactNode;
 }) {
   const { setNodeRef, style, attributes, listeners, isDragging } =
     useSortableItem(id);
@@ -196,18 +200,15 @@ function SortableMobileRow({
       )}
       {...dragListeners}
     >
-      {children}
-      <div className="flex justify-end px-2 pb-2">
+      {mobileCard(
+        row,
         <SortableHandle
           label={handleLabel}
           handleProps={{ ...attributes, ...listeners }}
           disabled={handleDisabled}
-          // Visually subtle (low opacity), but keeps the full touch target —
-          // the whole card handles casual drags; this is the explicit,
-          // keyboard/AT-reachable affordance, not a decoration.
           className="opacity-60"
-        />
-      </div>
+        />,
+      )}
     </div>
   );
 }
@@ -458,11 +459,11 @@ export function DataTable<T>({
               <SortableMobileRow
                 key={getRowKey(row)}
                 id={getRowKey(row)}
+                row={row}
+                mobileCard={mobileCard}
                 handleLabel={reorder.getItemLabel(row)}
                 handleDisabled={!dragLive}
-              >
-                {mobileCard(row)}
-              </SortableMobileRow>
+              />
             ))
           ) : (
             sortedRows.map((row) => (

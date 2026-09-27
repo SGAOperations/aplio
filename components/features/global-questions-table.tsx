@@ -198,15 +198,15 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
             'Questions are sorted by another column — restore the Order sort to drag them into a new order.',
           disabled: isReordering,
         }}
-        mobileCard={(question) => (
-          <div className="flex flex-col gap-3 p-4">
-            <p className="font-medium [overflow-wrap:anywhere]">
-              {question.label}
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-muted-foreground text-xs">
+        mobileCard={(question, dragHandle) => (
+          <div className="flex flex-col gap-2 p-4">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="text-muted-foreground shrink-0 text-xs">
                 <span className="sr-only">Order </span>#{question.order}
               </span>
+              <p className="min-w-0 flex-1 font-medium [overflow-wrap:anywhere]">
+                {question.label}
+              </p>
               <Badge variant={QUESTION_TYPE_BADGE_VARIANT[question.type]}>
                 {QUESTION_TYPE_LABELS[question.type]}
               </Badge>
@@ -221,28 +221,31 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
               options={question.options}
               allowOther={question.allowOther}
             />
-            <DataTableRowActions>
-              <GlobalQuestionDialog
-                trigger={
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Edit question"
-                  >
-                    <ACTION_ICONS.edit />
-                  </Button>
-                }
-                question={question}
-              />
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label={`Delete question "${question.label}"`}
-                onClick={() => setDeletingId(question.id)}
-              >
-                <ACTION_ICONS.delete className="text-destructive" />
-              </Button>
-            </DataTableRowActions>
+            <div className="flex items-center justify-between gap-2">
+              {dragHandle ?? <div />}
+              <DataTableRowActions>
+                <GlobalQuestionDialog
+                  trigger={
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Edit question"
+                    >
+                      <ACTION_ICONS.edit />
+                    </Button>
+                  }
+                  question={question}
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Delete question "${question.label}"`}
+                  onClick={() => setDeletingId(question.id)}
+                >
+                  <ACTION_ICONS.delete className="text-destructive" />
+                </Button>
+              </DataTableRowActions>
+            </div>
           </div>
         )}
       />
