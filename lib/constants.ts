@@ -1180,7 +1180,7 @@ export const STATUS_BADGE_VARIANT_TO_DOT: Record<BadgeVariant, string> = {
   destructive: 'bg-destructive',
   secondary: 'bg-muted-foreground',
   default: 'bg-primary',
-  outline: 'bg-border',
+  outline: 'border border-muted-foreground',
 };
 
 // Heading for the activity panel's applicant-scoped group — the only group

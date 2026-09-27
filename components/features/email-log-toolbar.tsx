@@ -7,6 +7,7 @@ import { EMAIL_STATUS_OPTIONS, EMAIL_TEMPLATE_OPTIONS } from '@/lib/constants';
 import { ACTION_ICONS } from '@/lib/icons';
 import type { EmailLogFilters } from '@/lib/types';
 
+import { EmailStatusDot } from '@/components/features/status-badge';
 import { Button } from '@/components/ui/button';
 import {
   DataTableToolbar,
@@ -108,6 +109,7 @@ export function EmailLogToolbar({
             <SelectItem value="all">All statuses</SelectItem>
             {EMAIL_STATUS_OPTIONS.map((opt) => (
               <SelectItem key={opt.value} value={opt.value}>
+                <EmailStatusDot status={opt.value} />
                 {opt.label}
               </SelectItem>
             ))}

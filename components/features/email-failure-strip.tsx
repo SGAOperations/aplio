@@ -7,7 +7,6 @@ import {
   EMAIL_FAILURE_WINDOW_DAYS,
   EMAIL_STATUS_BADGE_VARIANT,
   EMAIL_STATUS_LABELS,
-  STATUS_BADGE_VARIANT_TO_DOT,
 } from '@/lib/constants';
 import { buildEmailLogHref } from '@/lib/utils';
 
@@ -35,11 +34,7 @@ export async function EmailFailureStrip() {
               className="focus-visible:ring-ring/50 block rounded-lg outline-none focus-visible:ring-[3px]"
               aria-label={`Filter by ${label.toLowerCase()} — ${count} in the last ${EMAIL_FAILURE_WINDOW_DAYS} days`}
             >
-              <StatCard
-                label={label}
-                value={count}
-                dotClassName={STATUS_BADGE_VARIANT_TO_DOT[variant]}
-              />
+              <StatCard label={label} value={count} dotVariant={variant} />
             </Link>
           );
         })}
