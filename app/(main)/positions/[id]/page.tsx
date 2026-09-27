@@ -103,20 +103,29 @@ export default async function PublicPositionDetailPage({
         <WarningCallout icon={STATE_ICONS.hidden}>
           <div className="flex flex-col gap-1">
             <p className="font-medium">This position is a draft.</p>
-            <p>
-              Only its managers and admins can see this page. Set it to Open in
-              Edit to make it visible to applicants.
-            </p>
-            {staleDraftDate && (
+            {staleDraftDate?.label === 'Was scheduled to open' ? (
               <p>
-                Its scheduled{' '}
-                {staleDraftDate.label === 'Was scheduled to open'
-                  ? 'open'
-                  : 'close'}{' '}
-                date, <LocalTime date={staleDraftDate.date} precision="date" />,
-                has already passed — update its dates in Edit if the schedule no
-                longer applies.
+                Only position managers and admins can see this page. Its
+                scheduled open date,{' '}
+                <LocalTime date={staleDraftDate.date} precision="date" /> has
+                already passed. To make it visible to applicants, ask an admin
+                to open it.
               </p>
+            ) : (
+              <>
+                <p>
+                  Only its managers and admins can see this page. Set it to Open
+                  in Edit to make it visible to applicants.
+                </p>
+                {staleDraftDate && (
+                  <p>
+                    Its scheduled close date,{' '}
+                    <LocalTime date={staleDraftDate.date} precision="date" />,
+                    has already passed — update its dates in Edit if the
+                    schedule no longer applies.
+                  </p>
+                )}
+              </>
             )}
           </div>
         </WarningCallout>
