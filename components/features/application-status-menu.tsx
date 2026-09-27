@@ -58,6 +58,7 @@ export function ApplicationStatusMenu({
       {decisions.map((target) => (
         <DropdownMenuItem
           key={target}
+          variant={target === 'rejected' ? 'destructive' : 'default'}
           disabled={isPending}
           onSelect={() => onSelect(target)}
         >
