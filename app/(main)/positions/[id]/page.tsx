@@ -10,17 +10,12 @@ import { requireName } from '@/lib/auth/server';
 import { getBaseUrl } from '@/lib/base-url';
 import { ACTION_ICONS, CONCEPT_ICONS, STATE_ICONS } from '@/lib/icons';
 import type { PositionDetail } from '@/lib/types';
-import {
-  getPositionAvailability,
-  getPositionDateInfo,
-  markdownToPlainText,
-} from '@/lib/utils';
+import { getPositionAvailability, markdownToPlainText } from '@/lib/utils';
 
 import { PositionDateLine } from '@/components/features/position-date-line';
 import { PositionShareButton } from '@/components/features/position-share-button';
 import { PositionStatusBadge } from '@/components/features/status-badge';
 import { Button } from '@/components/ui/button';
-import { LocalTime } from '@/components/ui/local-time';
 import { Markdown } from '@/components/ui/markdown';
 import { WarningCallout } from '@/components/ui/warning-callout';
 
@@ -65,16 +60,15 @@ export default async function PublicPositionDetailPage({
 
   if (view.user) await requireName(view.user);
 
-  const { position, user, canManage } = view;
+  const { position, canManage } = view;
   const shareUrl = `${getBaseUrl()}/positions/${id}`;
   const isAuthenticated = view.user !== null;
   const availability = getPositionAvailability(position);
   const isAccepting = availability === 'accepting';
-  const dateInfo = getPositionDateInfo(position);
-  const staleDraftDate =
-    position.status === 'draft' && dateInfo?.emphasis === 'stale'
-      ? dateInfo
-      : null;
+  const opensAtPast =
+    position.status === 'draft' &&
+    position.opensAt !== null &&
+    new Date() > position.opensAt;
 
   return (
     <div className="flex flex-col gap-8">
@@ -99,36 +93,14 @@ export default async function PublicPositionDetailPage({
         <PositionDateLine position={position} className="mt-3 text-base" />
       </div>
 
-      {position.status === 'draft' && (
+      {opensAtPast && (
         <WarningCallout icon={STATE_ICONS.hidden}>
           <div className="flex flex-col gap-1">
             <p className="font-medium">This position is a draft.</p>
-            {staleDraftDate?.label === 'Was scheduled to open' ? (
-              <p>
-                Only position managers and admins can see this page. Its
-                scheduled open date,{' '}
-                <LocalTime date={staleDraftDate.date} precision="date" /> has
-                already passed. To make it visible to applicants,{' '}
-                {user?.isAdmin
-                  ? 'choose Open position to open it now.'
-                  : 'ask an admin to open it.'}
-              </p>
-            ) : (
-              <>
-                <p>
-                  Only its managers and admins can see this page. Set it to Open
-                  in Edit to make it visible to applicants.
-                </p>
-                {staleDraftDate && (
-                  <p>
-                    Its scheduled close date,{' '}
-                    <LocalTime date={staleDraftDate.date} precision="date" />,
-                    has already passed — update its dates in Edit if the
-                    schedule no longer applies.
-                  </p>
-                )}
-              </>
-            )}
+            <p>
+              Only its managers and admins can see this page. Ask an admin to
+              open this position.
+            </p>
           </div>
         </WarningCallout>
       )}
