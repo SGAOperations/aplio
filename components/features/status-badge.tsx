@@ -20,6 +20,7 @@ import type { PositionWindow } from '@/lib/types';
 import { getPositionAvailability } from '@/lib/utils';
 
 import { Badge } from '@/components/ui/badge';
+import { StatusDot } from '@/components/ui/status-dot';
 
 interface ApplicationStatusBadgeProps {
   status: $Enums.ApplicationStatus;
@@ -37,6 +38,10 @@ export function ApplicationStatusBadge({
   );
 }
 
+export function ApplicationStatusDot({ status }: ApplicationStatusBadgeProps) {
+  return <StatusDot variant={APPLICATION_STATUS_BADGE_VARIANT[status]} />;
+}
+
 interface EmailStatusBadgeProps {
   status: $Enums.EmailStatus;
 }
@@ -49,6 +54,10 @@ export function EmailStatusBadge({ status }: EmailStatusBadgeProps) {
       {EMAIL_STATUS_LABELS[status]}
     </Badge>
   );
+}
+
+export function EmailStatusDot({ status }: EmailStatusBadgeProps) {
+  return <StatusDot variant={EMAIL_STATUS_BADGE_VARIANT[status]} />;
 }
 
 interface PositionStatusBadgeProps {

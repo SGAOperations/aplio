@@ -4,7 +4,6 @@ import {
   APPLICATION_PIPELINE_STATUSES,
   APPLICATION_STATUS_BADGE_VARIANT,
   APPLICATION_STATUS_LABELS,
-  STATUS_BADGE_VARIANT_TO_DOT,
 } from '@/lib/constants';
 import { type Reviewer } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -32,21 +31,19 @@ export async function PipelineSummary({ reviewer }: PipelineSummaryProps) {
         <StatCard
           label="Total"
           value={total}
-          dotClassName="bg-primary"
+          dotVariant="default"
           className="col-span-2 md:col-span-1"
         />
 
         {APPLICATION_PIPELINE_STATUSES.map((status) => {
           const count = counts[status] ?? 0;
-          const variant = APPLICATION_STATUS_BADGE_VARIANT[status];
-          const dotClass = STATUS_BADGE_VARIANT_TO_DOT[variant];
 
           return (
             <StatCard
               key={status}
               label={APPLICATION_STATUS_LABELS[status]}
               value={count}
-              dotClassName={dotClass}
+              dotVariant={APPLICATION_STATUS_BADGE_VARIANT[status]}
             />
           );
         })}

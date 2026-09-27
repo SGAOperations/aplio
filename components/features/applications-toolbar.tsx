@@ -8,6 +8,7 @@ import { ACTION_ICONS } from '@/lib/icons';
 import type { ApplicationFilters, ReviewableApplicant } from '@/lib/types';
 import { displayUserName } from '@/lib/utils';
 
+import { ApplicationStatusDot } from '@/components/features/status-badge';
 import { Button } from '@/components/ui/button';
 import {
   DataTableToolbar,
@@ -182,7 +183,7 @@ export function ApplicationsToolbar({
       <DataTableToolbarField
         label="Status"
         htmlFor="filter-status"
-        className="w-full sm:w-44"
+        className="w-full sm:w-48"
       >
         <Select
           value={filters.status ?? ''}
@@ -196,6 +197,7 @@ export function ApplicationsToolbar({
             <SelectItem value="">All statuses</SelectItem>
             {APPLICATION_STATUS_OPTIONS.map((opt) => (
               <SelectItem key={opt.value} value={opt.value}>
+                <ApplicationStatusDot status={opt.value} />
                 {opt.label}
               </SelectItem>
             ))}

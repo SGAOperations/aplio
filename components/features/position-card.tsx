@@ -5,7 +5,6 @@ import {
   APPLICATION_STATUS_BADGE_VARIANT,
   APPLICATION_STATUS_LABELS,
   POSITION_CARD_STAT_STATUSES,
-  STATUS_BADGE_VARIANT_TO_DOT,
 } from '@/lib/constants';
 import { ACTION_ICONS, CONCEPT_ICONS } from '@/lib/icons';
 import type {
@@ -25,6 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Markdown } from '@/components/ui/markdown';
 import { ProgressRing } from '@/components/ui/progress-ring';
 import { Skeleton } from '@/components/ui/skeleton';
+import { StatusDot } from '@/components/ui/status-dot';
 
 interface PositionCardProps {
   position: PositionWithQuestions;
@@ -45,10 +45,7 @@ function PositionStatCluster({ stats }: PositionStatClusterProps) {
       {/* Total tile — col-span-2 lead row with hairline divider below */}
       <div className="border-border mb-2 border-b pb-2">
         <div className="flex items-center gap-1.5">
-          <span
-            className="bg-primary size-2 shrink-0 rounded-full"
-            aria-hidden="true"
-          />
+          <StatusDot variant="default" />
           <p className="text-muted-foreground text-[11px] leading-tight">
             Total
           </p>
@@ -63,15 +60,13 @@ function PositionStatCluster({ stats }: PositionStatClusterProps) {
         {POSITION_CARD_STAT_STATUSES.map((status) => {
           const count = stats.counts[status] ?? 0;
           const isDimmed = count === 0;
-          const variant = APPLICATION_STATUS_BADGE_VARIANT[status];
-          const dotClass = STATUS_BADGE_VARIANT_TO_DOT[variant];
 
           return (
             <div key={status}>
               <div className="flex items-center gap-1.5">
-                <span
-                  className={`size-1.5 shrink-0 rounded-full ${dotClass} ${isDimmed ? 'opacity-40' : ''}`}
-                  aria-hidden="true"
+                <StatusDot
+                  variant={APPLICATION_STATUS_BADGE_VARIANT[status]}
+                  className={cn('size-1.5', isDimmed && 'opacity-40')}
                 />
                 <p
                   className={`text-[11px] leading-tight ${isDimmed ? 'text-muted-foreground/60' : 'text-muted-foreground'}`}
