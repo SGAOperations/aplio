@@ -160,6 +160,7 @@ export async function getAttentionInsights(): Promise<AttentionInsights> {
           userEmail: string;
           positionTitle: string;
           status: string;
+          emailStatus: string;
           bounceType: string | null;
           error: string | null;
         }[]
@@ -171,6 +172,7 @@ export async function getAttentionInsights(): Promise<AttentionInsights> {
                u.email AS "userEmail",
                p.title AS "positionTitle",
                a.status::text AS status,
+               el.status::text AS "emailStatus",
                el."bounceType",
                el.error
         FROM "EmailLog" el
@@ -244,6 +246,8 @@ export async function getAttentionInsights(): Promise<AttentionInsights> {
       positionTitle: r.positionTitle,
       status:
         r.status as AttentionInsights['undeliveredDecisions'][number]['status'],
+      emailStatus:
+        r.emailStatus as AttentionInsights['undeliveredDecisions'][number]['emailStatus'],
       bounceType: r.bounceType,
       error: r.error,
     })),
