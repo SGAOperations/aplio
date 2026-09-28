@@ -3,8 +3,8 @@ import Link from 'next/link';
 import {
   APPLICANT_EDITABLE_APPLICATION_STATUSES,
   APPLICATION_STATUS_BADGE_VARIANT,
-  APPLICATION_STATUS_LABELS,
-  POSITION_CARD_STAT_STATUSES,
+  POSITION_CARD_DRAFT_WITHDRAWN_STATUSES,
+  POSITION_CARD_STAT_TILES,
 } from '@/lib/constants';
 import { ACTION_ICONS, CONCEPT_ICONS } from '@/lib/icons';
 import type {
@@ -19,6 +19,7 @@ import {
   ApplicationStatusBadge,
   PositionStatusBadge,
 } from '@/components/features/status-badge';
+import type { BadgeVariant } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Markdown } from '@/components/ui/markdown';
@@ -38,52 +39,97 @@ interface PositionStatClusterProps {
   stats: PositionApplicationStats;
 }
 
+interface StatTileProps {
+  label: string;
+  count: number;
+  variant: BadgeVariant;
+  dimmable: boolean;
+  dotClassName: string;
+}
+
 // Zero-count tiles are dimmed rather than hidden, so the cluster keeps a stable shape.
-function PositionStatCluster({ stats }: PositionStatClusterProps) {
+function StatTile({
+  label,
+  count,
+  variant,
+  dimmable,
+  dotClassName,
+}: StatTileProps) {
+  const isDimmed = dimmable && count === 0;
+
   return (
-    <div role="region" aria-label="Application stats" className="shrink-0">
-      {/* Total tile — col-span-2 lead row with hairline divider below */}
-      <div className="border-border mb-2 border-b pb-2">
-        <div className="flex items-center gap-1.5">
-          <StatusDot variant="default" />
-          <p className="text-muted-foreground text-[11px] leading-tight">
-            Total
-          </p>
-        </div>
-        <p className="mt-1 text-xl leading-none font-semibold tabular-nums">
-          {stats.total}
-        </p>
-      </div>
-
-      {/* 2x2 grid of key pipeline statuses */}
-      <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-        {POSITION_CARD_STAT_STATUSES.map((status) => {
-          const count = stats.counts[status] ?? 0;
-          const isDimmed = count === 0;
-
-          return (
-            <div key={status}>
-              <div className="flex items-center gap-1.5">
-                <StatusDot
-                  variant={APPLICATION_STATUS_BADGE_VARIANT[status]}
-                  className={cn('size-1.5', isDimmed && 'opacity-40')}
-                />
-                <p
-                  className={`text-[11px] leading-tight ${isDimmed ? 'text-muted-foreground/60' : 'text-muted-foreground'}`}
-                >
-                  {APPLICATION_STATUS_LABELS[status]}
-                </p>
-              </div>
-              <p
-                className={`mt-0.5 text-xl leading-none font-semibold tabular-nums ${isDimmed ? 'text-muted-foreground/60' : ''}`}
-              >
-                {count}
-              </p>
-            </div>
-          );
-        })}
-      </div>
+    <div>
+      <dt className="flex items-center gap-1.5">
+        <StatusDot
+          variant={variant}
+          className={cn(dotClassName, isDimmed && 'opacity-40')}
+        />
+        <span
+          className={cn(
+            'text-[11px] leading-tight',
+            isDimmed ? 'text-muted-foreground/60' : 'text-muted-foreground',
+          )}
+        >
+          {label}
+        </span>
+      </dt>
+      <dd
+        className={cn(
+          'mt-0.5 text-xl leading-none font-semibold tabular-nums',
+          isDimmed && 'text-muted-foreground/60',
+        )}
+      >
+        {count}
+      </dd>
     </div>
+  );
+}
+
+function sumCounts(
+  counts: PositionApplicationStats['counts'],
+  statuses: readonly (keyof PositionApplicationStats['counts'])[],
+): number {
+  return statuses.reduce((sum, status) => sum + (counts[status] ?? 0), 0);
+}
+
+function PositionStatCluster({ stats }: PositionStatClusterProps) {
+  const draftWithdrawnCount = sumCounts(
+    stats.counts,
+    POSITION_CARD_DRAFT_WITHDRAWN_STATUSES,
+  );
+
+  return (
+    <dl role="region" aria-label="Application stats" className="shrink-0">
+      <div className="border-border mb-2 grid grid-cols-2 gap-x-4 border-b pb-2">
+        <StatTile
+          label="Drafts & withdrawn"
+          count={draftWithdrawnCount}
+          variant={APPLICATION_STATUS_BADGE_VARIANT.draft}
+          dimmable
+          dotClassName="size-2"
+        />
+        <StatTile
+          label="Submitted"
+          count={stats.total}
+          variant="default"
+          dimmable={false}
+          dotClassName="size-2"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+        {POSITION_CARD_STAT_TILES.map((tile) => (
+          <StatTile
+            key={tile.label}
+            label={tile.label}
+            count={sumCounts(stats.counts, tile.statuses)}
+            variant={APPLICATION_STATUS_BADGE_VARIANT[tile.statuses[0]]}
+            dimmable
+            dotClassName="size-1.5"
+          />
+        ))}
+      </div>
+    </dl>
   );
 }
 
@@ -257,17 +303,23 @@ interface PositionCardSkeletonProps {
   actions?: number;
 }
 
-// Mirrors PositionStatCluster's total tile + 2x2 grid — update alongside it.
+// Mirrors PositionStatCluster's header row + tile grid — update alongside it.
 function PositionStatClusterSkeleton() {
   return (
     <div className="w-fit shrink-0">
-      <div className="border-border mb-2 border-b pb-2">
-        <Skeleton className="h-4 w-12" />
-        <Skeleton className="mt-1 h-5 w-8" />
+      <div className="border-border mb-2 grid grid-cols-2 gap-x-4 border-b pb-2">
+        <div>
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="mt-1 h-5 w-8" />
+        </div>
+        <div>
+          <Skeleton className="h-3 w-16" />
+          <Skeleton className="mt-1 h-5 w-8" />
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i}>
+        {POSITION_CARD_STAT_TILES.map((tile) => (
+          <div key={tile.label}>
             <Skeleton className="h-3 w-16" />
             <Skeleton className="mt-0.5 h-5 w-6" />
           </div>
