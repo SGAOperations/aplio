@@ -15,6 +15,7 @@ import type {
   EMAIL_STATUS_VALUES,
   EMAIL_TEMPLATE_VALUES,
   PublicApplicationStatus,
+  USER_ROLE_FILTER_VALUES,
 } from '@/lib/constants';
 
 import type { BadgeVariant } from '@/components/ui/badge';
@@ -314,13 +315,18 @@ export type ApplicationSort = {
 export type ApplicationStatusFilter =
   (typeof APPLICATION_STATUS_VALUES)[number];
 
-// status widened to ApplicationStatusFilter (includes 'draft') so the queue's
-// filter can select the drafts view; buildApplicationListWhere guards against
-// it ever overwriting listable's own status: { not: 'draft' }.
+// Which query path ApplicationsResults takes — 'merged' unions drafts with
+// everything else (the default view, and any draft+submitted mix); 'drafts'
+// is the exclusive draft-only view; 'submitted' excludes drafts entirely.
+export type ApplicationViewMode = 'merged' | 'drafts' | 'submitted';
+
+// statuses widened to ApplicationStatusFilter[] (includes 'draft') so the
+// queue's filter can select or mix in the drafts view; buildApplicationListWhere
+// guards against 'draft' ever overwriting listable's own status: { not: 'draft' }.
 export type ApplicationFilters = {
-  positionId?: string;
-  status?: ApplicationStatusFilter;
-  userId?: string;
+  positionIds?: string[];
+  statuses?: ApplicationStatusFilter[];
+  userIds?: string[];
   q?: string;
   sort?: ApplicationSort;
 };
@@ -529,7 +535,7 @@ export interface NavIdentity {
 
 // Rank order (Admin, Manager) — a user can hold both; badges/filters use every
 // token, sort rank uses only the first.
-export type UserRoleFilter = 'admin' | 'manager';
+export type UserRoleFilter = (typeof USER_ROLE_FILTER_VALUES)[number];
 
 export interface NavItem {
   href: string;
@@ -568,8 +574,8 @@ export type EmailTemplateFilter = (typeof EMAIL_TEMPLATE_VALUES)[number];
 
 export type EmailLogFilters = {
   q?: string;
-  status?: EmailStatusFilter;
-  template?: EmailTemplateFilter;
+  statuses?: EmailStatusFilter[];
+  templates?: EmailTemplateFilter[];
 };
 
 // Exposes recipient addresses and provider errors — admin-gated contexts

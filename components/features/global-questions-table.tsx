@@ -194,16 +194,20 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
           orderKey: 'order',
           getItemLabel: (q) => q.label,
           onReorder: handleReorder,
-          sortHint: 'Sort by Order to drag questions into a new order.',
+          sortHint:
+            'Questions are sorted by another column — restore the Order sort to drag them into a new order.',
           disabled: isReordering,
         }}
-        mobileCard={(question) => (
-          <div className="flex flex-col gap-3 p-4">
-            <div className="flex items-start justify-between gap-2">
+        mobileCard={(question, dragHandle) => (
+          <div className="flex flex-col gap-1 p-3">
+            <div className="flex items-center justify-between gap-1.5">
               <p className="min-w-0 flex-1 font-medium [overflow-wrap:anywhere]">
                 {question.label}
               </p>
-              <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <div className="-mr-3.5">{dragHandle}</div>
+            </div>
+            <div className="flex items-center justify-between gap-1.5">
+              <div className="flex flex-wrap items-center gap-2">
                 <Badge variant={QUESTION_TYPE_BADGE_VARIANT[question.type]}>
                   {QUESTION_TYPE_LABELS[question.type]}
                 </Badge>
@@ -213,43 +217,29 @@ export function GlobalQuestionsTable({ questions }: GlobalQuestionsTableProps) {
                   </Badge>
                 )}
               </div>
+              <DataTableRowActions className="-mr-3.5">
+                <GlobalQuestionDialog
+                  trigger={
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Edit question"
+                    >
+                      <ACTION_ICONS.edit />
+                    </Button>
+                  }
+                  question={question}
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Delete question "${question.label}"`}
+                  onClick={() => setDeletingId(question.id)}
+                >
+                  <ACTION_ICONS.delete className="text-destructive" />
+                </Button>
+              </DataTableRowActions>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground text-xs">
-                Order: {question.order}
-              </span>
-              {question.required && (
-                <Badge variant="outline" className="text-xs">
-                  Required
-                </Badge>
-              )}
-            </div>
-            <QuestionOptionChips
-              options={question.options}
-              allowOther={question.allowOther}
-            />
-            <DataTableRowActions>
-              <GlobalQuestionDialog
-                trigger={
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Edit question"
-                  >
-                    <ACTION_ICONS.edit />
-                  </Button>
-                }
-                question={question}
-              />
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label={`Delete question "${question.label}"`}
-                onClick={() => setDeletingId(question.id)}
-              >
-                <ACTION_ICONS.delete className="text-destructive" />
-              </Button>
-            </DataTableRowActions>
           </div>
         )}
       />

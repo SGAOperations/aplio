@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 import {
   DATA_TABLE_DESKTOP_CLASS,
   DATA_TABLE_MOBILE_CLASS,
@@ -36,7 +38,7 @@ export interface DataTableSkeletonColumn {
   mobile?: DataTableSkeletonMobileRole;
 }
 
-type DataTableSkeletonGap = 'gap-0' | 'gap-1' | 'gap-2' | 'gap-3';
+type DataTableSkeletonGap = 'gap-0' | 'gap-1' | 'gap-1.5' | 'gap-2' | 'gap-3';
 
 interface DataTableSkeletonProps {
   columns: DataTableSkeletonColumn[];
@@ -47,6 +49,11 @@ interface DataTableSkeletonProps {
   mobileGap?: DataTableSkeletonGap;
   // Gap between the leading column/handle and the card body, when either is present.
   mobileRowGap?: DataTableSkeletonGap;
+  // Outer padding of the mobile card — match the real table's mobile card.
+  mobilePadding?: 'p-3' | 'p-4';
+  // Full custom mobile card body — bypasses the generic column-role layout below
+  // when a table's real mobile card doesn't fit that shape.
+  mobileCard?: () => ReactNode;
 }
 
 function shapeSkeleton(
@@ -101,12 +108,16 @@ function DataTableSkeletonMobileRow({
   hasReorderHandle,
   mobileGap,
   mobileRowGap,
+  mobilePadding,
+  mobileCard,
 }: {
   columns: DataTableSkeletonColumn[];
   roles: DataTableSkeletonMobileRole[];
   hasReorderHandle: boolean;
   mobileGap: DataTableSkeletonGap;
   mobileRowGap: DataTableSkeletonGap;
+  mobilePadding: 'p-3' | 'p-4';
+  mobileCard?: () => ReactNode;
 }) {
   const leading = columns.filter((_, i) => roles[i] === 'leading');
   const primaryColumn = columns.find((_, i) => roles[i] === 'primary');
@@ -124,7 +135,11 @@ function DataTableSkeletonMobileRow({
     }
   });
 
-  const body = (
+  const body = mobileCard ? (
+    <div className={cn('flex min-w-0 flex-1 flex-col', mobileGap)}>
+      {mobileCard()}
+    </div>
+  ) : (
     <div className={cn('flex min-w-0 flex-1 flex-col', mobileGap)}>
       {(primaryColumn || trailingColumn) && (
         <div className="flex items-center justify-between gap-2">
@@ -165,12 +180,16 @@ function DataTableSkeletonMobileRow({
   );
 
   if (!hasReorderHandle && leading.length === 0)
-    return <div className={cn('flex flex-col p-4', mobileGap)}>{body}</div>;
+    return (
+      <div className={cn('flex flex-col', mobilePadding, mobileGap)}>
+        {body}
+      </div>
+    );
 
   return (
-    <div className={cn('flex items-start p-4', mobileRowGap)}>
+    <div className={cn('flex items-start', mobilePadding, mobileRowGap)}>
       {hasReorderHandle && (
-        <Skeleton className="ml-2 size-11 shrink-0 rounded-md" />
+        <Skeleton className="mt-1.5 ml-2 size-11 shrink-0 rounded-md" />
       )}
       {leading.map((column, i) => (
         <div key={i} className="mt-0.5 shrink-0">
@@ -189,8 +208,10 @@ export function DataTableSkeleton({
   hasReorderHandle = false,
   mobileGap = 'gap-2',
   mobileRowGap = 'gap-2',
+  mobilePadding = 'p-4',
+  mobileCard,
 }: DataTableSkeletonProps) {
-  const mobileRoles = resolveMobileRoles(columns);
+  const mobileRoles = mobileCard ? [] : resolveMobileRoles(columns);
 
   return (
     <div className={DATA_TABLE_STACK_CLASS}>
@@ -248,6 +269,8 @@ export function DataTableSkeleton({
               hasReorderHandle={hasReorderHandle}
               mobileGap={mobileGap}
               mobileRowGap={mobileRowGap}
+              mobilePadding={mobilePadding}
+              mobileCard={mobileCard}
             />
           ))}
         </div>

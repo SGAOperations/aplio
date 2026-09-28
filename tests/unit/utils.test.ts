@@ -11,8 +11,6 @@ import type {
 } from '@/lib/types';
 import {
   answerFieldIds,
-  buildApplicationsHref,
-  buildEmailLogHref,
   calculateAnswerCompletion,
   canReviewPosition,
   classifyDecisionEmailStatus,
@@ -21,10 +19,12 @@ import {
   findDivergingGlobalAnswers,
   formatBounceType,
   formatCountdown,
+  formatMultiSelectSummary,
   formatPaginationSummary,
   formatTableCount,
   getApplicantActionBlockedReason,
   getApplicantName,
+  getApplicationViewMode,
   getBulkDecisionEmailWarning,
   getDeadlineInfo,
   getDecisionEmailWarning,
@@ -970,63 +970,75 @@ describe('formatPaginationSummary', () => {
   });
 });
 
-describe('buildApplicationsHref', () => {
-  it('returns the bare path with no filters or page', () => {
-    expect(buildApplicationsHref({})).toBe('/manage/applications');
+describe('formatMultiSelectSummary', () => {
+  const options = [
+    { value: 'a', label: 'Alpha' },
+    { value: 'b', label: 'Beta' },
+  ];
+
+  it('returns the placeholder when nothing is selected', () => {
+    expect(
+      formatMultiSelectSummary({
+        values: [],
+        options,
+        placeholder: 'All positions',
+        noun: 'position',
+      }),
+    ).toBe('All positions');
   });
 
-  it('round-trips every filter field', () => {
-    const href = buildApplicationsHref({
-      positionId: 'pos1',
-      status: 'draft',
-      userId: 'user1',
-      q: 'jane',
-      sort: { field: 'name', direction: 'asc' },
-    });
-    expect(href).toBe(
-      '/manage/applications?positionId=pos1&status=draft&userId=user1&q=jane&sort=name%3Aasc',
-    );
+  it('returns the single option label', () => {
+    expect(
+      formatMultiSelectSummary({
+        values: ['a'],
+        options,
+        placeholder: 'All positions',
+        noun: 'position',
+      }),
+    ).toBe('Alpha');
   });
 
-  it('omits page=1', () => {
-    expect(buildApplicationsHref({ status: 'draft' }, 1)).toBe(
-      '/manage/applications?status=draft',
-    );
+  it('falls back to unknownLabel for a value absent from options', () => {
+    expect(
+      formatMultiSelectSummary({
+        values: ['ghost'],
+        options,
+        unknownLabel: 'Unknown applicant',
+        placeholder: 'All applicants',
+        noun: 'applicant',
+      }),
+    ).toBe('Unknown applicant');
   });
 
-  it('includes page when past 1', () => {
-    expect(buildApplicationsHref({ status: 'draft' }, 2)).toBe(
-      '/manage/applications?status=draft&page=2',
-    );
+  it('pluralizes the count for two or more', () => {
+    expect(
+      formatMultiSelectSummary({
+        values: ['a', 'b'],
+        options,
+        placeholder: 'All statuses',
+        noun: 'status',
+        pluralNoun: 'statuses',
+      }),
+    ).toBe('2 statuses');
   });
 });
 
-describe('buildEmailLogHref', () => {
-  it('returns the bare path with no filters or page', () => {
-    expect(buildEmailLogHref({})).toBe('/emails');
+describe('getApplicationViewMode', () => {
+  it('is merged with no statuses', () => {
+    expect(getApplicationViewMode([])).toBe('merged');
+    expect(getApplicationViewMode()).toBe('merged');
   });
 
-  it('round-trips every filter field', () => {
-    const href = buildEmailLogHref({
-      q: 'jane@example.com',
-      status: 'bounced',
-      template: 'otp',
-    });
-    expect(href).toBe(
-      '/emails?q=jane%40example.com&status=bounced&template=otp',
-    );
+  it('is drafts for exactly draft', () => {
+    expect(getApplicationViewMode(['draft'])).toBe('drafts');
   });
 
-  it('omits page=1', () => {
-    expect(buildEmailLogHref({ status: 'bounced' }, 1)).toBe(
-      '/emails?status=bounced',
-    );
+  it('is submitted with no draft in the mix', () => {
+    expect(getApplicationViewMode(['applied', 'accepted'])).toBe('submitted');
   });
 
-  it('includes page when past 1', () => {
-    expect(buildEmailLogHref({ status: 'bounced' }, 2)).toBe(
-      '/emails?status=bounced&page=2',
-    );
+  it('is merged for a mixed draft + submitted selection', () => {
+    expect(getApplicationViewMode(['draft', 'applied'])).toBe('merged');
   });
 });
 
