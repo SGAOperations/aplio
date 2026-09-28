@@ -126,6 +126,21 @@ Preview migrations run inside the Vercel build itself, driven by `vercel.json`'s
 
 Preview branches are a **project-wide, finite pool**: Neon allows 10 branches and 2 are permanently held (`dev`, `production`), leaving **~8 usable for previews**. Every open PR with a preview deployment consumes one, and merging or closing that PR frees it automatically — there is no manual cleanup step. When the pool is exhausted the integration cannot attach a branch, so `DATABASE_URL_UNPOOLED` is never injected and the preview build fails on the Prisma datasource — the branch-budget check above is what identifies that as a quota problem. To reclaim capacity, merge or close an open PR; the next push to a blocked branch redeploys into the freed slot.
 
+### Preview data
+
+Each preview branch is a **copy of the `dev` Neon branch**, taken at the moment the Neon Previews Integration creates it. The build never seeds — `prisma/seed.ts` only runs by hand — so a preview shows whatever `dev` held when it was branched. An existing preview keeps its own copy; only a preview created **after** a refresh sees the new data.
+
+`prisma/seed.ts` (plus `prisma/seed/*.ts`) covers a wide scenario matrix — every application and email status, realistic status history, awkward names and content, and a 64-applicant position past the pagination boundary — specifically so a preview exercises states real usage takes weeks to reach.
+
+To refresh `dev`'s data:
+
+1. Confirm in the Neon console that previews still copy from `dev` (the parent may change).
+2. Point `.env`'s `DATABASE_URL` at `dev`'s **direct (unpooled)** connection string.
+3. Run `npm run db:reset`. **This wipes that branch — accounts and sessions included.** Never run it against `production`.
+4. Restore `.env` to your own local database.
+
+Seeded dates are offsets from the moment the reset runs, so they drift afterwards (a position closing "today" becomes closed the next day) — refresh again whenever the states stop matching their labels.
+
 ### Dev bypass
 
 `isBypassAllowed()` (`lib/utils.ts`) is the single gate for both issuing and accepting the `dev-bypass-user-id` cookie, keyed off `VERCEL_ENV`. It's deliberately true for `preview`: each preview runs against its own per-PR Neon branch (never production data), and bypass login is the only practical way to exercise every role there without minting real OTP sessions. Locally, set `VERCEL_ENV=development` (see `.env.example`) or `/login/bypass` 404s.
