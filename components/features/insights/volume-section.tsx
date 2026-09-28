@@ -46,6 +46,7 @@ export async function VolumeSection({ range }: VolumeSectionProps) {
 
   const peakDay = maxByValue(volume.series, (p) => p.count);
   const topPosition = volume.mostAppliedAll[0];
+  const topRatePosition = volume.mostAppliedPerOpenDay[0];
   const peakCell = maxByValue(volume.heatmap, (h) => h.count);
   const topDeadlineBucket = maxByValue(volume.deadlineRush, (b) => b.count);
 
@@ -92,12 +93,8 @@ export async function VolumeSection({ range }: VolumeSectionProps) {
 
       <InsightCard
         title="Most Applied-To Positions"
-        description="Submitted application counts per position, and normalised per day the position was open."
-        meta={`n = ${volume.n}${
-          volume.droppedFromRate > 0
-            ? ` · ${volume.droppedFromRate} position${volume.droppedFromRate === 1 ? '' : 's'} with fewer than 5 applications aren't shown in the rate view.`
-            : ''
-        }`}
+        description="Submitted application counts per position."
+        meta={`n = ${volume.n}`}
         takeaway={
           topPosition
             ? `${topPosition.title} leads with ${topPosition.count} applications.`
@@ -110,30 +107,45 @@ export async function VolumeSection({ range }: VolumeSectionProps) {
           rows: volume.mostAppliedAll.map((r) => [r.title, r.count]),
         }}
       >
-        <Tabs defaultValue="count">
-          <TabsList>
-            <TabsTrigger value="count">Applications</TabsTrigger>
-            <TabsTrigger value="rate">Per open day</TabsTrigger>
-          </TabsList>
-          <TabsContent value="count">
-            <InsightBarChart
-              data={volume.mostAppliedTop.map((r) => ({
-                label: r.title,
-                value: r.count,
-              }))}
-            />
-          </TabsContent>
-          <TabsContent value="rate">
-            <InsightBarChart
-              data={volume.mostAppliedPerOpenDay
-                .slice(0, 10)
-                .map((r) => ({
-                  label: r.title,
-                  value: Math.round(r.rate * 100) / 100,
-                }))}
-            />
-          </TabsContent>
-        </Tabs>
+        <InsightBarChart
+          data={volume.mostAppliedTop.map((r) => ({
+            label: r.title,
+            value: r.count,
+          }))}
+        />
+      </InsightCard>
+
+      <InsightCard
+        title="Applications Per Open Day"
+        description="Submitted applications normalised per day the position was open."
+        meta={`n = ${volume.mostAppliedPerOpenDay.length}${
+          volume.droppedFromRate > 0
+            ? ` · ${volume.droppedFromRate} position${volume.droppedFromRate === 1 ? '' : 's'} with fewer than 5 applications aren't shown here.`
+            : ''
+        }`}
+        takeaway={
+          topRatePosition
+            ? `${topRatePosition.title} leads at ${Math.round(topRatePosition.rate * 100) / 100}/day.`
+            : undefined
+        }
+        isEmpty={volume.mostAppliedPerOpenDay.length === 0}
+        emptyMessage="No positions with enough applications to rate in this range."
+        table={{
+          headers: ['Position', 'Per Open Day'],
+          rows: volume.mostAppliedPerOpenDay.map((r) => [
+            r.title,
+            Math.round(r.rate * 100) / 100,
+          ]),
+        }}
+      >
+        <InsightBarChart
+          data={volume.mostAppliedPerOpenDay
+            .slice(0, 10)
+            .map((r) => ({
+              label: r.title,
+              value: Math.round(r.rate * 100) / 100,
+            }))}
+        />
       </InsightCard>
 
       <InsightCard
@@ -186,6 +198,7 @@ export async function VolumeSection({ range }: VolumeSectionProps) {
 export function VolumeSectionSkeleton() {
   return (
     <InsightSectionSkeleton title="Volume">
+      <InsightCardSkeleton />
       <InsightCardSkeleton />
       <InsightCardSkeleton />
       <InsightCardSkeleton />
