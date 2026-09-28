@@ -993,8 +993,7 @@ export function countBulkEmailRecipients(
   ).length;
 }
 
-// Newest-first input assumed. Always shows at least ACTIVITY_OVERFLOW_THRESHOLD
-// rows; past that, keeps rows within ACTIVITY_WINDOW_DAYS; hard cap at ACTIVITY_MAX_ITEMS.
+// Newest-first input assumed.
 export function limitActivityItems<T extends { timestamp: Date }>(
   items: T[],
   now: Date,
