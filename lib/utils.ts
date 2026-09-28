@@ -1,7 +1,7 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-import type { $Enums } from '@/prisma/client';
+import type { $Enums, PositionStatus } from '@/prisma/client';
 
 import {
   APPLICANT_ACTION_BLOCKED_REASONS,
@@ -447,6 +447,15 @@ export function getPositionDateInfo(
     return { label: 'Closed', date: position.closesAt, emphasis: 'calm' };
 
   return null;
+}
+
+/** True only for a draft with an Opens At strictly after `today` — it will never open by itself on that date. */
+export function isDraftFutureOpenDate(
+  status: PositionStatus,
+  opensAt: string,
+  today: string,
+): boolean {
+  return status === 'draft' && opensAt !== '' && opensAt > today;
 }
 
 const MS_PER_HOUR = 60 * 60 * 1000;
