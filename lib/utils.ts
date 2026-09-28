@@ -4,6 +4,9 @@ import { twMerge } from 'tailwind-merge';
 import type { $Enums, PositionStatus } from '@/prisma/client';
 
 import {
+  ACTIVITY_MAX_ITEMS,
+  ACTIVITY_OVERFLOW_THRESHOLD,
+  ACTIVITY_WINDOW_DAYS,
   APPLICANT_ACTION_BLOCKED_REASONS,
   APPLICATION_STATUS_LABELS,
   DEADLINE_SOON_DAYS,
@@ -988,4 +991,22 @@ export function countBulkEmailRecipients(
   return rows.filter(
     (r) => !isNonReviewableApplicationStatus(r.status) && r.status !== target,
   ).length;
+}
+
+// Newest-first input assumed. Always shows at least ACTIVITY_OVERFLOW_THRESHOLD
+// rows; past that, keeps rows within ACTIVITY_WINDOW_DAYS; hard cap at ACTIVITY_MAX_ITEMS.
+export function limitActivityItems<T extends { timestamp: Date }>(
+  items: T[],
+  now: Date,
+): T[] {
+  const since = new Date(now);
+  since.setDate(since.getDate() - ACTIVITY_WINDOW_DAYS);
+  const inWindow = items.filter((i) => i.timestamp >= since).length;
+  return items.slice(
+    0,
+    Math.min(
+      Math.max(ACTIVITY_OVERFLOW_THRESHOLD, inWindow),
+      ACTIVITY_MAX_ITEMS,
+    ),
+  );
 }

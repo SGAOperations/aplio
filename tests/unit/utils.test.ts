@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
+  ACTIVITY_MAX_ITEMS,
+  ACTIVITY_OVERFLOW_THRESHOLD,
+  ACTIVITY_WINDOW_DAYS,
   MANAGED_POSITIONS_WINDOW_DAYS,
   OTP_RESEND_COOLDOWN_SECONDS,
 } from '@/lib/constants';
@@ -48,6 +51,7 @@ import {
   isOpenPastCloseDate,
   isPositionActive,
   isSameIdSet,
+  limitActivityItems,
   orderManagedPositions,
   partitionAnswerValue,
   resolveGlobalAnswerValues,
@@ -2130,5 +2134,67 @@ describe('getPublicStatusSince', () => {
     expect(getPublicStatusSince('accepted', events, FALLBACK)).toEqual(
       FALLBACK,
     );
+  });
+});
+
+describe('limitActivityItems', () => {
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const now = new Date('2026-08-15T12:00:00Z');
+
+  function makeItems(count: number, ageMs: number) {
+    return Array.from({ length: count }, (_, i) => ({
+      id: String(i),
+      timestamp: new Date(now.getTime() - ageMs - i),
+    }));
+  }
+
+  it('returns all rows when count is below the overflow threshold', () => {
+    const items = makeItems(5, 40 * DAY_MS);
+    expect(limitActivityItems(items, now)).toHaveLength(5);
+  });
+
+  it('caps old rows at the overflow threshold', () => {
+    const items = makeItems(20, 40 * DAY_MS);
+    expect(limitActivityItems(items, now)).toHaveLength(
+      ACTIVITY_OVERFLOW_THRESHOLD,
+    );
+  });
+
+  it('returns all rows within the window when count exceeds threshold', () => {
+    const items = makeItems(30, 1 * DAY_MS);
+    expect(limitActivityItems(items, now)).toHaveLength(30);
+  });
+
+  it('hard-caps at ACTIVITY_MAX_ITEMS even when all are in the window', () => {
+    const items = makeItems(60, 1 * DAY_MS);
+    expect(limitActivityItems(items, now)).toHaveLength(ACTIVITY_MAX_ITEMS);
+  });
+
+  it('keeps threshold rows when mixing in-window and old rows', () => {
+    // 10 rows within the 14-day window, 10 rows at 30 days old (outside the window).
+    const inWindow = makeItems(10, 1 * DAY_MS);
+    const old = makeItems(10, 30 * DAY_MS);
+    // Combine newest-first: in-window rows precede old rows.
+    const result = limitActivityItems([...inWindow, ...old], now);
+    expect(result).toHaveLength(ACTIVITY_OVERFLOW_THRESHOLD);
+    expect(result.slice(0, 10).map((i) => i.id)).toEqual(
+      inWindow.map((i) => i.id),
+    );
+  });
+
+  it('applies ACTIVITY_WINDOW_DAYS boundary exactly', () => {
+    const justInside = new Date(
+      now.getTime() - ACTIVITY_WINDOW_DAYS * DAY_MS + 1000,
+    );
+    const justOutside = new Date(
+      now.getTime() - ACTIVITY_WINDOW_DAYS * DAY_MS - 1000,
+    );
+    const items = [
+      { id: 'a', timestamp: justInside },
+      { id: 'b', timestamp: justOutside },
+    ];
+    const result = limitActivityItems(items, now);
+    // 1 in-window row, threshold=15, so we'd keep max(15,1)=15 but only 2 exist → both included
+    expect(result).toHaveLength(2);
   });
 });
