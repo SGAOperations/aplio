@@ -24,7 +24,13 @@ const maps = {
 describe('icon vocabulary', () => {
   for (const [name, map] of Object.entries(maps)) {
     it(`${name} has no duplicate icons`, () => {
-      const icons = Object.values(map);
+      // 'save' and 'selected' are both an affirmative check mark — intentional,
+      // like POSITION_AVAILABILITY_ICONS's two closed states below.
+      const exempt =
+        name === 'ACTION_ICONS' ? new Set(['save', 'selected']) : new Set();
+      const icons = Object.entries(map)
+        .filter(([key]) => !exempt.has(key))
+        .map(([, icon]) => icon);
       expect(new Set(icons).size).toBe(icons.length);
     });
   }

@@ -14,12 +14,14 @@ import {
 import { APPLICATIONS_PAGE_SIZE } from '@/lib/constants';
 import { DATA_TABLE_RESULTS_CLASS } from '@/lib/data-table';
 import { STATE_ICONS } from '@/lib/icons';
+import { buildApplicationsHref } from '@/lib/search-params';
 import type {
   ApplicationFilters,
   ApplicationTableRow,
+  ApplicationViewMode,
   Reviewer,
 } from '@/lib/types';
-import { buildApplicationsHref, getPaginationBounds } from '@/lib/utils';
+import { getPaginationBounds } from '@/lib/utils';
 
 import { ApplicationsTable } from '@/components/features/applications-table';
 import {
@@ -34,7 +36,7 @@ interface ApplicationsResultsProps {
   filters: ApplicationFilters;
   page: number;
   hasActiveFilters: boolean;
-  isDraftView?: boolean;
+  mode: ApplicationViewMode;
 }
 
 // Generic over T so each call site keeps its own row type, not a shared union.
@@ -88,14 +90,31 @@ function paginateRows<T>(rows: T[], page: number) {
   };
 }
 
+// Whenever the selection explicitly includes draft — drafts-only or a mix —
+// the privacy boundary needs stating; the default empty selection does not.
+export function showDraftNote(filters: ApplicationFilters): boolean {
+  return !!filters.statuses?.includes('draft');
+}
+
+function DraftPrivacyNote() {
+  return (
+    <p className="text-muted-foreground flex items-start gap-2 text-sm">
+      <STATE_ICONS.hidden className="mt-0.5 size-4 shrink-0" />
+      You can see who started an application and how far along it is, not what
+      they&apos;ve written. Draft answers stay private until the applicant
+      submits.
+    </p>
+  );
+}
+
 export async function ApplicationsResults({
   user,
   filters,
   page,
   hasActiveFilters,
-  isDraftView = false,
+  mode,
 }: ApplicationsResultsProps) {
-  if (isDraftView) {
+  if (mode === 'drafts') {
     const { rows, total, totalPages, currentPage, rangeStart, rangeEnd } =
       await fetchPage(
         getDraftApplicationsCount,
@@ -114,12 +133,7 @@ export async function ApplicationsResults({
 
     return (
       <div className={DATA_TABLE_RESULTS_CLASS}>
-        <p className="text-muted-foreground flex items-start gap-2 text-sm">
-          <STATE_ICONS.hidden className="mt-0.5 size-4 shrink-0" />
-          You can see who started an application and how far along it is, not
-          what they&apos;ve written. Draft answers stay private until the
-          applicant submits.
-        </p>
+        <DraftPrivacyNote />
 
         <ApplicationsTable
           isDraftView
@@ -143,11 +157,8 @@ export async function ApplicationsResults({
     );
   }
 
-  // No status filter (the default/"all" view) — merge drafts in with
-  // everything else rather than requiring the "Draft" filter to see them.
-  // Two purpose-built queries, same as the explicit-filter branches below;
-  // only the merge/sort/paginate happens here.
-  if (!filters.status) {
+  // 'merged' — no filter, or draft mixed with submitted; two queries, merged/sorted/paginated here.
+  if (mode === 'merged') {
     const [allDrafts, allApplications] = await Promise.all([
       getAllDraftApplications(user, filters),
       getAllApplications(user, filters),
@@ -175,6 +186,7 @@ export async function ApplicationsResults({
 
     return (
       <div className={DATA_TABLE_RESULTS_CLASS}>
+        {showDraftNote(filters) && <DraftPrivacyNote />}
         <ApplicationsTable
           applications={rows}
           completion={completion}
@@ -221,37 +233,40 @@ export async function ApplicationsResults({
 }
 
 interface ApplicationsResultsSkeletonProps {
-  isDraftView?: boolean;
+  mode?: ApplicationViewMode;
+  showDraftNote?: boolean;
 }
 
 export function ApplicationsResultsSkeleton({
-  isDraftView = false,
+  mode = 'merged',
+  showDraftNote = false,
 }: ApplicationsResultsSkeletonProps) {
-  const columns: DataTableSkeletonColumn[] = isDraftView
-    ? [
-        { head: 'w-24', cell: 'w-36', subCell: 'w-48', mobile: 'primary' },
-        { head: 'w-20', cell: 'w-28' },
-        { head: 'w-16', cell: 'w-16' },
-        { head: 'w-20', cell: 'w-24' },
-        { head: 'w-24', cell: 'w-20' },
-      ]
-    : [
-        {
-          head: 'w-10',
-          shape: 'checkbox',
-          headClassName: 'w-10',
-          cellClassName: 'w-10',
-          mobile: 'leading',
-        },
-        { head: 'w-24', cell: 'w-36', subCell: 'w-48', mobile: 'primary' },
-        { head: 'w-20', cell: 'w-28' },
-        { head: 'w-16', cell: 'w-20', shape: 'badge', mobile: 'trailing' },
-        { head: 'w-24', cell: 'w-20' },
-      ];
+  const columns: DataTableSkeletonColumn[] =
+    mode === 'drafts'
+      ? [
+          { head: 'w-24', cell: 'w-36', subCell: 'w-48', mobile: 'primary' },
+          { head: 'w-20', cell: 'w-28' },
+          { head: 'w-16', cell: 'w-16' },
+          { head: 'w-20', cell: 'w-24' },
+          { head: 'w-24', cell: 'w-20' },
+        ]
+      : [
+          {
+            head: 'w-10',
+            shape: 'checkbox',
+            headClassName: 'w-10',
+            cellClassName: 'w-10',
+            mobile: 'leading',
+          },
+          { head: 'w-24', cell: 'w-36', subCell: 'w-48', mobile: 'primary' },
+          { head: 'w-20', cell: 'w-28' },
+          { head: 'w-16', cell: 'w-20', shape: 'badge', mobile: 'trailing' },
+          { head: 'w-24', cell: 'w-20' },
+        ];
 
   return (
     <div className={DATA_TABLE_RESULTS_CLASS}>
-      {isDraftView && <Skeleton className="h-5 w-full max-w-lg" />}
+      {showDraftNote && <Skeleton className="h-5 w-full max-w-lg" />}
       <DataTableSkeleton
         columns={columns}
         mobileGap="gap-1"

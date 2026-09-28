@@ -1,11 +1,16 @@
 'use client';
 
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useMemo } from 'react';
 
-import { EMAIL_STATUS_OPTIONS, EMAIL_TEMPLATE_OPTIONS } from '@/lib/constants';
+import { debounce, useQueryStates } from 'nuqs';
+
+import {
+  EMAIL_STATUS_OPTIONS,
+  EMAIL_TEMPLATE_OPTIONS,
+  FILTER_SEARCH_DEBOUNCE_MS,
+} from '@/lib/constants';
 import { ACTION_ICONS } from '@/lib/icons';
-import type { EmailLogFilters } from '@/lib/types';
+import { emailLogSearchParams, emailLogUrlKeys } from '@/lib/search-params';
 
 import { EmailStatusDot } from '@/components/features/status-badge';
 import { Button } from '@/components/ui/button';
@@ -14,78 +19,41 @@ import {
   DataTableToolbarField,
 } from '@/components/ui/data-table-toolbar';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { MultiSelect } from '@/components/ui/multi-select';
 
 interface EmailLogToolbarProps {
-  filters: EmailLogFilters;
   hasActiveFilters: boolean;
 }
 
-export function EmailLogToolbar({
-  filters,
-  hasActiveFilters,
-}: EmailLogToolbarProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+export function EmailLogToolbar({ hasActiveFilters }: EmailLogToolbarProps) {
+  const [params, setParams] = useQueryStates(emailLogSearchParams, {
+    urlKeys: emailLogUrlKeys,
+    history: 'push',
+    shallow: false,
+    scroll: false,
+  });
 
-  const debounceTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
-    undefined,
+  const statusOptions = useMemo(
+    () =>
+      EMAIL_STATUS_OPTIONS.map((opt) => ({
+        value: opt.value,
+        label: opt.label,
+        icon: <EmailStatusDot status={opt.value} />,
+      })),
+    [],
   );
 
-  // Clears a stale closure's router.replace on unmount; a timer has no non-effect home.
-  useEffect(() => () => clearTimeout(debounceTimer.current), []);
-
-  // Tracks the input immediately, ahead of the debounced URL update.
-  const [searchValue, setSearchValue] = useState(filters.q ?? '');
-
-  function updateParam(key: string, value: string | undefined) {
-    const params = new URLSearchParams(searchParams.toString());
-    if (value) {
-      params.set(key, value);
-    } else {
-      params.delete(key);
-    }
-    // A filter change while on page 4 must land on page 1, not an empty page.
-    params.delete('page');
-    router.push(`${pathname}?${params.toString()}`);
-  }
-
-  function handleSearch(value: string) {
-    setSearchValue(value);
-    clearTimeout(debounceTimer.current);
-    debounceTimer.current = setTimeout(() => {
-      const params = new URLSearchParams(searchParams.toString());
-      if (value.trim()) {
-        params.set('q', value.trim());
-      } else {
-        params.delete('q');
-      }
-      params.delete('page');
-      // Use replace for search so typing doesn't spam history.
-      router.replace(`${pathname}?${params.toString()}`);
-    }, 300);
-  }
-
-  function clearSearch() {
-    setSearchValue('');
-    clearTimeout(debounceTimer.current);
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete('q');
-    params.delete('page');
-    router.push(`${pathname}?${params.toString()}`);
-  }
+  const templateOptions = useMemo(
+    () =>
+      EMAIL_TEMPLATE_OPTIONS.map((opt) => ({
+        value: opt.value,
+        label: opt.label,
+      })),
+    [],
+  );
 
   function clearFilters() {
-    setSearchValue('');
-    clearTimeout(debounceTimer.current);
-    router.push(pathname);
+    void setParams(null);
   }
 
   return (
@@ -95,26 +63,17 @@ export function EmailLogToolbar({
         htmlFor="filter-status"
         className="w-full sm:w-44"
       >
-        <Select
-          value={filters.status ?? ''}
-          onValueChange={(v) =>
-            updateParam('status', v === 'all' ? undefined : v)
+        <MultiSelect
+          id="filter-status"
+          options={statusOptions}
+          values={params.statuses}
+          onValuesChange={(statuses) =>
+            void setParams({ statuses, page: null })
           }
-        >
-          <SelectTrigger id="filter-status" className="w-full">
-            <SelectValue placeholder="All statuses" />
-          </SelectTrigger>
-          <SelectContent>
-            {/* "All statuses" clears the filter */}
-            <SelectItem value="all">All statuses</SelectItem>
-            {EMAIL_STATUS_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                <EmailStatusDot status={opt.value} />
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          placeholder="All statuses"
+          noun="status"
+          pluralNoun="statuses"
+        />
       </DataTableToolbarField>
 
       <DataTableToolbarField
@@ -122,25 +81,16 @@ export function EmailLogToolbar({
         htmlFor="filter-template"
         className="w-full sm:w-52"
       >
-        <Select
-          value={filters.template ?? ''}
-          onValueChange={(v) =>
-            updateParam('template', v === 'all' ? undefined : v)
+        <MultiSelect
+          id="filter-template"
+          options={templateOptions}
+          values={params.templates}
+          onValuesChange={(templates) =>
+            void setParams({ templates, page: null })
           }
-        >
-          <SelectTrigger id="filter-template" className="w-full">
-            <SelectValue placeholder="All templates" />
-          </SelectTrigger>
-          <SelectContent>
-            {/* "All templates" clears the filter */}
-            <SelectItem value="all">All templates</SelectItem>
-            {EMAIL_TEMPLATE_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          placeholder="All templates"
+          noun="template"
+        />
       </DataTableToolbarField>
 
       <DataTableToolbarField
@@ -153,17 +103,25 @@ export function EmailLogToolbar({
             id="filter-search"
             aria-label="Search emails by recipient"
             placeholder="Search by recipient address"
-            value={searchValue}
-            onChange={(e) => handleSearch(e.target.value)}
+            value={params.q ?? ''}
+            onChange={(e) =>
+              void setParams(
+                { q: e.target.value || null, page: null },
+                {
+                  history: 'replace',
+                  limitUrlUpdates: debounce(FILTER_SEARCH_DEBOUNCE_MS),
+                },
+              )
+            }
             className="w-full pr-12 md:pr-9"
           />
-          {searchValue && (
+          {params.q && (
             <Button
               type="button"
               variant="ghost"
               size="icon"
               aria-label="Clear search"
-              onClick={clearSearch}
+              onClick={() => void setParams({ q: null, page: null })}
               className="absolute top-1/2 right-1 -translate-y-1/2 md:size-7"
             >
               <ACTION_ICONS.dismiss />
