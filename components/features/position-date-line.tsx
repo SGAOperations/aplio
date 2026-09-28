@@ -52,8 +52,9 @@ export function PositionDateLine({
       )}
     >
       <Icon className={cn('size-4 shrink-0', iconClass)} />
-      <span>{dateInfo.label}</span>
-      <LocalTime date={dateInfo.date} precision="datetime" />
+      <span>
+        {dateInfo.label} <LocalTime date={dateInfo.date} precision="datetime" />
+      </span>
     </p>
   );
 }

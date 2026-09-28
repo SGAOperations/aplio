@@ -71,7 +71,6 @@ interface PositionAvailabilitySectionProps {
   opensAt: string | null;
   closesAt: string | null;
   status: PositionStatus;
-  isAdmin: boolean;
   today: string;
 }
 
@@ -81,7 +80,6 @@ export function PositionAvailabilitySection({
   opensAt,
   closesAt,
   status,
-  isAdmin,
   today,
 }: PositionAvailabilitySectionProps) {
   const initial: ScheduleValues = {
@@ -256,22 +254,16 @@ export function PositionAvailabilitySection({
         <div aria-live="polite">
           {showDraftOpenWarning && (
             <WarningCallout>
-              <div className="flex flex-col gap-1">
-                <p className="font-medium">
-                  This position won&apos;t open on{' '}
-                  <LocalTime
-                    date={orgDayStart(watchedOpensAt)}
-                    precision="date"
-                    timeZone={ORG_TIMEZONE}
-                  />
-                  .
-                </p>
-                <p>
-                  {isAdmin
-                    ? "It's still a draft. Choose Open position before then — once it's open, applications start on this date."
-                    : 'This position is still a draft. Ask an admin to open this position before the Opens At date.'}
-                </p>
-              </div>
+              <p>
+                This position is still a draft. Ask an admin to open this
+                position before{' '}
+                <LocalTime
+                  date={orgDayStart(watchedOpensAt)}
+                  precision="date"
+                  timeZone={ORG_TIMEZONE}
+                />
+                .
+              </p>
             </WarningCallout>
           )}
         </div>

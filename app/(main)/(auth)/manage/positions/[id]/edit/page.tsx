@@ -106,12 +106,8 @@ export default async function EditPositionPage({
       {draftPastDate && draftPastOpenDate && (
         <WarningCallout>
           <p>
-            This position is still a draft. It was scheduled to open on{' '}
-            <LocalTime date={draftPastDate.date} precision="date" /> but
-            applicants cannot see it.{' '}
-            {user.isAdmin
-              ? 'Choose Open position to open it now.'
-              : 'Ask an admin to open it.'}
+            This position is still a draft, applicants cannot see it. Ask an
+            admin to open it.
           </p>
         </WarningCallout>
       )}
@@ -204,7 +200,6 @@ export default async function EditPositionPage({
                   position.closesAt ? toOrgDayString(position.closesAt) : null
                 }
                 status={position.status}
-                isAdmin={user.isAdmin}
                 today={toOrgDayString(new Date())}
               />
             </PositionDetailsSection>
