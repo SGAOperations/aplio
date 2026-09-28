@@ -2,7 +2,7 @@ import { getReviewSpeedInsights } from '@/prisma/data/insights';
 
 import { ORG_TIMEZONE } from '@/lib/constants';
 import { formatInstant } from '@/lib/dates';
-import { formatDuration } from '@/lib/insights';
+import { formatDuration, maxByValue } from '@/lib/insights';
 import type { InsightsCoverage, InsightsRange } from '@/lib/types';
 
 import { InsightBarChart } from '@/components/features/insights/insight-bar-chart';
@@ -37,6 +37,10 @@ interface ReviewSpeedSectionProps {
 
 export async function ReviewSpeedSection({ range }: ReviewSpeedSectionProps) {
   const speed = await getReviewSpeedInsights(range);
+  const bottleneckStage = maxByValue(
+    speed.timeInStage.filter((s) => s.medianHours !== null),
+    (s) => s.medianHours ?? 0,
+  );
 
   return (
     <InsightSection slug="review-speed" title="Review Speed">
@@ -91,6 +95,12 @@ export async function ReviewSpeedSection({ range }: ReviewSpeedSectionProps) {
       <InsightCard
         title="Time in Stage"
         description="Median dwell time per stage, from consecutive status changes. Identifies the bottleneck."
+        meta={`n = ${speed.timeInStage.reduce((sum, s) => sum + s.n, 0)}`}
+        takeaway={
+          bottleneckStage && bottleneckStage.medianHours !== null
+            ? `${STAGE_LABELS[bottleneckStage.status] ?? bottleneckStage.status} is the bottleneck at ${formatDuration(bottleneckStage.medianHours)} median.`
+            : undefined
+        }
         isEmpty={speed.timeInStage.every((s) => s.n === 0)}
         emptyMessage="No status changes in this range."
         table={{
@@ -113,6 +123,7 @@ export async function ReviewSpeedSection({ range }: ReviewSpeedSectionProps) {
       <InsightCard
         title="Time to Complete a Draft"
         description="Time from starting a draft to first submitting it (first-time submitters only)."
+        meta={`n = ${speed.timeToComplete.n}`}
         takeaway={
           speed.timeToComplete.medianHours !== null
             ? `Median ${formatDuration(speed.timeToComplete.medianHours)}.`

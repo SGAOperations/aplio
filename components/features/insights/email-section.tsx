@@ -7,6 +7,7 @@ import {
   ORG_TIMEZONE,
 } from '@/lib/constants';
 import { formatInstant } from '@/lib/dates';
+import { maxByValue, percent } from '@/lib/insights';
 import type { InsightsRange } from '@/lib/types';
 
 import { InsightBarChart } from '@/components/features/insights/insight-bar-chart';
@@ -70,12 +71,34 @@ export async function EmailSection({ range }: EmailSectionProps) {
       ? `Email logging started ${formatInstant(email.historyStart, { precision: 'date', timeZone: ORG_TIMEZONE })}; earlier sends aren't recorded.`
       : undefined;
 
+  const totalEmails = email.deliveryByTemplate.reduce(
+    (sum, r) => sum + r.count,
+    0,
+  );
+  const deliveredCount = email.deliveryByTemplate
+    .filter((r) => r.status === 'delivered')
+    .reduce((sum, r) => sum + r.count, 0);
+  const deliveredRate = percent(deliveredCount, totalEmails);
+
+  const totalBounces = email.bounceByType.reduce((sum, b) => sum + b.count, 0);
+  const topBounceType = maxByValue(email.bounceByType, (b) => b.count);
+  const totalFailureReasons = email.bounceErrors.reduce(
+    (sum, e) => sum + e.count,
+    0,
+  );
+  const topFailureReason = maxByValue(email.bounceErrors, (e) => e.count);
+
   return (
     <InsightSection slug="email" title="Email">
       <InsightCard
         title="Delivery Funnel by Template"
         description="Delivered, sent-unconfirmed, undeliverable, failed, and cancelled/scheduled counts per template."
-        meta={historyNote}
+        meta={`n = ${totalEmails}${historyNote ? ` · ${historyNote}` : ''}`}
+        takeaway={
+          deliveredRate !== null
+            ? `${deliveredRate}% delivered overall.`
+            : undefined
+        }
         isEmpty={email.deliveryByTemplate.length === 0}
         emptyMessage="No emails in this range."
         table={{
@@ -97,18 +120,48 @@ export async function EmailSection({ range }: EmailSectionProps) {
 
       <InsightCard
         title="Bounce Rate by Type"
-        description="Bounced emails grouped by provider bounce type, and the top failure reasons behind them."
+        description="Bounced emails grouped by provider bounce type."
+        meta={`n = ${totalBounces}`}
+        takeaway={
+          topBounceType
+            ? `${topBounceType.bounceType} is the most common (${topBounceType.count}).`
+            : undefined
+        }
         isEmpty={email.bounceByType.length === 0}
         emptyMessage="No bounces in this range."
         table={{
-          headers: ['Reason', 'Count'],
-          rows: email.bounceErrors.map((e) => [e.error, e.count]),
+          headers: ['Type', 'Count'],
+          rows: email.bounceByType.map((b) => [b.bounceType, b.count]),
         }}
       >
         <InsightBarChart
           data={email.bounceByType.map((b) => ({
             label: b.bounceType,
             value: b.count,
+          }))}
+        />
+      </InsightCard>
+
+      <InsightCard
+        title="Top Failure Reasons"
+        description="Most common error strings behind failed or bounced sends."
+        meta={`n = ${totalFailureReasons} (top 10 shown)`}
+        takeaway={
+          topFailureReason
+            ? `"${topFailureReason.error}" accounts for ${topFailureReason.count} failures.`
+            : undefined
+        }
+        isEmpty={email.bounceErrors.length === 0}
+        emptyMessage="No failed or bounced sends in this range."
+        table={{
+          headers: ['Reason', 'Count'],
+          rows: email.bounceErrors.map((e) => [e.error, e.count]),
+        }}
+      >
+        <InsightBarChart
+          data={email.bounceErrors.map((e) => ({
+            label: e.error,
+            value: e.count,
           }))}
         />
       </InsightCard>
@@ -140,6 +193,7 @@ export async function EmailSection({ range }: EmailSectionProps) {
 export function EmailSectionSkeleton() {
   return (
     <InsightSectionSkeleton title="Email">
+      <InsightCardSkeleton />
       <InsightCardSkeleton />
       <InsightCardSkeleton />
       <div className="flex flex-col gap-4">

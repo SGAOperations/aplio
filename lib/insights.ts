@@ -148,6 +148,17 @@ export function percent(n: number, d: number): number | null {
   return Math.round((n / d) * 100);
 }
 
+/** Item with the highest `value(item)`, or `null` for an empty array — powers takeaway captions. */
+export function maxByValue<T>(
+  items: T[],
+  value: (item: T) => number,
+): T | null {
+  return items.reduce<T | null>(
+    (max, item) => (max === null || value(item) > value(max) ? item : max),
+    null,
+  );
+}
+
 /**
  * `edges` are upper-exclusive bounds for every bucket but the last, which
  * catches everything at or above the final edge. `edges.length === labels.length - 1`.
