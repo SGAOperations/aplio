@@ -18,11 +18,19 @@ export async function ApplicantSummary({ userId }: ApplicantSummaryProps) {
     <section aria-label="Application summary">
       {/* Stable 2-up grid at every breakpoint — no column bump needed for two items */}
       <div className="grid grid-cols-2 gap-4">
-        <StatCard label="Submitted" value={submitted} dotVariant="default" />
+        <StatCard
+          label="Submitted"
+          value={submitted}
+          dotVariant="default"
+          href="/applications"
+          linkLabel={`Submitted — ${submitted} ${submitted === 1 ? 'application' : 'applications'}`}
+        />
         <StatCard
           label="Open positions"
           value={openPositions}
           dotVariant="info"
+          href="/positions"
+          linkLabel={`Open positions — ${openPositions} ${openPositions === 1 ? 'position' : 'positions'}`}
         />
       </div>
     </section>

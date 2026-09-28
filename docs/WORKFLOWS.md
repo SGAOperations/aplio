@@ -224,7 +224,7 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
   - Admin → `AdminDashboard`; manager → `ManagerDashboard` ([PM-1](#pm-1-see-your-dashboard)).
   - Nothing applied for yet → the widgets render their own empty states; the heading falls back to "Welcome to Aplio" when the name is missing.
   - No at-risk draft or withdrawn application → the subtitle omits the `closing soon` segment entirely; the widget's ordering is unchanged from plain recency.
-- **End state** — read-only.
+- **End state** — read-only. The summary's **Submitted** card links to `/applications` and **Open positions** links to `/positions`; a zero-count card is unlinked.
 
 ### AP-2 Answer profile questions
 
