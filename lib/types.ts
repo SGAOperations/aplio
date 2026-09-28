@@ -14,6 +14,7 @@ import type {
   EMAIL_FAILURE_STATUSES,
   EMAIL_STATUS_VALUES,
   EMAIL_TEMPLATE_VALUES,
+  INSIGHTS_RANGE_PRESETS,
   PublicApplicationStatus,
   USER_ROLE_FILTER_VALUES,
 } from '@/lib/constants';
@@ -627,3 +628,255 @@ export type WeeklyDigestRecipient = {
   statusCounts: WeeklyDigestStatusCount[];
   openPositions: Pick<ManagerDigestPosition, 'positionId' | 'title'>[];
 };
+
+// ─── /insights ──────────────────────────────────────────────────────────
+
+export type InsightsRangePreset = (typeof INSIGHTS_RANGE_PRESETS)[number];
+
+// start is null only for the 'all' preset. fromDay/toDay are org-local
+// YYYY-MM-DD, used for zero-filling day series.
+export interface InsightsRange {
+  preset: InsightsRangePreset;
+  start: Date | null;
+  end: Date;
+  fromDay: string | null;
+  toDay: string;
+  granularity: 'day' | 'week';
+}
+
+// coveredCount/totalCount are both submitted-application counts within the
+// query's population; historyStart is the earliest real ApplicationStatusEvent, globally.
+export interface InsightsCoverage {
+  coveredCount: number;
+  totalCount: number;
+  historyStart: Date | null;
+}
+
+export interface CountBucket {
+  label: string;
+  count: number;
+}
+
+export interface DurationSummary {
+  n: number;
+  medianHours: number | null;
+  meanHours: number | null;
+  histogram: CountBucket[];
+}
+
+export interface SeriesPoint {
+  day: string;
+  count: number;
+}
+
+export interface StackedSeriesKey {
+  positionId: string;
+  label: string;
+}
+
+export interface StackedSeriesPoint {
+  day: string;
+  values: Record<string, number>;
+}
+
+export interface AttentionInsights {
+  untouched: { count: number; oldestDays: number | null };
+  agingQueue: {
+    n: number;
+    buckets: CountBucket[];
+    oldest: {
+      applicationId: string;
+      name: string;
+      positionTitle: string;
+      status: $Enums.ApplicationStatus;
+      ageDays: number;
+    }[];
+  };
+  undeliveredDecisions: {
+    applicationId: string;
+    to: string;
+    name: string;
+    positionTitle: string;
+    status: $Enums.ApplicationStatus;
+    bounceType: string | null;
+    error: string | null;
+  }[];
+  closingSoon: {
+    positionId: string;
+    title: string;
+    closesAt: Date;
+    submittedCount: number;
+  }[];
+}
+
+export interface PositionCountRow {
+  positionId: string;
+  title: string;
+  count: number;
+}
+
+export interface VolumeInsights {
+  n: number;
+  series: SeriesPoint[];
+  stackedSeries: StackedSeriesPoint[];
+  stackedKeys: StackedSeriesKey[];
+  mostAppliedTop: PositionCountRow[];
+  mostAppliedAll: PositionCountRow[];
+  mostAppliedPerOpenDay: (PositionCountRow & {
+    openDays: number;
+    rate: number;
+  })[];
+  droppedFromRate: number;
+  heatmap: { weekday: number; block: number; count: number }[];
+  deadlineRush: CountBucket[];
+}
+
+export interface ReviewSpeedInsights {
+  timeToDecision: DurationSummary & {
+    awaitingCount: number;
+    coverage: InsightsCoverage;
+  };
+  firstReply: DurationSummary & {
+    awaitingCount: number;
+    coverage: InsightsCoverage;
+  };
+  timeInStage: {
+    status: $Enums.ApplicationStatus;
+    n: number;
+    medianHours: number | null;
+  }[];
+  timeToComplete: DurationSummary;
+}
+
+export interface TransitionCell {
+  from: $Enums.ApplicationStatus;
+  to: $Enums.ApplicationStatus;
+  count: number;
+}
+
+export interface PipelineInsights {
+  n: number;
+  transitionMatrix: TransitionCell[];
+  backwardCount: number;
+  decisionFlipCount: number;
+  reviewerEventCount: number;
+  outcomeMix: { status: string; count: number }[];
+  outcomeMixByPosition: {
+    positionId: string;
+    title: string;
+    counts: Record<string, number>;
+    total: number;
+  }[];
+  withdrawalTiming: {
+    from: $Enums.ApplicationStatus;
+    actor: 'applicant' | 'admin';
+    count: number;
+  }[];
+  resubmissionCount: number;
+}
+
+export interface FunnelInsights {
+  conversion: { starts: number; converted: number; rate: number | null };
+  conversionByPosition: {
+    positionId: string;
+    title: string;
+    starts: number;
+    converted: number;
+    rate: number | null;
+  }[];
+  abandonment: { count: number; ageBuckets: CountBucket[] };
+  dropoff: {
+    positionId: string;
+    title: string;
+    nextQuestionLabel: string | null;
+    count: number;
+  }[];
+  formLengthVsConversion: {
+    positionId: string;
+    title: string;
+    requiredQuestionCount: number;
+    conversionRate: number;
+    starts: number;
+  }[];
+}
+
+export interface AnswerRateRow {
+  questionId: string;
+  label: string;
+  scope: 'global' | 'position';
+  positionTitle: string | null;
+  answered: number;
+  total: number;
+  rate: number | null;
+}
+
+export interface ChoiceDistributionQuestion {
+  questionId: string;
+  label: string;
+  n: number;
+  values: {
+    value: string;
+    kind: 'option' | 'other' | 'retired';
+    count: number;
+  }[];
+}
+
+export interface QuestionInsights {
+  answerRates: AnswerRateRow[];
+  choiceDistributions: ChoiceDistributionQuestion[];
+  otherUsage: {
+    questionId: string;
+    label: string;
+    rate: number | null;
+    n: number;
+  }[];
+  longAnswerEffort: {
+    n: number;
+    medianChars: number | null;
+    buckets: CountBucket[];
+  };
+}
+
+export interface ApplicantInsights {
+  totalSubmitted: number;
+  uniqueApplicants: number;
+  perApplicantBuckets: CountBucket[];
+  repeatApplicantCount: number;
+  newVsReturning: { new: number; returning: number } | null;
+  profileCompleteness: CountBucket[];
+  signupsNeverApplied: { startedDraft: number; neverStarted: number };
+}
+
+export interface PositionInsights {
+  zeroApplicationPositions: { positionId: string; title: string }[];
+  timeToFirstApplication: {
+    medianDays: number | null;
+    positions: { positionId: string; title: string; days: number }[];
+  };
+  managerLoad: {
+    managerId: string;
+    name: string;
+    submitted: number;
+    unresolved: number;
+  }[];
+  reviewerThroughput: {
+    reviewerId: string;
+    name: string;
+    eventCount: number;
+    medianDecisionHours: number | null;
+    decisionN: number;
+  }[];
+}
+
+export interface EmailInsights {
+  deliveryByTemplate: { template: string; status: string; count: number }[];
+  bounceByType: { bounceType: string; count: number }[];
+  bounceErrors: { error: string; count: number }[];
+  lag: {
+    n: number;
+    medianMinutes: number | null;
+    p95Minutes: number | null;
+    cancelledCount: number;
+  };
+  historyStart: Date;
+}
