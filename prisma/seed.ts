@@ -273,9 +273,8 @@ async function main() {
         applicationByKey[`${def.applicantEmail}::${def.positionTitle}`] =
           application;
 
-      // Backfills the audit trail every real write path already produces —
-      // 'from' chains from 'draft'; 'applied'/'withdrawn' are applicant
-      // moves, everything else is attributed to the position's own manager.
+      // 'from' chains from 'draft'; non-applicant moves attribute to the
+      // position's own manager.
       const statusEventsData: {
         applicationId: string;
         from: ApplicationStatus;
@@ -292,8 +291,7 @@ async function main() {
               `Non-draft application missing submittedAt: ${def.applicantEmail} / ${def.positionTitle}`,
             );
 
-          // Caps at the close date so an already-archived position (#581)
-          // stays archived — every backfilled event stays in the past.
+          // Caps at the close date so an already-archived position stays archived.
           const end =
             position.closesAt && position.closesAt < now
               ? position.closesAt

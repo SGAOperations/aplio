@@ -92,9 +92,8 @@ export interface BulkOrientationSeed {
 }
 
 /**
- * Pure and index-driven — identical output across calls, no `Math.random`,
- * no `Date.now`. 64 applicants past the 50-row pagination, covering every
- * `ApplicationStatus` in a realistic mix.
+ * Pure and index-driven — deterministic, 64 applicants across every
+ * `ApplicationStatus`.
  */
 export function generateBulkOrientationApplicants(): BulkOrientationSeed {
   const applicantDefs: ApplicantDef[] = [];
