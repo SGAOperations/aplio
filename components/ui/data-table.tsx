@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import type { PointerEventHandler, ReactNode, TouchEventHandler } from 'react';
 import { useCallback, useMemo } from 'react';
 
 import { parseAsStringEnum, parseAsStringLiteral, useQueryStates } from 'nuqs';
@@ -18,6 +18,7 @@ import {
 import { ACTION_ICONS } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
   SortableHandle,
@@ -46,7 +47,8 @@ interface DataTableProps<T> {
   rows: T[];
   columns: DataTableColumn<T>[];
   getRowKey: (row: T) => string;
-  mobileCard: (row: T) => ReactNode;
+  // `dragHandle` is only passed when `reorder` is active for this row.
+  mobileCard: (row: T, dragHandle?: ReactNode) => ReactNode;
   // Shown in place of the whole table when `rows` is empty and no filter is active.
   emptyState?: ReactNode;
   noMatchMessage?: string;
@@ -55,6 +57,9 @@ interface DataTableProps<T> {
   caption: string;
   // Controlled sort mode: pass both to opt the caller's own state/URL contract in.
   sort?: SortState;
+  // Combined with `reorder`, this must also land on ascending when re-invoked
+  // for `reorder.orderKey` — the "Sort by <column>" restore button calls it
+  // directly, not through a toggle/cycle.
   onSortToggle?: (key: string) => void;
   // Drag-to-reorder, gated to sorting by `orderKey` ascending.
   reorder?: DataTableReorder<T>;
@@ -150,35 +155,60 @@ function SortableTableRow<T>({
   );
 }
 
-function SortableMobileRow({
+// Card is the pointer/touch drag surface; keyboard/AT use `SortableHandle`,
+// which `mobileCard` positions itself (see `GlobalQuestionsTable`).
+function SortableMobileRow<T>({
   id,
+  row,
+  mobileCard,
   handleLabel,
   handleDisabled,
-  children,
 }: {
   id: string;
+  row: T;
+  mobileCard: (row: T, dragHandle: ReactNode) => ReactNode;
   handleLabel: string;
   handleDisabled: boolean;
-  children: ReactNode;
 }) {
-  const { setNodeRef, style, handleProps, isDragging } = useSortableItem(id);
+  const { setNodeRef, style, attributes, listeners, isDragging } =
+    useSortableItem(id);
+  // Only pointer/touch — `listeners.onKeyDown` would hijack Enter/Space on
+  // the nested Edit/Delete buttons (`KeyboardSensor`'s own guard never engages here).
+  const dragListeners: {
+    onPointerDown?: PointerEventHandler<HTMLDivElement>;
+    onTouchStart?: TouchEventHandler<HTMLDivElement>;
+  } =
+    !handleDisabled && listeners
+      ? {
+          onPointerDown: listeners.onPointerDown as
+            | PointerEventHandler<HTMLDivElement>
+            | undefined,
+          onTouchStart: listeners.onTouchStart as
+            | TouchEventHandler<HTMLDivElement>
+            | undefined,
+        }
+      : {};
 
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
-        'flex items-start motion-reduce:transition-none',
-        isDragging && 'relative z-10',
+        'touch-manipulation motion-reduce:transition-none',
+        !handleDisabled && 'cursor-grab active:cursor-grabbing',
+        isDragging && 'bg-card relative z-10 shadow-lg',
       )}
+      {...dragListeners}
     >
-      <SortableHandle
-        label={handleLabel}
-        handleProps={handleProps}
-        disabled={handleDisabled}
-        className="ml-2 shrink-0"
-      />
-      <div className="min-w-0 flex-1">{children}</div>
+      {mobileCard(
+        row,
+        <SortableHandle
+          label={handleLabel}
+          handleProps={{ ...attributes, ...listeners }}
+          disabled={handleDisabled}
+          className="opacity-60"
+        />,
+      )}
     </div>
   );
 }
@@ -269,6 +299,20 @@ export function DataTable<T>({
     [controlled, onSortToggle, params.sort, params.dir, setParams],
   );
 
+  // Restores the reorder column's ascending sort directly — never `toggle`,
+  // which would cycle to desc if that column is already sorted desc. In
+  // controlled mode this relies on `onSortToggle` honoring that contract too.
+  const restoreOrderSort = useCallback(
+    (key: string) => {
+      if (controlled) {
+        onSortToggle(key);
+        return;
+      }
+      void setParams({ sort: key, dir: 'asc' });
+    },
+    [controlled, onSortToggle, setParams],
+  );
+
   const sortedRows = useMemo(() => {
     if (controlled || !sort.key) return rows;
     const column = columns.find((c) => c.key === sort.key && c.sortAccessor);
@@ -291,11 +335,27 @@ export function DataTable<T>({
     sort.direction === 'asc';
   const dragLive = sortedByOrder && !reorder.disabled;
   const columnCount = columns.length + (showReorderColumn ? 1 : 0);
+  const orderColumnLabel = reorder
+    ? sortLabel(
+        columns.find((c) => c.key === reorder.orderKey)?.header,
+        reorder.orderKey,
+      )
+    : '';
 
   return (
     <div className={DATA_TABLE_STACK_CLASS}>
       {showReorderColumn && !sortedByOrder && (
-        <p className="text-muted-foreground text-sm">{reorder.sortHint}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-muted-foreground text-sm">{reorder.sortHint}</p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => restoreOrderSort(reorder.orderKey)}
+          >
+            Sort by {orderColumnLabel}
+          </Button>
+        </div>
       )}
       {/* overflow-hidden clips the header hover highlight to the card's rounded corners */}
       <Card className={DATA_TABLE_SHELL_CLASS}>
@@ -399,11 +459,11 @@ export function DataTable<T>({
               <SortableMobileRow
                 key={getRowKey(row)}
                 id={getRowKey(row)}
+                row={row}
+                mobileCard={mobileCard}
                 handleLabel={reorder.getItemLabel(row)}
                 handleDisabled={!dragLive}
-              >
-                {mobileCard(row)}
-              </SortableMobileRow>
+              />
             ))
           ) : (
             sortedRows.map((row) => (
@@ -424,6 +484,11 @@ export function DataTableRowActions({
   className?: string;
 }) {
   return (
-    <div className={cn('flex flex-wrap gap-2', className)}>{children}</div>
+    // `data-no-dnd` keeps SmartPointerSensor/SmartTouchSensor (sortable-list)
+    // from swallowing taps on these buttons when a whole row/card is also a
+    // drag surface (see `SortableMobileRow`).
+    <div data-no-dnd className={cn('flex flex-wrap gap-2', className)}>
+      {children}
+    </div>
   );
 }

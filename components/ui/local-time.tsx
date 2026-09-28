@@ -13,6 +13,8 @@ interface LocalTimeProps {
   className?: string;
   // Overrides the visible text (e.g. a countdown) while dateTime/title still come from `date`.
   children?: ReactNode;
+  // Pins the display to a fixed zone (e.g. ORG_TIMEZONE) instead of the viewer's own.
+  timeZone?: string;
 }
 
 // No-op subscribe: the viewer's timezone never changes during a session, so this
@@ -37,8 +39,10 @@ export function LocalTime({
   precision = 'date',
   className,
   children,
+  timeZone: timeZoneOverride,
 }: LocalTimeProps) {
-  const timeZone = useViewerTimeZone();
+  const viewerTimeZone = useViewerTimeZone();
+  const timeZone = timeZoneOverride ?? viewerTimeZone;
   const isoString = date.toISOString();
   const title = formatInstant(date, { precision: 'datetime', timeZone });
 

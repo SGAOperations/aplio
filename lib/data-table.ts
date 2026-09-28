@@ -96,7 +96,7 @@ export function sortRows<T>(
 
 export interface DataTableFilter {
   key: string;
-  value: string;
+  values: string[];
 }
 
 export interface FilterRowsOptions {
@@ -126,12 +126,13 @@ export function filterRows<T>(
     }
 
     for (const filter of filters) {
+      if (filter.values.length === 0) continue;
       const column = columns.find((c) => c.key === filter.key);
       if (!column?.filterValue) continue;
       const value = column.filterValue(row);
-      const values =
+      const rowValues =
         value == null ? [] : Array.isArray(value) ? value : [value];
-      if (!values.includes(filter.value)) return false;
+      if (!filter.values.some((v) => rowValues.includes(v))) return false;
     }
 
     return true;

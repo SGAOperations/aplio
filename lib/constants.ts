@@ -3,11 +3,7 @@ import { z } from 'zod/v4';
 import { $Enums } from '@/prisma/client';
 import type { PositionStatus, Prisma, QuestionType } from '@/prisma/client';
 
-import type {
-  ActivityScope,
-  PositionAvailability,
-  UserRoleFilter,
-} from '@/lib/types';
+import type { ActivityScope, PositionAvailability } from '@/lib/types';
 
 import type { BadgeVariant } from '@/components/ui/badge';
 
@@ -474,14 +470,22 @@ export const EMAIL_STATUS_DESCRIPTIONS: Record<
   cancelled: 'Cancelled before it was sent.',
 };
 
-// Array order is rank order — also drives getUserRoleRank's fallback.
+// Array order is rank order — also drives getUserRoleRank's fallback and the
+// role parser's canonical order (lib/search-params.ts).
+export const USER_ROLE_FILTER_VALUES = ['admin', 'manager'] as const;
+
+export const USER_ROLE_FILTER_LABELS: Record<
+  (typeof USER_ROLE_FILTER_VALUES)[number],
+  string
+> = { admin: 'Admin', manager: 'Manager' };
+
 export const USER_ROLE_FILTER_OPTIONS: {
-  value: UserRoleFilter;
+  value: (typeof USER_ROLE_FILTER_VALUES)[number];
   label: string;
-}[] = [
-  { value: 'admin', label: 'Admin' },
-  { value: 'manager', label: 'Manager' },
-];
+}[] = USER_ROLE_FILTER_VALUES.map((value) => ({
+  value,
+  label: USER_ROLE_FILTER_LABELS[value],
+}));
 
 // Single source for the /manage/applications sort union and its zod enum.
 export const APPLICATION_SORT_FIELDS = ['date', 'name', 'status'] as const;
@@ -489,6 +493,17 @@ export const APPLICATION_SORT_DIRECTIONS = ['asc', 'desc'] as const;
 
 // Sized so the bulk bar's "select all" still covers a useful batch per page.
 export const APPLICATIONS_PAGE_SIZE = 50;
+
+// Caps a repeated URL param (?positionId=&positionId=…) so a crafted deep
+// link can't build an unbounded `IN`. Shared by every id-array parser.
+export const FILTER_PARAM_MAX_VALUES = 50;
+// Longest legal opaque id (cuid/uuid) value in a filter param.
+export const FILTER_PARAM_MAX_LENGTH = 64;
+export const FILTER_QUERY_MAX_LENGTH = 200;
+// A MultiSelect popover past this many matches shows a "keep typing" footer
+// instead of rendering every option.
+export const FILTER_SELECT_MAX_VISIBLE = 100;
+export const FILTER_SEARCH_DEBOUNCE_MS = 300;
 
 // Source of truth for "what comes next" — nothing else hardcodes an order.
 // draft/withdrawn are off the path (applicant-owned); reviewing's next step

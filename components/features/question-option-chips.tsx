@@ -20,11 +20,19 @@ export function QuestionOptionChips({
   return (
     <div className={cn('flex flex-wrap gap-1', className)}>
       {options.map((option) => (
-        <Badge key={option} variant="secondary">
+        <Badge
+          key={option}
+          variant="secondary"
+          className="[overflow-wrap:anywhere]"
+        >
           {option}
         </Badge>
       ))}
-      {allowOther && <Badge variant="secondary">+ Other</Badge>}
+      {allowOther && (
+        <Badge variant="secondary" className="[overflow-wrap:anywhere]">
+          + Other
+        </Badge>
+      )}
     </div>
   );
 }

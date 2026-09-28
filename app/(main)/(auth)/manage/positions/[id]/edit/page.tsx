@@ -103,18 +103,23 @@ export default async function EditPositionPage({
           </div>
         </WarningCallout>
       )}
-      {draftPastDate && (
+      {draftPastDate && draftPastOpenDate && (
+        <WarningCallout>
+          <p>
+            This position is still a draft, applicants cannot see it. Ask an
+            admin to open it.
+          </p>
+        </WarningCallout>
+      )}
+      {draftPastDate && !draftPastOpenDate && (
         <WarningCallout>
           <div className="flex flex-col gap-1">
-            <p className="font-medium">
-              This position was scheduled to{' '}
-              {draftPastOpenDate ? 'open' : 'close'}.
-            </p>
+            <p className="font-medium">This position was scheduled to close.</p>
             <p>
-              Its {draftPastOpenDate ? 'open' : 'close'} date passed on{' '}
+              Its close date passed on{' '}
               <LocalTime date={draftPastDate.date} precision="date" />, but
               it&apos;s still a draft, so applicants can&apos;t see it. Give it
-              a future {draftPastOpenDate ? 'open' : 'close'} date, or{' '}
+              a future close date, or{' '}
               {user.isAdmin
                 ? 'choose Open position to open it now.'
                 : 'ask an admin to open it.'}
@@ -194,6 +199,9 @@ export default async function EditPositionPage({
                 closesAt={
                   position.closesAt ? toOrgDayString(position.closesAt) : null
                 }
+                status={position.status}
+                today={toOrgDayString(new Date())}
+                isAdmin={user.isAdmin}
               />
             </PositionDetailsSection>
           ) : (

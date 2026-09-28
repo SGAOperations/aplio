@@ -6,7 +6,7 @@ import {
   EMAIL_STATUS_BADGE_VARIANT,
   EMAIL_STATUS_LABELS,
 } from '@/lib/constants';
-import { buildEmailLogHref } from '@/lib/utils';
+import { buildEmailLogHref } from '@/lib/search-params';
 
 import { StatCard } from '@/components/features/stat-card';
 import { Card, CardContent } from '@/components/ui/card';
@@ -31,7 +31,7 @@ export async function EmailFailureStrip() {
               label={label}
               value={count}
               dotVariant={variant}
-              href={buildEmailLogHref({ status })}
+              href={buildEmailLogHref({ statuses: [status] })}
               linkLabel={`Filter by ${label.toLowerCase()} — ${count} in the last ${EMAIL_FAILURE_WINDOW_DAYS} days`}
             />
           );

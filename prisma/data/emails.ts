@@ -34,8 +34,10 @@ function buildEmailLogWhere(
 ): Prisma.EmailLogWhereInput {
   return {
     ...(filters.q ? { to: { contains: filters.q, mode: 'insensitive' } } : {}),
-    ...(filters.status ? { status: filters.status } : {}),
-    ...(filters.template ? { template: filters.template } : {}),
+    ...(filters.statuses?.length ? { status: { in: filters.statuses } } : {}),
+    ...(filters.templates?.length
+      ? { template: { in: filters.templates } }
+      : {}),
   };
 }
 

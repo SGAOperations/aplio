@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
+
+import { useQueryStates } from 'nuqs';
 
 import type { $Enums } from '@/prisma/client';
 
@@ -13,6 +14,10 @@ import {
   CONCEPT_ICONS,
   STATE_ICONS,
 } from '@/lib/icons';
+import {
+  applicationsSearchParams,
+  applicationsUrlKeys,
+} from '@/lib/search-params';
 import type {
   ApplicationCompletion,
   ApplicationSort,
@@ -63,9 +68,12 @@ function isAdminRow(
 
 export function ApplicationsTable(props: ApplicationsTableProps) {
   const { hasActiveFilters, sort, isAdmin, completion } = props;
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const [, setParams] = useQueryStates(applicationsSearchParams, {
+    urlKeys: applicationsUrlKeys,
+    history: 'push',
+    shallow: false,
+    scroll: false,
+  });
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkStatus, setBulkStatus] = useState<$Enums.ApplicationStatus | ''>(
@@ -129,11 +137,9 @@ export function ApplicationsTable(props: ApplicationsTableProps) {
     field: ApplicationSortField,
     direction: ApplicationSortDirection,
   ) {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('sort', `${field}:${direction}`);
-    // A sort change while on page 4 must land on page 1, not an empty page.
-    params.delete('page');
-    router.push(`${pathname}?${params.toString()}`);
+    // A sort change while on page 4 must land on page 1, not an empty page —
+    // same map/queue as the toolbar, so the two writers can't clobber each other.
+    void setParams({ sort: { field, direction }, page: null });
   }
 
   function toggleSort(field: ApplicationSortField) {

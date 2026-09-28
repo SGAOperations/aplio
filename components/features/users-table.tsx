@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useMemo, useState, useTransition } from 'react';
 
+import { useQueryStates } from 'nuqs';
 import { toast } from 'sonner';
 
 import { deactivateUser, toggleUserAdmin } from '@/prisma/actions/users';
@@ -14,6 +15,7 @@ import {
   filterRows,
 } from '@/lib/data-table';
 import { ACTION_ICONS, CONCEPT_ICONS } from '@/lib/icons';
+import { usersSearchParams, usersUrlKeys } from '@/lib/search-params';
 import type { AdminUserListItem } from '@/lib/types';
 import {
   cn,
@@ -35,13 +37,7 @@ import {
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { LocalTime } from '@/components/ui/local-time';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { MultiSelect } from '@/components/ui/multi-select';
 import {
   Tooltip,
   TooltipContent,
@@ -104,8 +100,13 @@ function ManagedPositionsOverflow({
 
 export function UsersTable({ users, currentUserId }: UsersTableProps) {
   const [query, setQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState('');
-  const [positionFilter, setPositionFilter] = useState('');
+  // shallow: the page filters in memory over the already-fetched user list
+  // and must not refetch; replace: toggling a checkbox shouldn't stack history.
+  const [params, setParams] = useQueryStates(usersSearchParams, {
+    urlKeys: usersUrlKeys,
+    history: 'replace',
+    shallow: true,
+  });
   // `*Target` is never nulled on close — only replaced on the next open —
   // so the dialog's title/description keep the last valid value through
   // Radix's exit animation instead of re-rendering "undefined" mid-fade.
@@ -276,23 +277,35 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
     [currentUserId],
   );
 
+  const roleOptions = useMemo(
+    () =>
+      USER_ROLE_FILTER_OPTIONS.map((opt) => ({
+        value: opt.value,
+        label: opt.label,
+      })),
+    [],
+  );
+
   const positionOptions = useMemo(() => {
     const byId = new Map<string, string>();
     for (const user of users)
       for (const pos of user.managedPositions) byId.set(pos.id, pos.title);
-    return Array.from(byId, ([id, title]) => ({ id, title })).sort((a, b) =>
-      a.title.localeCompare(b.title),
-    );
+    return Array.from(byId, ([id, title]) => ({
+      value: id,
+      label: title,
+    })).sort((a, b) => a.label.localeCompare(b.label));
   }, [users]);
 
   const filters: DataTableFilter[] = [
-    ...(roleFilter ? [{ key: 'roles', value: roleFilter }] : []),
-    ...(positionFilter
-      ? [{ key: 'managedPositions', value: positionFilter }]
-      : []),
+    { key: 'roles', values: params.roles },
+    { key: 'managedPositions', values: params.positionIds },
   ];
   const filtered = filterRows(users, COLUMNS, { query, filters });
-  const isFiltered = !!(query.trim() || roleFilter || positionFilter);
+  const isFiltered = !!(
+    query.trim() ||
+    params.roles.length ||
+    params.positionIds.length
+  );
   const adminCount = filtered.filter((u) => u.isAdmin).length;
   const managerCount = filtered.filter(
     (u) => u.managedPositions.length > 0,
@@ -300,8 +313,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
 
   function clearFilters() {
     setQuery('');
-    setRoleFilter('');
-    setPositionFilter('');
+    void setParams(null);
   }
 
   function handleToggleAdminConfirm() {
@@ -360,19 +372,14 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
         <div className="flex flex-col gap-4">
           <DataTableToolbar>
             <DataTableToolbarField label="Role" htmlFor="users-role-filter">
-              <Select value={roleFilter} onValueChange={setRoleFilter}>
-                <SelectTrigger id="users-role-filter" className="w-full">
-                  <SelectValue placeholder="All roles" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">All roles</SelectItem>
-                  {USER_ROLE_FILTER_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <MultiSelect
+                id="users-role-filter"
+                options={roleOptions}
+                values={params.roles}
+                onValuesChange={(roles) => void setParams({ roles })}
+                placeholder="All roles"
+                noun="role"
+              />
             </DataTableToolbarField>
 
             {positionOptions.length > 0 && (
@@ -380,22 +387,17 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
                 label="Managed position"
                 htmlFor="users-position-filter"
               >
-                <Select
-                  value={positionFilter}
-                  onValueChange={setPositionFilter}
-                >
-                  <SelectTrigger id="users-position-filter" className="w-full">
-                    <SelectValue placeholder="All positions" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">All positions</SelectItem>
-                    {positionOptions.map((pos) => (
-                      <SelectItem key={pos.id} value={pos.id}>
-                        {pos.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <MultiSelect
+                  id="users-position-filter"
+                  options={positionOptions}
+                  values={params.positionIds}
+                  onValuesChange={(positionIds) =>
+                    void setParams({ positionIds })
+                  }
+                  placeholder="All positions"
+                  noun="position"
+                  searchable
+                />
               </DataTableToolbarField>
             )}
 
