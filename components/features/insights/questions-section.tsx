@@ -1,5 +1,6 @@
 import { getQuestionInsights } from '@/prisma/data/insights';
 
+import { maxByValue } from '@/lib/insights';
 import type { InsightsRange } from '@/lib/types';
 
 import { ChoiceDistributionChart } from '@/components/features/insights/choice-distribution-chart';
@@ -19,28 +20,41 @@ interface QuestionsSectionProps {
 
 export async function QuestionsSection({ range }: QuestionsSectionProps) {
   const questions = await getQuestionInsights(range);
-  const lowestAnswerRates = questions.answerRates
-    .filter((r) => r.total > 0)
-    .slice(0, 10);
+  const eligibleAnswerRates = questions.answerRates.filter((r) => r.total > 0);
+  const lowestAnswerRates = eligibleAnswerRates.slice(0, 10);
+  const lowestAnswerRate = eligibleAnswerRates[0];
+
+  const topChoiceValue = maxByValue(
+    questions.choiceDistributions.flatMap((q) =>
+      q.values.map((v) => ({ ...v, questionLabel: q.label })),
+    ),
+    (v) => v.count,
+  );
+
+  const topOtherUsage = maxByValue(questions.otherUsage, (o) => o.rate ?? 0);
 
   return (
     <InsightSection slug="questions" title="Questions">
       <InsightCard
         title="Answer Rate"
         description="Optional questions everyone skips — lowest answer rates first."
+        meta={`n = ${eligibleAnswerRates.length}`}
+        takeaway={
+          lowestAnswerRate
+            ? `${lowestAnswerRate.label} has the lowest answer rate (${lowestAnswerRate.rate}%).`
+            : undefined
+        }
         isEmpty={lowestAnswerRates.length === 0}
         emptyMessage="No optional questions answered in this range."
         table={{
           headers: ['Question', 'Scope', 'Answered', 'Total', 'Rate'],
-          rows: questions.answerRates
-            .filter((r) => r.total > 0)
-            .map((r) => [
-              r.label,
-              r.positionTitle ?? 'Global',
-              r.answered,
-              r.total,
-              r.rate !== null ? `${r.rate}%` : '—',
-            ]),
+          rows: eligibleAnswerRates.map((r) => [
+            r.label,
+            r.positionTitle ?? 'Global',
+            r.answered,
+            r.total,
+            r.rate !== null ? `${r.rate}%` : '—',
+          ]),
         }}
       >
         <InsightBarChart
@@ -56,6 +70,12 @@ export async function QuestionsSection({ range }: QuestionsSectionProps) {
       <InsightCard
         title="Choice Distribution"
         description="Answer distribution for a single- or multiple-choice question. Retired options are never dropped."
+        meta={`n = ${questions.choiceDistributions.length} question${questions.choiceDistributions.length === 1 ? '' : 's'} charted`}
+        takeaway={
+          topChoiceValue
+            ? `"${topChoiceValue.value}" is the most selected answer, on "${topChoiceValue.questionLabel}" (${topChoiceValue.count}).`
+            : undefined
+        }
         isEmpty={questions.choiceDistributions.length === 0}
         emptyMessage="No choice questions answered in this range."
       >
@@ -65,6 +85,12 @@ export async function QuestionsSection({ range }: QuestionsSectionProps) {
       <InsightCard
         title="'Other' Usage"
         description="Share of answers using free-text 'Other' instead of a listed option."
+        meta={`n = ${questions.otherUsage.length}`}
+        takeaway={
+          topOtherUsage && topOtherUsage.rate !== null
+            ? `${topOtherUsage.label} has the highest 'Other' rate (${topOtherUsage.rate}%).`
+            : undefined
+        }
         isEmpty={questions.otherUsage.length === 0}
         emptyMessage="No questions allow 'Other' in this range."
         table={{

@@ -1,5 +1,6 @@
 import { getApplicantInsights } from '@/prisma/data/insights';
 
+import { maxByValue } from '@/lib/insights';
 import type { InsightsRange } from '@/lib/types';
 
 import { InsightBarChart } from '@/components/features/insights/insight-bar-chart';
@@ -22,6 +23,14 @@ interface ApplicantsSectionProps {
 
 export async function ApplicantsSection({ range }: ApplicantsSectionProps) {
   const applicants = await getApplicantInsights(range);
+  const modeApplicationsPerApplicant = maxByValue(
+    applicants.perApplicantBuckets,
+    (b) => b.count,
+  );
+  const modeCompleteness = maxByValue(
+    applicants.profileCompleteness,
+    (b) => b.count,
+  );
 
   return (
     <InsightSection slug="applicants" title="Applicants">
@@ -41,6 +50,12 @@ export async function ApplicantsSection({ range }: ApplicantsSectionProps) {
       <InsightCard
         title="Applications per Applicant"
         description="How many positions each applicant applied to."
+        meta={`n = ${applicants.uniqueApplicants}`}
+        takeaway={
+          modeApplicationsPerApplicant && modeApplicationsPerApplicant.count > 0
+            ? `${modeApplicationsPerApplicant.label} is the most common (${modeApplicationsPerApplicant.count} applicants).`
+            : undefined
+        }
         isEmpty={applicants.perApplicantBuckets.every((b) => b.count === 0)}
         emptyMessage="No submitted applications in this range."
         table={{
@@ -72,6 +87,12 @@ export async function ApplicantsSection({ range }: ApplicantsSectionProps) {
       <InsightCard
         title="Profile Completeness"
         description="Required-profile-question completeness for users created in this range."
+        meta={`n = ${applicants.profileCompleteness.reduce((sum, b) => sum + b.count, 0)}`}
+        takeaway={
+          modeCompleteness && modeCompleteness.count > 0
+            ? `${modeCompleteness.label} completeness is the most common (${modeCompleteness.count} users).`
+            : undefined
+        }
         isEmpty={applicants.profileCompleteness.every((b) => b.count === 0)}
         emptyMessage="No new accounts in this range."
         table={{

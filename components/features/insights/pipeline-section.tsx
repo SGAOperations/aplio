@@ -1,7 +1,7 @@
 import { getPipelineInsights } from '@/prisma/data/insights';
 
 import { APPLICATION_STATUS_LABELS } from '@/lib/constants';
-import { percent } from '@/lib/insights';
+import { maxByValue, percent } from '@/lib/insights';
 import type { InsightsRange } from '@/lib/types';
 
 import { InsightBarChart } from '@/components/features/insights/insight-bar-chart';
@@ -56,6 +56,13 @@ export async function PipelineSection({ range }: PipelineSectionProps) {
           ?.count ?? 0,
     ),
   );
+  const topTransition = matrixList[0];
+
+  const outcomeN = pipeline.outcomeMix.reduce((sum, o) => sum + o.count, 0);
+  const acceptedOverall =
+    pipeline.outcomeMix.find((o) => o.status === 'Accepted')?.count ?? 0;
+  const acceptedRateOverall = percent(acceptedOverall, outcomeN);
+  const topWithdrawal = maxByValue(pipeline.withdrawalTiming, (w) => w.count);
 
   return (
     <InsightSection slug="pipeline" title="Pipeline">
@@ -63,6 +70,11 @@ export async function PipelineSection({ range }: PipelineSectionProps) {
         title="Status Transition Matrix"
         description="Every from -> to status change, real events only."
         meta={`n = ${pipeline.n}`}
+        takeaway={
+          topTransition && topTransition.count > 0
+            ? `${APPLICATION_STATUS_LABELS[topTransition.from]} → ${APPLICATION_STATUS_LABELS[topTransition.to]} is the most common (${topTransition.count}).`
+            : undefined
+        }
         isEmpty={pipeline.n === 0}
         emptyMessage="No status changes in this range."
         table={{
@@ -116,9 +128,28 @@ export async function PipelineSection({ range }: PipelineSectionProps) {
         />
       </div>
 
+      <div className="grid grid-cols-2 gap-4">
+        {OUTCOME_KEYS.map((k) => (
+          <InsightTile
+            key={k.key}
+            label={k.label}
+            value={String(
+              pipeline.outcomeMix.find((o) => o.status === k.sourceKey)
+                ?.count ?? 0,
+            )}
+          />
+        ))}
+      </div>
+
       <InsightCard
         title="Outcome Mix"
-        description="Current status of submitted applications: accepted, rejected, withdrawn, or still open."
+        description="Current status of submitted applications: accepted, rejected, withdrawn, or still open — overall above, per position below."
+        meta={`n = ${outcomeN}`}
+        takeaway={
+          acceptedRateOverall !== null
+            ? `${acceptedRateOverall}% accepted overall.`
+            : undefined
+        }
         isEmpty={pipeline.outcomeMix.every((o) => o.count === 0)}
         emptyMessage="No submitted applications in this range."
         table={{
@@ -144,6 +175,11 @@ export async function PipelineSection({ range }: PipelineSectionProps) {
         title="Withdrawal Timing"
         description="Status an application was in when withdrawn, split by who acted — plus resubmissions after a withdrawal."
         meta={`${pipeline.resubmissionCount} resubmission${pipeline.resubmissionCount === 1 ? '' : 's'} after a withdrawal.`}
+        takeaway={
+          topWithdrawal && topWithdrawal.count > 0
+            ? `${APPLICATION_STATUS_LABELS[topWithdrawal.from]} (${topWithdrawal.actor}) is the most common (${topWithdrawal.count}).`
+            : undefined
+        }
         isEmpty={pipeline.withdrawalTiming.every((w) => w.count === 0)}
         emptyMessage="No withdrawals in this range."
         table={{
@@ -171,6 +207,12 @@ export function PipelineSectionSkeleton() {
     <InsightSectionSkeleton title="Pipeline">
       <InsightCardSkeleton />
       <div className="grid grid-cols-2 gap-4">
+        <InsightTileSkeleton />
+        <InsightTileSkeleton />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <InsightTileSkeleton />
+        <InsightTileSkeleton />
         <InsightTileSkeleton />
         <InsightTileSkeleton />
       </div>

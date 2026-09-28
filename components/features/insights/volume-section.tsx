@@ -1,5 +1,6 @@
 import { getVolumeInsights } from '@/prisma/data/insights';
 
+import { maxByValue } from '@/lib/insights';
 import type { InsightsRange } from '@/lib/types';
 
 import { InsightBarChart } from '@/components/features/insights/insight-bar-chart';
@@ -43,12 +44,22 @@ export async function VolumeSection({ range }: VolumeSectionProps) {
     ),
   );
 
+  const peakDay = maxByValue(volume.series, (p) => p.count);
+  const topPosition = volume.mostAppliedAll[0];
+  const peakCell = maxByValue(volume.heatmap, (h) => h.count);
+  const topDeadlineBucket = maxByValue(volume.deadlineRush, (b) => b.count);
+
   return (
     <InsightSection slug="volume" title="Volume">
       <InsightCard
         title="Applications Per Day"
         description="Submitted applications over time, org-local days."
         meta={`n = ${volume.n}`}
+        takeaway={
+          peakDay && peakDay.count > 0
+            ? `Busiest: ${peakDay.day} with ${peakDay.count} submissions.`
+            : undefined
+        }
         isEmpty={volume.n === 0}
         emptyMessage="No submitted applications in this range."
         table={{
@@ -82,9 +93,14 @@ export async function VolumeSection({ range }: VolumeSectionProps) {
       <InsightCard
         title="Most Applied-To Positions"
         description="Submitted application counts per position, and normalised per day the position was open."
-        meta={
+        meta={`n = ${volume.n}${
           volume.droppedFromRate > 0
-            ? `${volume.droppedFromRate} position${volume.droppedFromRate === 1 ? '' : 's'} with fewer than 5 applications aren't shown in the rate view.`
+            ? ` · ${volume.droppedFromRate} position${volume.droppedFromRate === 1 ? '' : 's'} with fewer than 5 applications aren't shown in the rate view.`
+            : ''
+        }`}
+        takeaway={
+          topPosition
+            ? `${topPosition.title} leads with ${topPosition.count} applications.`
             : undefined
         }
         isEmpty={volume.mostAppliedAll.length === 0}
@@ -123,6 +139,12 @@ export async function VolumeSection({ range }: VolumeSectionProps) {
       <InsightCard
         title="Submission Heatmap"
         description="Weekday × time of day, org-local, submitted applications."
+        meta={`n = ${volume.n}`}
+        takeaway={
+          peakCell && peakCell.count > 0
+            ? `Busiest: ${WEEKDAY_LABELS[peakCell.weekday]} ${BLOCK_LABELS[peakCell.block]} (${peakCell.count} submissions).`
+            : undefined
+        }
         isEmpty={volume.n === 0}
         emptyMessage="No submitted applications in this range."
       >
@@ -137,6 +159,12 @@ export async function VolumeSection({ range }: VolumeSectionProps) {
       <InsightCard
         title="Deadline Rush"
         description="Time remaining until the position's deadline, for positions with a close date."
+        meta={`n = ${volume.deadlineRush.reduce((sum, b) => sum + b.count, 0)}`}
+        takeaway={
+          topDeadlineBucket && topDeadlineBucket.count > 0
+            ? `${topDeadlineBucket.label} is the most common window (${topDeadlineBucket.count}).`
+            : undefined
+        }
         isEmpty={volume.deadlineRush.every((b) => b.count === 0)}
         emptyMessage="No submitted applications with a deadline in this range."
         table={{

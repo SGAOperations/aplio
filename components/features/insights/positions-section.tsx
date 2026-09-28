@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 import { getPositionInsights } from '@/prisma/data/insights';
 
-import { formatDuration } from '@/lib/insights';
+import { formatDuration, maxByValue } from '@/lib/insights';
 import type { InsightsRange } from '@/lib/types';
 
 import { InsightBarChart } from '@/components/features/insights/insight-bar-chart';
@@ -22,6 +22,7 @@ interface PositionsSectionProps {
 
 export async function PositionsSection({ range }: PositionsSectionProps) {
   const positions = await getPositionInsights(range);
+  const topManager = maxByValue(positions.managerLoad, (m) => m.submitted);
 
   return (
     <InsightSection slug="positions" title="Positions and Reviewers">
@@ -90,6 +91,12 @@ export async function PositionsSection({ range }: PositionsSectionProps) {
       <InsightCard
         title="Manager Load"
         description="Submitted and currently-unresolved applications, per manager of the position."
+        meta={`n = ${positions.managerLoad.length}`}
+        takeaway={
+          topManager && topManager.submitted > 0
+            ? `${topManager.name} has the most submissions (${topManager.submitted}), ${topManager.unresolved} unresolved.`
+            : undefined
+        }
         isEmpty={positions.managerLoad.length === 0}
         emptyMessage="No managers in this range."
         table={{
