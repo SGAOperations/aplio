@@ -29,7 +29,7 @@ Behaviour shared by many workflows is stated once under [Cross-cutting behaviour
 
 **[Position manager (PM)](#position-manager-pm)** — [PM-1](#pm-1-see-your-dashboard) · [PM-2](#pm-2-see-the-positions-you-manage) · [PM-3](#pm-3-create-a-position) · [PM-4](#pm-4-edit-position-details) · [PM-5](#pm-5-manage-position-questions) · [PM-6](#pm-6-add-a-manager) · [PM-7](#pm-7-remove-a-manager) · [PM-8](#pm-8-work-the-application-queue) · [PM-9](#pm-9-open-an-application-for-review) · [PM-10](#pm-10-preview-or-download-an-applicants-file-answer) · [PM-11](#pm-11-move-one-application-through-the-status-path) · [PM-12](#pm-12-move-several-applications-at-once) · [PM-13](#pm-13-reorder-position-questions) · [PM-14](#pm-14-override-a-status-undo-or-review-its-history)
 
-**[Admin (AD)](#admin-ad)** — [AD-1](#ad-1-see-every-position) · [AD-2](#ad-2-edit-an-archived-position) · [AD-3](#ad-3-delete-a-position) · [AD-4](#ad-4-create-a-global-question) · [AD-5](#ad-5-edit-a-global-question) · [AD-6](#ad-6-delete-a-global-question) · [AD-7](#ad-7-create-a-user) · [AD-8](#ad-8-grant-or-revoke-admin) · [AD-9](#ad-9-deactivate-a-user) · [AD-10](#ad-10-find-a-user) · [AD-11](#ad-11-reorder-global-questions) · [AD-12](#ad-12-look-up-an-email) · [AD-13](#ad-13-force-withdraw-an-application)
+**[Admin (AD)](#admin-ad)** — [AD-1](#ad-1-see-every-position) · [AD-2](#ad-2-edit-an-archived-position) · [AD-3](#ad-3-delete-a-position) · [AD-4](#ad-4-create-a-global-question) · [AD-5](#ad-5-edit-a-global-question) · [AD-6](#ad-6-delete-a-global-question) · [AD-7](#ad-7-create-a-user) · [AD-8](#ad-8-grant-or-revoke-admin) · [AD-9](#ad-9-deactivate-a-user) · [AD-10](#ad-10-find-a-user) · [AD-11](#ad-11-reorder-global-questions) · [AD-12](#ad-12-look-up-an-email) · [AD-13](#ad-13-force-withdraw-an-application) · [AD-14](#ad-14-read-pipeline-insights)
 
 ---
 
@@ -730,6 +730,18 @@ An admin is a **manager on every position**: every [Position manager](#position-
   - The row changed since the dialog opened (a write race) → **"This application just changed. Refresh to see its current status."**, the same sentence `updateApplicationStatus` uses.
   - Unexpected throw → generic toast.
 - **End state** — status `withdrawn`, plus a new `ApplicationStatusEvent` recording the admin who did it; `/manage/applications/[id]` and `/manage/applications` are revalidated, same as [PM-11](#pm-11-move-one-application-through-the-status-path). **This deliberately reopens the withdraw → resubmit round-trip that [AP-13](#ap-13-withdraw-an-application) blocks for the applicant's own action** — a force-withdrawn `accepted`/`rejected` row is applicant-editable ([AP-14](#ap-14-edit-and-resubmit-a-withdrawn-application)), so the applicant can resubmit and land back at `applied` with the decision no longer reflected in `Application.status`. The decision is not erased: it survives permanently in the append-only `ApplicationStatusEvent` history. No email is sent and `EmailLog` gains no row ([XC-9](#xc-9-applicant-email)).
+
+### AD-14 Read pipeline insights
+
+- **Trigger** — **Settings → Insights** (`/insights`), admin-only.
+- **Happy path** — a full-bleed dashboard of nine sections (Needs Attention, Volume, Review Speed, Pipeline, Funnel, Questions, Applicants, Positions and Reviewers, Email), each streaming in behind its own `<Suspense>` skeleton. One global date-range control (Last 30 days / 90 days / 12 months / All time / Custom) drives every section but **Needs Attention**, which is a live snapshot — its heading carries the note "Right now — not affected by the date range" so a stuck application never silently ages out of view under a short range. The range lives in the URL (`?range=`, or `?range=custom&from=&to=`), so a view is shareable and paste-able into a new tab. Every chart is a `<figure>` with a title, a one-line description, its `n`, a takeaway caption, and a "View data" table that is the colour-free channel for every series. Event-derived cards (time to decision, first reply, time in stage, the transition matrix, reversals, withdrawals, reviewer throughput) disclose their coverage: how many of the range's submitted applications have real status history, and where that history starts.
+- **Failure / edge**
+  - A manager or applicant → 404, identically to the other admin-only routes; no **Insights** nav entry for either.
+  - A fresh install with zero submitted applications ever → the single **"No applications yet"** empty state, with a link to **Manage positions**, instead of nine empty sections.
+  - A narrow custom range with no matching data → each card degrades to its own same-height empty copy ("No submitted applications in this range.", etc.) rather than a broken axis or layout shift.
+  - Hand-edited or invalid `from`/`to` (e.g. `range=custom&from=garbage`) → silently falls back to the default 90-day range; `to` before `from` shows an inline error and never writes the URL.
+  - No status history yet at all (a fresh install, or a range entirely before the first real status change) → the event-derived cards read "No status history recorded yet." instead of a misleading zero.
+- **End state** — read-only; nothing on this page mutates data, so there is no toast feedback and no revalidation. Every list row links back into the surface that can actually act on it — an aging application to `/manage/applications/[id]`, a position to its edit page, a bounced decision email to `/emails` filtered to that status.
 
 ### Known open
 
