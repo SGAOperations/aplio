@@ -699,6 +699,7 @@ export interface AttentionInsights {
     name: string;
     positionTitle: string;
     status: $Enums.ApplicationStatus;
+    emailStatus: $Enums.EmailStatus;
     bounceType: string | null;
     error: string | null;
   }[];
