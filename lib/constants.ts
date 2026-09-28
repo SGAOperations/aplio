@@ -1259,10 +1259,7 @@ export const POSITION_CLOSED_BY_DATE_SENTENCE = (title: string) =>
 export const POSITION_DELETED_SENTENCE = (title: string) =>
   `${title} was deleted`;
 
-// Summed into the position card's header tile beside Submitted.
-// Deliberately not a reuse of APPLICANT_EDITABLE_APPLICATION_STATUSES /
-// NON_REVIEWABLE_APPLICATION_STATUSES — same members, different meaning; a
-// change to either must not move this tile.
+// Summed into the header tile beside Submitted — deliberately not the same list as APPLICANT_EDITABLE_APPLICATION_STATUSES/NON_REVIEWABLE_APPLICATION_STATUSES.
 export const POSITION_CARD_DRAFT_WITHDRAWN_STATUSES = [
   'draft',
   'withdrawn',
