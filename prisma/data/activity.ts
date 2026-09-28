@@ -32,8 +32,6 @@ export const getActivityGroups = cache(async function getActivityGroups(
   userId: string,
   isAdmin: boolean,
 ): Promise<ActivityGroups> {
-  const now = new Date();
-
   // Fetched unconditionally: deleting a manager's only position drops it from
   // isManager's non-deleted count, so this alone must still unlock 'managed'.
   const [applications, isUserManager, deletions] = await Promise.all([
@@ -78,7 +76,7 @@ export const getActivityGroups = cache(async function getActivityGroups(
     };
   });
 
-  const mine = limitActivityItems(mineItems, now);
+  const mine = limitActivityItems(mineItems);
 
   const applicationItems: ActivityItem[] = reviewed
     .filter((app) => app.user.id !== userId)
@@ -157,7 +155,7 @@ export const getActivityGroups = cache(async function getActivityGroups(
     ...deletionItems,
   ].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
-  const reviewedItems = limitActivityItems(sorted, now);
+  const reviewedItems = limitActivityItems(sorted);
 
   return { scope, mine, reviewed: reviewedItems };
 });

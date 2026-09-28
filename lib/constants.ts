@@ -702,9 +702,7 @@ export const APPLICATION_DRAFT_NOT_WITHDRAWABLE_MESSAGE =
 
 export const RECENTLY_CLOSED_WINDOW_DAYS = 7;
 
-// Activity panel window/overflow rules — see lib/utils.ts#limitActivityItems.
-export const ACTIVITY_WINDOW_DAYS = 14;
-export const ACTIVITY_OVERFLOW_THRESHOLD = 15;
+// Maximum items per group in the activity panel.
 export const ACTIVITY_MAX_ITEMS = 50;
 
 // Sole owners of the applicant deadline-urgency boundaries — shared by
