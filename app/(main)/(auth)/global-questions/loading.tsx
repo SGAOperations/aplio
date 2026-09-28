@@ -3,26 +3,38 @@ import {
   DataTableSkeleton,
   type DataTableSkeletonColumn,
 } from '@/components/ui/data-table-skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const COLUMNS: DataTableSkeletonColumn[] = [
-  { head: 'w-12', cell: 'w-8', headClassName: 'w-12 px-2', mobile: 'line' },
-  { head: 'w-24', cell: 'w-56', mobile: 'primary' },
-  { head: 'w-24', headClassName: 'w-36', shape: 'badge', mobile: 'trailing' },
-  { head: 'w-24', cell: 'w-24', mobile: 'hidden' },
-  {
-    head: 'w-20',
-    headClassName: 'w-28',
-    shape: 'badge',
-    mobile: 'lineTrailing',
-  },
-  {
-    head: 'w-24',
-    headClassName: 'w-32',
-    shape: 'action',
-    cell: 'w-20',
-    mobile: 'line',
-  },
+  { head: 'w-12', cell: 'w-8', headClassName: 'w-12 px-2' },
+  { head: 'w-24', cell: 'w-56' },
+  { head: 'w-24', headClassName: 'w-36', shape: 'badge' },
+  { head: 'w-24', cell: 'w-24' },
+  { head: 'w-20', headClassName: 'w-28', shape: 'badge' },
+  { head: 'w-24', headClassName: 'w-32', shape: 'action', cell: 'w-20' },
 ];
+
+// Mirrors GlobalQuestionsTable's mobileCard.
+function mobileCard() {
+  return (
+    <>
+      <div className="flex items-center justify-between gap-1.5">
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="-mr-3.5 size-11 rounded-md" />
+      </div>
+      <div className="flex items-center justify-between gap-1.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <Skeleton className="h-5.5 w-24 rounded-md" />
+          <Skeleton className="h-5.5 w-20 rounded-md" />
+        </div>
+        <div className="-mr-3.5 flex gap-2">
+          <Skeleton className="size-11 rounded-md" />
+          <Skeleton className="size-11 rounded-md" />
+        </div>
+      </div>
+    </>
+  );
+}
 
 export default function GlobalQuestionsLoading() {
   return (
@@ -30,9 +42,9 @@ export default function GlobalQuestionsLoading() {
       <PageHeaderSkeleton actions={['w-32']} actionSize="sm" />
       <DataTableSkeleton
         columns={COLUMNS}
-        hasReorderHandle
-        mobileGap="gap-3"
-        mobileRowGap="gap-0"
+        mobileGap="gap-1"
+        mobilePadding="p-3"
+        mobileCard={mobileCard}
       />
     </div>
   );
