@@ -72,6 +72,7 @@ interface PositionAvailabilitySectionProps {
   closesAt: string | null;
   status: PositionStatus;
   today: string;
+  isAdmin: boolean;
 }
 
 // No zodResolver — the pair saves together, so validation runs inside the commit handler instead.
@@ -81,6 +82,7 @@ export function PositionAvailabilitySection({
   closesAt,
   status,
   today,
+  isAdmin,
 }: PositionAvailabilitySectionProps) {
   const initial: ScheduleValues = {
     opensAt: opensAt ?? '',
@@ -255,8 +257,9 @@ export function PositionAvailabilitySection({
           {showDraftOpenWarning && (
             <WarningCallout>
               <p>
-                This position is still a draft. Ask an admin to open this
-                position before{' '}
+                {isAdmin
+                  ? 'Choose Open position before '
+                  : 'Ask an admin to open this position before '}
                 <LocalTime
                   date={orgDayStart(watchedOpensAt)}
                   precision="date"

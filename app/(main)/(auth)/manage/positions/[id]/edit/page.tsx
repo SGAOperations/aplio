@@ -201,6 +201,7 @@ export default async function EditPositionPage({
                 }
                 status={position.status}
                 today={toOrgDayString(new Date())}
+                isAdmin={user.isAdmin}
               />
             </PositionDetailsSection>
           ) : (
