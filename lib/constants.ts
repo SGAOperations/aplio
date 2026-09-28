@@ -651,6 +651,13 @@ export const UNRESOLVED_APPLICATION_STATUSES = [
   'reviewing',
 ] as const satisfies $Enums.ApplicationStatus[];
 
+// UNRESOLVED_APPLICATION_STATUSES minus 'applied' — the position card's In progress tile.
+export const IN_PROGRESS_APPLICATION_STATUSES = [
+  'reached_out',
+  'interview_scheduled',
+  'reviewing',
+] as const satisfies $Enums.ApplicationStatus[];
+
 // Distinct from NON_REVIEWABLE_APPLICATION_STATUSES — same members, different meaning.
 export const APPLICANT_EDITABLE_APPLICATION_STATUSES = [
   'draft',
@@ -1252,13 +1259,25 @@ export const POSITION_CLOSED_BY_DATE_SENTENCE = (title: string) =>
 export const POSITION_DELETED_SENTENCE = (title: string) =>
   `${title} was deleted`;
 
-// Order is meaningful — rendered left to right on position cards.
-export const POSITION_CARD_STAT_STATUSES = [
-  'applied',
-  'interview_scheduled',
-  'accepted',
-  'rejected',
+// Summed into the position card's header tile beside Submitted.
+// Deliberately not a reuse of APPLICANT_EDITABLE_APPLICATION_STATUSES /
+// NON_REVIEWABLE_APPLICATION_STATUSES — same members, different meaning; a
+// change to either must not move this tile.
+export const POSITION_CARD_DRAFT_WITHDRAWN_STATUSES = [
+  'draft',
+  'withdrawn',
 ] as const satisfies $Enums.ApplicationStatus[];
+
+// Order is meaningful — rendered left to right, top to bottom on position cards.
+export const POSITION_CARD_STAT_TILES: readonly {
+  label: string;
+  statuses: readonly [$Enums.ApplicationStatus, ...$Enums.ApplicationStatus[]];
+}[] = [
+  { label: APPLICATION_STATUS_LABELS.applied, statuses: ['applied'] },
+  { label: 'In progress', statuses: IN_PROGRESS_APPLICATION_STATUSES },
+  { label: APPLICATION_STATUS_LABELS.accepted, statuses: ['accepted'] },
+  { label: APPLICATION_STATUS_LABELS.rejected, statuses: ['rejected'] },
+];
 
 export const EMAIL_STATUS_VALUES = [
   'scheduled',

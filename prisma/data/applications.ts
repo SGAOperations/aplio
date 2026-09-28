@@ -13,6 +13,7 @@ import {
 } from '@/lib/auth/scopes';
 import {
   APPLICATIONS_PAGE_SIZE,
+  APPLICATION_PIPELINE_STATUSES,
   DEADLINE_SOON_DAYS,
   PUBLIC_APPLICATION_STATUS,
   PUBLISHED_POSITION_WHERE,
@@ -1030,7 +1031,6 @@ export async function getPositionApplicationStats(
     where: {
       positionId: { in: positionIds },
       deletedAt: null,
-      status: { notIn: ['draft', 'withdrawn'] },
       // Drafts stay visible; defence in depth, callers pass non-deleted ids.
       position: VISIBLE_POSITION_WHERE,
     },
@@ -1046,7 +1046,12 @@ export async function getPositionApplicationStats(
       total: 0,
     };
     existing.counts[row.status] = row._count;
-    existing.total += row._count;
+    if (
+      (
+        APPLICATION_PIPELINE_STATUSES as readonly $Enums.ApplicationStatus[]
+      ).includes(row.status)
+    )
+      existing.total += row._count;
     map.set(row.positionId, existing);
   }
 

@@ -506,6 +506,7 @@ export type AdminUserListItem = Prisma.UserGetPayload<{
 }>;
 
 // Aggregate only — never exposes individual applicant identity.
+// counts covers every status; total excludes draft and withdrawn.
 export type PositionApplicationStats = {
   positionId: string;
   counts: Partial<Record<$Enums.ApplicationStatus, number>>;
