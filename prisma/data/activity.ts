@@ -14,6 +14,7 @@ import {
 } from '@/prisma/data/positions';
 
 import {
+  ACTIVITY_MAX_ITEMS,
   APPLICATION_STATUS_BADGE_VARIANT,
   APPLICATION_STATUS_LABELS,
   POSITION_ACTIVITY_SENTENCE,
@@ -24,9 +25,7 @@ import {
   POSITION_STATUS_BADGE_VARIANT,
 } from '@/lib/constants';
 import { type ActivityGroups, type ActivityItem } from '@/lib/types';
-import { getDisplayName, getRenamedTo } from '@/lib/utils';
-
-const ACTIVITY_TAKE = 10;
+import { getDisplayName, getRenamedTo, limitActivityItems } from '@/lib/utils';
 
 // Deduped across the sidebar's and mobile nav's header instances by cache().
 export const getActivityGroups = cache(async function getActivityGroups(
@@ -36,9 +35,9 @@ export const getActivityGroups = cache(async function getActivityGroups(
   // Fetched unconditionally: deleting a manager's only position drops it from
   // isManager's non-deleted count, so this alone must still unlock 'managed'.
   const [applications, isUserManager, deletions] = await Promise.all([
-    getMyRecentActivity(userId, ACTIVITY_TAKE),
+    getMyRecentActivity(userId, ACTIVITY_MAX_ITEMS),
     isAdmin ? Promise.resolve(true) : isManager(userId),
-    getRecentPositionDeletions({ id: userId, isAdmin }, ACTIVITY_TAKE),
+    getRecentPositionDeletions({ id: userId, isAdmin }, ACTIVITY_MAX_ITEMS),
   ]);
 
   const scope = isAdmin
@@ -49,17 +48,23 @@ export const getActivityGroups = cache(async function getActivityGroups(
 
   const [reviewed, statusEvents, deadlineCloses] = await Promise.all([
     scope !== 'none'
-      ? getRecentApplications({ id: userId, isAdmin }, ACTIVITY_TAKE)
+      ? getRecentApplications({ id: userId, isAdmin }, ACTIVITY_MAX_ITEMS)
       : Promise.resolve([]),
     scope !== 'none'
-      ? getRecentPositionStatusEvents({ id: userId, isAdmin }, ACTIVITY_TAKE)
+      ? getRecentPositionStatusEvents(
+          { id: userId, isAdmin },
+          ACTIVITY_MAX_ITEMS,
+        )
       : Promise.resolve([]),
     scope !== 'none'
-      ? getRecentPositionDeadlineCloses({ id: userId, isAdmin }, ACTIVITY_TAKE)
+      ? getRecentPositionDeadlineCloses(
+          { id: userId, isAdmin },
+          ACTIVITY_MAX_ITEMS,
+        )
       : Promise.resolve([]),
   ]);
 
-  const mine: ActivityItem[] = applications.map((app) => {
+  const mineItems: ActivityItem[] = applications.map((app) => {
     const statusLabel = APPLICATION_STATUS_LABELS[app.status];
     const variant = APPLICATION_STATUS_BADGE_VARIANT[app.status];
     return {
@@ -67,8 +72,11 @@ export const getActivityGroups = cache(async function getActivityGroups(
       statusVariant: variant,
       sentence: `Your application for ${app.position.title} is ${statusLabel}`,
       timestamp: app.statusChangedAt,
+      href: `/applications/${app.id}`,
     };
   });
+
+  const mine = limitActivityItems(mineItems);
 
   const applicationItems: ActivityItem[] = reviewed
     .filter((app) => app.user.id !== userId)
@@ -81,6 +89,7 @@ export const getActivityGroups = cache(async function getActivityGroups(
         statusVariant: variant,
         sentence: `${applicantLabel}${renamedTo ? ` (${renamedTo})` : ''} applied for ${app.position.title}`,
         timestamp: app.submittedAt,
+        href: `/manage/applications/${app.id}`,
       };
     });
 
@@ -97,10 +106,7 @@ export const getActivityGroups = cache(async function getActivityGroups(
       statusVariant: POSITION_STATUS_BADGE_VARIANT.open,
       sentence: POSITION_ACTIVITY_SENTENCE[event.from](event.position.title),
       timestamp: event.createdAt,
-      href:
-        event.position.deletedAt === null
-          ? `/positions/${event.position.id}`
-          : undefined,
+      href: `/positions/${event.position.id}`,
     }));
 
   const closedItems: ActivityItem[] = statusEvents
@@ -110,10 +116,7 @@ export const getActivityGroups = cache(async function getActivityGroups(
       statusVariant: POSITION_STATUS_BADGE_VARIANT.closed,
       sentence: POSITION_CLOSED_SENTENCE(event.position.title),
       timestamp: event.createdAt,
-      href:
-        event.position.deletedAt === null
-          ? `/positions/${event.position.id}`
-          : undefined,
+      href: `/positions/${event.position.id}`,
     }));
 
   // closesAt is guaranteed non-null by the query's where — narrow, not cast.
@@ -127,12 +130,10 @@ export const getActivityGroups = cache(async function getActivityGroups(
       statusVariant: POSITION_STATUS_BADGE_VARIANT.closed,
       sentence: POSITION_CLOSED_BY_DATE_SENTENCE(position.title),
       timestamp: position.closesAt,
-      href:
-        position.deletedAt === null ? `/positions/${position.id}` : undefined,
+      href: `/positions/${position.id}`,
     }));
 
   // deletedAt is guaranteed non-null by the query's where — narrow, not cast.
-  // Not linked — the position page no longer exists.
   const deletionItems: ActivityItem[] = deletions
     .filter(
       (position): position is typeof position & { deletedAt: Date } =>
@@ -143,17 +144,18 @@ export const getActivityGroups = cache(async function getActivityGroups(
       statusVariant: POSITION_DELETED_BADGE_VARIANT,
       sentence: POSITION_DELETED_SENTENCE(position.title),
       timestamp: position.deletedAt,
+      href: `/positions/${position.id}`,
     }));
 
-  const reviewedItems = [
+  const sorted = [
     ...applicationItems,
     ...openingItems,
     ...closedItems,
     ...deadlineCloseItems,
     ...deletionItems,
-  ]
-    .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-    .slice(0, ACTIVITY_TAKE);
+  ].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+  const reviewedItems = limitActivityItems(sorted);
 
   return { scope, mine, reviewed: reviewedItems };
 });

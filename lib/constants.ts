@@ -702,6 +702,9 @@ export const APPLICATION_DRAFT_NOT_WITHDRAWABLE_MESSAGE =
 
 export const RECENTLY_CLOSED_WINDOW_DAYS = 7;
 
+// Maximum items per group in the activity panel.
+export const ACTIVITY_MAX_ITEMS = 50;
+
 // Sole owners of the applicant deadline-urgency boundaries — shared by
 // getDeadlineInfo and the at-risk query in prisma/data/applications.ts.
 export const DEADLINE_SOON_DAYS = 7;
