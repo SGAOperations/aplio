@@ -1,6 +1,8 @@
 import { BYPASS_USERS } from '@/lib/bypass-users';
 
+import { LONG_TITLE_POSITION_TITLE } from './positions';
 import type { ApplicationDef } from './types';
+import { LONG_NAME_APPLICANT_EMAIL } from './users';
 
 // Every ApplicationStatus appears once, plus the deliberate edge cases below.
 export const applicationDefs: ApplicationDef[] = [
@@ -81,12 +83,14 @@ export const applicationDefs: ApplicationDef[] = [
     submittedInDays: 5,
     answers: 'full',
   },
+  // Snapshot differs from Bob's current name — the renamed-applicant scenario.
   {
     applicantEmail: 'bob@example.com',
     positionTitle: 'Student Advocate',
     status: 'interview_scheduled',
     submittedInDays: 40,
     answers: 'full',
+    applicantNameAtSubmit: 'Robert Martinez',
   },
   {
     applicantEmail: 'carol@example.com',
@@ -132,6 +136,87 @@ export const applicationDefs: ApplicationDef[] = [
     positionTitle: 'Historian',
     status: 'applied',
     submittedInDays: 91,
+    answers: 'full',
+  },
+  // closed_by_date: the position is open but its deadline already passed.
+  {
+    applicantEmail: BYPASS_USERS.applicant.email,
+    positionTitle: 'Director of Academic Affairs',
+    status: 'draft',
+    answers: 'partial',
+  },
+  // Withdrawn on an open position with no close date — Edit & resubmit stays enabled.
+  {
+    applicantEmail: BYPASS_USERS.applicant.email,
+    positionTitle: 'Director of Student Wellness',
+    status: 'withdrawn',
+    submittedInDays: 10,
+    answers: 'full',
+  },
+  // The PM's own draft, on a position that hasn't opened yet.
+  {
+    applicantEmail: BYPASS_USERS['position-manager'].email,
+    positionTitle: 'Senator — College of Science',
+    status: 'draft',
+    answers: 'partial',
+  },
+  // Withdraw-and-resubmit trail, so one history panel shows the round trip.
+  {
+    applicantEmail: 'frank@example.com',
+    positionTitle: 'Senator — College of Engineering',
+    status: 'reached_out',
+    submittedInDays: 5,
+    answers: 'full',
+    trail: ['applied', 'withdrawn', 'applied', 'reached_out'],
+  },
+  {
+    applicantEmail: 'hana@example.com',
+    positionTitle: 'Senator — College of Engineering',
+    status: 'reviewing',
+    submittedInDays: 12,
+    answers: 'full',
+  },
+  {
+    applicantEmail: 'ivan@example.com',
+    positionTitle: 'Senator — College of Engineering',
+    status: 'accepted',
+    submittedInDays: 25,
+    answers: 'full',
+  },
+  {
+    applicantEmail: 'julia@example.com',
+    positionTitle: 'Senator — College of Engineering',
+    status: 'rejected',
+    submittedInDays: 15,
+    answers: 'full',
+  },
+  {
+    applicantEmail: 'kofi@example.com',
+    positionTitle: 'Senator — College of Engineering',
+    status: 'withdrawn',
+    submittedInDays: 18,
+    answers: 'full',
+  },
+  // Shown by email on the Engineering queue — the name-gate scenario.
+  {
+    applicantEmail: 'no-name@example.com',
+    positionTitle: 'Senator — College of Engineering',
+    status: 'draft',
+    answers: 'partial',
+  },
+  // Zero profile answers — the applicant's profile carries none to copy.
+  {
+    applicantEmail: 'priya@example.com',
+    positionTitle: 'Director of Student Wellness',
+    status: 'draft',
+    answers: 'none',
+  },
+  // Long name, long title, long answers — wrapping/truncation checks.
+  {
+    applicantEmail: LONG_NAME_APPLICANT_EMAIL,
+    positionTitle: LONG_TITLE_POSITION_TITLE,
+    status: 'applied',
+    submittedInDays: 2,
     answers: 'full',
   },
 ];

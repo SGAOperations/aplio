@@ -1,5 +1,7 @@
 import type {
   ApplicationStatus,
+  EmailStatus,
+  EmailTemplateKey,
   PositionStatus,
   QuestionType,
 } from '../client';
@@ -29,10 +31,13 @@ export interface PositionDef {
 
 export interface ApplicantDef {
   email: string;
-  name: string;
+  // null models a user with no name at all — the name-gate scenario.
+  name: string | null;
   isAdmin?: boolean;
   // Born deactivated, to exercise that path without a separate step.
   deactivated?: boolean;
+  // Minutes before `now`. Omitted models "never signed in".
+  lastLoginMinutesAgo?: number;
 }
 
 export type ApplicationAnswerMode = 'full' | 'partial' | 'none';
@@ -45,4 +50,22 @@ export interface ApplicationDef {
   submittedInDays?: number;
   // 'partial' mirrors createDraftApplication: profile answers copied, position blank.
   answers: ApplicationAnswerMode;
+  // Overrides the applicant's current name in the submitted snapshot — the renamed-applicant scenario.
+  applicantNameAtSubmit?: string;
+  // Overrides defaultStatusTrail(status) — for a status reached by an unusual path.
+  trail?: ApplicationStatus[];
+  // Merged over positionAnswers[title] by question label.
+  positionAnswerOverrides?: Record<string, string[]>;
+}
+
+export interface EmailLogDef {
+  template: EmailTemplateKey;
+  status: EmailStatus;
+  to: string;
+  userEmail?: string;
+  application?: { applicantEmail: string; positionTitle: string };
+  subject: string;
+  hoursAgo: number;
+  bounceType?: 'Permanent' | 'Transient';
+  error?: string;
 }
