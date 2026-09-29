@@ -1,6 +1,5 @@
 import { PositionCardSkeleton } from '@/components/features/position-card';
 import { PageHeaderSkeleton } from '@/components/layouts/page-header';
-import { DataTableToolbarSkeleton } from '@/components/ui/data-table-toolbar';
 import { Skeleton } from '@/components/ui/skeleton';
 
 function PositionGroupSkeleton({ count }: { count: number }) {
@@ -25,7 +24,7 @@ export default function ManagePositionsLoading() {
       <PageHeaderSkeleton
         actionsContent={
           <div className="flex items-center gap-2">
-            <DataTableToolbarSkeleton fields={['sm:w-64']} hasTrailingCount />
+            <Skeleton className="h-11 w-full sm:w-64 md:h-9" />
             <Skeleton className="h-11 w-36 md:h-9" />
           </div>
         }

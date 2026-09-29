@@ -1,6 +1,5 @@
 import { PositionCardSkeleton } from '@/components/features/position-card';
 import { PageHeaderSkeleton } from '@/components/layouts/page-header';
-import { DataTableToolbarSkeleton } from '@/components/ui/data-table-toolbar';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function PositionsLoading() {
@@ -8,9 +7,7 @@ export default function PositionsLoading() {
     <div className="flex flex-col gap-8">
       <PageHeaderSkeleton
         titleWidth="w-40"
-        actionsContent={
-          <DataTableToolbarSkeleton fields={['sm:w-64']} hasTrailingCount />
-        }
+        actionsContent={<Skeleton className="h-11 w-full sm:w-64 md:h-9" />}
       />
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-2">
