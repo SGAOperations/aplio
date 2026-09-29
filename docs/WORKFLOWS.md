@@ -123,11 +123,12 @@ Anyone not signed in. The only routes they can use are `/positions`, `/positions
 ### AN-1 Browse positions
 
 - **Trigger** — the logo, the Positions nav item, or a direct visit to `/positions`.
-- **Happy path** — `getOpenPositions()` and `getRecentlyClosedPositions()` run in parallel. The page renders an **Open Positions** section (always rendered, including positions the viewer manages — nothing is filtered out), ordered by closing date soonest first, then positions with no closing date (by `opensAt`, most recently opened first), then title, and a **Recently Closed** section (omitted when empty; positions closed within `RECENTLY_CLOSED_WINDOW_DAYS` = 7). Every viewer — anonymous, applicant, manager or admin — sees the identical browse list; the manage workbench lives at its own route ([PM-2](#pm-2-see-the-positions-you-manage)). A signed-in viewer's own applications also mark the relevant cards ([AP-17](#ap-17-see-which-positions-youve-already-applied-to)). Each `PositionCard` links to the detail page.
+- **Happy path** — `getOpenPositions()` and `getRecentlyClosedPositions()` run in parallel. The page renders a **Search** toolbar (title-only, `?q=` URL state, shareable) and an **Open Positions** section (always rendered, including positions the viewer manages — nothing is filtered out), ordered by closing date soonest first, then positions with no closing date (by `opensAt`, most recently opened first), then title, and a **Recently Closed** section (omitted when empty; positions closed within `RECENTLY_CLOSED_WINDOW_DAYS` = 7). Every viewer — anonymous, applicant, manager or admin — sees the identical browse list; the manage workbench lives at its own route ([PM-2](#pm-2-see-the-positions-you-manage)). A signed-in viewer's own applications also mark the relevant cards ([AP-17](#ap-17-see-which-positions-youve-already-applied-to)). Each `PositionCard` links to the detail page.
+- **Filtering** — client-side, title-only substring match, no debounce. Sections with no matches collapse; a query that matches nothing shows a single `EmptyState` with a **Clear search** action. The toolbar and section group headers unmount with their section when filtering removes all content.
 - **Failure / edge**
-  - No open positions → `EmptyState` "No open positions" · "Check back later for open positions."; the page still renders.
+  - No open positions → `EmptyState` "No open positions" · "Check back later for open positions."; the page still renders. No toolbar when the combined position list is empty.
   - Draft positions never appear — `PUBLISHED_POSITION_WHERE` excludes them.
-  - Slow fetch → `positions/loading.tsx`.
+  - Slow fetch → `positions/loading.tsx` (includes a toolbar skeleton).
 - **End state** — read-only. Nothing is written.
 
 ### AN-2 View a position
@@ -206,7 +207,7 @@ Anyone not signed in. The only routes they can use are `/positions`, `/positions
 
 ### Known open
 
-- `/positions` has no search, filter or sort — it renders every open position as a flat card list, so it degrades as the catalogue grows. `/manage/applications` has the only filtering UI in the app.
+- `/positions` has title-only search (no filter or sort). `/manage/applications` has the only status/applicant filter in the app.
 
 ---
 
@@ -427,11 +428,12 @@ A user who manages at least one non-deleted position. Manager status is **derive
 ### PM-2 See the positions you manage
 
 - **Trigger** — **Manage Positions** under **Manage** (`/manage/positions`).
-- **Happy path** — `requireManagerOrAdminOr404()` gates the route. `getManagedPositions(user.id)` plus per-position application stats render as three sections, in order — **Open**, **Closed**, **Draft** — each with its own heading and a count of its positions (e.g. Open (5); Closed's count includes archived positions), omitted entirely when it has no positions. Grouping keys off derived availability (`groupManagedPositions`, `lib/utils.ts`): an `open` position past its `closesAt` lands under Closed, matching its "Closed" badge, not under Open. Within Open the soonest `closesAt` sorts first (nulls last); within Closed the most recently closed sorts first; within Draft, `opensAt` sorts first (nulls last). Closed nests the active/archived split — non-archived cards first, then a collapsed **Archived (N)** disclosure for anything `!isPositionActive`. A **New position** action sits in the header, under "Manage Positions" · "Track applications and edit the positions you manage." Positions you manage also keep appearing in the Open Positions list on `/positions` ([AN-1](#an-1-browse-positions)) — the browse page never filters them out. Each card's stat cluster shows **Drafts & withdrawn** beside **Submitted** (the sum of the pipeline six, matching the dashboard Total), over Applied / In progress / Accepted / Rejected, where In progress sums Reached out + Interview scheduled + Reviewing.
+- **Happy path** — `requireManagerOrAdminOr404()` gates the route. `getManagedPositions(user.id)` plus per-position application stats render as a **Search** toolbar (title-only, `?q=` URL state, shareable) and three sections, in order — **Open**, **Closed**, **Draft** — each with its own heading and a count of its positions (e.g. Open (5); Closed's count includes archived positions), omitted entirely when it has no positions. Grouping keys off derived availability (`groupManagedPositions`, `lib/utils.ts`): an `open` position past its `closesAt` lands under Closed, matching its "Closed" badge, not under Open. Within Open the soonest `closesAt` sorts first (nulls last); within Closed the most recently closed sorts first; within Draft, `opensAt` sorts first (nulls last). Closed nests the active/archived split — non-archived cards first, then a collapsed **Archived (N)** disclosure for anything `!isPositionActive`. A **New position** action sits in the header, under "Manage Positions" · "Track applications and edit the positions you manage." Positions you manage also keep appearing in the Open Positions list on `/positions` ([AN-1](#an-1-browse-positions)) — the browse page never filters them out. Each card's stat cluster shows **Drafts & withdrawn** beside **Submitted** (the sum of the pipeline six, matching the dashboard Total), over Applied / In progress / Accepted / Rejected, where In progress sums Reached out + Interview scheduled + Reviewing.
+- **Filtering** — client-side, title-only substring match. Sections with no matches collapse and their section-nav entry disappears. An archived match auto-expands the Archived disclosure and labels it "Archived (N of M)"; collapsing while still searching sticks until the query changes. A query matching nothing shows a single `EmptyState` with a **Clear search** action. The "Nothing closed recently" line and the toolbar count update in real time.
 - **Failure / edge**
   - Not a manager or admin → `notFound()` ([XC-4](#xc-4-denial-shape)); the nav item is not rendered for them either.
-  - Closed has no non-archived positions but does have archived ones → "Nothing closed recently — expand Archived below to see older positions."
-  - Managing nothing at all (defensive; `isManager` would already have 404'd) → "No positions yet" · "Positions you manage appear here. Create one to start accepting applications."
+  - Closed has no non-archived positions but does have archived ones → "Nothing closed recently — expand Archived below to see older positions." (hidden while filtering so only the Archived disclosure is visible).
+  - Managing nothing at all (defensive; `isManager` would already have 404'd) → "No positions yet" · "Positions you manage appear here. Create one to start accepting applications." No toolbar in this state.
 - **End state** — read-only. Admins who also manage positions see a split layout — see [AD-1](#ad-1-see-every-position).
 
 ### PM-3 Create a position

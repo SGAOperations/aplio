@@ -4,6 +4,7 @@ import {
   type DataTableColumn,
   compareValues,
   filterRows,
+  matchesSearchQuery,
   sortRows,
 } from '@/lib/data-table';
 
@@ -127,6 +128,49 @@ const lastLoginColumn: DataTableColumn<DatedRow> = {
   cell: (r) => r.lastLoginAt?.toISOString() ?? '',
   sortAccessor: (r) => r.lastLoginAt,
 };
+
+describe('matchesSearchQuery', () => {
+  it('returns true for an empty query', () => {
+    expect(matchesSearchQuery('Treasurer', '')).toBe(true);
+  });
+
+  it('returns true for a whitespace-only query', () => {
+    expect(matchesSearchQuery('Treasurer', '   ')).toBe(true);
+  });
+
+  it('returns false for a null value with a non-empty query', () => {
+    expect(matchesSearchQuery(null, 'treas')).toBe(false);
+  });
+
+  it('matches case-insensitively', () => {
+    expect(matchesSearchQuery('Treasurer', 'TREAS')).toBe(true);
+    expect(matchesSearchQuery('treasurer', 'Treas')).toBe(true);
+  });
+
+  it('matches a substring', () => {
+    expect(matchesSearchQuery('Treasurer', 'eas')).toBe(true);
+    expect(matchesSearchQuery('Treasurer', 'zzzz')).toBe(false);
+  });
+
+  it('trims leading/trailing spaces from the query', () => {
+    expect(matchesSearchQuery('Treasurer', '  treas  ')).toBe(true);
+  });
+
+  it('returns true when any element of an array value matches', () => {
+    expect(matchesSearchQuery(['Treasurer', 'Secretary'], 'secretary')).toBe(
+      true,
+    );
+  });
+
+  it('returns false when no element of an array value matches', () => {
+    expect(matchesSearchQuery(['Treasurer', 'Secretary'], 'zzzz')).toBe(false);
+  });
+
+  it('returns true for an empty query regardless of value type', () => {
+    expect(matchesSearchQuery(null, '')).toBe(true);
+    expect(matchesSearchQuery(['Treasurer'], '')).toBe(true);
+  });
+});
 
 describe('sortRows', () => {
   it('orders dated rows oldest-first ascending, with nulls last', () => {
