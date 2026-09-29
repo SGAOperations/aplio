@@ -49,7 +49,7 @@ function PositionGroup({
     >
       <Heading
         id={headingId}
-        className={`flex items-center gap-2 ${nested ? 'text-base font-semibold' : 'text-lg font-semibold'}`}
+        className={`flex items-center gap-2 font-semibold ${nested ? 'text-base' : 'text-lg'}`}
       >
         <Icon className="text-muted-foreground size-4" />
         {title}
