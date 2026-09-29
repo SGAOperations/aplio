@@ -44,4 +44,6 @@ export const globalQuestionDefs: QuestionDef[] = [
     type: 'long_answer',
     required: false,
   },
+  // Optional: a required file question would make every existing profile incomplete.
+  { order: 9, label: 'Resume', type: 'file_upload', required: false },
 ];

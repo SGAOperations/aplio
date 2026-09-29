@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
+  ACTIVITY_MAX_ITEMS,
   MANAGED_POSITIONS_WINDOW_DAYS,
   OTP_RESEND_COOLDOWN_SECONDS,
 } from '@/lib/constants';
@@ -48,6 +49,7 @@ import {
   isOpenPastCloseDate,
   isPositionActive,
   isSameIdSet,
+  limitActivityItems,
   orderManagedPositions,
   partitionAnswerValue,
   resolveGlobalAnswerValues,
@@ -2130,5 +2132,31 @@ describe('getPublicStatusSince', () => {
     expect(getPublicStatusSince('accepted', events, FALLBACK)).toEqual(
       FALLBACK,
     );
+  });
+});
+
+describe('limitActivityItems', () => {
+  it('returns all items when count is below the cap', () => {
+    const items = Array.from({ length: 10 }, (_, i) => ({ id: i }));
+    expect(limitActivityItems(items)).toEqual(items);
+  });
+
+  it('returns all items when count equals the cap exactly', () => {
+    const items = Array.from({ length: ACTIVITY_MAX_ITEMS }, (_, i) => ({
+      id: i,
+    }));
+    expect(limitActivityItems(items)).toHaveLength(ACTIVITY_MAX_ITEMS);
+    expect(limitActivityItems(items)).toEqual(items);
+  });
+
+  it('returns exactly 50 items when count exceeds the cap', () => {
+    const items = Array.from({ length: 75 }, (_, i) => ({ id: i }));
+    const result = limitActivityItems(items);
+    expect(result).toHaveLength(ACTIVITY_MAX_ITEMS);
+    expect(result).toEqual(items.slice(0, ACTIVITY_MAX_ITEMS));
+  });
+
+  it('returns empty array for empty input', () => {
+    expect(limitActivityItems([])).toEqual([]);
   });
 });

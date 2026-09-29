@@ -403,7 +403,7 @@ export async function getRecentPositionStatusEvents(
       from: true,
       to: true,
       createdAt: true,
-      position: { select: { id: true, title: true, deletedAt: true } },
+      position: { select: { id: true, title: true } },
     },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take,
@@ -417,14 +417,12 @@ export async function getRecentPositionDeadlineCloses(
   take: number,
 ): Promise<PositionDeadlineCloseActivity[]> {
   const now = new Date();
-  const cutoff = new Date(now);
-  cutoff.setDate(cutoff.getDate() - RECENTLY_CLOSED_WINDOW_DAYS);
 
   const positions = await prisma.position.findMany({
     where: {
       ...buildPositionHistoryWhere(reviewer),
       status: 'open',
-      closesAt: { gte: cutoff, lte: now },
+      closesAt: { lte: now },
     },
     select: { id: true, title: true, closesAt: true, deletedAt: true },
     orderBy: [{ closesAt: 'desc' }, { id: 'desc' }],

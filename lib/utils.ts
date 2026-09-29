@@ -4,6 +4,7 @@ import { twMerge } from 'tailwind-merge';
 import type { $Enums, PositionStatus } from '@/prisma/client';
 
 import {
+  ACTIVITY_MAX_ITEMS,
   APPLICANT_ACTION_BLOCKED_REASONS,
   APPLICATION_STATUS_LABELS,
   DEADLINE_SOON_DAYS,
@@ -988,4 +989,8 @@ export function countBulkEmailRecipients(
   return rows.filter(
     (r) => !isNonReviewableApplicationStatus(r.status) && r.status !== target,
   ).length;
+}
+
+export function limitActivityItems<T>(items: T[]): T[] {
+  return items.slice(0, ACTIVITY_MAX_ITEMS);
 }
