@@ -79,7 +79,6 @@ export default async function ManagePositionsPage() {
       <div className="flex flex-col gap-10">
         <PageHeader
           title="Manage Positions"
-          description="Positions you manage first, then every other position."
           actions={
             <PositionCreateDialog
               isAdmin={user.isAdmin}

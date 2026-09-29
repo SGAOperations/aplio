@@ -72,7 +72,7 @@ function PositionGroup({
   );
 }
 
-// Groups by availability (lib/utils.ts); Closed nests the isPositionActive active/archived split.
+// Groups by availability (lib/utils.ts); Archived is its own section below Draft.
 export function ManagedPositionsSection({
   positions,
   statsByPosition,
@@ -110,7 +110,7 @@ export function ManagedPositionsSection({
         />
       )}
 
-      {closed.length > 0 && (
+      {closedActive.length > 0 && (
         <PositionGroup
           sectionId={`${prefix}closed`}
           headingId={`${prefix}closed-heading`}
@@ -119,31 +119,6 @@ export function ManagedPositionsSection({
           positions={closedActive}
           statsByPosition={statsByPosition}
           nested={nested}
-          trailing={
-            <>
-              {closedActive.length === 0 && (
-                <p className="text-muted-foreground text-xs">
-                  Nothing closed recently — expand Archived below to see older
-                  positions.
-                </p>
-              )}
-              {closedArchived.length > 0 && (
-                <ArchivedPositionsCollapsible count={closedArchived.length}>
-                  <div className="flex flex-col gap-4">
-                    {closedArchived.map((position) => (
-                      <PositionCard
-                        key={position.id}
-                        position={position}
-                        canManage={true}
-                        isAuthenticated={true}
-                        applicationStats={statsByPosition.get(position.id)}
-                      />
-                    ))}
-                  </div>
-                </ArchivedPositionsCollapsible>
-              )}
-            </>
-          }
         />
       )}
 
@@ -157,6 +132,22 @@ export function ManagedPositionsSection({
           statsByPosition={statsByPosition}
           nested={nested}
         />
+      )}
+
+      {closedArchived.length > 0 && (
+        <ArchivedPositionsCollapsible count={closedArchived.length}>
+          <div className="flex flex-col gap-4">
+            {closedArchived.map((position) => (
+              <PositionCard
+                key={position.id}
+                position={position}
+                canManage={true}
+                isAuthenticated={true}
+                applicationStats={statsByPosition.get(position.id)}
+              />
+            ))}
+          </div>
+        </ArchivedPositionsCollapsible>
       )}
     </div>
   );
