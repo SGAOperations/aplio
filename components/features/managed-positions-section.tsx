@@ -25,6 +25,7 @@ interface PositionGroupProps {
   icon: LucideIcon;
   positions: ManagedPosition[];
   statsByPosition: Map<string, PositionApplicationStats>;
+  count: number;
   trailing?: ReactNode;
   nested?: boolean;
 }
@@ -36,6 +37,7 @@ function PositionGroup({
   icon: Icon,
   positions,
   statsByPosition,
+  count,
   trailing,
   nested,
 }: PositionGroupProps) {
@@ -53,6 +55,9 @@ function PositionGroup({
       >
         <Icon className="text-muted-foreground size-4" />
         {title}
+        <span className="text-muted-foreground font-normal tabular-nums">
+          ({count})
+        </span>
       </Heading>
       {positions.length > 0 && (
         <div className="flex flex-col gap-4">
@@ -72,7 +77,7 @@ function PositionGroup({
   );
 }
 
-// Groups by availability (lib/utils.ts); Archived is its own section below Draft.
+// Groups by availability (lib/utils.ts); Archived is nested inside Closed's trailing.
 export function ManagedPositionsSection({
   positions,
   statsByPosition,
@@ -106,11 +111,12 @@ export function ManagedPositionsSection({
           icon={POSITION_STATUS_ICONS.open}
           positions={open}
           statsByPosition={statsByPosition}
+          count={open.length}
           nested={nested}
         />
       )}
 
-      {closedActive.length > 0 && (
+      {closed.length > 0 && (
         <PositionGroup
           sectionId={`${prefix}closed`}
           headingId={`${prefix}closed-heading`}
@@ -118,7 +124,33 @@ export function ManagedPositionsSection({
           icon={POSITION_STATUS_ICONS.closed}
           positions={closedActive}
           statsByPosition={statsByPosition}
+          count={closed.length}
           nested={nested}
+          trailing={
+            <>
+              {closedActive.length === 0 && (
+                <p className="text-muted-foreground text-sm">
+                  Nothing closed recently — expand Archived below to see older
+                  positions.
+                </p>
+              )}
+              {closedArchived.length > 0 && (
+                <ArchivedPositionsCollapsible count={closedArchived.length}>
+                  <div className="flex flex-col gap-4">
+                    {closedArchived.map((position) => (
+                      <PositionCard
+                        key={position.id}
+                        position={position}
+                        canManage={true}
+                        isAuthenticated={true}
+                        applicationStats={statsByPosition.get(position.id)}
+                      />
+                    ))}
+                  </div>
+                </ArchivedPositionsCollapsible>
+              )}
+            </>
+          }
         />
       )}
 
@@ -130,24 +162,9 @@ export function ManagedPositionsSection({
           icon={POSITION_STATUS_ICONS.draft}
           positions={draft}
           statsByPosition={statsByPosition}
+          count={draft.length}
           nested={nested}
         />
-      )}
-
-      {closedArchived.length > 0 && (
-        <ArchivedPositionsCollapsible count={closedArchived.length}>
-          <div className="flex flex-col gap-4">
-            {closedArchived.map((position) => (
-              <PositionCard
-                key={position.id}
-                position={position}
-                canManage={true}
-                isAuthenticated={true}
-                applicationStats={statsByPosition.get(position.id)}
-              />
-            ))}
-          </div>
-        </ArchivedPositionsCollapsible>
       )}
     </div>
   );
