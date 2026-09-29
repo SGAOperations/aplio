@@ -61,6 +61,7 @@ interface PageHeaderSkeletonProps {
   hasAdornment?: boolean;
   hasBack?: boolean;
   actions?: string[];
+  actionsContent?: ReactNode;
   actionSize?: 'sm' | 'default';
 }
 
@@ -70,8 +71,10 @@ export function PageHeaderSkeleton({
   hasAdornment = false,
   hasBack = false,
   actions,
+  actionsContent,
   actionSize = 'default',
 }: PageHeaderSkeletonProps) {
+  const hasActions = actionsContent != null || (actions && actions.length > 0);
   return (
     <div className={WRAPPER_CLASS}>
       {hasBack && <Skeleton className="mb-2 h-11 w-32 md:h-8" />}
@@ -83,17 +86,18 @@ export function PageHeaderSkeleton({
           </div>
           {hasDescription && <Skeleton className="mt-1 h-5 w-72" />}
         </div>
-        {actions && actions.length > 0 && (
+        {hasActions && (
           <div className={ACTIONS_CLASS}>
-            {actions.map((widthClass, i) => (
-              <Skeleton
-                key={i}
-                className={cn(
-                  actionSize === 'sm' ? 'h-11 md:h-8' : 'h-11 md:h-9',
-                  widthClass,
-                )}
-              />
-            ))}
+            {actionsContent ??
+              actions!.map((widthClass, i) => (
+                <Skeleton
+                  key={i}
+                  className={cn(
+                    actionSize === 'sm' ? 'h-11 md:h-8' : 'h-11 md:h-9',
+                    widthClass,
+                  )}
+                />
+              ))}
           </div>
         )}
       </div>

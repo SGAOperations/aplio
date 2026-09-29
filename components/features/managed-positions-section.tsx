@@ -4,7 +4,11 @@ import type { LucideIcon } from 'lucide-react';
 
 import { CONCEPT_ICONS, POSITION_STATUS_ICONS } from '@/lib/icons';
 import type { ManagedPosition, PositionApplicationStats } from '@/lib/types';
-import { groupManagedPositions, isPositionActive } from '@/lib/utils';
+import {
+  groupManagedPositions,
+  isPositionActive,
+  markdownToPlainText,
+} from '@/lib/utils';
 
 import { ArchivedPositionsCollapsible } from '@/components/features/archived-positions-collapsible';
 import { PositionCard } from '@/components/features/position-card';
@@ -72,7 +76,12 @@ function PositionGroup({
         <PositionSearchGroup ids={ids}>
           <div className="flex flex-col gap-4">
             {positions.map((position) => (
-              <PositionSearchItem key={position.id} id={position.id}>
+              <PositionSearchItem
+                key={position.id}
+                id={position.id}
+                title={position.title}
+                description={markdownToPlainText(position.description)}
+              >
                 <PositionCard
                   position={position}
                   canManage={true}
@@ -161,7 +170,14 @@ export function ManagedPositionsSection({
                   >
                     <div className="flex flex-col gap-4">
                       {closedArchived.map((position) => (
-                        <PositionSearchItem key={position.id} id={position.id}>
+                        <PositionSearchItem
+                          key={position.id}
+                          id={position.id}
+                          title={position.title}
+                          description={markdownToPlainText(
+                            position.description,
+                          )}
+                        >
                           <PositionCard
                             position={position}
                             canManage={true}
@@ -200,7 +216,15 @@ export function ManagedPositionsSection({
 
   if (noProvider) return content;
 
+  const searchItems = positions.map((p) => ({
+    id: p.id,
+    title: p.title,
+    description: markdownToPlainText(p.description),
+  }));
+
   return (
-    <PositionSearchProvider items={positions}>{content}</PositionSearchProvider>
+    <PositionSearchProvider items={searchItems}>
+      {content}
+    </PositionSearchProvider>
   );
 }

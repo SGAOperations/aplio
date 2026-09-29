@@ -36,7 +36,7 @@ const QUERY_PARSER = parseAsString
   .withOptions({ history: 'replace', shallow: true, scroll: false });
 
 interface PositionSearchProviderProps {
-  items: { id: string; title: string }[];
+  items: { id: string; title: string; description?: string }[];
   children: ReactNode;
 }
 
@@ -56,7 +56,11 @@ export function PositionSearchProvider({
       };
     const ids = new Set<string>();
     for (const item of items)
-      if (matchesSearchQuery(item.title, query)) ids.add(item.id);
+      if (
+        matchesSearchQuery(item.title, query) ||
+        (item.description && matchesSearchQuery(item.description, query))
+      )
+        ids.add(item.id);
     return { isFiltering: true, matchIds: ids, shown: ids.size };
   }, [query, items]);
 
@@ -78,6 +82,8 @@ export function PositionSearchProvider({
 
 interface PositionSearchItemProps {
   id: string;
+  title?: string;
+  description?: string;
   children: ReactNode;
 }
 

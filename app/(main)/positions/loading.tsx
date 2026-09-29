@@ -6,8 +6,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function PositionsLoading() {
   return (
     <div className="flex flex-col gap-8">
-      <PageHeaderSkeleton titleWidth="w-40" />
-      <DataTableToolbarSkeleton fields={['sm:w-64']} hasTrailingCount />
+      <PageHeaderSkeleton
+        titleWidth="w-40"
+        actionsContent={
+          <DataTableToolbarSkeleton fields={['sm:w-64']} hasTrailingCount />
+        }
+      />
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-2">
           <Skeleton className="size-4 rounded" />

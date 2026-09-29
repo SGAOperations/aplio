@@ -9,6 +9,7 @@ import {
 import { getOptionalUser, requireName } from '@/lib/auth/server';
 import { CONCEPT_ICONS, STATE_ICONS } from '@/lib/icons';
 import type { MyPositionApplication } from '@/lib/types';
+import { markdownToPlainText } from '@/lib/utils';
 
 import { PositionCard } from '@/components/features/position-card';
 import {
@@ -39,17 +40,21 @@ export default async function PositionsPage() {
   const items = [...openPositions, ...recentlyClosed].map((p) => ({
     id: p.id,
     title: p.title,
+    description: markdownToPlainText(p.description),
   }));
 
   return (
-    <div className="flex flex-col gap-8">
-      <PageHeader
-        title="Positions"
-        description="Browse open positions and apply."
-      />
-
-      <PositionSearchProvider items={items}>
-        {items.length > 0 && <PositionSearchToolbar id="positions-search" />}
+    <PositionSearchProvider items={items}>
+      <div className="flex flex-col gap-8">
+        <PageHeader
+          title="Positions"
+          description="Browse open positions and apply."
+          actions={
+            items.length > 0 ? (
+              <PositionSearchToolbar id="positions-search" />
+            ) : undefined
+          }
+        />
 
         {/* Open Positions — always rendered, even when empty */}
         <PositionSearchGroup ids={openPositions.map((p) => p.id)}>
@@ -73,7 +78,12 @@ export default async function PositionsPage() {
             ) : (
               <div className="flex flex-col gap-4">
                 {openPositions.map((position) => (
-                  <PositionSearchItem key={position.id} id={position.id}>
+                  <PositionSearchItem
+                    key={position.id}
+                    id={position.id}
+                    title={position.title}
+                    description={markdownToPlainText(position.description)}
+                  >
                     <PositionCard
                       position={position}
                       isAuthenticated={isAuthenticated}
@@ -102,7 +112,12 @@ export default async function PositionsPage() {
               </h2>
               <div className="flex flex-col gap-4">
                 {recentlyClosed.map((position) => (
-                  <PositionSearchItem key={position.id} id={position.id}>
+                  <PositionSearchItem
+                    key={position.id}
+                    id={position.id}
+                    title={position.title}
+                    description={markdownToPlainText(position.description)}
+                  >
                     <PositionCard
                       position={position}
                       isAuthenticated={isAuthenticated}
@@ -116,7 +131,7 @@ export default async function PositionsPage() {
         )}
 
         <PositionSearchEmpty />
-      </PositionSearchProvider>
-    </div>
+      </div>
+    </PositionSearchProvider>
   );
 }
