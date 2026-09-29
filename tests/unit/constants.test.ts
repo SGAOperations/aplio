@@ -7,6 +7,7 @@ import {
   ANSWER_OTHER_MAX_LENGTH,
   ANSWER_SHORT_MAX_LENGTH,
   APPLICATION_PIPELINE_STATUSES,
+  APPLICATION_STATUS_BADGE_VARIANT,
   APPLICATION_STATUS_LABELS,
   APPLICATION_STATUS_VALUES,
   EMAIL_STATUS_BADGE_VARIANT,
@@ -18,6 +19,8 @@ import {
   EMAIL_TEMPLATE_OPTIONS,
   EMAIL_TEMPLATE_VALUES,
   NON_TERMINAL_APPLICATION_STATUSES,
+  POSITION_CARD_DRAFT_WITHDRAWN_STATUSES,
+  POSITION_CARD_STAT_TILES,
   POSITION_CLOSES_AT_ORDER_ERROR,
   POSITION_CLOSES_AT_PAST_ERROR,
   POSITION_DATE_INCOMPLETE_ERROR,
@@ -843,5 +846,39 @@ describe('POSITION_TRANSITION_ACTIONS', () => {
       const actionTargets = Object.keys(POSITION_TRANSITION_ACTIONS[from]);
       expect(new Set(actionTargets)).toEqual(new Set(allowedTargets));
     }
+  });
+});
+
+describe('position card stat cluster', () => {
+  const tileStatuses = POSITION_CARD_STAT_TILES.flatMap((t) => t.statuses);
+
+  it('the header statuses plus every tile status cover each ApplicationStatus exactly once', () => {
+    const all = [...POSITION_CARD_DRAFT_WITHDRAWN_STATUSES, ...tileStatuses];
+    expect(new Set(all).size).toBe(all.length);
+    expect(new Set(all)).toEqual(new Set(APPLICATION_STATUS_VALUES));
+  });
+
+  it('the tiles cover exactly APPLICATION_PIPELINE_STATUSES, so Submitted equals the grid sum', () => {
+    expect(new Set(tileStatuses)).toEqual(
+      new Set(APPLICATION_PIPELINE_STATUSES),
+    );
+  });
+
+  it('every status within a tile shares one badge variant', () => {
+    for (const tile of POSITION_CARD_STAT_TILES) {
+      const variants = new Set(
+        tile.statuses.map((s) => APPLICATION_STATUS_BADGE_VARIANT[s]),
+      );
+      expect(variants.size).toBe(1);
+    }
+  });
+
+  it("the In progress tile's variant is 'warning'", () => {
+    const inProgressStatuses = POSITION_CARD_STAT_TILES.filter(
+      (t) => t.label === 'In progress',
+    ).flatMap((t) => t.statuses);
+    expect(inProgressStatuses.length).toBeGreaterThan(0);
+    for (const status of inProgressStatuses)
+      expect(APPLICATION_STATUS_BADGE_VARIANT[status]).toBe('warning');
   });
 });
