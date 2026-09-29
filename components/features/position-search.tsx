@@ -118,8 +118,8 @@ export function PositionSearchWhenIdle({
 
 /** Renders a "no matches" empty state when filtering returns zero results. */
 export function PositionSearchEmpty() {
-  const { isFiltering, shown, query, setQuery } = usePositionSearch();
-  if (!isFiltering || shown > 0) return null;
+  const { isFiltering, shown, total, query, setQuery } = usePositionSearch();
+  if (!isFiltering || shown > 0 || total === 0) return null;
   return (
     <EmptyState
       icon={STATE_ICONS.noResults}

@@ -27,7 +27,7 @@ export function ArchivedPositionsCollapsible({
 }: ArchivedPositionsCollapsibleProps) {
   const { isFiltering, matchIds, query } = usePositionSearch();
   const [userOpen, setUserOpen] = useState(false);
-  // Tracks the normalized query at which the user last dismissed the auto-expand.
+  // query at last auto-expand dismissal
   const [dismissedQuery, setDismissedQuery] = useState('');
 
   const total = ids.length;
