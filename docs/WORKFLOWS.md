@@ -432,7 +432,7 @@ A user who manages at least one non-deleted position. Manager status is **derive
   - Not a manager or admin → `notFound()` ([XC-4](#xc-4-denial-shape)); the nav item is not rendered for them either.
   - Closed has no non-archived positions but does have archived ones → "Nothing closed recently — expand Archived below to see older positions."
   - Managing nothing at all (defensive; `isManager` would already have 404'd) → "No positions yet" · "Positions you manage appear here. Create one to start accepting applications."
-- **End state** — read-only.
+- **End state** — read-only. Admins who also manage positions see a split layout — see [AD-1](#ad-1-see-every-position).
 
 ### PM-3 Create a position
 
@@ -608,9 +608,10 @@ An admin is a **manager on every position**: every [Position manager](#position-
 ### AD-1 See every position
 
 - **Trigger** — **Manage Positions** under **Manage** (`/manage/positions`).
-- **Happy path** — admins get the same `ManagedPositionsSection` Open/Closed/Draft grouping as [PM-2](#pm-2-see-the-positions-you-manage) (including its Archived disclosure and sort keys), but scoped to every position via `getAdminPositions()` instead of just the ones they manage — drafts included, with application stats on every card, under an "All Positions" heading and "Every position, with its application stats." description.
+- **Happy path** — when the admin manages no positions themselves (`getManagedPositions` is empty), the page renders exactly as today: a single `ManagedPositionsSection` Open/Closed/Draft grouping scoped to every position via `getAdminPositions()`, under an "All Positions" heading and "Every position, with its application stats." description. When the admin manages at least one position, both lists are fetched in parallel (`getAdminPositions` + `getManagedPositions`) and the page splits into two outer `PositionsScopeSection` blocks under "Manage Positions": **Positions You Manage (n)** shows only those positions, each with its usual Open/Closed/Draft grouping (headings demoted to `h3`); **All Other Positions (n)** shows every position from `getAdminPositions` not in the managed set, with the same inner grouping. The sidebar section nav lists only the two outer sections; the inner Open/Closed/Draft groups are reached by scrolling. Application stats come from one `getPositionApplicationStats` call over the union of both lists' ids, since `getManagedPositions` has no closed-age window and may surface archived positions that `getAdminPositions` drops.
 - **Failure / edge**
-  - No positions at all → `EmptyState` "No positions yet" · "Create your first position to start accepting applications." with the create action.
+  - No positions at all (admin manages none) → `EmptyState` "No positions yet" · "Create your first position to start accepting applications." with the create action.
+  - Admin manages every listed position → "All Other Positions (0)" renders with the muted line "Every position is one you manage." — the section still appears so the nav keeps both entries.
   - A draft position's detail page carries the callout "This position is a draft. Only its managers and admins can see this page. Set it to Open in Edit to make it visible to applicants."
 - **End state** — read-only.
 
