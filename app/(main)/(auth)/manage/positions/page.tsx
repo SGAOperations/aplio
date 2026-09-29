@@ -58,11 +58,11 @@ export default async function ManagePositionsPage() {
               actions={
                 allPositions.length > 0 ? (
                   <div className="flex items-center gap-2">
-                    <PositionSearchToolbar id="all-positions-search" />
                     <PositionCreateDialog
                       isAdmin={user.isAdmin}
                       currentUser={currentUser}
                     />
+                    <PositionSearchToolbar id="all-positions-search" />
                   </div>
                 ) : (
                   <PositionCreateDialog
@@ -113,11 +113,11 @@ export default async function ManagePositionsPage() {
             title="Manage Positions"
             actions={
               <div className="flex items-center gap-2">
-                <PositionSearchToolbar id="manage-positions-search" />
                 <PositionCreateDialog
                   isAdmin={user.isAdmin}
                   currentUser={currentUser}
                 />
+                <PositionSearchToolbar id="manage-positions-search" />
               </div>
             }
           />
@@ -180,11 +180,11 @@ export default async function ManagePositionsPage() {
           actions={
             managedPositions.length > 0 ? (
               <div className="flex items-center gap-2">
-                <PositionSearchToolbar id="manage-positions-search" />
                 <PositionCreateDialog
                   isAdmin={user.isAdmin}
                   currentUser={currentUser}
                 />
+                <PositionSearchToolbar id="manage-positions-search" />
               </div>
             ) : (
               <PositionCreateDialog
