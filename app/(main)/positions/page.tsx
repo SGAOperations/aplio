@@ -78,12 +78,7 @@ export default async function PositionsPage() {
             ) : (
               <div className="flex flex-col gap-4">
                 {openPositions.map((position) => (
-                  <PositionSearchItem
-                    key={position.id}
-                    id={position.id}
-                    title={position.title}
-                    description={markdownToPlainText(position.description)}
-                  >
+                  <PositionSearchItem key={position.id} id={position.id}>
                     <PositionCard
                       position={position}
                       isAuthenticated={isAuthenticated}
@@ -112,12 +107,7 @@ export default async function PositionsPage() {
               </h2>
               <div className="flex flex-col gap-4">
                 {recentlyClosed.map((position) => (
-                  <PositionSearchItem
-                    key={position.id}
-                    id={position.id}
-                    title={position.title}
-                    description={markdownToPlainText(position.description)}
-                  >
+                  <PositionSearchItem key={position.id} id={position.id}>
                     <PositionCard
                       position={position}
                       isAuthenticated={isAuthenticated}

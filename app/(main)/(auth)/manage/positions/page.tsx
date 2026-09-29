@@ -12,7 +12,10 @@ import { displayUserName, markdownToPlainText } from '@/lib/utils';
 
 import { ManagedPositionsSection } from '@/components/features/managed-positions-section';
 import { PositionCreateDialog } from '@/components/features/position-create-dialog';
-import { PositionSearchProvider } from '@/components/features/position-search';
+import {
+  PositionSearchEmpty,
+  PositionSearchProvider,
+} from '@/components/features/position-search';
 import { PositionSearchToolbar } from '@/components/features/position-search-toolbar';
 import { PageHeader } from '@/components/layouts/page-header';
 
@@ -81,6 +84,7 @@ export default async function ManagePositionsPage() {
               }
               noProvider
             />
+            <PositionSearchEmpty />
           </div>
         </PositionSearchProvider>
       );
@@ -149,6 +153,7 @@ export default async function ManagePositionsPage() {
               )}
             </PositionsScopeSection>
           </div>
+          <PositionSearchEmpty />
         </div>
       </PositionSearchProvider>
     );
@@ -201,6 +206,7 @@ export default async function ManagePositionsPage() {
           }
           noProvider
         />
+        <PositionSearchEmpty />
       </div>
     </PositionSearchProvider>
   );

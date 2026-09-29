@@ -82,8 +82,6 @@ export function PositionSearchProvider({
 
 interface PositionSearchItemProps {
   id: string;
-  title?: string;
-  description?: string;
   children: ReactNode;
 }
 

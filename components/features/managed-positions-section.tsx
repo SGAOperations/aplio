@@ -76,12 +76,7 @@ function PositionGroup({
         <PositionSearchGroup ids={ids}>
           <div className="flex flex-col gap-4">
             {positions.map((position) => (
-              <PositionSearchItem
-                key={position.id}
-                id={position.id}
-                title={position.title}
-                description={markdownToPlainText(position.description)}
-              >
+              <PositionSearchItem key={position.id} id={position.id}>
                 <PositionCard
                   position={position}
                   canManage={true}
@@ -170,14 +165,7 @@ export function ManagedPositionsSection({
                   >
                     <div className="flex flex-col gap-4">
                       {closedArchived.map((position) => (
-                        <PositionSearchItem
-                          key={position.id}
-                          id={position.id}
-                          title={position.title}
-                          description={markdownToPlainText(
-                            position.description,
-                          )}
-                        >
+                        <PositionSearchItem key={position.id} id={position.id}>
                           <PositionCard
                             position={position}
                             canManage={true}
@@ -210,7 +198,7 @@ export function ManagedPositionsSection({
         </PositionSearchGroup>
       )}
 
-      <PositionSearchEmpty />
+      {!noProvider && <PositionSearchEmpty />}
     </div>
   );
 
