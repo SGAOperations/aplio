@@ -77,7 +77,7 @@ function PositionGroup({
   );
 }
 
-// Groups by availability (lib/utils.ts); Archived is its own section below Draft.
+// Groups by availability (lib/utils.ts); Archived is nested inside Closed's trailing.
 export function ManagedPositionsSection({
   positions,
   statsByPosition,
