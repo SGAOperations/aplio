@@ -14,6 +14,8 @@ import { ManagedPositionsSection } from '@/components/features/managed-positions
 import { PositionCreateDialog } from '@/components/features/position-create-dialog';
 import { PageHeader } from '@/components/layouts/page-header';
 
+import { PositionsScopeSection } from './positions-scope-section';
+
 export const metadata: Metadata = { title: 'Manage Positions' };
 
 export default async function ManagePositionsPage() {
@@ -25,17 +27,59 @@ export default async function ManagePositionsPage() {
   };
 
   if (user.isAdmin) {
-    const positions = await getAdminPositions();
+    const [allPositions, managedPositions] = await Promise.all([
+      getAdminPositions(),
+      getManagedPositions(user.id),
+    ]);
+
+    if (managedPositions.length === 0) {
+      const statsByPosition =
+        allPositions.length > 0
+          ? await getPositionApplicationStats(allPositions.map((p) => p.id))
+          : new Map<string, PositionApplicationStats>();
+
+      return (
+        <div className="flex flex-col gap-6">
+          <PageHeader
+            title="All Positions"
+            description="Every position, with its application stats."
+            actions={
+              <PositionCreateDialog
+                isAdmin={user.isAdmin}
+                currentUser={currentUser}
+              />
+            }
+          />
+          <ManagedPositionsSection
+            positions={allPositions}
+            statsByPosition={statsByPosition}
+            emptyDescription="Create your first position to start accepting applications."
+            emptyAction={
+              <PositionCreateDialog
+                isAdmin={user.isAdmin}
+                currentUser={currentUser}
+              />
+            }
+          />
+        </div>
+      );
+    }
+
+    const managedIds = new Set(managedPositions.map((p) => p.id));
+    const otherPositions = allPositions.filter((p) => !managedIds.has(p.id));
+    const allIds = [
+      ...new Set([...managedPositions, ...allPositions].map((p) => p.id)),
+    ];
     const statsByPosition =
-      positions.length > 0
-        ? await getPositionApplicationStats(positions.map((p) => p.id))
+      allIds.length > 0
+        ? await getPositionApplicationStats(allIds)
         : new Map<string, PositionApplicationStats>();
 
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-10">
         <PageHeader
-          title="All Positions"
-          description="Every position, with its application stats."
+          title="Manage Positions"
+          description="Positions you manage first, then every other position."
           actions={
             <PositionCreateDialog
               isAdmin={user.isAdmin}
@@ -43,17 +87,36 @@ export default async function ManagePositionsPage() {
             />
           }
         />
-        <ManagedPositionsSection
-          positions={positions}
-          statsByPosition={statsByPosition}
-          emptyDescription="Create your first position to start accepting applications."
-          emptyAction={
-            <PositionCreateDialog
-              isAdmin={user.isAdmin}
-              currentUser={currentUser}
+        <div className="flex flex-col gap-10">
+          <PositionsScopeSection
+            id="managed-positions"
+            title="Positions You Manage"
+            count={managedPositions.length}
+          >
+            <ManagedPositionsSection
+              positions={managedPositions}
+              statsByPosition={statsByPosition}
+              nestedUnder="managed"
             />
-          }
-        />
+          </PositionsScopeSection>
+          <PositionsScopeSection
+            id="other-positions"
+            title="All Other Positions"
+            count={otherPositions.length}
+          >
+            {otherPositions.length > 0 ? (
+              <ManagedPositionsSection
+                positions={otherPositions}
+                statsByPosition={statsByPosition}
+                nestedUnder="other"
+              />
+            ) : (
+              <p className="text-muted-foreground text-sm">
+                Every position is one you manage.
+              </p>
+            )}
+          </PositionsScopeSection>
+        </div>
       </div>
     );
   }

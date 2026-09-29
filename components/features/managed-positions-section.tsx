@@ -15,6 +15,7 @@ interface ManagedPositionsSectionProps {
   statsByPosition: Map<string, PositionApplicationStats>;
   emptyDescription?: string;
   emptyAction?: ReactNode;
+  nestedUnder?: string;
 }
 
 interface PositionGroupProps {
@@ -25,6 +26,7 @@ interface PositionGroupProps {
   positions: ManagedPosition[];
   statsByPosition: Map<string, PositionApplicationStats>;
   trailing?: ReactNode;
+  nested?: boolean;
 }
 
 function PositionGroup({
@@ -35,21 +37,23 @@ function PositionGroup({
   positions,
   statsByPosition,
   trailing,
+  nested,
 }: PositionGroupProps) {
+  const Heading = nested ? 'h3' : 'h2';
   return (
     <section
       id={sectionId}
-      data-section-nav={title}
+      {...(!nested && { 'data-section-nav': title })}
       aria-labelledby={headingId}
       className="flex scroll-mt-6 flex-col gap-4"
     >
-      <h2
+      <Heading
         id={headingId}
-        className="flex items-center gap-2 text-lg font-semibold"
+        className={`flex items-center gap-2 ${nested ? 'text-base font-semibold' : 'text-lg font-semibold'}`}
       >
         <Icon className="text-muted-foreground size-4" />
         {title}
-      </h2>
+      </Heading>
       {positions.length > 0 && (
         <div className="flex flex-col gap-4">
           {positions.map((position) => (
@@ -74,6 +78,7 @@ export function ManagedPositionsSection({
   statsByPosition,
   emptyDescription,
   emptyAction,
+  nestedUnder,
 }: ManagedPositionsSectionProps) {
   if (positions.length === 0)
     return (
@@ -88,28 +93,32 @@ export function ManagedPositionsSection({
   const { open, closed, draft } = groupManagedPositions(positions);
   const closedActive = closed.filter((p) => isPositionActive(p));
   const closedArchived = closed.filter((p) => !isPositionActive(p));
+  const prefix = nestedUnder ? `${nestedUnder}-` : '';
+  const nested = Boolean(nestedUnder);
 
   return (
     <div className="flex flex-col gap-6">
       {open.length > 0 && (
         <PositionGroup
-          sectionId="open"
-          headingId="open-heading"
+          sectionId={`${prefix}open`}
+          headingId={`${prefix}open-heading`}
           title="Open"
           icon={POSITION_STATUS_ICONS.open}
           positions={open}
           statsByPosition={statsByPosition}
+          nested={nested}
         />
       )}
 
       {closed.length > 0 && (
         <PositionGroup
-          sectionId="closed"
-          headingId="closed-heading"
+          sectionId={`${prefix}closed`}
+          headingId={`${prefix}closed-heading`}
           title="Closed"
           icon={POSITION_STATUS_ICONS.closed}
           positions={closedActive}
           statsByPosition={statsByPosition}
+          nested={nested}
           trailing={
             <>
               {closedActive.length === 0 && (
@@ -140,12 +149,13 @@ export function ManagedPositionsSection({
 
       {draft.length > 0 && (
         <PositionGroup
-          sectionId="draft"
-          headingId="draft-heading"
+          sectionId={`${prefix}draft`}
+          headingId={`${prefix}draft-heading`}
           title="Draft"
           icon={POSITION_STATUS_ICONS.draft}
           positions={draft}
           statsByPosition={statsByPosition}
+          nested={nested}
         />
       )}
     </div>
