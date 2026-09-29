@@ -130,7 +130,15 @@ export function PositionCard({
                   {position.title}
                 </CardTitle>
                 {myApplication && (
-                  <ApplicationStatusBadge status={myApplication.status} />
+                  <div className="flex shrink-0 items-center gap-1">
+                    <ApplicationStatusBadge status={myApplication.status} />
+                    {isDraft && myApplication.completion && (
+                      <ProgressRing
+                        percent={myApplication.completion.percent}
+                        size="sm"
+                      />
+                    )}
+                  </div>
                 )}
               </div>
               <PositionStatusBadge position={position} />
@@ -183,21 +191,12 @@ export function PositionCard({
                 <>
                   {myApplication ? (
                     canContinueOrResubmit ? (
-                      <>
-                        <Button asChild size="sm">
-                          <Link href={`/positions/${position.id}/apply`}>
-                            <ACTION_ICONS.submit />
-                            {isDraft
-                              ? 'Continue application'
-                              : 'Edit & resubmit'}
-                          </Link>
-                        </Button>
-                        {isDraft && myApplication.completion && (
-                          <ProgressRing
-                            percent={myApplication.completion.percent}
-                          />
-                        )}
-                      </>
+                      <Button asChild size="sm">
+                        <Link href={`/positions/${position.id}/apply`}>
+                          <ACTION_ICONS.submit />
+                          {isDraft ? 'Continue application' : 'Edit & resubmit'}
+                        </Link>
+                      </Button>
                     ) : (
                       <Button asChild variant="outline" size="sm">
                         <Link
