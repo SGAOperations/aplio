@@ -233,7 +233,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       {
         key: 'managedPositions',
         header: 'Managed Positions',
-        headClassName: 'w-64',
+        headClassName: 'w-52',
         filterValue: (u) => u.managedPositions.map((p) => p.id),
         searchValue: (u) => u.managedPositions.map((p) => p.title),
         cell: (u) => {
