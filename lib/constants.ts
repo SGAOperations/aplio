@@ -505,7 +505,7 @@ export const FILTER_QUERY_MAX_LENGTH = 200;
 export const FILTER_SELECT_MAX_VISIBLE = 100;
 export const FILTER_SEARCH_DEBOUNCE_MS = 300;
 
-// Years (ending at the current org year) covered by a yearless date search query.
+// year span for yearless date searches
 export const DATE_SEARCH_YEAR_SPAN = 10;
 
 // Source of truth for "what comes next" — nothing else hardcodes an order.

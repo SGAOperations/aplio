@@ -143,8 +143,7 @@ const FULL_MONTH_NAMES = [
   'december',
 ];
 
-// -1 if not a valid month token; 0–11 (0=Jan) if it is.
-// Token must be ≥3 chars and be a prefix of a full month name (after stripping a trailing period).
+// -1 if no match; 0–11 (0=Jan). Token ≥3 chars, prefix of a full month name (trailing period stripped).
 function parseMonthToken(token: string): number {
   const t = token.endsWith('.') ? token.slice(0, -1) : token;
   if (t.length < 3) return -1;
