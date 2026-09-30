@@ -455,8 +455,7 @@ export type ActivityGroups = {
 };
 
 // Matches getRecentPositionStatusEvents's select in prisma/data/positions.ts.
-// No actor identity selected — changedBy never reaches the activity panel.
-// deletedAt drives whether the row links to the position page.
+// No actor identity selected; deletedAt gates the link.
 export type PositionStatusActivity = Prisma.PositionStatusEventGetPayload<{
   select: {
     id: true;
@@ -467,10 +466,8 @@ export type PositionStatusActivity = Prisma.PositionStatusEventGetPayload<{
   };
 }>;
 
-// Matches getRecentPositionDeadlineCloses's select — no event backs this row,
-// so closesAt itself (guaranteed non-null by that query's where) is the
-// timestamp; deletedAt drives both the post-fetch deletion filter and the
-// unlinked row.
+// No event backs this row; closesAt (non-null by the query's where) is the timestamp.
+// deletedAt drives both the post-fetch deletion filter and the unlinked-row branch.
 export type PositionDeadlineCloseActivity = Prisma.PositionGetPayload<{
   select: { id: true; title: true; closesAt: true; deletedAt: true };
 }>;
