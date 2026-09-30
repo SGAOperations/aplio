@@ -49,12 +49,8 @@ export default async function PositionsPage() {
         <PageHeader
           title="Positions"
           description="Browse open positions and apply."
-          actions={
-            items.length > 0 ? (
-              <PositionSearchToolbar id="positions-search" />
-            ) : undefined
-          }
         />
+        {items.length > 0 && <PositionSearchToolbar id="positions-search" />}
 
         {/* Open Positions — always rendered, even when empty */}
         <PositionSearchGroup ids={openPositions.map((p) => p.id)}>

@@ -23,9 +23,9 @@ export function PositionSearchToolbar({ id }: PositionSearchToolbarProps) {
     <div className="relative sm:w-64">
       <Input
         id={id}
-        placeholder="Search by title"
+        placeholder="Search by title or description"
         autoComplete="off"
-        aria-label="Search positions"
+        aria-label="Search positions by title or description"
         value={query}
         onChange={(e) => void setQuery(e.target.value || null)}
         onKeyDown={handleKeyDown}

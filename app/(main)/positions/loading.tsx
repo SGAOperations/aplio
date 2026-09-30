@@ -5,10 +5,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function PositionsLoading() {
   return (
     <div className="flex flex-col gap-8">
-      <PageHeaderSkeleton
-        titleWidth="w-40"
-        actionsContent={<Skeleton className="h-11 w-full sm:w-64 md:h-9" />}
-      />
+      <PageHeaderSkeleton titleWidth="w-40" />
+      <Skeleton className="h-11 w-full sm:w-64 md:h-9" />
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-2">
           <Skeleton className="size-4 rounded" />

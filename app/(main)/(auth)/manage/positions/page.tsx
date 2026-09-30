@@ -56,22 +56,15 @@ export default async function ManagePositionsPage() {
               title="All Positions"
               description="Every position, with its application stats."
               actions={
-                allPositions.length > 0 ? (
-                  <div className="flex items-center gap-2">
-                    <PositionCreateDialog
-                      isAdmin={user.isAdmin}
-                      currentUser={currentUser}
-                    />
-                    <PositionSearchToolbar id="all-positions-search" />
-                  </div>
-                ) : (
-                  <PositionCreateDialog
-                    isAdmin={user.isAdmin}
-                    currentUser={currentUser}
-                  />
-                )
+                <PositionCreateDialog
+                  isAdmin={user.isAdmin}
+                  currentUser={currentUser}
+                />
               }
             />
+            {allPositions.length > 0 && (
+              <PositionSearchToolbar id="all-positions-search" />
+            )}
             <ManagedPositionsSection
               positions={allPositions}
               statsByPosition={statsByPosition}
@@ -112,15 +105,13 @@ export default async function ManagePositionsPage() {
           <PageHeader
             title="Manage Positions"
             actions={
-              <div className="flex items-center gap-2">
-                <PositionCreateDialog
-                  isAdmin={user.isAdmin}
-                  currentUser={currentUser}
-                />
-                <PositionSearchToolbar id="manage-positions-search" />
-              </div>
+              <PositionCreateDialog
+                isAdmin={user.isAdmin}
+                currentUser={currentUser}
+              />
             }
           />
+          <PositionSearchToolbar id="manage-positions-search" />
           <div className="flex flex-col gap-10">
             <PositionsScopeSection
               id="managed-positions"
@@ -178,22 +169,15 @@ export default async function ManagePositionsPage() {
           title="Manage Positions"
           description="Track applications and edit the positions you manage."
           actions={
-            managedPositions.length > 0 ? (
-              <div className="flex items-center gap-2">
-                <PositionCreateDialog
-                  isAdmin={user.isAdmin}
-                  currentUser={currentUser}
-                />
-                <PositionSearchToolbar id="manage-positions-search" />
-              </div>
-            ) : (
-              <PositionCreateDialog
-                isAdmin={user.isAdmin}
-                currentUser={currentUser}
-              />
-            )
+            <PositionCreateDialog
+              isAdmin={user.isAdmin}
+              currentUser={currentUser}
+            />
           }
         />
+        {managedPositions.length > 0 && (
+          <PositionSearchToolbar id="manage-positions-search" />
+        )}
         <ManagedPositionsSection
           positions={managedPositions}
           statsByPosition={statsByPosition}
