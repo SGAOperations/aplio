@@ -6,6 +6,7 @@ import {
   formatRelativeTime,
   orgDayEnd,
   orgDayStart,
+  parseSubmittedDateQuery,
   previousOrgDay,
   toOrgDayString,
 } from '@/lib/dates';
@@ -178,5 +179,188 @@ describe('formatRelativeTime', () => {
     expect(formatRelativeTime(date, NOW)).toBe(
       formatInstant(date, { precision: 'date', timeZone: 'America/New_York' }),
     );
+  });
+});
+
+describe('parseSubmittedDateQuery', () => {
+  // Fixed now: noon UTC Sep 29, 2026 = 8 AM EDT → org year 2026, span 2017–2026.
+  const NOW = new Date('2026-09-29T12:00:00Z');
+
+  it('returns a full-year range for a bare 4-digit year', () => {
+    const [range] = parseSubmittedDateQuery('2026', NOW);
+    expect(range?.gte.toISOString()).toBe(
+      orgDayStart('2026-01-01').toISOString(),
+    );
+    expect(range?.lt.toISOString()).toBe(
+      orgDayStart('2027-01-01').toISOString(),
+    );
+  });
+
+  it('returns a month range for "Sep 2026"', () => {
+    const [range] = parseSubmittedDateQuery('Sep 2026', NOW);
+    expect(range?.gte.toISOString()).toBe(
+      orgDayStart('2026-09-01').toISOString(),
+    );
+    expect(range?.lt.toISOString()).toBe(
+      orgDayStart('2026-10-01').toISOString(),
+    );
+  });
+
+  it('returns a month range for "September 2026"', () => {
+    const [range] = parseSubmittedDateQuery('September 2026', NOW);
+    expect(range?.gte.toISOString()).toBe(
+      orgDayStart('2026-09-01').toISOString(),
+    );
+    expect(range?.lt.toISOString()).toBe(
+      orgDayStart('2026-10-01').toISOString(),
+    );
+  });
+
+  it('returns a month range for "2026 Sep" (backward form)', () => {
+    const [range] = parseSubmittedDateQuery('2026 Sep', NOW);
+    expect(range?.gte.toISOString()).toBe(
+      orgDayStart('2026-09-01').toISOString(),
+    );
+    expect(range?.lt.toISOString()).toBe(
+      orgDayStart('2026-10-01').toISOString(),
+    );
+  });
+
+  it('returns a day range for "Sep 29, 2026" (with comma)', () => {
+    const [range] = parseSubmittedDateQuery('Sep 29, 2026', NOW);
+    expect(range?.gte.toISOString()).toBe('2026-09-29T04:00:00.000Z');
+    expect(range?.lt.toISOString()).toBe('2026-09-30T04:00:00.000Z');
+  });
+
+  it('returns a day range for "Sep 29 2026"', () => {
+    const [range] = parseSubmittedDateQuery('Sep 29 2026', NOW);
+    expect(range?.gte.toISOString()).toBe('2026-09-29T04:00:00.000Z');
+    expect(range?.lt.toISOString()).toBe('2026-09-30T04:00:00.000Z');
+  });
+
+  it('returns a day range for "Sep. 29, 2026" (month with trailing period)', () => {
+    const [range] = parseSubmittedDateQuery('Sep. 29, 2026', NOW);
+    expect(range?.gte.toISOString()).toBe('2026-09-29T04:00:00.000Z');
+    expect(range?.lt.toISOString()).toBe('2026-09-30T04:00:00.000Z');
+  });
+
+  it('returns a day range for "9/29/2026"', () => {
+    const [range] = parseSubmittedDateQuery('9/29/2026', NOW);
+    expect(range?.gte.toISOString()).toBe('2026-09-29T04:00:00.000Z');
+    expect(range?.lt.toISOString()).toBe('2026-09-30T04:00:00.000Z');
+  });
+
+  it('returns a day range for "09/29/2026" (leading-zero form)', () => {
+    const [range] = parseSubmittedDateQuery('09/29/2026', NOW);
+    expect(range?.gte.toISOString()).toBe('2026-09-29T04:00:00.000Z');
+    expect(range?.lt.toISOString()).toBe('2026-09-30T04:00:00.000Z');
+  });
+
+  it('returns a month range for "9/2026"', () => {
+    const [range] = parseSubmittedDateQuery('9/2026', NOW);
+    expect(range?.gte.toISOString()).toBe(
+      orgDayStart('2026-09-01').toISOString(),
+    );
+    expect(range?.lt.toISOString()).toBe(
+      orgDayStart('2026-10-01').toISOString(),
+    );
+  });
+
+  it('returns a month range for "09/2026" (leading-zero form)', () => {
+    const [range] = parseSubmittedDateQuery('09/2026', NOW);
+    expect(range?.gte.toISOString()).toBe(
+      orgDayStart('2026-09-01').toISOString(),
+    );
+    expect(range?.lt.toISOString()).toBe(
+      orgDayStart('2026-10-01').toISOString(),
+    );
+  });
+
+  it('returns 10 month ranges for "September" (yearless, one per span year)', () => {
+    const ranges = parseSubmittedDateQuery('September', NOW);
+    expect(ranges).toHaveLength(10);
+    // Earliest: 2017
+    expect(ranges[0]?.gte.toISOString()).toBe(
+      orgDayStart('2017-09-01').toISOString(),
+    );
+    expect(ranges[0]?.lt.toISOString()).toBe(
+      orgDayStart('2017-10-01').toISOString(),
+    );
+    // Latest: 2026
+    expect(ranges[9]?.gte.toISOString()).toBe(
+      orgDayStart('2026-09-01').toISOString(),
+    );
+    expect(ranges[9]?.lt.toISOString()).toBe(
+      orgDayStart('2026-10-01').toISOString(),
+    );
+  });
+
+  it('returns 10 day ranges for "Sep 29" (yearless)', () => {
+    const ranges = parseSubmittedDateQuery('Sep 29', NOW);
+    expect(ranges).toHaveLength(10);
+    expect(ranges[0]?.gte.toISOString()).toBe('2017-09-29T04:00:00.000Z');
+    expect(ranges[9]?.gte.toISOString()).toBe('2026-09-29T04:00:00.000Z');
+  });
+
+  it('span ends at the current org year', () => {
+    const ranges = parseSubmittedDateQuery('Sep', NOW);
+    const lastRange = ranges[ranges.length - 1]!;
+    expect(lastRange.gte.toISOString()).toBe(
+      orgDayStart('2026-09-01').toISOString(),
+    );
+  });
+
+  it('span covers exactly 10 years', () => {
+    expect(parseSubmittedDateQuery('Sep', NOW)).toHaveLength(10);
+  });
+
+  it('Nov 1 2026 (fall-back DST day) bounds are 25 hours apart', () => {
+    const [range] = parseSubmittedDateQuery('Nov 1 2026', NOW);
+    expect(range?.gte.toISOString()).toBe('2026-11-01T04:00:00.000Z');
+    expect(range?.lt.toISOString()).toBe('2026-11-02T05:00:00.000Z');
+    const diffMs = range!.lt.getTime() - range!.gte.getTime();
+    expect(diffMs).toBe(25 * 60 * 60 * 1000);
+  });
+
+  it('boundaries are org-midnight instants (2026-09-29 in EDT = UTC-4)', () => {
+    const [range] = parseSubmittedDateQuery('Sep 29 2026', NOW);
+    expect(range?.gte.toISOString()).toBe('2026-09-29T04:00:00.000Z');
+    expect(range?.lt.toISOString()).toBe('2026-09-30T04:00:00.000Z');
+  });
+
+  it('yearless Feb 29 yields only leap years in the span (2020, 2024)', () => {
+    const ranges = parseSubmittedDateQuery('Feb 29', NOW);
+    const gteStrings = ranges.map((r) => r.gte.toISOString());
+    expect(gteStrings).toContain(orgDayStart('2020-02-29').toISOString());
+    expect(gteStrings).toContain(orgDayStart('2024-02-29').toISOString());
+    expect(
+      ranges.every((r) => {
+        // Each range must be exactly one day
+        const dy = r.lt.getTime() - r.gte.getTime();
+        return dy >= 23 * 60 * 60 * 1000 && dy <= 26 * 60 * 60 * 1000;
+      }),
+    ).toBe(true);
+    // Only leap years: 2017-2026 leap years are 2020 and 2024
+    expect(ranges).toHaveLength(2);
+  });
+
+  it('rejects "mark" (not a month prefix)', () => {
+    expect(parseSubmittedDateQuery('mark', NOW)).toEqual([]);
+  });
+
+  it('rejects "Marketing 2026" (marketing is not a month prefix)', () => {
+    expect(parseSubmittedDateQuery('Marketing 2026', NOW)).toEqual([]);
+  });
+
+  it('rejects "2/30/2026" (Feb 30 does not exist)', () => {
+    expect(parseSubmittedDateQuery('2/30/2026', NOW)).toEqual([]);
+  });
+
+  it('rejects "13/2026" (month 13 is invalid)', () => {
+    expect(parseSubmittedDateQuery('13/2026', NOW)).toEqual([]);
+  });
+
+  it('rejects "9/29" (M/D without a year is not supported)', () => {
+    expect(parseSubmittedDateQuery('9/29', NOW)).toEqual([]);
   });
 });

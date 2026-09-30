@@ -7,13 +7,16 @@ import {
   APPLICATION_STATUS_LABELS,
   TERMINAL_DECISION_STATUSES,
 } from '@/lib/constants';
-import { type DataTableColumn } from '@/lib/data-table';
+import {
+  DATA_TABLE_CELL_TRUNCATE_CLASS,
+  type DataTableColumn,
+} from '@/lib/data-table';
 import { CONCEPT_ICONS } from '@/lib/icons';
 import {
   type ApplicationCompletion,
   type MyApplicationListItem,
 } from '@/lib/types';
-import { getDeadlineInfo } from '@/lib/utils';
+import { cn, getDeadlineInfo } from '@/lib/utils';
 
 import { DeadlineIndicator } from '@/components/features/deadline-indicator';
 import { MyApplicationPrimaryAction } from '@/components/features/my-application-primary-action';
@@ -43,7 +46,11 @@ function buildColumns(
       cell: (a) => (
         <Link
           href={`/applications/${a.id}`}
-          className="font-medium hover:underline"
+          className={cn(
+            DATA_TABLE_CELL_TRUNCATE_CLASS,
+            'font-medium hover:underline',
+          )}
+          title={a.position.title}
         >
           {a.position.title}
         </Link>

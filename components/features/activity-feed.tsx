@@ -31,14 +31,20 @@ export function ActivityFeedList({ items }: { items: ActivityItem[] }) {
     <ol>
       {items.map((item) => (
         <li key={item.id} className="border-b last:border-0">
-          <SheetClose asChild>
-            <Link
-              href={item.href}
-              className="hover:bg-muted/50 focus-visible:ring-ring flex items-start gap-3 px-4 py-3 outline-none focus-visible:ring-2"
-            >
+          {item.href ? (
+            <SheetClose asChild>
+              <Link
+                href={item.href}
+                className="hover:bg-muted/50 focus-visible:ring-ring flex items-start gap-3 px-4 py-3 outline-none focus-visible:ring-2"
+              >
+                <ActivityFeedRowContent item={item} />
+              </Link>
+            </SheetClose>
+          ) : (
+            <div className="flex items-start gap-3 px-4 py-3">
               <ActivityFeedRowContent item={item} />
-            </Link>
-          </SheetClose>
+            </div>
+          )}
         </li>
       ))}
     </ol>

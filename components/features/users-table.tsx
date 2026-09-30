@@ -10,6 +10,8 @@ import { deactivateUser, toggleUserAdmin } from '@/prisma/actions/users';
 
 import { USER_ROLE_FILTER_OPTIONS } from '@/lib/constants';
 import {
+  DATA_TABLE_CELL_TRUNCATE_CLASS,
+  DATA_TABLE_CELL_WRAP_CLASS,
   type DataTableColumn,
   type DataTableFilter,
   filterRows,
@@ -140,6 +142,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       {
         key: 'user',
         header: 'User',
+        headClassName: 'w-48',
         sortAccessor: (u) => displayUserName(u),
         searchValue: (u) => [displayUserName(u), u.email],
         cell: (u) => {
@@ -147,9 +150,22 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
           return (
             // Matches the name+email stack so nameless rows keep row height.
             <div className="flex min-h-9 flex-col justify-center">
-              <span className="font-medium">{name ?? u.email}</span>
+              <span
+                className={cn(DATA_TABLE_CELL_TRUNCATE_CLASS, 'font-medium')}
+                title={name ?? u.email}
+              >
+                {name ?? u.email}
+              </span>
               {name && (
-                <span className="text-muted-foreground text-xs">{u.email}</span>
+                <span
+                  className={cn(
+                    DATA_TABLE_CELL_TRUNCATE_CLASS,
+                    'text-muted-foreground text-xs',
+                  )}
+                  title={u.email}
+                >
+                  {u.email}
+                </span>
               )}
             </div>
           );
@@ -158,6 +174,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       {
         key: 'roles',
         header: 'Roles',
+        headClassName: 'w-28',
         sortAccessor: (u) => [getUserRoleRank(u), displayUserName(u), u.email],
         filterValue: getUserRoleTokens,
         cell: (u) => {
@@ -176,12 +193,14 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       {
         key: 'joined',
         header: 'Joined',
+        headClassName: 'w-32',
         sortAccessor: (u) => u.createdAt,
         cell: (u) => <LocalTime date={u.createdAt} precision="date" />,
       },
       {
         key: 'lastSignIn',
         header: 'Last sign-in',
+        headClassName: 'w-36',
         sortAccessor: (u) => u.lastLoginAt,
         cell: (u) =>
           u.lastLoginAt ? (
@@ -196,6 +215,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       {
         key: 'applications',
         header: 'Applications',
+        headClassName: 'w-32',
         sortAccessor: (u) => u._count.applications,
         cell: (u) => {
           const appCount = u._count.applications;
@@ -213,6 +233,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       {
         key: 'managedPositions',
         header: 'Managed Positions',
+        headClassName: 'w-36',
         filterValue: (u) => u.managedPositions.map((p) => p.id),
         searchValue: (u) => u.managedPositions.map((p) => p.title),
         cell: (u) => {
@@ -220,10 +241,15 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
           if (!isManager)
             return <span className="text-muted-foreground">—</span>;
           return (
-            <div className="flex flex-wrap gap-1">
+            <div className={DATA_TABLE_CELL_WRAP_CLASS}>
               {u.managedPositions.slice(0, 2).map((pos) => (
-                <Badge key={pos.id} variant="outline">
-                  {pos.title}
+                <Badge
+                  key={pos.id}
+                  variant="outline"
+                  className="max-w-full"
+                  title={pos.title}
+                >
+                  <span className="min-w-0 truncate">{pos.title}</span>
                 </Badge>
               ))}
               {u.managedPositions.length > 2 && (
@@ -238,6 +264,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       {
         key: 'actions',
         header: 'Actions',
+        headClassName: 'w-48 text-right',
         cellClassName: 'text-right',
         cell: (u) => {
           const isSelf = u.id === currentUserId;
@@ -447,6 +474,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
             caption="Users"
             defaultSort={{ key: 'roles', direction: 'asc' }}
             noMatchMessage="No users match your filters."
+            tableClassName="table-fixed [&]:w-auto"
             mobileCard={(user) => {
               const isSelf = user.id === currentUserId;
               const isManager = getUserRoleTokens(user).includes('manager');

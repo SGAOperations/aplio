@@ -1188,7 +1188,7 @@ describe('getActivityGroups composition and scoping', () => {
     expect(sentences).not.toContain(`${position.title} was opened`);
   });
 
-  it('deletion of a published position: the listed manager sees a linked "was deleted" item', async () => {
+  it('deletion of a published position: the listed manager sees an unlinked "was deleted" item', async () => {
     const manager = await createTestUser();
     const position = await createTestPosition(admin, {
       managers: [manager],
@@ -1206,7 +1206,7 @@ describe('getActivityGroups composition and scoping', () => {
     );
     expect(item).toBeDefined();
     expect(item?.sentence).toBe(`${position.title} was deleted`);
-    expect(item?.href).toBe(`/positions/${position.id}`);
+    expect(item?.href).toBeUndefined();
   });
 
   it('deletion of a draft position produces no row', async () => {
@@ -1254,7 +1254,7 @@ describe('getActivityGroups composition and scoping', () => {
     );
   });
 
-  it('deletion: an admin sees it under "all", and the earlier opened/closed rows are all linked', async () => {
+  it('deletion: an admin sees it under "all", and the earlier opened/closed rows are unlinked', async () => {
     const manager = await createTestUser();
     const position = await createTestPosition(admin, {
       managers: [manager],
@@ -1278,14 +1278,14 @@ describe('getActivityGroups composition and scoping', () => {
       (i) => i.sentence === `${position.title} was deleted`,
     );
     expect(opened).toBeDefined();
-    expect(opened?.href).toBe(`/positions/${position.id}`);
+    expect(opened?.href).toBeUndefined();
     expect(closed).toBeDefined();
-    expect(closed?.href).toBe(`/positions/${position.id}`);
+    expect(closed?.href).toBeUndefined();
     expect(deleted).toBeDefined();
-    expect(deleted?.href).toBe(`/positions/${position.id}`);
+    expect(deleted?.href).toBeUndefined();
   });
 
-  it('deletion: a deadline-close row already produced before deletion is linked', async () => {
+  it('deletion: a deadline-close row already produced before deletion is unlinked', async () => {
     const manager = await createTestUser();
     const past = new Date(Date.now() - 60 * 60 * 1000);
     const position = await createTestPosition(admin, {
@@ -1302,7 +1302,7 @@ describe('getActivityGroups composition and scoping', () => {
       (i) => i.sentence === `${position.title} closed`,
     );
     expect(item).toBeDefined();
-    expect(item?.href).toBe(`/positions/${position.id}`);
+    expect(item?.href).toBeUndefined();
   });
 
   it('deletion: a deadline lapsing only after deletion produces no row', async () => {

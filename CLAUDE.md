@@ -4,13 +4,13 @@ These are the always-true rules for this repo. Depth lives in dedicated docs —
 
 - **`docs/ENGINEERING.md`** — the quality bar (architecture, data integrity, security, UX states, a11y, performance, current Next.js 16 App Router behavior). Read it before any planning or code work.
 - **`docs/PERMISSIONS.md`** — who may do what, and when: principals, route and action gates, the position and application state tables. Read it before planning or changing anything that gates on role, ownership or record state.
-- **`.claude/docs/PIPELINE.md`** — the automated agent pipeline and its GitHub label state machine.
+- **the port plugin's own `docs/PIPELINE.md`** (`${CLAUDE_PLUGIN_ROOT}/docs/PIPELINE.md`) — the automated agent pipeline and its GitHub label state machine; `RECOVERY.md` and `FORMATS.md` sit alongside it.
 - **`docs/DESIGN.md`** — the design system: tokens, type/spacing scale, component conventions. Read it before building or changing UI.
 - **`docs/WORKFLOWS.md`** — what each user flow does end to end, per persona. Read it before changing a user-facing flow, and update the affected entry in the same PR.
 
 ## Tech Stack
 
-Next.js 16 (App Router, React 19) · Prisma 7 · Tailwind CSS 4 · shadcn/ui (Radix) · TypeScript strict · zod 4 · react-hook-form · Neon/Stack Auth (`lib/auth/server.ts`).
+Next.js 16 (App Router, React 19) · Prisma 7 · Tailwind CSS 4 · shadcn/ui (Radix) · TypeScript strict · zod 4 · react-hook-form · Neon/Better Auth (`lib/auth/server.ts`).
 
 ## Architecture (the load-bearing rules — `docs/ENGINEERING.md` has the full bar)
 
@@ -39,11 +39,11 @@ Next.js 16 (App Router, React 19) · Prisma 7 · Tailwind CSS 4 · shadcn/ui (Ra
 - **Commit:** subject `#XXX message in lowercase imperative mood` (no colon after the number, **under 80 chars**, no trailing period); then — only if the _why_ isn't obvious — a blank line and a short body (wrap ~72, a few lines max; narrative belongs in the PR, not the commit); then a blank line and a `Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>` trailer. Commit each logical unit separately. **Write the message to a file and `git commit -F .temp/commit-msg.txt`** — inline multi-line `-m … -m …` collapses on Windows, dropping the subject and the co-authorship. Delete tracked files with `git rm`. **The subject-line format is enforced locally by a `commit-msg` hook** (installed automatically via `npm run prepare` / `npm ci`) **and in CI by `run-commit-message-check`**, which validates every commit in a PR by invoking that same hook — so the two cannot drift.
 - **Branch:** `XXX-ticket-name-in-kebab-case`, branched off `dev`.
 - **PR:** title `#XXX Ticket Name In Title Case`; **base branch `dev`** (never open feature PRs against `main`); body contains `Closes #XXX`; assign the **issue's assignee** (fallback: yourself — `@me`); **pipeline-authored PRs also carry the `claude` label** — it is what activates the `approved` merge gate (`approval-check.yml`), and without it the PR merges ungated. `dev → main` is promoted only by `/release`.
-- **Rebase conflicts in pipeline:** `revise-agent` attempts autonomous resolution for structurally unambiguous conflicts (non-overlapping sections, generated files, dual independent imports). It escalates to `needs human` only when both sides modified the same logical unit. Agents should document every resolution in the revision summary. Full protocol: `.claude/docs/PIPELINE.md` → "Rebase conflict protocol".
+- **Rebase conflicts in pipeline:** `revise-agent` attempts autonomous resolution for structurally unambiguous conflicts (non-overlapping sections, generated files, dual independent imports). It escalates to `needs human` only when both sides modified the same logical unit. Agents should document every resolution in the revision summary. Full protocol: the port plugin's `RECOVERY.md` → "Rebase conflict protocol".
 
 ## Preview databases (Neon branch budget)
 
-The Neon project caps at **10 branches** and 2 are permanently held (`dev`, `production`), so **~8 PRs can hold a preview database at once**. Every open PR with a preview deployment consumes one slot. Reclamation is automatic (branch auto-delete on merge plus Neon's own sweep), so this is a **concurrency ceiling, not a housekeeping chore** — what exhausts it is too many PRs open at the same time. Exhaustion shows up as a red `Vercel` check on _every_ open PR while `run-prettier-check` / `run-linting-check` / `run-tsc-check` stay green: check the Neon branch count before debugging Prisma. Full operational detail: `.claude/docs/PIPELINE.md` → "Preview-database concurrency".
+The Neon project caps at **10 branches** and 2 are permanently held (`dev`, `production`), so **~8 PRs can hold a preview database at once**. Every open PR with a preview deployment consumes one slot. Reclamation is automatic (branch auto-delete on merge plus Neon's own sweep), so this is a **concurrency ceiling, not a housekeeping chore** — what exhausts it is too many PRs open at the same time. Exhaustion shows up as a red `Vercel` check on _every_ open PR while `run-prettier-check` / `run-linting-check` / `run-tsc-check` stay green: check the Neon branch count before debugging Prisma. Full operational detail: [`docs/PIPELINE-NOTES.md`](docs/PIPELINE-NOTES.md) → "Preview-database concurrency".
 
 ## Pre-push checks (always, before pushing)
 
@@ -61,12 +61,13 @@ All tests live under `tests/`, never co-located with the source they cover: `tes
 ## Issue Tracking
 
 - Issues live in **GitHub Issues** at `SGAOperations/aplio` — **never Linear**. Assign before starting: `gh issue edit XXX --add-assignee "@me"`.
-- The pipeline's label state machine and the sub-issue / blocker linking recipes are documented in **`.claude/docs/PIPELINE.md`** and the `scope` skill — labels are normally managed by the `/pipeline` cockpit; manual `gh` label commands are recovery-only.
+- The pipeline's label state machine and the sub-issue / blocker linking recipes are documented in the port plugin's **`docs/PIPELINE.md`** and the `port:scope` skill — labels are normally managed by the `/port:pipeline` cockpit; manual `gh` label commands are recovery-only.
 
 ## Worktrees & local dev
 
-- Pipeline agents get their own isolated worktree automatically (`isolation: worktree`) — they handle setup; see `.claude/docs/PIPELINE.md`. Do not script worktree creation for them.
-- **Some tickets are implemented by you, not by an agent** — today, anything touching `CLAUDE.md` or `.claude/**`, because the harness blocks a dispatched agent's `Edit` there. The plan marks these `SESSION REQUIRED` and the cockpit announces instead of dispatching: launch a named session (`claude -n "#XXX: <short name>"`) and run `/implement XXX`, which runs stage 2/4 in its own worktree. See `.claude/docs/PIPELINE.md` → "Session-required tickets".
+- Pipeline agents get their own isolated worktree automatically (`isolation: worktree`) — they handle setup; see the port plugin's `docs/PIPELINE.md` → "Worktree lifecycle". Do not script worktree creation for them.
+- **Some tickets are implemented by you, not by an agent** — which tickets is driven by `sessionRequiredPaths` in `.claude/port.config.json` (today: `CLAUDE.md` and `.claude/**`), because the harness blocks a dispatched agent's `Edit` there. The plan marks these `SESSION REQUIRED` and the cockpit announces instead of dispatching: launch a named session (`claude -n "#XXX: <short name>"`) and run `/port:implement XXX`, which runs stage 2/4 in its own worktree. See the port plugin's `docs/PIPELINE.md` → "Session-required tickets".
+- **Run `/port:pipeline` in `default` permission mode, not `auto`/`acceptEdits`** — a parent session in a permissive mode overrides the dispatched stage agents' own `dontAsk` mode, which is the documented cause of unexpected prompting.
 - For manual local work in a worktree, install deps with `npm ci` (then `npm run prisma:generate`). **Do not `ln -s node_modules` — symlinks fall back to copies on Windows here.** Sync before resuming: `git fetch origin && git rebase origin/dev`.
 - **`npm ci` is what activates Git hooks** — it runs `prepare` (`husky && npm run hooks:check`), which regenerates the untracked `.husky/_` bootstrap dir, sets `core.hooksPath`, and fails `npm ci` itself if activation didn't take. Each worktree/clone needs its own `npm ci` for hooks to fire there. If hooks stop firing, re-run `npm ci` (or `npm run prepare`) and verify with `npm run hooks:check`.
 - **The same step sets `core.commentChar=';'`** — git's default `#` makes it strip the mandated `#XXX` subject as a comment every time it re-reads a message through the editor machinery (`git rebase --continue`, `git commit --amend`), silently promoting the first body line into the subject; the `commit-msg` hook does not run on that path. Side effect: git's own instructional lines in the commit editor are `;`-prefixed. This writes to the shared `.git/config`, so one worktree's `npm ci` fixes every worktree of that clone. It cannot be enforced across fresh clones or forks, which is why CI validates subjects too.

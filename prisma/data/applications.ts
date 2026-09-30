@@ -20,6 +20,7 @@ import {
   type PublicApplicationStatus,
   VISIBLE_POSITION_WHERE,
 } from '@/lib/constants';
+import { parseSubmittedDateQuery } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
 import {
   type AdminApplicationListItem,
@@ -571,22 +572,6 @@ export async function getRecentApplications(
   return applications.map(withSubmittedAt);
 }
 
-// Prisma DateTime filters are range-based, so a date query becomes a range.
-const MONTH_NAMES = [
-  'jan',
-  'feb',
-  'mar',
-  'apr',
-  'may',
-  'jun',
-  'jul',
-  'aug',
-  'sep',
-  'oct',
-  'nov',
-  'dec',
-];
-
 // Shared by getApplications and getApplicationsCount so the total can never
 // disagree with the rows.
 function buildApplicationListWhere(
@@ -595,37 +580,7 @@ function buildApplicationListWhere(
 ): Prisma.ApplicationWhereInput {
   const baseWhere = buildApplicationWhere(user, 'listable');
 
-  let dateWhere: { submittedAt?: { gte: Date; lt: Date } } = {};
-  if (filters.q) {
-    const q = filters.q.trim();
-    const yearOnly = /^\d{4}$/.exec(q);
-    if (yearOnly) {
-      const y = parseInt(q, 10);
-      dateWhere = {
-        submittedAt: { gte: new Date(y, 0, 1), lt: new Date(y + 1, 0, 1) },
-      };
-    } else {
-      // Match "Jun 2026" or "2026 Jun" or "June 2026" etc.
-      const parts = q.toLowerCase().split(/[\s,]+/);
-      const monthIdx = parts.findIndex((p) =>
-        MONTH_NAMES.some((m) => p.startsWith(m)),
-      );
-      const yearPart = parts.find((p) => /^\d{4}$/.test(p));
-      if (monthIdx !== -1 && yearPart) {
-        const monthPart = parts[monthIdx] as string;
-        const monthNum = MONTH_NAMES.findIndex((m) => monthPart.startsWith(m));
-        const y = parseInt(yearPart, 10);
-        dateWhere = {
-          submittedAt: {
-            gte: new Date(y, monthNum, 1),
-            lt: new Date(y, monthNum + 1, 1),
-          },
-        };
-      }
-    }
-  }
-
-  // OR'd with the date range so a date query also matches names and titles.
+  // OR'd with the date ranges so a date query also matches names and titles.
   const textWhere = filters.q
     ? {
         OR: [
@@ -644,9 +599,9 @@ function buildApplicationListWhere(
               title: { contains: filters.q, mode: 'insensitive' as const },
             },
           },
-          ...(dateWhere.submittedAt
-            ? [{ submittedAt: dateWhere.submittedAt }]
-            : []),
+          ...parseSubmittedDateQuery(filters.q).map((range) => ({
+            submittedAt: range,
+          })),
         ],
       }
     : {};

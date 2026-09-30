@@ -3,10 +3,14 @@
 import Link from 'next/link';
 
 import { EMAIL_TEMPLATE_LABELS } from '@/lib/constants';
-import { type DataTableColumn } from '@/lib/data-table';
+import {
+  DATA_TABLE_CELL_CLAMP_CLASS,
+  DATA_TABLE_CELL_TRUNCATE_CLASS,
+  type DataTableColumn,
+} from '@/lib/data-table';
 import { ACTION_ICONS, CONCEPT_ICONS, STATE_ICONS } from '@/lib/icons';
 import type { EmailLogListItem } from '@/lib/types';
-import { formatBounceType, getEmailLogTimestamp } from '@/lib/utils';
+import { cn, formatBounceType, getEmailLogTimestamp } from '@/lib/utils';
 
 import { EmailStatusBadge } from '@/components/features/status-badge';
 import { Badge } from '@/components/ui/badge';
@@ -34,9 +38,20 @@ const COLUMNS: DataTableColumn<EmailLogListItem>[] = [
     header: 'Recipient',
     cell: (row) => (
       <>
-        <span className="font-medium break-all">{row.to}</span>
+        <span
+          className={cn(DATA_TABLE_CELL_TRUNCATE_CLASS, 'font-medium')}
+          title={row.to}
+        >
+          {row.to}
+        </span>
         {row.user?.name && (
-          <span className="text-muted-foreground block text-xs">
+          <span
+            className={cn(
+              DATA_TABLE_CELL_TRUNCATE_CLASS,
+              'text-muted-foreground text-xs',
+            )}
+            title={row.user.name}
+          >
             {row.user.name}
           </span>
         )}
@@ -53,7 +68,7 @@ const COLUMNS: DataTableColumn<EmailLogListItem>[] = [
     key: 'subject',
     header: 'Subject',
     cell: (row) => (
-      <span className="line-clamp-2" title={row.subject}>
+      <span className={DATA_TABLE_CELL_CLAMP_CLASS} title={row.subject}>
         {row.subject}
       </span>
     ),
@@ -70,7 +85,13 @@ const COLUMNS: DataTableColumn<EmailLogListItem>[] = [
             <Badge variant={bounceBadgeVariant(bounceType)}>{bounceType}</Badge>
           )}
           {row.error && (
-            <span className="text-muted-foreground line-clamp-2 text-xs">
+            <span
+              className={cn(
+                DATA_TABLE_CELL_CLAMP_CLASS,
+                'text-muted-foreground text-xs',
+              )}
+              title={row.error}
+            >
               {row.error}
             </span>
           )}

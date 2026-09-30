@@ -23,16 +23,13 @@ export function QuestionOptionChips({
         <Badge
           key={option}
           variant="secondary"
-          className="[overflow-wrap:anywhere]"
+          className="max-w-full"
+          title={option}
         >
-          {option}
+          <span className="min-w-0 truncate">{option}</span>
         </Badge>
       ))}
-      {allowOther && (
-        <Badge variant="secondary" className="[overflow-wrap:anywhere]">
-          + Other
-        </Badge>
-      )}
+      {allowOther && <Badge variant="secondary">+ Other</Badge>}
     </div>
   );
 }

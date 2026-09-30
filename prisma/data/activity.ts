@@ -106,7 +106,10 @@ export const getActivityGroups = cache(async function getActivityGroups(
       statusVariant: POSITION_STATUS_BADGE_VARIANT.open,
       sentence: POSITION_ACTIVITY_SENTENCE[event.from](event.position.title),
       timestamp: event.createdAt,
-      href: `/positions/${event.position.id}`,
+      href:
+        event.position.deletedAt === null
+          ? `/positions/${event.position.id}`
+          : undefined,
     }));
 
   const closedItems: ActivityItem[] = statusEvents
@@ -116,7 +119,10 @@ export const getActivityGroups = cache(async function getActivityGroups(
       statusVariant: POSITION_STATUS_BADGE_VARIANT.closed,
       sentence: POSITION_CLOSED_SENTENCE(event.position.title),
       timestamp: event.createdAt,
-      href: `/positions/${event.position.id}`,
+      href:
+        event.position.deletedAt === null
+          ? `/positions/${event.position.id}`
+          : undefined,
     }));
 
   // closesAt is guaranteed non-null by the query's where — narrow, not cast.
@@ -130,10 +136,12 @@ export const getActivityGroups = cache(async function getActivityGroups(
       statusVariant: POSITION_STATUS_BADGE_VARIANT.closed,
       sentence: POSITION_CLOSED_BY_DATE_SENTENCE(position.title),
       timestamp: position.closesAt,
-      href: `/positions/${position.id}`,
+      href:
+        position.deletedAt === null ? `/positions/${position.id}` : undefined,
     }));
 
   // deletedAt is guaranteed non-null by the query's where — narrow, not cast.
+  // Not linked — the position page no longer exists.
   const deletionItems: ActivityItem[] = deletions
     .filter(
       (position): position is typeof position & { deletedAt: Date } =>
@@ -144,7 +152,6 @@ export const getActivityGroups = cache(async function getActivityGroups(
       statusVariant: POSITION_DELETED_BADGE_VARIANT,
       sentence: POSITION_DELETED_SENTENCE(position.title),
       timestamp: position.deletedAt,
-      href: `/positions/${position.id}`,
     }));
 
   const sorted = [
