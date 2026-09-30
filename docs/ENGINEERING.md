@@ -2,7 +2,7 @@
 
 Every pipeline agent (plan, impl, review, revise) must read this document before working. It defines the quality bar for this codebase beyond the conventions in `CLAUDE.md`. Plans must account for these standards per feature, implementations must follow them, and review findings may cite sections of this document the same way they cite the plan.
 
-Stack context: Next.js App Router, Prisma, Tailwind CSS 4, shadcn/ui, Stack Auth (`lib/auth/server.ts`), TypeScript strict, zod, react-hook-form.
+Stack context: Next.js App Router, Prisma, Tailwind CSS 4, shadcn/ui, Better Auth (`lib/auth/server.ts`), TypeScript strict, zod, react-hook-form.
 
 ## 1. Architecture
 
@@ -210,7 +210,7 @@ A scannable summary of the issues that recur in this codebase. **impl** builds t
 
 ## 9. Next.js 16 runtime notes (App Router)
 
-Current-behavior reference so agents don't code from stale training data. This repo is on **Next.js 16.2.9, React 19**. When in doubt about caching/rendering, **fetch the canonical page** (links below) rather than recalling — the model has changed across versions.
+Current-behavior reference so agents don't code from stale training data. This repo is on **Next.js 16.x** (see `package.json` for the exact installed version) **and React 19**. When in doubt about caching/rendering, **fetch the canonical page** (links below) rather than recalling — the model has changed across versions.
 
 > Fetch live docs: `nextjs.org/docs/llms.txt` is a machine-readable index; most pages also have a `.md` form. Allowlisted for `WebFetch` in `.claude/settings.json`.
 
