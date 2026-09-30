@@ -148,7 +148,7 @@ export function PositionCard({
     APPLICANT_EDITABLE_APPLICATION_STATUSES.includes(
       myApplication.status as (typeof APPLICANT_EDITABLE_APPLICATION_STATUSES)[number],
     ) &&
-    (isDraft || isAccepting);
+    isAccepting;
 
   return (
     <Card className="flex flex-col gap-0 p-0">
@@ -178,7 +178,7 @@ export function PositionCard({
                 {myApplication && (
                   <div className="flex shrink-0 items-center gap-1">
                     <ApplicationStatusBadge status={myApplication.status} />
-                    {isDraft && myApplication.completion && (
+                    {isDraft && isAccepting && myApplication.completion && (
                       <ProgressRing
                         percent={myApplication.completion.percent}
                         size="sm"

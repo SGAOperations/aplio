@@ -104,6 +104,18 @@ export interface FilterRowsOptions {
   filters?: DataTableFilter[];
 }
 
+/** Case-insensitive substring match; empty/whitespace query matches everything. */
+export function matchesSearchQuery(
+  value: string | string[] | null,
+  query: string,
+): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  if (value == null) return false;
+  const values = Array.isArray(value) ? value : [value];
+  return values.some((v) => v.toLowerCase().includes(q));
+}
+
 /** Pure, server-safe: case-insensitive substring for `query`, exact match for `filters`. */
 export function filterRows<T>(
   rows: T[],
@@ -115,13 +127,10 @@ export function filterRows<T>(
 
   return rows.filter((row) => {
     if (q) {
-      const matches = columns.some((column) => {
-        if (!column.searchValue) return false;
-        const value = column.searchValue(row);
-        if (value == null) return false;
-        const values = Array.isArray(value) ? value : [value];
-        return values.some((v) => v.toLowerCase().includes(q));
-      });
+      const matches = columns.some(
+        (column) =>
+          column.searchValue && matchesSearchQuery(column.searchValue(row), q),
+      );
       if (!matches) return false;
     }
 
