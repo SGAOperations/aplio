@@ -142,7 +142,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       {
         key: 'user',
         header: 'User',
-        headClassName: 'w-[24%]',
+        headClassName: 'w-56',
         sortAccessor: (u) => displayUserName(u),
         searchValue: (u) => [displayUserName(u), u.email],
         cell: (u) => {
@@ -174,7 +174,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       {
         key: 'roles',
         header: 'Roles',
-        headClassName: 'w-24',
+        headClassName: 'w-28',
         sortAccessor: (u) => [getUserRoleRank(u), displayUserName(u), u.email],
         filterValue: getUserRoleTokens,
         cell: (u) => {
@@ -193,14 +193,14 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       {
         key: 'joined',
         header: 'Joined',
-        headClassName: 'w-28',
+        headClassName: 'w-32',
         sortAccessor: (u) => u.createdAt,
         cell: (u) => <LocalTime date={u.createdAt} precision="date" />,
       },
       {
         key: 'lastSignIn',
         header: 'Last sign-in',
-        headClassName: 'w-32',
+        headClassName: 'w-36',
         sortAccessor: (u) => u.lastLoginAt,
         cell: (u) =>
           u.lastLoginAt ? (
@@ -215,7 +215,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       {
         key: 'applications',
         header: 'Applications',
-        headClassName: 'w-20',
+        headClassName: 'w-28',
         sortAccessor: (u) => u._count.applications,
         cell: (u) => {
           const appCount = u._count.applications;
@@ -233,7 +233,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       {
         key: 'managedPositions',
         header: 'Managed Positions',
-        headClassName: 'w-[30%]',
+        headClassName: 'w-64',
         filterValue: (u) => u.managedPositions.map((p) => p.id),
         searchValue: (u) => u.managedPositions.map((p) => p.title),
         cell: (u) => {
@@ -474,7 +474,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
             caption="Users"
             defaultSort={{ key: 'roles', direction: 'asc' }}
             noMatchMessage="No users match your filters."
-            tableClassName="table-fixed w-full"
+            tableClassName="table-fixed"
             mobileCard={(user) => {
               const isSelf = user.id === currentUserId;
               const isManager = getUserRoleTokens(user).includes('manager');
