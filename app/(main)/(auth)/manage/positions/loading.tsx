@@ -24,7 +24,9 @@ export default function ManagePositionsLoading() {
       <PageHeaderSkeleton
         actionsContent={<Skeleton className="h-11 w-36 md:h-9" />}
       />
-      <Skeleton className="h-11 w-full sm:w-64 md:h-9" />
+      <div className="flex justify-end">
+        <Skeleton className="h-11 w-full sm:w-64 md:h-9" />
+      </div>
       <div className="flex flex-col gap-6">
         <PositionGroupSkeleton count={2} />
         <PositionGroupSkeleton count={1} />

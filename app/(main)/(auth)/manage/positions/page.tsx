@@ -63,7 +63,9 @@ export default async function ManagePositionsPage() {
               }
             />
             {allPositions.length > 0 && (
-              <PositionSearchToolbar id="all-positions-search" />
+              <div className="flex justify-end">
+                <PositionSearchToolbar id="all-positions-search" />
+              </div>
             )}
             <ManagedPositionsSection
               positions={allPositions}
@@ -111,7 +113,9 @@ export default async function ManagePositionsPage() {
               />
             }
           />
-          <PositionSearchToolbar id="manage-positions-search" />
+          <div className="flex justify-end">
+            <PositionSearchToolbar id="manage-positions-search" />
+          </div>
           <div className="flex flex-col gap-10">
             <PositionsScopeSection
               id="managed-positions"
@@ -176,7 +180,9 @@ export default async function ManagePositionsPage() {
           }
         />
         {managedPositions.length > 0 && (
-          <PositionSearchToolbar id="manage-positions-search" />
+          <div className="flex justify-end">
+            <PositionSearchToolbar id="manage-positions-search" />
+          </div>
         )}
         <ManagedPositionsSection
           positions={managedPositions}
