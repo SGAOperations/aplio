@@ -56,17 +56,15 @@ export default async function ManagePositionsPage() {
               title="All Positions"
               description="Every position, with its application stats."
               actions={
-                <PositionCreateDialog
-                  isAdmin={user.isAdmin}
-                  currentUser={currentUser}
-                />
+                <div className="flex items-center gap-6">
+                  <PositionCreateDialog
+                    isAdmin={user.isAdmin}
+                    currentUser={currentUser}
+                  />
+                  <PositionSearchToolbar id="all-positions-search" />
+                </div>
               }
             />
-            {allPositions.length > 0 && (
-              <div className="flex justify-end">
-                <PositionSearchToolbar id="all-positions-search" />
-              </div>
-            )}
             <ManagedPositionsSection
               positions={allPositions}
               statsByPosition={statsByPosition}
@@ -107,15 +105,15 @@ export default async function ManagePositionsPage() {
           <PageHeader
             title="Manage Positions"
             actions={
-              <PositionCreateDialog
-                isAdmin={user.isAdmin}
-                currentUser={currentUser}
-              />
+              <div className="flex items-center gap-6">
+                <PositionCreateDialog
+                  isAdmin={user.isAdmin}
+                  currentUser={currentUser}
+                />
+                <PositionSearchToolbar id="manage-positions-search" />
+              </div>
             }
           />
-          <div className="flex justify-end">
-            <PositionSearchToolbar id="manage-positions-search" />
-          </div>
           <div className="flex flex-col gap-10">
             <PositionsScopeSection
               id="managed-positions"
@@ -173,17 +171,15 @@ export default async function ManagePositionsPage() {
           title="Manage Positions"
           description="Track applications and edit the positions you manage."
           actions={
-            <PositionCreateDialog
-              isAdmin={user.isAdmin}
-              currentUser={currentUser}
-            />
+            <div className="flex items-center gap-6">
+              <PositionCreateDialog
+                isAdmin={user.isAdmin}
+                currentUser={currentUser}
+              />
+              <PositionSearchToolbar id="manage-positions-search" />
+            </div>
           }
         />
-        {managedPositions.length > 0 && (
-          <div className="flex justify-end">
-            <PositionSearchToolbar id="manage-positions-search" />
-          </div>
-        )}
         <ManagedPositionsSection
           positions={managedPositions}
           statsByPosition={statsByPosition}

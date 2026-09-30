@@ -49,12 +49,8 @@ export default async function PositionsPage() {
         <PageHeader
           title="Positions"
           description="Browse open positions and apply."
+          actions={<PositionSearchToolbar id="positions-search" />}
         />
-        {items.length > 0 && (
-          <div className="flex justify-end">
-            <PositionSearchToolbar id="positions-search" />
-          </div>
-        )}
 
         {/* Open Positions — always rendered, even when empty */}
         <PositionSearchGroup ids={openPositions.map((p) => p.id)}>
