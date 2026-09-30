@@ -1,27 +1,5 @@
-# Installed by /port:init when modules.approvalGate is enabled.
-#
-# Gates pull requests into dev on the `approved` label, but ONLY when
-# the pull request carries `claude`. Everything else — human, dependency bot —
-# gets a skipped check run, which GitHub counts as satisfied, so it merges on its own merits.
-#
-# NEVER narrow the trigger and never rename the job. A workflow that does not run creates
-# no check run at all, which leaves a required check pending forever — strictly worse than
-# a failing one, because nothing surfaces why.
-#
-# Deliberately FAIL-OPEN: an unlabelled pipeline pull request is indistinguishable in CI
-# from a human one and simply loses its gate. Nothing here can close that. The mitigations
-# live upstream — impl-agent applies the label at creation time so the gate is live on the
-# first event, and the cockpit's ungated sweep reports any tracked pull request missing it.
-#
-# Scoped to dev only. In a two-branch repository, release pull requests carry
-# no pipeline labels, so gating them would block every release. In a single-branch
-# repository that carve-out is vacuous — there is no release pull request to exempt, so
-# every pipeline pull request is gated.
-#
-# This check only *enforces* anything if it is registered as a required status check in a
-# branch ruleset. It already is here: ruleset "dev" (id 21017152) requires `run-approval-check`.
-# NEVER add this check to the "main/dev" ruleset (id 15248252) — dev → main release PRs
-# carry no pipeline labels, so gating them there would block every release.
+# Gates PRs into dev on `approved`, only when labelled `claude` — never narrow the trigger or rename the job
+# (a workflow that never runs leaves its required check pending forever). Scoped to dev only — never add to the main/dev ruleset, or every release blocks.
 
 name: Approval Check
 

@@ -1,27 +1,6 @@
 #!/usr/bin/env node
-// Worktree reclamation — one deterministic call whose stdout *is* the report.
-// Replaces the cockpit's prose worktree-hygiene procedure (which never
-// executed reliably — see #144) with a shipped script, following the
-// bin/artifacts.mjs precedent #149 established: self-contained, copied
-// into a managed repository by `/port:init`, addressed through
-// `commands.worktrees`.
-//
-//   report [--issue N] [--protect <path>]... [--offline] [--json]
-//     Classify every worktree, remove nothing.
-//
-//   reclaim [--issue N] [--max <k>] [--protect <path>]... [--offline]
-//           [--json] [--unlock] [--force-dirty]
-//     Classify, then remove what is reclaimable, capped at --max (default 5).
-//
-// Self-contained — no relative imports, so an adopting repository can copy
-// this file alone. Every path is built with node:path; every child process is
-// invoked with an explicit argv array via node:child_process.spawnSync, never
-// a shell string — cross-platform by construction, and testable by importing
-// its pure functions directly (the port repository's own layer 1 checks do).
-//
-// Never in this script: `git fetch`, `git worktree add`, a write to the main
-// checkout, deletion of an untracked directory, or removal of a path not
-// reported by `git worktree list`.
+// Worktree reclamation — stdout is the report. `report` classifies (removes nothing); `reclaim` also removes what's reclaimable.
+// Self-contained, no relative imports, no shell strings — never touches the main checkout or an untracked/unregistered path.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import {
@@ -41,10 +20,8 @@ const die = (msg) => {
 };
 
 // --- Process helpers ---------------------------------------------------------
-/** Runs `cmd` with an explicit argv array — never a shell string. Returns
- *  `{ ok, stdout, stderr, status }`; never throws on a non-zero exit, since a
- *  non-zero exit is routine (e.g. `merge-base --is-ancestor` failing) and
- *  callers decide what it means. */
+/** Runs `cmd` via an explicit argv array, never a shell string; never throws on a non-zero exit.
+ *  Returns `{ ok, stdout, stderr, status }` — callers decide what a non-zero exit means. */
 function run(cmd, args, opts = {}) {
   const res = spawnSync(cmd, args, {
     encoding: 'utf8',
@@ -74,10 +51,8 @@ const gitOut = (args, opts) => {
 
 // --- Pure functions (exported for this repository's own layer 1 checks) -----
 
-/** Parses `git worktree list --porcelain` into one record per entry, in the
- *  order git printed them (main worktree first). `branch` is `null` for a
- *  detached HEAD; `locked`/`lockReason` come straight off the `locked` line,
- *  which may carry no reason at all. */
+/** Parses `git worktree list --porcelain`, one record per entry, main worktree first.
+ *  `branch` is `null` for a detached HEAD; `locked`/`lockReason` come off the `locked` line, which may carry no reason. */
 export function parsePorcelain(text) {
   const records = [];
   let cur = null;
@@ -112,11 +87,8 @@ export function parsePorcelain(text) {
   return records;
 }
 
-/** The correlation ladder, first hit wins. Every input is a fact already
- *  gathered by the caller — this function does no I/O, so it is directly
- *  unit-testable. Returns `{ number, rung }` or `null` when nothing resolves.
- *  `#0` is explicitly not a correlation (never a real issue/pull-request
- *  number in this pipeline). */
+/** Correlation ladder, first hit wins — pure (no I/O), so directly unit-testable.
+ *  Returns `{ number, rung }` or `null`; `#0` is never a real issue/PR number here, so it's not a correlation. */
 export function correlate({
   upstreamMergeRef,
   branch,
@@ -147,16 +119,8 @@ export function correlate({
   return null;
 }
 
-/** Classifies one candidate into exactly one state, given facts already
- *  gathered by the caller. Precedence: outside → (protect forces active,
- *  short-circuiting the rest) → locked → dirty → active → done/no-work →
- *  unresolved — so a locked-and-done worktree reports as locked-and-
- *  reclaimable rather than silently skipped, and a protected path is never
- *  reported as merely locked or dirty. `itemState` is the resolved
- *  `issueOrPullRequest` state (`'OPEN'`, `'CLOSED'`, `'MERGED'`) or `null`
- *  when there was nothing to resolve or resolution came back `NOT_FOUND`.
- *  `isAncestor` is only consulted when `itemState` is `null` — a correlated
- *  item's state always wins over the ancestor fact. */
+/** Precedence: outside → protected → locked → dirty → active/done/no-work/unresolved — so e.g. locked-and-done reports locked-and-reclaimable.
+ *  `isAncestor` is consulted only when `itemState` is `null`; a correlated item's state always wins. */
 export function classifyCandidate({
   isOutside,
   isProtected,
@@ -183,11 +147,8 @@ export function classifyCandidate({
 }
 
 // --- gh -----------------------------------------------------------------------
-/** `gh api graphql` exits non-zero whenever the response's `errors` array is
- *  present, even when `data` is still usable — so this always returns the
- *  parsed body when there is one, and only treats the call as a hard failure
- *  when no body could be parsed at all (auth failure, no network, `gh`
- *  missing). */
+/** `gh api graphql` exits non-zero whenever `errors` is present, even when `data` is still usable.
+ *  So this always returns the parsed body when there is one; only unparseable stdout is a hard failure. */
 function ghGraphql(query) {
   const res = run('gh', ['api', 'graphql', '-f', `query=${query}`]);
   const text = res.stdout || res.stderr;
@@ -204,9 +165,8 @@ function ghGraphql(query) {
   }
 }
 
-/** One `issueOrPullRequest(number:)` alias per number, in a single round
- *  trip. Returns a `Map<number, 'OPEN'|'CLOSED'|'MERGED'|null>` — `null`
- *  means the alias came back `NOT_FOUND` or absent, never treated as done. */
+/** One `issueOrPullRequest(number:)` alias per number, one round trip.
+ *  Returns `Map<number, 'OPEN'|'CLOSED'|'MERGED'|null>` — `null` means NOT_FOUND/absent, never treated as done. */
 function resolveStates(owner, name, numbers) {
   if (numbers.length === 0) return { ok: true, states: new Map() };
   const aliases = numbers
@@ -243,10 +203,8 @@ function readConfig(mainRoot) {
   }
 }
 
-/** `origin/<integration>` when the remote-tracking ref exists locally, else
- *  the local `<integration>` branch. Never fetches — a stale `origin/<…>` can
- *  only make `no-work` *under*-report, never over-report, which is the safe
- *  direction. Returns `null` when neither ref exists at all. */
+/** `origin/<integration>` if the remote-tracking ref exists locally, else the local branch; `null` if neither exists.
+ *  Never fetches — a stale ref only makes `no-work` under-report, never over-report, the safe direction. */
 function resolveIntegrationRef(mainRoot, integration) {
   const remote = gitOut([
     '-C',
@@ -290,12 +248,8 @@ function upstreamMergeRefOf(mainRoot, branch) {
   return gitOut(['-C', mainRoot, 'config', '--get', `branch.${branch}.merge`]);
 }
 
-/** A `git status --porcelain` failure fails toward **dirty**, not clean —
- *  every other uncertain fact in this file (the missing-ref case, a
- *  `NOT_FOUND` resolution) fails toward *under*-reporting removability, and
- *  this is the one check whose whole point is never discarding uncommitted
- *  work, so it must not be the one place that fails the other way. `files:
- *  -1` marks "unknown count", never a real file count. */
+/** A `git status --porcelain` failure fails toward dirty, not clean — the one check whose job is never discarding uncommitted work,
+ *  so unlike every other uncertain fact here it must not under-report. `files: -1` marks "unknown count". */
 function isDirty(path) {
   const res = git(['-C', path, 'status', '--porcelain']);
   if (!res.ok) return { dirty: true, files: -1 };
@@ -304,11 +258,8 @@ function isDirty(path) {
 }
 
 // --- Orphan directories -------------------------------------------------------
-/** Directories that sit beside a registered worktree but that git does not
- *  track at all — never deleted here, only reported for `/port:worktree-clean`.
- *  Scanning is derived from the registered worktrees' own parent directories,
- *  never a hard-coded `.claude/worktrees/` — a repository with no registered
- *  worktrees has no parent directories to scan and no-ops cleanly. */
+/** Directories beside a registered worktree that git doesn't track at all — reported only, never deleted here.
+ *  Scanned from the registered worktrees' own parent dirs, never a hard-coded path — a repo with none scans nothing. */
 function findOrphanDirs(mainRoot, candidates) {
   const registered = new Set(candidates.map((c) => resolve(c.path)));
   registered.add(resolve(mainRoot));
@@ -384,9 +335,8 @@ function main() {
   if (!repo) die('.claude/port.config.json declares no `repo`.');
   const [owner, name] = repo.split('/');
 
-  // Resolving the integration ref and checking ancestry against it are both
-  // purely local git facts — no network, no `gh` — so neither is gated on
-  // `--offline`. Only the `gh issueOrPullRequest` resolution below is.
+  // Resolving the integration ref and checking ancestry are both purely local git facts — neither is gated on `--offline`.
+  // Only the `gh issueOrPullRequest` resolution below is.
   const integrationRef = resolveIntegrationRef(mainRoot, integration);
   if (!integrationRef) {
     die(
@@ -453,9 +403,8 @@ function main() {
       : isAncestorOfIntegration(mainRoot, c.head, integrationRef);
   }
 
-  // Classify every candidate, `outside` ones included — `classifyCandidate`'s
-  // documented precedence puts `outside` first, and the report must be fully
-  // populated for it too, even though it is never removable.
+  // Classify every candidate, `outside` ones included — classifyCandidate's precedence puts `outside` first,
+  // and the report must be fully populated for it too, even though it's never removable.
   for (const c of candidates) {
     if (c.isOutside) {
       const classified = classifyCandidate({
@@ -582,12 +531,8 @@ function describeReason(c) {
       return `no work not already on the integration branch`;
     case 'locked': {
       const base = c.lockReason ? `locked: ${c.lockReason}` : 'locked';
-      // Only ever call this reclaimable when the underlying item is
-      // actually `done`/`no-work` — a locked worktree whose item is still
-      // `active` gets no such claim, so an operator is never walked into
-      // unlocking a live agent's worktree on the strength of this message
-      // alone (see `${CLAUDE_PLUGIN_ROOT}/skills/worktree-clean/SKILL.md`
-      // step 3, which gates `--unlock` on this exact wording).
+      // Only calls this reclaimable when the item is actually done/no-work — never for a still-active locked worktree.
+      // worktree-clean's SKILL.md step 3 gates `--unlock` on this exact wording.
       if (!c.otherwiseRemovable) return base;
       const dirtyClause =
         c.dirtyFiles === -1
