@@ -23,8 +23,15 @@
 // checkout, deletion of an untracked directory, or removal of a path not
 // reported by `git worktree list`.
 import { spawnSync } from 'node:child_process';
-import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
-import { join, dirname, basename, relative, resolve, isAbsolute } from 'node:path';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+} from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 /** One clear line, no stack trace. */
@@ -39,9 +46,24 @@ const die = (msg) => {
  *  non-zero exit is routine (e.g. `merge-base --is-ancestor` failing) and
  *  callers decide what it means. */
 function run(cmd, args, opts = {}) {
-  const res = spawnSync(cmd, args, { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024, ...opts });
-  if (res.error) return { ok: false, stdout: '', stderr: String(res.error.message ?? res.error), status: null };
-  return { ok: res.status === 0, stdout: res.stdout ?? '', stderr: res.stderr ?? '', status: res.status };
+  const res = spawnSync(cmd, args, {
+    encoding: 'utf8',
+    maxBuffer: 32 * 1024 * 1024,
+    ...opts,
+  });
+  if (res.error)
+    return {
+      ok: false,
+      stdout: '',
+      stderr: String(res.error.message ?? res.error),
+      status: null,
+    };
+  return {
+    ok: res.status === 0,
+    stdout: res.stdout ?? '',
+    stderr: res.stderr ?? '',
+    status: res.status,
+  };
 }
 
 const git = (args, opts) => run('git', args, opts);
@@ -61,19 +83,30 @@ export function parsePorcelain(text) {
   let cur = null;
   for (const line of (text ?? '').split('\n')) {
     if (line.startsWith('worktree ')) {
-      cur = { path: line.slice('worktree '.length).trim(), head: null, branch: null, locked: false, lockReason: null, detached: false };
+      cur = {
+        path: line.slice('worktree '.length).trim(),
+        head: null,
+        branch: null,
+        locked: false,
+        lockReason: null,
+        detached: false,
+      };
       records.push(cur);
     } else if (!cur) {
       continue;
     } else if (line.startsWith('HEAD ')) {
       cur.head = line.slice('HEAD '.length).trim();
     } else if (line.startsWith('branch ')) {
-      cur.branch = line.slice('branch '.length).trim().replace(/^refs\/heads\//, '');
+      cur.branch = line
+        .slice('branch '.length)
+        .trim()
+        .replace(/^refs\/heads\//, '');
     } else if (line === 'detached') {
       cur.detached = true;
     } else if (line === 'locked' || line.startsWith('locked ')) {
       cur.locked = true;
-      cur.lockReason = line === 'locked' ? null : line.slice('locked '.length).trim();
+      cur.lockReason =
+        line === 'locked' ? null : line.slice('locked '.length).trim();
     }
   }
   return records;
@@ -84,23 +117,32 @@ export function parsePorcelain(text) {
  *  unit-testable. Returns `{ number, rung }` or `null` when nothing resolves.
  *  `#0` is explicitly not a correlation (never a real issue/pull-request
  *  number in this pipeline). */
-export function correlate({ upstreamMergeRef, branch, dirBasename, headSubject }) {
+export function correlate({
+  upstreamMergeRef,
+  branch,
+  dirBasename,
+  headSubject,
+}) {
   const fromRef = (ref) => {
     const m = /^refs\/heads\/(\d+)-/.exec(ref ?? '');
     return m ? Number(m[1]) : null;
   };
 
   const upstream = fromRef(upstreamMergeRef);
-  if (upstream != null && upstream > 0) return { number: upstream, rung: 'upstream-branch' };
+  if (upstream != null && upstream > 0)
+    return { number: upstream, rung: 'upstream-branch' };
 
   const branchMatch = /^(\d+)-/.exec(branch ?? '');
-  if (branchMatch && Number(branchMatch[1]) > 0) return { number: Number(branchMatch[1]), rung: 'branch-name' };
+  if (branchMatch && Number(branchMatch[1]) > 0)
+    return { number: Number(branchMatch[1]), rung: 'branch-name' };
 
   const dirMatch = /^impl-(\d+)$/.exec(dirBasename ?? '');
-  if (dirMatch && Number(dirMatch[1]) > 0) return { number: Number(dirMatch[1]), rung: 'directory-basename' };
+  if (dirMatch && Number(dirMatch[1]) > 0)
+    return { number: Number(dirMatch[1]), rung: 'directory-basename' };
 
   const subjectMatch = /^#(\d+)\b/.exec(headSubject ?? '');
-  if (subjectMatch && Number(subjectMatch[1]) > 0) return { number: Number(subjectMatch[1]), rung: 'head-subject' };
+  if (subjectMatch && Number(subjectMatch[1]) > 0)
+    return { number: Number(subjectMatch[1]), rung: 'head-subject' };
 
   return null;
 }
@@ -115,7 +157,14 @@ export function correlate({ upstreamMergeRef, branch, dirBasename, headSubject }
  *  when there was nothing to resolve or resolution came back `NOT_FOUND`.
  *  `isAncestor` is only consulted when `itemState` is `null` — a correlated
  *  item's state always wins over the ancestor fact. */
-export function classifyCandidate({ isOutside, isProtected, locked, dirty, itemState, isAncestor }) {
+export function classifyCandidate({
+  isOutside,
+  isProtected,
+  locked,
+  dirty,
+  itemState,
+  isAncestor,
+}) {
   if (isOutside) return { state: 'outside', removable: false };
   if (isProtected) return { state: 'active', removable: false };
 
@@ -128,7 +177,8 @@ export function classifyCandidate({ isOutside, isProtected, locked, dirty, itemS
   const otherwiseRemovable = base === 'done' || base === 'no-work';
 
   if (locked) return { state: 'locked', removable: false, otherwiseRemovable };
-  if (otherwiseRemovable && dirty) return { state: 'dirty', removable: false, otherwiseRemovable: true };
+  if (otherwiseRemovable && dirty)
+    return { state: 'dirty', removable: false, otherwiseRemovable: true };
   return { state: base, removable: otherwiseRemovable };
 }
 
@@ -144,7 +194,13 @@ function ghGraphql(query) {
   try {
     return { ok: true, body: JSON.parse(text) };
   } catch {
-    return { ok: false, body: null, error: res.stderr.trim().split('\n')[0] || 'gh api graphql produced no parseable output' };
+    return {
+      ok: false,
+      body: null,
+      error:
+        res.stderr.trim().split('\n')[0] ||
+        'gh api graphql produced no parseable output',
+    };
   }
 }
 
@@ -153,7 +209,12 @@ function ghGraphql(query) {
  *  means the alias came back `NOT_FOUND` or absent, never treated as done. */
 function resolveStates(owner, name, numbers) {
   if (numbers.length === 0) return { ok: true, states: new Map() };
-  const aliases = numbers.map((n) => `n${n}: issueOrPullRequest(number: ${n}) { __typename ... on Issue { state } ... on PullRequest { state } }`).join(' ');
+  const aliases = numbers
+    .map(
+      (n) =>
+        `n${n}: issueOrPullRequest(number: ${n}) { __typename ... on Issue { state } ... on PullRequest { state } }`,
+    )
+    .join(' ');
   const query = `query { repository(owner: "${owner}", name: "${name}") { ${aliases} } }`;
   const { ok, body, error } = ghGraphql(query);
   if (!ok) return { ok: false, states: new Map(), error };
@@ -167,8 +228,10 @@ function resolveStates(owner, name, numbers) {
 }
 
 // --- git facts ------------------------------------------------------------
-const worktreeList = (mainRoot) => gitOut(['worktree', 'list', '--porcelain'], { cwd: mainRoot });
-const configRepoRoot = (path) => gitOut(['-C', path, 'rev-parse', '--show-toplevel']);
+const worktreeList = (mainRoot) =>
+  gitOut(['worktree', 'list', '--porcelain'], { cwd: mainRoot });
+const configRepoRoot = (path) =>
+  gitOut(['-C', path, 'rev-parse', '--show-toplevel']);
 
 function readConfig(mainRoot) {
   const path = join(mainRoot, '.claude', 'port.config.json');
@@ -185,15 +248,36 @@ function readConfig(mainRoot) {
  *  only make `no-work` *under*-report, never over-report, which is the safe
  *  direction. Returns `null` when neither ref exists at all. */
 function resolveIntegrationRef(mainRoot, integration) {
-  const remote = gitOut(['-C', mainRoot, 'rev-parse', '--verify', '--quiet', `refs/remotes/origin/${integration}`]);
+  const remote = gitOut([
+    '-C',
+    mainRoot,
+    'rev-parse',
+    '--verify',
+    '--quiet',
+    `refs/remotes/origin/${integration}`,
+  ]);
   if (remote) return `origin/${integration}`;
-  const local = gitOut(['-C', mainRoot, 'rev-parse', '--verify', '--quiet', `refs/heads/${integration}`]);
+  const local = gitOut([
+    '-C',
+    mainRoot,
+    'rev-parse',
+    '--verify',
+    '--quiet',
+    `refs/heads/${integration}`,
+  ]);
   if (local) return integration;
   return null;
 }
 
 function isAncestorOfIntegration(mainRoot, sha, integrationRef) {
-  const res = git(['-C', mainRoot, 'merge-base', '--is-ancestor', sha, integrationRef]);
+  const res = git([
+    '-C',
+    mainRoot,
+    'merge-base',
+    '--is-ancestor',
+    sha,
+    integrationRef,
+  ]);
   return res.status === 0;
 }
 
@@ -251,7 +335,15 @@ function findOrphanDirs(mainRoot, candidates) {
 
 // --- CLI ----------------------------------------------------------------------
 function parseArgs(argv) {
-  const opts = { issue: null, max: 5, protect: [], offline: false, json: false, unlock: false, forceDirty: false };
+  const opts = {
+    issue: null,
+    max: 5,
+    protect: [],
+    offline: false,
+    json: false,
+    unlock: false,
+    forceDirty: false,
+  };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--issue') opts.issue = Number(argv[++i]);
@@ -261,7 +353,10 @@ function parseArgs(argv) {
     else if (a === '--json') opts.json = true;
     else if (a === '--unlock') opts.unlock = true;
     else if (a === '--force-dirty') opts.forceDirty = true;
-    else die(`unrecognized argument '${a}'. usage: node worktrees.mjs <report|reclaim> [--issue N] [--max K] [--protect <path>]... [--offline] [--json] [--unlock] [--force-dirty]`);
+    else
+      die(
+        `unrecognized argument '${a}'. usage: node worktrees.mjs <report|reclaim> [--issue N] [--max K] [--protect <path>]... [--offline] [--json] [--unlock] [--force-dirty]`,
+      );
   }
   return opts;
 }
@@ -269,15 +364,21 @@ function parseArgs(argv) {
 function main() {
   const [mode, ...rest] = process.argv.slice(2);
   if (mode !== 'report' && mode !== 'reclaim') {
-    die("unrecognized mode. usage: node worktrees.mjs <report|reclaim> [--issue N] [--max K] [--protect <path>]... [--offline] [--json] [--unlock] [--force-dirty]");
+    die(
+      'unrecognized mode. usage: node worktrees.mjs <report|reclaim> [--issue N] [--max K] [--protect <path>]... [--offline] [--json] [--unlock] [--force-dirty]',
+    );
   }
   const opts = parseArgs(rest);
 
   const mainRoot = configRepoRoot(process.cwd());
-  if (!mainRoot) die('not a git repository (git rev-parse --show-toplevel failed).');
+  if (!mainRoot)
+    die('not a git repository (git rev-parse --show-toplevel failed).');
 
   const cfg = readConfig(mainRoot);
-  if (!cfg) die('.claude/port.config.json was not found, or does not parse, at the repository root — this repository is not port-managed.');
+  if (!cfg)
+    die(
+      '.claude/port.config.json was not found, or does not parse, at the repository root — this repository is not port-managed.',
+    );
   const integration = cfg.branches?.integration ?? 'dev';
   const repo = cfg.repo;
   if (!repo) die('.claude/port.config.json declares no `repo`.');
@@ -288,20 +389,26 @@ function main() {
   // `--offline`. Only the `gh issueOrPullRequest` resolution below is.
   const integrationRef = resolveIntegrationRef(mainRoot, integration);
   if (!integrationRef) {
-    die(`neither 'origin/${integration}' nor a local '${integration}' branch exists — the 'no-work' rung has nothing to compare against.`);
+    die(
+      `neither 'origin/${integration}' nor a local '${integration}' branch exists — the 'no-work' rung has nothing to compare against.`,
+    );
   }
 
   const porcelain = worktreeList(mainRoot);
   if (porcelain === null) die('`git worktree list --porcelain` failed.');
   const records = parsePorcelain(porcelain);
-  if (records.length === 0) die('`git worktree list --porcelain` produced no entries — not a git repository?');
+  if (records.length === 0)
+    die(
+      '`git worktree list --porcelain` produced no entries — not a git repository?',
+    );
 
   const mainResolved = resolve(records[0].path);
   const protectedSet = new Set(opts.protect.map((p) => resolve(p)));
 
   const candidates = records.slice(1).map((r) => {
     const relPath = relative(mainResolved, resolve(r.path));
-    const isOutside = relPath === '' || relPath.startsWith('..') || isAbsolute(relPath);
+    const isOutside =
+      relPath === '' || relPath.startsWith('..') || isAbsolute(relPath);
     return { ...r, isOutside };
   });
 
@@ -311,17 +418,29 @@ function main() {
       c.correlation = null;
       continue;
     }
-    const upstreamMergeRef = c.branch ? upstreamMergeRefOf(mainRoot, c.branch) : null;
+    const upstreamMergeRef = c.branch
+      ? upstreamMergeRefOf(mainRoot, c.branch)
+      : null;
     const headSubject = c.head ? headSubjectOf(mainRoot, c.head) : null;
-    c.correlation = correlate({ upstreamMergeRef, branch: c.branch, dirBasename: basename(c.path), headSubject });
+    c.correlation = correlate({
+      upstreamMergeRef,
+      branch: c.branch,
+      dirBasename: basename(c.path),
+      headSubject,
+    });
   }
 
   // Resolve every correlated number in one round trip.
-  const numbers = [...new Set(candidates.filter((c) => c.correlation).map((c) => c.correlation.number))];
+  const numbers = [
+    ...new Set(
+      candidates.filter((c) => c.correlation).map((c) => c.correlation.number),
+    ),
+  ];
   let states = new Map();
   if (!opts.offline && numbers.length > 0) {
     const result = resolveStates(owner, name, numbers);
-    if (!result.ok) die(`gh issueOrPullRequest resolution failed: ${result.error}`);
+    if (!result.ok)
+      die(`gh issueOrPullRequest resolution failed: ${result.error}`);
     states = result.states;
   }
 
@@ -329,7 +448,9 @@ function main() {
   // only, so this runs the same whether or not --offline was passed.
   for (const c of candidates) {
     if (c.isOutside || c.correlation) continue;
-    c.isAncestor = !c.head ? null : isAncestorOfIntegration(mainRoot, c.head, integrationRef);
+    c.isAncestor = !c.head
+      ? null
+      : isAncestorOfIntegration(mainRoot, c.head, integrationRef);
   }
 
   // Classify every candidate, `outside` ones included — `classifyCandidate`'s
@@ -337,7 +458,14 @@ function main() {
   // populated for it too, even though it is never removable.
   for (const c of candidates) {
     if (c.isOutside) {
-      const classified = classifyCandidate({ isOutside: true, isProtected: false, locked: false, dirty: false, itemState: null, isAncestor: null });
+      const classified = classifyCandidate({
+        isOutside: true,
+        isProtected: false,
+        locked: false,
+        dirty: false,
+        itemState: null,
+        isAncestor: null,
+      });
       c.itemState = null;
       c.dirtyFiles = 0;
       c.state = classified.state;
@@ -347,7 +475,9 @@ function main() {
       continue;
     }
 
-    const itemState = c.correlation ? states.get(c.correlation.number) ?? null : null;
+    const itemState = c.correlation
+      ? (states.get(c.correlation.number) ?? null)
+      : null;
     const base = classifyCandidate({
       isOutside: false,
       isProtected: false,
@@ -357,7 +487,9 @@ function main() {
       isAncestor: c.isAncestor ?? null,
     });
     const shouldCheckDirty = base.removable || c.locked;
-    const dirtyInfo = shouldCheckDirty ? isDirty(c.path) : { dirty: false, files: 0 };
+    const dirtyInfo = shouldCheckDirty
+      ? isDirty(c.path)
+      : { dirty: false, files: 0 };
     c.itemState = itemState;
     c.dirtyFiles = dirtyInfo.files;
     const classified = classifyCandidate({
@@ -370,7 +502,9 @@ function main() {
     });
     c.state = classified.state;
     c.otherwiseRemovable = classified.otherwiseRemovable ?? false;
-    c.removable = classified.removable && (opts.issue == null || c.correlation?.number === opts.issue);
+    c.removable =
+      classified.removable &&
+      (opts.issue == null || c.correlation?.number === opts.issue);
     c.reason = describeReason(c);
   }
 
@@ -391,9 +525,18 @@ function main() {
           continue;
         }
       }
-      const removeRes = git(['-C', mainRoot, 'worktree', 'remove', '--force', c.path]);
+      const removeRes = git([
+        '-C',
+        mainRoot,
+        'worktree',
+        'remove',
+        '--force',
+        c.path,
+      ]);
       if (!removeRes.ok) {
-        c.error = removeRes.stderr.trim().split('\n')[0] || 'git worktree remove failed';
+        c.error =
+          removeRes.stderr.trim().split('\n')[0] ||
+          'git worktree remove failed';
         removalFailed = true;
         continue;
       }
@@ -402,15 +545,20 @@ function main() {
       if (c.branch) {
         const branchRes = git(['-C', mainRoot, 'branch', '-d', c.branch]);
         c.branchDeleted = branchRes.ok;
-        if (!branchRes.ok) c.branchRetainedReason = branchRes.stderr.trim().split('\n')[0] || 'unmerged';
+        if (!branchRes.ok)
+          c.branchRetainedReason =
+            branchRes.stderr.trim().split('\n')[0] || 'unmerged';
       }
     }
     git(['-C', mainRoot, 'worktree', 'prune']);
   }
 
-  const orphanDirs = findOrphanDirs(mainRoot, candidates.filter((c) => !c.isOutside));
+  const orphanDirs = findOrphanDirs(
+    mainRoot,
+    candidates.filter((c) => !c.isOutside),
+  );
 
-  report({ mode, mainRoot, integrationRef, candidates, orphanDirs, opts });
+  report({ mainRoot, integrationRef, candidates, orphanDirs, opts });
   process.exit(removalFailed ? 2 : 0);
 }
 
@@ -425,7 +573,9 @@ function mtimeOf(path) {
 function describeReason(c) {
   switch (c.state) {
     case 'active':
-      return c.itemState === 'OPEN' ? `#${c.correlation.number} open` : 'protected';
+      return c.itemState === 'OPEN'
+        ? `#${c.correlation.number} open`
+        : 'protected';
     case 'done':
       return `#${c.correlation.number} ${c.itemState === 'MERGED' ? 'merged' : 'closed'} (${c.correlation.rung})`;
     case 'no-work':
@@ -463,7 +613,7 @@ function describeReason(c) {
   }
 }
 
-function report({ mode, mainRoot, integrationRef, candidates, orphanDirs, opts }) {
+function report({ mainRoot, integrationRef, candidates, orphanDirs, opts }) {
   const visible = candidates;
   const removed = visible.filter((c) => c.removed).length;
   const kept = visible.length - removed;
@@ -471,45 +621,59 @@ function report({ mode, mainRoot, integrationRef, candidates, orphanDirs, opts }
   for (const c of visible) byState[c.state] = (byState[c.state] ?? 0) + 1;
 
   if (opts.json) {
-    console.log(JSON.stringify({
-      mainRoot,
-      integrationRef,
-      candidates: visible.map((c) => ({
-        path: c.path,
-        branch: c.branch,
-        head: c.head,
-        state: c.state,
-        reason: c.reason,
-        rung: c.correlation?.rung ?? null,
-        issue: c.correlation?.number ?? null,
-        locked: c.locked,
-        lockReason: c.lockReason,
-        dirtyFiles: c.dirtyFiles ?? 0,
-        removed: !!c.removed,
-        branchDeleted: c.branchDeleted ?? null,
-        error: c.error ?? null,
-      })),
-      orphanDirs,
-      summary: { registered: visible.length, removed, kept, byState },
-    }, null, 2));
+    console.log(
+      JSON.stringify(
+        {
+          mainRoot,
+          integrationRef,
+          candidates: visible.map((c) => ({
+            path: c.path,
+            branch: c.branch,
+            head: c.head,
+            state: c.state,
+            reason: c.reason,
+            rung: c.correlation?.rung ?? null,
+            issue: c.correlation?.number ?? null,
+            locked: c.locked,
+            lockReason: c.lockReason,
+            dirtyFiles: c.dirtyFiles ?? 0,
+            removed: !!c.removed,
+            branchDeleted: c.branchDeleted ?? null,
+            error: c.error ?? null,
+          })),
+          orphanDirs,
+          summary: { registered: visible.length, removed, kept, byState },
+        },
+        null,
+        2,
+      ),
+    );
     return;
   }
 
-  console.log(`Worktrees: ${visible.length} registered · removed ${removed} · kept ${kept}.`);
+  console.log(
+    `Worktrees: ${visible.length} registered · removed ${removed} · kept ${kept}.`,
+  );
   for (const c of visible) {
     const tag = c.removed ? 'removed' : c.state;
     const suffix = c.error ? ` — FAILED: ${c.error}` : '';
     console.log(`${tag}\t${c.path} — ${c.reason}${suffix}`);
     if (c.removed && c.branch && c.branchDeleted === false) {
-      console.log(`  branch '${c.branch}' retained — ${c.branchRetainedReason}`);
+      console.log(
+        `  branch '${c.branch}' retained — ${c.branchRetainedReason}`,
+      );
     }
   }
   if (orphanDirs.length > 0) {
-    console.log(`${orphanDirs.length} orphan directory(ies), untracked, never deleted here: ${orphanDirs.join(', ')} — run /port:worktree-clean.`);
+    console.log(
+      `${orphanDirs.length} orphan directory(ies), untracked, never deleted here: ${orphanDirs.join(', ')} — run /port:worktree-clean.`,
+    );
   }
   const unresolved = visible.filter((c) => c.state === 'unresolved');
   if (unresolved.length > 0) {
-    console.log(`${unresolved.length} unresolved (${unresolved.map((c) => basename(c.path)).join(', ')}) — run /port:worktree-clean.`);
+    console.log(
+      `${unresolved.length} unresolved (${unresolved.map((c) => basename(c.path)).join(', ')}) — run /port:worktree-clean.`,
+    );
   }
 }
 

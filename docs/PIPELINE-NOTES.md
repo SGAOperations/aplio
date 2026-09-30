@@ -49,7 +49,7 @@ every stage agent and the cockpit need the same picture of it.
     as a build break.
   - **What you cannot read:** the `Vercel` check's own description is
     generic (`Deployment has failed — run this Vercel CLI command: npx
-    vercel inspect … --logs`), naming neither Neon nor the quota, and
+vercel inspect … --logs`), naming neither Neon nor the quota, and
     `vercel` is deny-listed so its one instruction can't be followed. The
     Vercel **build log is human-only** — never expect to read it.
   - In `gh pr view --json statusCheckRollup`, `Vercel` is a **StatusContext**
