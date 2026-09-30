@@ -7,7 +7,10 @@ import { useQueryStates } from 'nuqs';
 
 import type { $Enums } from '@/prisma/client';
 
-import { type DataTableColumn } from '@/lib/data-table';
+import {
+  DATA_TABLE_CELL_TRUNCATE_CLASS,
+  type DataTableColumn,
+} from '@/lib/data-table';
 import {
   ACTION_ICONS,
   APPLICATION_STATUS_ICONS,
@@ -27,6 +30,7 @@ import type {
   DraftApplicationListItem,
 } from '@/lib/types';
 import {
+  cn,
   displayUserName,
   getApplicantName,
   getDisplayName,
@@ -159,9 +163,20 @@ export function ApplicationsTable(props: ApplicationsTableProps) {
       sortAccessor: (a) => displayUserName(a.user),
       cell: (app) => (
         <>
-          <span className="font-medium">{displayUserName(app.user)}</span>
+          <span
+            className={cn(DATA_TABLE_CELL_TRUNCATE_CLASS, 'font-medium')}
+            title={displayUserName(app.user)}
+          >
+            {displayUserName(app.user)}
+          </span>
           {app.user.name && (
-            <span className="text-muted-foreground block text-xs">
+            <span
+              className={cn(
+                DATA_TABLE_CELL_TRUNCATE_CLASS,
+                'text-muted-foreground text-xs',
+              )}
+              title={app.user.email}
+            >
               {app.user.email}
             </span>
           )}
@@ -175,7 +190,8 @@ export function ApplicationsTable(props: ApplicationsTableProps) {
       cell: (app) => (
         <Link
           href={`/positions/${app.position.id}`}
-          className="hover:underline"
+          className={cn(DATA_TABLE_CELL_TRUNCATE_CLASS, 'hover:underline')}
+          title={app.position.title}
         >
           {app.position.title}
         </Link>
@@ -243,9 +259,20 @@ export function ApplicationsTable(props: ApplicationsTableProps) {
         if (app.isDraft) {
           return (
             <>
-              <span className="font-medium">{displayUserName(app.user)}</span>
+              <span
+                className={cn(DATA_TABLE_CELL_TRUNCATE_CLASS, 'font-medium')}
+                title={displayUserName(app.user)}
+              >
+                {displayUserName(app.user)}
+              </span>
               {app.user.name && (
-                <span className="text-muted-foreground block text-xs">
+                <span
+                  className={cn(
+                    DATA_TABLE_CELL_TRUNCATE_CLASS,
+                    'text-muted-foreground text-xs',
+                  )}
+                  title={app.user.email}
+                >
                   {app.user.email}
                 </span>
               )}
@@ -253,21 +280,35 @@ export function ApplicationsTable(props: ApplicationsTableProps) {
           );
         }
         const { displayName, renamedTo } = displayInfo.get(app.id)!;
+        const fullTitle = renamedTo
+          ? `${displayName} (${renamedTo})`
+          : displayName;
         return (
           <>
-            <Link
-              href={`/manage/applications/${app.id}`}
-              className="font-medium hover:underline"
+            <div
+              className={cn(DATA_TABLE_CELL_TRUNCATE_CLASS, 'font-medium')}
+              title={fullTitle}
             >
-              {displayName}
-            </Link>
-            {renamedTo && (
-              <span className="text-muted-foreground ml-1 text-xs">
-                ({renamedTo})
-              </span>
-            )}
+              <Link
+                href={`/manage/applications/${app.id}`}
+                className="hover:underline"
+              >
+                {displayName}
+              </Link>
+              {renamedTo && (
+                <span className="text-muted-foreground ml-1 text-xs">
+                  ({renamedTo})
+                </span>
+              )}
+            </div>
             {getApplicantName(app) && (
-              <span className="text-muted-foreground block text-xs">
+              <span
+                className={cn(
+                  DATA_TABLE_CELL_TRUNCATE_CLASS,
+                  'text-muted-foreground text-xs',
+                )}
+                title={app.user.email}
+              >
                 {app.user.email}
               </span>
             )}
@@ -282,7 +323,8 @@ export function ApplicationsTable(props: ApplicationsTableProps) {
       cell: (app) => (
         <Link
           href={`/positions/${app.position.id}`}
-          className="hover:underline"
+          className={cn(DATA_TABLE_CELL_TRUNCATE_CLASS, 'hover:underline')}
+          title={app.position.title}
         >
           {app.position.title}
         </Link>
