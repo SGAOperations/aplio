@@ -142,7 +142,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       {
         key: 'user',
         header: 'User',
-        headClassName: 'w-56',
+        headClassName: 'w-48',
         sortAccessor: (u) => displayUserName(u),
         searchValue: (u) => [displayUserName(u), u.email],
         cell: (u) => {
@@ -264,8 +264,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       {
         key: 'actions',
         header: 'Actions',
-        headClassName: 'w-48 text-right',
-        cellClassName: 'text-right',
+        headClassName: 'w-48',
         cell: (u) => {
           const isSelf = u.id === currentUserId;
           return (
