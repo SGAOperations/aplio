@@ -1,4 +1,4 @@
-import { ORG_TIMEZONE } from '@/lib/constants';
+import { DATE_SEARCH_YEAR_SPAN, ORG_TIMEZONE } from '@/lib/constants';
 
 type DatePrecision = 'date' | 'datetime';
 
@@ -125,6 +125,178 @@ export function formatInstant(
     minute: '2-digit',
     timeZoneName: 'short',
   }).format(date);
+}
+
+// Full month names for prefix-matching in date-search tokens.
+const FULL_MONTH_NAMES = [
+  'january',
+  'february',
+  'march',
+  'april',
+  'may',
+  'june',
+  'july',
+  'august',
+  'september',
+  'october',
+  'november',
+  'december',
+];
+
+// -1 if not a valid month token; 0–11 (0=Jan) if it is.
+// Token must be ≥3 chars and be a prefix of a full month name (after stripping a trailing period).
+function parseMonthToken(token: string): number {
+  const t = token.endsWith('.') ? token.slice(0, -1) : token;
+  if (t.length < 3) return -1;
+  return FULL_MONTH_NAMES.findIndex((name) => name.startsWith(t));
+}
+
+function isValidDate(year: number, month1: number, day: number): boolean {
+  const d = new Date(Date.UTC(year, month1 - 1, day));
+  return (
+    d.getUTCFullYear() === year &&
+    d.getUTCMonth() + 1 === month1 &&
+    d.getUTCDate() === day
+  );
+}
+
+function padded(n: number): string {
+  return String(n).padStart(2, '0');
+}
+
+function yearRange(year: number): { gte: Date; lt: Date } {
+  return {
+    gte: orgDayStart(`${year}-01-01`),
+    lt: orgDayStart(`${year + 1}-01-01`),
+  };
+}
+
+function monthRange(year: number, month0: number): { gte: Date; lt: Date } {
+  const start = `${year}-${padded(month0 + 1)}-01`;
+  // Roll December into the next year.
+  const nextMonth = new Date(Date.UTC(year, month0 + 1, 1));
+  const end = `${nextMonth.getUTCFullYear()}-${padded(nextMonth.getUTCMonth() + 1)}-01`;
+  return { gte: orgDayStart(start), lt: orgDayStart(end) };
+}
+
+function dayRange(
+  year: number,
+  month0: number,
+  day: number,
+): { gte: Date; lt: Date } {
+  const start = `${year}-${padded(month0 + 1)}-${padded(day)}`;
+  const next = new Date(Date.UTC(year, month0, day + 1));
+  const end = `${next.getUTCFullYear()}-${padded(next.getUTCMonth() + 1)}-${padded(next.getUTCDate())}`;
+  return { gte: orgDayStart(start), lt: orgDayStart(end) };
+}
+
+/**
+ * Parses a free-text search query into submitted-date ranges.
+ * Returns [] when the query does not match a recognized date form.
+ * All boundaries are org-local days (America/New_York).
+ *
+ * Supported forms (in precedence order):
+ *   YYYY                   → that year
+ *   Mon YYYY / YYYY Mon    → that month
+ *   M/YYYY or MM/YYYY      → that month
+ *   Mon D YYYY             → that day (comma between D and YYYY is ignored)
+ *   M/D/YYYY or MM/DD/YYYY → that day
+ *   Mon                    → that month across DATE_SEARCH_YEAR_SPAN years
+ *   Mon D                  → that day across DATE_SEARCH_YEAR_SPAN years (skips non-leap Feb 29)
+ */
+export function parseSubmittedDateQuery(
+  q: string,
+  now: Date = new Date(),
+): { gte: Date; lt: Date }[] {
+  const normalized = q
+    .trim()
+    .toLowerCase()
+    .replace(/,/g, ' ')
+    .replace(/\s+/g, ' ');
+
+  const currentYear = parseInt(toOrgDayString(now).slice(0, 4), 10);
+  const startYear = currentYear - DATE_SEARCH_YEAR_SPAN + 1;
+
+  const tokens = normalized.split(' ');
+
+  if (tokens.length === 1) {
+    const t = tokens[0]!;
+
+    // YYYY
+    if (/^\d{4}$/.test(t)) return [yearRange(parseInt(t, 10))];
+
+    // Mon (yearless)
+    const m = parseMonthToken(t);
+    if (m !== -1) {
+      const ranges: { gte: Date; lt: Date }[] = [];
+      for (let y = startYear; y <= currentYear; y++)
+        ranges.push(monthRange(y, m));
+      return ranges;
+    }
+
+    // M/YYYY or MM/YYYY
+    const slashMonth = /^(\d{1,2})\/(\d{4})$/.exec(t);
+    if (slashMonth) {
+      const mn = parseInt(slashMonth[1]!, 10);
+      const yr = parseInt(slashMonth[2]!, 10);
+      if (mn < 1 || mn > 12) return [];
+      return [monthRange(yr, mn - 1)];
+    }
+
+    // M/D/YYYY or MM/DD/YYYY
+    const slashDay = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(t);
+    if (slashDay) {
+      const mn = parseInt(slashDay[1]!, 10);
+      const dy = parseInt(slashDay[2]!, 10);
+      const yr = parseInt(slashDay[3]!, 10);
+      if (!isValidDate(yr, mn, dy)) return [];
+      return [dayRange(yr, mn - 1, dy)];
+    }
+
+    return [];
+  }
+
+  if (tokens.length === 2) {
+    const [a, b] = tokens as [string, string];
+    const aYear = /^\d{4}$/.test(a) ? parseInt(a, 10) : null;
+    const bYear = /^\d{4}$/.test(b) ? parseInt(b, 10) : null;
+    const aMonth = parseMonthToken(a);
+    const bMonth = parseMonthToken(b);
+
+    // Mon YYYY
+    if (aMonth !== -1 && bYear !== null) return [monthRange(bYear, aMonth)];
+    // YYYY Mon
+    if (aYear !== null && bMonth !== -1) return [monthRange(aYear, bMonth)];
+
+    // Mon D (yearless)
+    if (aMonth !== -1 && /^\d{1,2}$/.test(b)) {
+      const dy = parseInt(b, 10);
+      const ranges: { gte: Date; lt: Date }[] = [];
+      for (let y = startYear; y <= currentYear; y++) {
+        if (!isValidDate(y, aMonth + 1, dy)) continue;
+        ranges.push(dayRange(y, aMonth, dy));
+      }
+      return ranges;
+    }
+
+    return [];
+  }
+
+  if (tokens.length === 3) {
+    const [a, b, c] = tokens as [string, string, string];
+    const aMonth = parseMonthToken(a);
+    // Mon D YYYY (comma already collapsed into the space between b and c)
+    if (aMonth !== -1 && /^\d{1,2}$/.test(b) && /^\d{4}$/.test(c)) {
+      const dy = parseInt(b, 10);
+      const yr = parseInt(c, 10);
+      if (!isValidDate(yr, aMonth + 1, dy)) return [];
+      return [dayRange(yr, aMonth, dy)];
+    }
+
+    return [];
+  }
+
+  return [];
 }
 
 /**
