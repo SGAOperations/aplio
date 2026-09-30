@@ -4,10 +4,21 @@ import type { LucideIcon } from 'lucide-react';
 
 import { CONCEPT_ICONS, POSITION_STATUS_ICONS } from '@/lib/icons';
 import type { ManagedPosition, PositionApplicationStats } from '@/lib/types';
-import { groupManagedPositions, isPositionActive } from '@/lib/utils';
+import {
+  groupManagedPositions,
+  isPositionActive,
+  markdownToPlainText,
+} from '@/lib/utils';
 
 import { ArchivedPositionsCollapsible } from '@/components/features/archived-positions-collapsible';
 import { PositionCard } from '@/components/features/position-card';
+import {
+  PositionSearchEmpty,
+  PositionSearchGroup,
+  PositionSearchItem,
+  PositionSearchProvider,
+  PositionSearchWhenIdle,
+} from '@/components/features/position-search';
 import { EmptyState } from '@/components/ui/empty-state';
 
 interface ManagedPositionsSectionProps {
@@ -16,6 +27,7 @@ interface ManagedPositionsSectionProps {
   emptyDescription?: string;
   emptyAction?: ReactNode;
   nestedUnder?: string;
+  noProvider?: boolean;
 }
 
 interface PositionGroupProps {
@@ -42,6 +54,7 @@ function PositionGroup({
   nested,
 }: PositionGroupProps) {
   const Heading = nested ? 'h3' : 'h2';
+  const ids = positions.map((p) => p.id);
   return (
     <section
       id={sectionId}
@@ -60,17 +73,20 @@ function PositionGroup({
         </span>
       </Heading>
       {positions.length > 0 && (
-        <div className="flex flex-col gap-4">
-          {positions.map((position) => (
-            <PositionCard
-              key={position.id}
-              position={position}
-              canManage={true}
-              isAuthenticated={true}
-              applicationStats={statsByPosition.get(position.id)}
-            />
-          ))}
-        </div>
+        <PositionSearchGroup ids={ids}>
+          <div className="flex flex-col gap-4">
+            {positions.map((position) => (
+              <PositionSearchItem key={position.id} id={position.id}>
+                <PositionCard
+                  position={position}
+                  canManage={true}
+                  isAuthenticated={true}
+                  applicationStats={statsByPosition.get(position.id)}
+                />
+              </PositionSearchItem>
+            ))}
+          </div>
+        </PositionSearchGroup>
       )}
       {trailing}
     </section>
@@ -84,6 +100,7 @@ export function ManagedPositionsSection({
   emptyDescription,
   emptyAction,
   nestedUnder,
+  noProvider,
 }: ManagedPositionsSectionProps) {
   if (positions.length === 0)
     return (
@@ -101,71 +118,101 @@ export function ManagedPositionsSection({
   const prefix = nestedUnder ? `${nestedUnder}-` : '';
   const nested = Boolean(nestedUnder);
 
-  return (
+  const hasClosed = closedActive.length > 0 || closedArchived.length > 0;
+  const closedAllIds = [...closedActive, ...closedArchived].map((p) => p.id);
+
+  const content = (
     <div className="flex flex-col gap-6">
       {open.length > 0 && (
-        <PositionGroup
-          sectionId={`${prefix}open`}
-          headingId={`${prefix}open-heading`}
-          title="Open"
-          icon={POSITION_STATUS_ICONS.open}
-          positions={open}
-          statsByPosition={statsByPosition}
-          count={open.length}
-          nested={nested}
-        />
+        <PositionSearchGroup ids={open.map((p) => p.id)}>
+          <PositionGroup
+            sectionId={`${prefix}open`}
+            headingId={`${prefix}open-heading`}
+            title="Open"
+            icon={POSITION_STATUS_ICONS.open}
+            positions={open}
+            statsByPosition={statsByPosition}
+            count={open.length}
+            nested={nested}
+          />
+        </PositionSearchGroup>
       )}
 
-      {closed.length > 0 && (
-        <PositionGroup
-          sectionId={`${prefix}closed`}
-          headingId={`${prefix}closed-heading`}
-          title="Closed"
-          icon={POSITION_STATUS_ICONS.closed}
-          positions={closedActive}
-          statsByPosition={statsByPosition}
-          count={closed.length}
-          nested={nested}
-          trailing={
-            <>
-              {closedActive.length === 0 && (
-                <p className="text-muted-foreground text-sm">
-                  Nothing closed recently — expand Archived below to see older
-                  positions.
-                </p>
-              )}
-              {closedArchived.length > 0 && (
-                <ArchivedPositionsCollapsible count={closedArchived.length}>
-                  <div className="flex flex-col gap-4">
-                    {closedArchived.map((position) => (
-                      <PositionCard
-                        key={position.id}
-                        position={position}
-                        canManage={true}
-                        isAuthenticated={true}
-                        applicationStats={statsByPosition.get(position.id)}
-                      />
-                    ))}
-                  </div>
-                </ArchivedPositionsCollapsible>
-              )}
-            </>
-          }
-        />
+      {hasClosed && (
+        <PositionSearchGroup ids={closedAllIds}>
+          <PositionGroup
+            sectionId={`${prefix}closed`}
+            headingId={`${prefix}closed-heading`}
+            title="Closed"
+            icon={POSITION_STATUS_ICONS.closed}
+            positions={closedActive}
+            statsByPosition={statsByPosition}
+            count={closed.length}
+            nested={nested}
+            trailing={
+              closedArchived.length > 0 ? (
+                <>
+                  {closedActive.length === 0 && (
+                    <PositionSearchWhenIdle>
+                      <p className="text-muted-foreground text-sm">
+                        Nothing closed recently — expand Archived below to see
+                        older positions.
+                      </p>
+                    </PositionSearchWhenIdle>
+                  )}
+                  <ArchivedPositionsCollapsible
+                    ids={closedArchived.map((p) => p.id)}
+                  >
+                    <div className="flex flex-col gap-4">
+                      {closedArchived.map((position) => (
+                        <PositionSearchItem key={position.id} id={position.id}>
+                          <PositionCard
+                            position={position}
+                            canManage={true}
+                            isAuthenticated={true}
+                            applicationStats={statsByPosition.get(position.id)}
+                          />
+                        </PositionSearchItem>
+                      ))}
+                    </div>
+                  </ArchivedPositionsCollapsible>
+                </>
+              ) : undefined
+            }
+          />
+        </PositionSearchGroup>
       )}
 
       {draft.length > 0 && (
-        <PositionGroup
-          sectionId={`${prefix}draft`}
-          headingId={`${prefix}draft-heading`}
-          title="Draft"
-          icon={POSITION_STATUS_ICONS.draft}
-          positions={draft}
-          statsByPosition={statsByPosition}
-          count={draft.length}
-          nested={nested}
-        />
+        <PositionSearchGroup ids={draft.map((p) => p.id)}>
+          <PositionGroup
+            sectionId={`${prefix}draft`}
+            headingId={`${prefix}draft-heading`}
+            title="Draft"
+            icon={POSITION_STATUS_ICONS.draft}
+            positions={draft}
+            statsByPosition={statsByPosition}
+            count={draft.length}
+            nested={nested}
+          />
+        </PositionSearchGroup>
       )}
+
+      {!noProvider && <PositionSearchEmpty />}
     </div>
+  );
+
+  if (noProvider) return content;
+
+  const searchItems = positions.map((p) => ({
+    id: p.id,
+    title: p.title,
+    description: markdownToPlainText(p.description),
+  }));
+
+  return (
+    <PositionSearchProvider items={searchItems}>
+      {content}
+    </PositionSearchProvider>
   );
 }
