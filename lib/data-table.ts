@@ -6,6 +6,11 @@ export const DATA_TABLE_DESKTOP_CLASS = 'hidden md:block';
 export const DATA_TABLE_MOBILE_CLASS = 'flex flex-col divide-y md:hidden';
 // Wraps a table plus its adjoining pagination/filter-summary line.
 export const DATA_TABLE_RESULTS_CLASS = 'flex flex-col gap-3';
+// Apply to an inner element (never the td) for variable-length cell content.
+export const DATA_TABLE_CELL_TRUNCATE_CLASS = 'block max-w-xs truncate';
+export const DATA_TABLE_CELL_CLAMP_CLASS =
+  'line-clamp-2 max-w-xs whitespace-normal [overflow-wrap:anywhere]';
+export const DATA_TABLE_CELL_WRAP_CLASS = 'flex max-w-xs flex-wrap gap-1';
 
 export type SortDirection = 'asc' | 'desc';
 
