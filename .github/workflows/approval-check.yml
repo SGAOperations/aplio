@@ -1,8 +1,27 @@
-# Gates `dev` PRs on `approved`, only when labeled `claude` — others skip.
-# NEVER narrow the trigger or rename the job: no check run = pending forever.
-# `branches: [dev]` is safe only because the required-check registration is
-# `dev`-scoped too — NEVER add this to the `main/dev` ruleset (id 15248252);
-# dev → main release PRs carry no pipeline labels.
+# Installed by /port:init when modules.approvalGate is enabled.
+#
+# Gates pull requests into dev on the `approved` label, but ONLY when
+# the pull request carries `claude`. Everything else — human, dependency bot —
+# gets a skipped check run, which GitHub counts as satisfied, so it merges on its own merits.
+#
+# NEVER narrow the trigger and never rename the job. A workflow that does not run creates
+# no check run at all, which leaves a required check pending forever — strictly worse than
+# a failing one, because nothing surfaces why.
+#
+# Deliberately FAIL-OPEN: an unlabelled pipeline pull request is indistinguishable in CI
+# from a human one and simply loses its gate. Nothing here can close that. The mitigations
+# live upstream — impl-agent applies the label at creation time so the gate is live on the
+# first event, and the cockpit's ungated sweep reports any tracked pull request missing it.
+#
+# Scoped to dev only. In a two-branch repository, release pull requests carry
+# no pipeline labels, so gating them would block every release. In a single-branch
+# repository that carve-out is vacuous — there is no release pull request to exempt, so
+# every pipeline pull request is gated.
+#
+# This check only *enforces* anything if it is registered as a required status check in a
+# branch ruleset. It already is here: ruleset "dev" (id 21017152) requires `run-approval-check`.
+# NEVER add this check to the "main/dev" ruleset (id 15248252) — dev → main release PRs
+# carry no pipeline labels, so gating them there would block every release.
 
 name: Approval Check
 
@@ -28,14 +47,15 @@ jobs:
         run: |
           set -uo pipefail
 
-          # One label per line, in the ticket's order. `blocked` is an
-          # issue-stage label carried here as defence-in-depth.
-          BLOCKING_LABELS="needs revision
-          needs human
+          # One label per line. Any of these means the item is mid-pipeline.
+          BLOCKING_LABELS="planning
+          in progress
           reviewing
           revising
           refreshing
-          blocked"
+          plan review
+          blocked
+          needs human"
 
           if ! gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels \
               --jq '.labels[].name' > "$RUNNER_TEMP/labels.txt"; then
@@ -59,7 +79,7 @@ jobs:
           EOF
 
           if ! grep -Fxq "approved" "$RUNNER_TEMP/labels.txt"; then
-            echo "::error::Missing the 'approved' label. This PR carries 'claude', so it is a pipeline PR and merges only once review-agent applies 'approved'. If it is not a pipeline PR, remove the 'claude' label and this check will skip."
+            echo "::error::Missing the 'approved' label. This PR carries 'claude', so it is a pipeline PR and merges only once review applies 'approved'. If it is not a pipeline PR, remove the 'claude' label and this check will skip."
             FAILED=1
           fi
 
