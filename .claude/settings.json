@@ -1,9 +1,11 @@
 {
+  "env": { "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1" },
   "permissions": {
     "allow": [
       "Bash(gh *)",
       "Bash(git *)",
       "Bash(npm *)",
+      "Skill",
       "Bash(npx shadcn *)",
       "Bash(npx shadcn@latest *)",
       "Bash(npx shadcn@* *)",
@@ -32,6 +34,10 @@
       "Bash(mkdir -p *)",
       "Edit(**)",
       "Write(**)",
+      "Read(~/.claude/plugins/**)",
+      "Bash(node scripts/port-artifacts.mjs *)",
+      "Bash(node scripts/port-worktrees.mjs *)",
+      "Bash(node scripts/port-budget.mjs *)",
       "WebFetch(domain:nextjs.org)",
       "WebFetch(domain:ui.shadcn.com)",
       "WebFetch(domain:code.claude.com)"
@@ -64,18 +70,23 @@
       "Bash(find -okdir *)"
     ]
   },
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node .claude/hooks/log-bash-denial.mjs"
-          }
-        ]
-      }
-    ]
+  "enabledPlugins": {
+    "port@port": true,
+    "context7@claude-plugins-official": true,
+    "prisma@claude-plugins-official": true,
+    "neon@claude-plugins-official": true,
+    "resend@claude-plugins-official": true,
+    "vercel@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true
   },
-  "env": { "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1" }
+  "extraKnownMarketplaces": {
+    "port": {
+      "source": {
+        "source": "github",
+        "repo": "b-at-neu/port",
+        "ref": "v0.3.0"
+      },
+      "autoUpdate": true
+    }
+  }
 }

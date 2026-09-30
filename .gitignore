@@ -37,6 +37,7 @@ next-env.d.ts
 
 # worktrees
 .worktrees/
+.claude/worktrees/
 
 # agent scratch dir (gh --body-file payloads)
 .temp/

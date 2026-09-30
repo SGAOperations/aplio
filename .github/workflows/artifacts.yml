@@ -1,0 +1,42 @@
+# Layer 2 of the testing loop: audits real pull requests with the same artifact patterns `check` validates at write-time.
+# May be registered as a required check — the narrowing gates one step, not the job, so every subscribed event still concludes it.
+
+name: Artifacts
+
+on:
+  pull_request:
+    types: [labeled, opened, synchronize]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: 'Pull request number to audit (blank audits the 5 most recent)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+jobs:
+  audit-artifacts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Audit pipeline artifacts
+        # On `labeled`, runs only when the PR just reached `approved` and carries `claude` — every other `labeled` event
+        # skips at the step (not the job), so the job still concludes and a required check still reports.
+        if: >-
+          github.event.action != 'labeled' ||
+          (github.event.label.name == 'approved' &&
+           contains(github.event.pull_request.labels.*.name, 'claude'))
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event_name == 'workflow_dispatch' && inputs.pr || github.event.pull_request.number }}
+        # $PR is deliberately unquoted: a blank dispatch input must expand to no
+        # argument at all, which is how the script enters sweep mode.
+        run: node scripts/port-artifacts.mjs audit $PR
