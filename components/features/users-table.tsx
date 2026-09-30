@@ -142,7 +142,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       {
         key: 'user',
         header: 'User',
-        headClassName: 'w-[30%]',
+        headClassName: 'w-[24%]',
         sortAccessor: (u) => displayUserName(u),
         searchValue: (u) => [displayUserName(u), u.email],
         cell: (u) => {
@@ -174,6 +174,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       {
         key: 'roles',
         header: 'Roles',
+        headClassName: 'w-24',
         sortAccessor: (u) => [getUserRoleRank(u), displayUserName(u), u.email],
         filterValue: getUserRoleTokens,
         cell: (u) => {
@@ -192,12 +193,14 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       {
         key: 'joined',
         header: 'Joined',
+        headClassName: 'w-28',
         sortAccessor: (u) => u.createdAt,
         cell: (u) => <LocalTime date={u.createdAt} precision="date" />,
       },
       {
         key: 'lastSignIn',
         header: 'Last sign-in',
+        headClassName: 'w-32',
         sortAccessor: (u) => u.lastLoginAt,
         cell: (u) =>
           u.lastLoginAt ? (
@@ -212,6 +215,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       {
         key: 'applications',
         header: 'Applications',
+        headClassName: 'w-20',
         sortAccessor: (u) => u._count.applications,
         cell: (u) => {
           const appCount = u._count.applications;
@@ -229,7 +233,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       {
         key: 'managedPositions',
         header: 'Managed Positions',
-        headClassName: 'w-[35%]',
+        headClassName: 'w-[30%]',
         filterValue: (u) => u.managedPositions.map((p) => p.id),
         searchValue: (u) => u.managedPositions.map((p) => p.title),
         cell: (u) => {
@@ -260,7 +264,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       {
         key: 'actions',
         header: 'Actions',
-        headClassName: 'w-16',
+        headClassName: 'w-48',
         cellClassName: 'text-right',
         cell: (u) => {
           const isSelf = u.id === currentUserId;
