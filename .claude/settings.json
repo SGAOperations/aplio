@@ -70,19 +70,6 @@
       "Bash(find -okdir *)"
     ]
   },
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node .claude/hooks/log-bash-denial.mjs"
-          }
-        ]
-      }
-    ]
-  },
   "enabledPlugins": {
     "port@port": true,
     "context7@claude-plugins-official": true,

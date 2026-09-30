@@ -29,6 +29,7 @@ jobs:
           BLOCKING_LABELS="planning
           in progress
           reviewing
+          needs revision
           revising
           refreshing
           plan review
