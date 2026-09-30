@@ -264,7 +264,8 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       {
         key: 'actions',
         header: 'Actions',
-        headClassName: 'w-48',
+        headClassName: 'w-48 text-right',
+        cellClassName: 'text-right',
         cell: (u) => {
           const isSelf = u.id === currentUserId;
           return (
