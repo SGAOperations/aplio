@@ -63,6 +63,8 @@ interface DataTableProps<T> {
   onSortToggle?: (key: string) => void;
   // Drag-to-reorder, gated to sorting by `orderKey` ascending.
   reorder?: DataTableReorder<T>;
+  // Applied to the <table> element — use to set table-layout (e.g. "table-fixed w-full").
+  tableClassName?: string;
 }
 
 function sortLabel(header: ReactNode, key: string): string {
@@ -258,6 +260,7 @@ export function DataTable<T>({
   sort: controlledSort,
   onSortToggle,
   reorder,
+  tableClassName,
 }: DataTableProps<T>) {
   const controlled = onSortToggle !== undefined;
 
@@ -367,7 +370,7 @@ export function DataTable<T>({
           rows={sortedRows}
           getRowKey={getRowKey}
         >
-          <Table>
+          <Table className={tableClassName}>
             <TableCaption className="sr-only">{caption}</TableCaption>
             <TableHeader>
               <TableRow>

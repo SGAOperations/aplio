@@ -142,6 +142,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       {
         key: 'user',
         header: 'User',
+        headClassName: 'w-[30%]',
         sortAccessor: (u) => displayUserName(u),
         searchValue: (u) => [displayUserName(u), u.email],
         cell: (u) => {
@@ -228,6 +229,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       {
         key: 'managedPositions',
         header: 'Managed Positions',
+        headClassName: 'w-[35%]',
         filterValue: (u) => u.managedPositions.map((p) => p.id),
         searchValue: (u) => u.managedPositions.map((p) => p.title),
         cell: (u) => {
@@ -258,6 +260,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       {
         key: 'actions',
         header: 'Actions',
+        headClassName: 'w-16',
         cellClassName: 'text-right',
         cell: (u) => {
           const isSelf = u.id === currentUserId;
@@ -467,6 +470,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
             caption="Users"
             defaultSort={{ key: 'roles', direction: 'asc' }}
             noMatchMessage="No users match your filters."
+            tableClassName="table-fixed w-full"
             mobileCard={(user) => {
               const isSelf = user.id === currentUserId;
               const isManager = getUserRoleTokens(user).includes('manager');
