@@ -51,7 +51,7 @@ export function SectionCard({
     <Card className="gap-0 overflow-hidden p-0">
       <CardHeader className={HEADER_CLASS}>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-start gap-2">
             <Icon className="text-muted-foreground size-4 shrink-0" />
             <div>
               {titleContent}
@@ -143,8 +143,8 @@ export function SectionCardSkeleton({
     <Card className="gap-0 overflow-hidden p-0">
       <CardHeader className={HEADER_CLASS}>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Skeleton className="size-4 shrink-0 rounded-sm" />
+          <div className="flex items-start gap-2">
+            <Skeleton className="mt-0.5 size-4 shrink-0 rounded-sm" />
             <div className="flex flex-col gap-2">
               <Skeleton className="h-5 w-36" />
               {hasSubtitle && <Skeleton className="h-4 w-48" />}
