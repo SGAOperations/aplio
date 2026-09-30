@@ -60,7 +60,7 @@ export function SectionCard({
             <Icon
               className={cn(
                 'text-muted-foreground size-4 shrink-0',
-                subtitle && 'mt-0.5',
+                subtitle && 'mt-1',
               )}
             />
             <div>
@@ -162,7 +162,7 @@ export function SectionCardSkeleton({
             <Skeleton
               className={cn(
                 'size-4 shrink-0 rounded-sm',
-                hasSubtitle && 'mt-0.5',
+                hasSubtitle && 'mt-1',
               )}
             />
             <div className="flex flex-col gap-2">
