@@ -403,7 +403,7 @@ export async function getRecentPositionStatusEvents(
       from: true,
       to: true,
       createdAt: true,
-      position: { select: { id: true, title: true } },
+      position: { select: { id: true, title: true, deletedAt: true } },
     },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take,
