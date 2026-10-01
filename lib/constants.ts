@@ -1390,3 +1390,112 @@ export const PIPELINE_SUMMARY_STATUSES = [
   ...APPLICATION_PIPELINE_STATUSES,
   'withdrawn',
 ] as const satisfies $Enums.ApplicationStatus[];
+
+// ─── /insights ──────────────────────────────────────────────────────────
+
+export const INSIGHTS_RANGE_PRESETS = [
+  '30d',
+  '90d',
+  '12mo',
+  'all',
+  'custom',
+] as const;
+
+export const INSIGHTS_RANGE_PRESET_LABELS: Record<
+  (typeof INSIGHTS_RANGE_PRESETS)[number],
+  string
+> = {
+  '30d': 'Last 30 days',
+  '90d': 'Last 90 days',
+  '12mo': 'Last 12 months',
+  all: 'All time',
+  custom: 'Custom range',
+};
+
+export const INSIGHTS_RANGE_PRESET_OPTIONS: {
+  value: (typeof INSIGHTS_RANGE_PRESETS)[number];
+  label: string;
+}[] = INSIGHTS_RANGE_PRESETS.map((value) => ({
+  value,
+  label: INSIGHTS_RANGE_PRESET_LABELS[value],
+}));
+
+export const INSIGHTS_DEFAULT_RANGE = '90d' as const;
+
+// Below this, a median/rate is noise, not a finding — hide or footnote it.
+export const INSIGHTS_MIN_SAMPLE = 5;
+
+// A draft this stale without a submit is treated as abandoned, not "still working on it".
+export const INSIGHTS_ABANDONED_DRAFT_DAYS = 14;
+
+export const INSIGHTS_OLDEST_LIST_SIZE = 5;
+
+// Past this many days, a daily series is too dense to read — switch to weekly.
+export const INSIGHTS_DAILY_MAX_DAYS = 92;
+
+// Upper-exclusive day-count bucket edges; the last label catches everything at/above the final edge.
+export const INSIGHTS_DURATION_BUCKET_EDGES_DAYS = [1, 3, 7, 15, 29] as const;
+export const INSIGHTS_DURATION_BUCKET_LABELS = [
+  '<1 day',
+  '1–2 days',
+  '3–6 days',
+  '1–2 weeks',
+  '2–4 weeks',
+  '4+ weeks',
+] as const;
+
+export const INSIGHTS_AGING_BUCKET_EDGES_DAYS = [3, 7, 14, 30] as const;
+export const INSIGHTS_AGING_BUCKET_LABELS = [
+  '0–2 days',
+  '3–6 days',
+  '7–13 days',
+  '14–29 days',
+  '30+ days',
+] as const;
+
+export const INSIGHTS_DEADLINE_RUSH_BUCKET_EDGES_HOURS = [
+  24, 72, 168, 336,
+] as const;
+export const INSIGHTS_DEADLINE_RUSH_BUCKET_LABELS = [
+  'Final 24 hours',
+  '1–3 days before close',
+  '3–7 days before close',
+  '1–2 weeks before close',
+  '2+ weeks before close',
+] as const;
+
+export const INSIGHTS_LONG_ANSWER_BUCKET_EDGES_CHARS = [
+  100, 300, 600, 1000,
+] as const;
+export const INSIGHTS_LONG_ANSWER_BUCKET_LABELS = [
+  '<100 characters',
+  '100–299 characters',
+  '300–599 characters',
+  '600–999 characters',
+  '1,000+ characters',
+] as const;
+
+export const INSIGHTS_APPS_PER_APPLICANT_BUCKET_EDGES = [2, 3, 4] as const;
+export const INSIGHTS_APPS_PER_APPLICANT_BUCKET_LABELS = [
+  '1',
+  '2',
+  '3',
+  '4+',
+] as const;
+
+export const INSIGHTS_PROFILE_COMPLETENESS_BUCKET_EDGES = [1, 50, 100] as const;
+export const INSIGHTS_PROFILE_COMPLETENESS_BUCKET_LABELS = [
+  '0%',
+  '1–49%',
+  '50–99%',
+  '100%',
+] as const;
+
+// Top N series drawn individually before collapsing the rest into "All other positions".
+export const INSIGHTS_TOP_POSITION_SERIES = 4;
+export const INSIGHTS_OTHER_POSITIONS_LABEL = 'All other positions';
+
+// Per-position and per-question charts cap at this many rows; the data table shows the rest.
+export const INSIGHTS_CHART_MAX_ROWS = 10;
+
+export const INSIGHTS_EMAIL_HISTORY_START = new Date('2026-08-24T00:00:00Z');
