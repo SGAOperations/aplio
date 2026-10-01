@@ -107,7 +107,7 @@ export default async function ManagePositionsPage() {
             title="Manage Positions"
             description={
               otherPositions.length > 0
-                ? 'Positions you manage come first. Open, Closed and Draft below list every other position.'
+                ? 'Positions you manage come first, then every other position by status.'
                 : 'Every position is one you manage.'
             }
             actions={
@@ -135,11 +135,20 @@ export default async function ManagePositionsPage() {
             </PositionsScopeSection>
           </PositionSearchGroup>
           {otherPositions.length > 0 && (
-            <ManagedPositionsSection
-              positions={otherPositions}
-              statsByPosition={statsByPosition}
-              noProvider
-            />
+            <PositionSearchGroup ids={otherPositions.map((p) => p.id)}>
+              <PositionsScopeSection
+                id="other-positions"
+                title="All Other Positions"
+                count={otherPositions.length}
+                inNav={false}
+              >
+                <ManagedPositionsSection
+                  positions={otherPositions}
+                  statsByPosition={statsByPosition}
+                  noProvider
+                />
+              </PositionsScopeSection>
+            </PositionSearchGroup>
           )}
           <PositionSearchEmpty />
         </div>
