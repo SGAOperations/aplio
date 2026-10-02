@@ -38,8 +38,10 @@ import {
   LogOut,
   type LucideIcon,
   Mail,
+  MessageSquare,
   OctagonAlert,
   Pencil,
+  Plug,
   Plus,
   RotateCcw,
   SearchX,
@@ -48,6 +50,7 @@ import {
   ShieldOff,
   Trash2,
   TriangleAlert,
+  Unplug,
   UserMinus,
   UserPen,
   UserPlus,
@@ -70,7 +73,8 @@ type Concept =
   | 'profile'
   | 'activity'
   | 'deadline'
-  | 'email';
+  | 'email'
+  | 'slack';
 
 export const CONCEPT_ICONS: Record<Concept, LucideIcon> = {
   home: House,
@@ -83,6 +87,7 @@ export const CONCEPT_ICONS: Record<Concept, LucideIcon> = {
   activity: Activity,
   deadline: CalendarClock,
   email: Mail,
+  slack: MessageSquare,
 };
 
 // Past reads "over" (crossed-out calendar), not "scheduled" like the rest.
@@ -159,7 +164,9 @@ type Action =
   | 'sortDesc'
   | 'sortNone'
   | 'forceWithdraw'
-  | 'selected';
+  | 'selected'
+  | 'connect'
+  | 'disconnect';
 
 export const ACTION_ICONS: Record<Action, LucideIcon> = {
   create: Plus,
@@ -189,6 +196,8 @@ export const ACTION_ICONS: Record<Action, LucideIcon> = {
   sortNone: ArrowUpDown,
   forceWithdraw: CircleSlash,
   selected: Check,
+  connect: Plug,
+  disconnect: Unplug,
 };
 
 type State =
