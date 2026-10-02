@@ -59,6 +59,15 @@ enum EmailTemplateKey {
   manager_weekly_digest
 }
 
+enum SlackMessageKind {
+  otp
+}
+
+enum SlackDeliveryStatus {
+  sent
+  failed
+}
+
 model User {
   id            String    @id @default(uuid(7))
   // Nullable during the Neon Auth cutover; dropped once no row depends on it.
@@ -86,10 +95,12 @@ model User {
   updatedUsers User[] @relation("UserUpdatedBy")
   deletedUsers User[] @relation("UserDeletedBy")
 
-  managedPositions Position[]     @relation("PositionManagers")
-  applications     Application[]
-  globalAnswers    GlobalAnswer[]
-  emailLogs        EmailLog[]
+  managedPositions  Position[]         @relation("PositionManagers")
+  applications      Application[]
+  globalAnswers     GlobalAnswer[]
+  emailLogs         EmailLog[]
+  slackConnection   SlackConnection?
+  slackDeliveryLogs SlackDeliveryLog[]
 
   createdPositions          Position[]                 @relation("PositionCreatedBy")
   updatedPositions          Position[]                 @relation("PositionUpdatedBy")
@@ -346,12 +357,16 @@ model Account {
   refreshTokenExpiresAt DateTime?
   scope                 String?
   password              String?
+  // Better Auth 1.7 compatibility column. See migration notes: backfilled
+  // 'local:' || providerId for pre-existing rows, then set NOT NULL.
+  issuer                String
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([providerId, accountId])
+  @@unique([issuer, accountId])
   @@index([userId])
 }
 
@@ -391,4 +406,43 @@ model EmailLog {
   @@index([applicationId, createdAt])
   @@index([status])
   @@index([providerMessageId])
+}
+
+model SlackConnection {
+  id          String   @id @default(uuid(7))
+  userId      String   @unique
+  slackUserId String   @unique
+  slackTeamId String
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Append-only, like EmailLog. No onDelete: a log row outlives a disconnect
+// because it references the user, not the SlackConnection.
+model SlackDeliveryLog {
+  id          String              @id @default(uuid(7))
+  slackUserId String
+  userId      String
+  kind        SlackMessageKind
+  status      SlackDeliveryStatus
+  error       String?
+  createdAt   DateTime            @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+// No relations — minted before any Aplio user is known. The token unique
+// serves the confirm lookup; the slackUserId index serves #856's per-user sweep.
+model SlackConnectToken {
+  id          String   @id @default(uuid(7))
+  token       String   @unique
+  slackUserId String
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([slackUserId])
 }

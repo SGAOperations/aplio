@@ -4,17 +4,22 @@ import { nextCookies } from 'better-auth/next-js';
 
 import { prismaAdapter } from '@better-auth/prisma-adapter';
 import { betterAuth } from 'better-auth';
-import { emailOTP } from 'better-auth/plugins';
+import { APIError, createAuthMiddleware } from 'better-auth/api';
+import { emailOTP, genericOAuth, slack } from 'better-auth/plugins';
 
 import { buildOtpSignInUrl } from '@/lib/auth/otp-link';
 import {
   assertSessionUserActive,
   recordSignIn,
 } from '@/lib/auth/session-hooks';
+import { completeSlackLink, validateSlackLink } from '@/lib/auth/slack-link';
 import { getBaseUrl } from '@/lib/base-url';
+import { SLACK_PROVIDER_ID } from '@/lib/constants';
 import { sendEmail } from '@/lib/email/resend';
 import { otpEmail } from '@/lib/email/templates';
 import { prisma } from '@/lib/prisma';
+import { SlackApiError, getOpenIdUserInfo } from '@/lib/slack/client';
+import { isSlackConfigured, requireSlackEnv } from '@/lib/slack/config';
 
 const OTP_EXPIRY_SECONDS = 600;
 
@@ -52,6 +57,16 @@ export const auth = betterAuth({
       '/sign-in/email-otp': { window: 60, max: 5 },
     },
   },
+  // The Slack email may differ from the Aplio email, so email-based implicit
+  // linking is never what connects it — only an authenticated linkSocial call.
+  account: {
+    accountLinking: {
+      allowDifferentEmails: true,
+      trustedProviders: [SLACK_PROVIDER_ID],
+      disableImplicitLinking: true,
+    },
+  },
+  user: { validateUserInfo: validateSlackLink },
   databaseHooks: {
     user: {
       create: {
@@ -74,6 +89,24 @@ export const auth = betterAuth({
         },
       },
     },
+    account: {
+      create: {
+        after: async (account) => {
+          await completeSlackLink(account);
+        },
+      },
+    },
+  },
+  // Slack can only ever be linked to an existing session, never used to sign in.
+  hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      if (
+        ctx.path === '/sign-in/social' &&
+        (ctx.body as { provider?: string } | undefined)?.provider ===
+          SLACK_PROVIDER_ID
+      )
+        throw new APIError('FORBIDDEN');
+    }),
   },
   plugins: [
     emailOTP({
@@ -89,6 +122,35 @@ export const auth = betterAuth({
         await sendEmail({ to: email, ...emailContent, template: 'otp' });
       },
     }),
+    ...(isSlackConfigured()
+      ? [
+          genericOAuth({
+            config: [
+              {
+                ...slack({
+                  clientId: requireSlackEnv('SLACK_CLIENT_ID'),
+                  clientSecret: requireSlackEnv('SLACK_CLIENT_SECRET'),
+                }),
+                // The stock Slack helper's getUserInfo drops the team claim;
+                // this one keeps it for validateSlackLink to check.
+                getUserInfo: async (tokens) => {
+                  if (!tokens.accessToken) return null;
+                  try {
+                    return await getOpenIdUserInfo(tokens.accessToken);
+                  } catch (err) {
+                    console.error(
+                      'Slack getUserInfo failed',
+                      err instanceof SlackApiError ? err.code : err,
+                    );
+                    return null;
+                  }
+                },
+                disableSignUp: true,
+              },
+            ],
+          }),
+        ]
+      : []),
     // Must stay last: it writes cookies for the handlers registered before it.
     nextCookies(),
   ],
