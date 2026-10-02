@@ -14,6 +14,7 @@ import { ManagedPositionsSection } from '@/components/features/managed-positions
 import { PositionCreateDialog } from '@/components/features/position-create-dialog';
 import {
   PositionSearchEmpty,
+  PositionSearchGroup,
   PositionSearchProvider,
 } from '@/components/features/position-search';
 import { PositionSearchToolbar } from '@/components/features/position-search-toolbar';
@@ -104,6 +105,11 @@ export default async function ManagePositionsPage() {
         <div className="flex flex-col gap-10">
           <PageHeader
             title="Manage Positions"
+            description={
+              otherPositions.length > 0
+                ? 'Positions you manage come first, then every other position by status.'
+                : 'Every position is one you manage.'
+            }
             actions={
               <div className="flex items-center gap-6">
                 <PositionCreateDialog
@@ -114,7 +120,7 @@ export default async function ManagePositionsPage() {
               </div>
             }
           />
-          <div className="flex flex-col gap-10">
+          <PositionSearchGroup ids={managedPositions.map((p) => p.id)}>
             <PositionsScopeSection
               id="managed-positions"
               title="Positions You Manage"
@@ -127,25 +133,23 @@ export default async function ManagePositionsPage() {
                 noProvider
               />
             </PositionsScopeSection>
-            <PositionsScopeSection
-              id="other-positions"
-              title="All Other Positions"
-              count={otherPositions.length}
-            >
-              {otherPositions.length > 0 ? (
+          </PositionSearchGroup>
+          {otherPositions.length > 0 && (
+            <PositionSearchGroup ids={otherPositions.map((p) => p.id)}>
+              <PositionsScopeSection
+                id="other-positions"
+                title="All Other Positions"
+                count={otherPositions.length}
+                inNav={false}
+              >
                 <ManagedPositionsSection
                   positions={otherPositions}
                   statsByPosition={statsByPosition}
-                  nestedUnder="other"
                   noProvider
                 />
-              ) : (
-                <p className="text-muted-foreground text-sm">
-                  Every position is one you manage.
-                </p>
-              )}
-            </PositionsScopeSection>
-          </div>
+              </PositionsScopeSection>
+            </PositionSearchGroup>
+          )}
           <PositionSearchEmpty />
         </div>
       </PositionSearchProvider>

@@ -5,6 +5,7 @@ interface PositionsScopeSectionProps {
   title: string;
   count: number;
   children: ReactNode;
+  inNav?: boolean;
 }
 
 export function PositionsScopeSection({
@@ -12,11 +13,12 @@ export function PositionsScopeSection({
   title,
   count,
   children,
+  inNav = true,
 }: PositionsScopeSectionProps) {
   return (
     <section
       id={id}
-      data-section-nav={title}
+      {...(inNav && { 'data-section-nav': title })}
       aria-labelledby={`${id}-heading`}
       className="flex scroll-mt-6 flex-col gap-4"
     >
