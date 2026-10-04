@@ -99,14 +99,6 @@ export async function PositionsSection({ range }: PositionsSectionProps) {
         }
         isEmpty={positions.managerLoad.length === 0}
         emptyMessage="No managers in this range."
-        table={{
-          headers: ['Manager', 'Submitted', 'Unresolved'],
-          rows: positions.managerLoad.map((m) => [
-            m.name,
-            m.submitted,
-            m.unresolved,
-          ]),
-        }}
       >
         <InsightBarChart
           data={positions.managerLoad.map((m) => ({

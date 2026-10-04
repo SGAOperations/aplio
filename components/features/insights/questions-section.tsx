@@ -46,16 +46,6 @@ export async function QuestionsSection({ range }: QuestionsSectionProps) {
         }
         isEmpty={lowestAnswerRates.length === 0}
         emptyMessage="No optional questions answered in this range."
-        table={{
-          headers: ['Question', 'Scope', 'Answered', 'Total', 'Rate'],
-          rows: eligibleAnswerRates.map((r) => [
-            r.label,
-            r.positionTitle ?? 'Global',
-            r.answered,
-            r.total,
-            r.rate !== null ? `${r.rate}%` : '—',
-          ]),
-        }}
       >
         <InsightBarChart
           data={lowestAnswerRates.map((r) => ({
@@ -93,14 +83,6 @@ export async function QuestionsSection({ range }: QuestionsSectionProps) {
         }
         isEmpty={questions.otherUsage.length === 0}
         emptyMessage="No questions allow 'Other' in this range."
-        table={{
-          headers: ['Question', 'Rate', 'n'],
-          rows: questions.otherUsage.map((o) => [
-            o.label,
-            o.rate !== null ? `${o.rate}%` : '—',
-            o.n,
-          ]),
-        }}
       >
         <InsightBarChart
           data={questions.otherUsage.map((o) => ({
@@ -121,13 +103,6 @@ export async function QuestionsSection({ range }: QuestionsSectionProps) {
         }
         isEmpty={questions.longAnswerEffort.n === 0}
         emptyMessage="No long-answer responses in this range."
-        table={{
-          headers: ['Length', 'Count'],
-          rows: questions.longAnswerEffort.buckets.map((b) => [
-            b.label,
-            b.count,
-          ]),
-        }}
       >
         <InsightBarChart
           data={questions.longAnswerEffort.buckets.map((b) => ({

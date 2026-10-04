@@ -15,13 +15,9 @@ const BAR_CHART_CONFIG = {
   value: { label: 'Count', color: 'var(--chart-1)' },
 } satisfies ChartConfig;
 
-const MAX_TICK_LABEL_LENGTH = 16;
-
-function truncateTick(value: string): string {
-  return value.length > MAX_TICK_LABEL_LENGTH
-    ? `${value.slice(0, MAX_TICK_LABEL_LENGTH)}…`
-    : value;
-}
+const AXIS_CHARACTER_WIDTH_PX = 6.5;
+const MIN_AXIS_WIDTH_PX = 80;
+const MAX_AXIS_WIDTH_PX = 220;
 
 interface InsightBarChartProps {
   data: { label: string; value: number }[];
@@ -31,6 +27,14 @@ interface InsightBarChartProps {
 export function InsightBarChart({ data }: InsightBarChartProps) {
   const rowHeight = 28;
   const height = Math.max(160, data.length * rowHeight + 40);
+  const longestLabel = data.reduce(
+    (max, d) => Math.max(max, d.label.length),
+    0,
+  );
+  const axisWidth = Math.min(
+    MAX_AXIS_WIDTH_PX,
+    Math.max(MIN_AXIS_WIDTH_PX, longestLabel * AXIS_CHARACTER_WIDTH_PX),
+  );
 
   return (
     <ChartContainer
@@ -51,9 +55,8 @@ export function InsightBarChart({ data }: InsightBarChartProps) {
           dataKey="label"
           tickLine={false}
           axisLine={false}
-          width={110}
+          width={axisWidth}
           tick={{ fontSize: 11 }}
-          tickFormatter={truncateTick}
         />
         <ChartTooltip content={<ChartTooltipContent />} />
         <Bar dataKey="value" fill="var(--color-value)" radius={4} />

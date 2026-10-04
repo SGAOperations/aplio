@@ -28,7 +28,7 @@ function formatCoverage(coverage: InsightsCoverage): string {
     precision: 'date',
     timeZone: ORG_TIMEZONE,
   });
-  return `Based on ${coverage.coveredCount} of ${coverage.totalCount} applications submitted in this range. Status history starts ${start}; earlier submissions are left out.`;
+  return `Based on ${coverage.coveredCount} of ${coverage.totalCount} applications submitted in this range — status change logging began ${start}, so applications submitted earlier aren't included.`;
 }
 
 interface ReviewSpeedSectionProps {
@@ -55,10 +55,6 @@ export async function ReviewSpeedSection({ range }: ReviewSpeedSectionProps) {
         }
         isEmpty={speed.timeToDecision.n === 0}
         emptyMessage="No decisions in this range."
-        table={{
-          headers: ['Bucket', 'Count'],
-          rows: speed.timeToDecision.histogram.map((b) => [b.label, b.count]),
-        }}
       >
         <InsightBarChart
           data={speed.timeToDecision.histogram.map((b) => ({
@@ -70,7 +66,7 @@ export async function ReviewSpeedSection({ range }: ReviewSpeedSectionProps) {
 
       <InsightCard
         title="Speed of First Reply"
-        description="Time from submission to the first move off Applied — the 'did anyone look at it' metric."
+        description="Time from submission to the first move off Applied — how quickly someone engages with a new application."
         meta={formatCoverage(speed.firstReply.coverage)}
         takeaway={
           speed.firstReply.medianHours !== null
@@ -79,10 +75,6 @@ export async function ReviewSpeedSection({ range }: ReviewSpeedSectionProps) {
         }
         isEmpty={speed.firstReply.n === 0}
         emptyMessage="No status changes in this range."
-        table={{
-          headers: ['Bucket', 'Count'],
-          rows: speed.firstReply.histogram.map((b) => [b.label, b.count]),
-        }}
       >
         <InsightBarChart
           data={speed.firstReply.histogram.map((b) => ({
@@ -103,14 +95,6 @@ export async function ReviewSpeedSection({ range }: ReviewSpeedSectionProps) {
         }
         isEmpty={speed.timeInStage.every((s) => s.n === 0)}
         emptyMessage="No status changes in this range."
-        table={{
-          headers: ['Stage', 'Median', 'n'],
-          rows: speed.timeInStage.map((s) => [
-            STAGE_LABELS[s.status] ?? s.status,
-            s.medianHours !== null ? formatDuration(s.medianHours) : '—',
-            s.n,
-          ]),
-        }}
       >
         <InsightBarChart
           data={speed.timeInStage.map((s) => ({
@@ -131,10 +115,6 @@ export async function ReviewSpeedSection({ range }: ReviewSpeedSectionProps) {
         }
         isEmpty={speed.timeToComplete.n === 0}
         emptyMessage="No submitted applications in this range."
-        table={{
-          headers: ['Bucket', 'Count'],
-          rows: speed.timeToComplete.histogram.map((b) => [b.label, b.count]),
-        }}
       >
         <InsightBarChart
           data={speed.timeToComplete.histogram.map((b) => ({

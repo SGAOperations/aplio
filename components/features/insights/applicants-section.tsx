@@ -58,10 +58,6 @@ export async function ApplicantsSection({ range }: ApplicantsSectionProps) {
         }
         isEmpty={applicants.perApplicantBuckets.every((b) => b.count === 0)}
         emptyMessage="No submitted applications in this range."
-        table={{
-          headers: ['Applications', 'Applicants'],
-          rows: applicants.perApplicantBuckets.map((b) => [b.label, b.count]),
-        }}
       >
         <InsightBarChart
           data={applicants.perApplicantBuckets.map((b) => ({
@@ -95,10 +91,6 @@ export async function ApplicantsSection({ range }: ApplicantsSectionProps) {
         }
         isEmpty={applicants.profileCompleteness.every((b) => b.count === 0)}
         emptyMessage="No new accounts in this range."
-        table={{
-          headers: ['Completeness', 'Users'],
-          rows: applicants.profileCompleteness.map((b) => [b.label, b.count]),
-        }}
       >
         <InsightBarChart
           data={applicants.profileCompleteness.map((b) => ({

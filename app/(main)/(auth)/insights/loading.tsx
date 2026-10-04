@@ -1,6 +1,5 @@
 import { ApplicantsSectionSkeleton } from '@/components/features/insights/applicants-section';
 import { AttentionSectionSkeleton } from '@/components/features/insights/attention-section';
-import { EmailSectionSkeleton } from '@/components/features/insights/email-section';
 import { FunnelSectionSkeleton } from '@/components/features/insights/funnel-section';
 import { PipelineSectionSkeleton } from '@/components/features/insights/pipeline-section';
 import { PositionsSectionSkeleton } from '@/components/features/insights/positions-section';
@@ -25,7 +24,6 @@ export default function InsightsLoading() {
       <QuestionsSectionSkeleton />
       <ApplicantsSectionSkeleton />
       <PositionsSectionSkeleton />
-      <EmailSectionSkeleton />
     </div>
   );
 }

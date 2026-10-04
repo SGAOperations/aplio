@@ -20,10 +20,6 @@ import {
   AttentionSectionSkeleton,
 } from '@/components/features/insights/attention-section';
 import {
-  EmailSection,
-  EmailSectionSkeleton,
-} from '@/components/features/insights/email-section';
-import {
   FunnelSection,
   FunnelSectionSkeleton,
 } from '@/components/features/insights/funnel-section';
@@ -130,9 +126,6 @@ export default async function InsightsPage({
           </Suspense>
           <Suspense key={rangeKey} fallback={<PositionsSectionSkeleton />}>
             <PositionsSection range={range} />
-          </Suspense>
-          <Suspense key={rangeKey} fallback={<EmailSectionSkeleton />}>
-            <EmailSection range={range} />
           </Suspense>
         </>
       )}

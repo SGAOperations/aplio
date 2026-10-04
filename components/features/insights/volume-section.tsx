@@ -13,9 +13,7 @@ import {
   InsightSection,
   InsightSectionSkeleton,
 } from '@/components/features/insights/insight-section';
-import { InsightStackedBarChart } from '@/components/features/insights/insight-stacked-bar-chart';
-import { InsightTimeSeriesChart } from '@/components/features/insights/insight-time-series-chart';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { VolumeTrendCard } from '@/components/features/insights/volume-trend-card';
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const BLOCK_LABELS = [
@@ -52,10 +50,11 @@ export async function VolumeSection({ range }: VolumeSectionProps) {
 
   return (
     <InsightSection slug="volume" title="Volume">
-      <InsightCard
-        title="Applications Per Day"
-        description="Submitted applications over time, org-local days."
-        meta={`n = ${volume.n}`}
+      <VolumeTrendCard
+        series={volume.series}
+        stackedSeries={volume.stackedSeries}
+        stackedKeys={volume.stackedKeys}
+        meta={`${volume.n} submitted application${volume.n === 1 ? '' : 's'}`}
         takeaway={
           peakDay && peakDay.count > 0
             ? `Busiest: ${peakDay.day} with ${peakDay.count} submissions.`
@@ -63,38 +62,12 @@ export async function VolumeSection({ range }: VolumeSectionProps) {
         }
         isEmpty={volume.n === 0}
         emptyMessage="No submitted applications in this range."
-        table={{
-          headers: ['Day', 'Count'],
-          rows: volume.series.map((p) => [p.day, p.count]),
-        }}
-      >
-        <Tabs defaultValue="total">
-          <TabsList>
-            <TabsTrigger value="total">Total</TabsTrigger>
-            <TabsTrigger value="position">By position</TabsTrigger>
-          </TabsList>
-          <TabsContent value="total">
-            <InsightTimeSeriesChart data={volume.series} />
-          </TabsContent>
-          <TabsContent value="position">
-            <InsightStackedBarChart
-              data={volume.stackedSeries.map((p) => ({
-                label: p.day,
-                ...p.values,
-              }))}
-              keys={volume.stackedKeys.map((k) => ({
-                key: k.positionId,
-                label: k.label,
-              }))}
-            />
-          </TabsContent>
-        </Tabs>
-      </InsightCard>
+      />
 
       <InsightCard
         title="Most Applied-To Positions"
         description="Submitted application counts per position."
-        meta={`n = ${volume.n}`}
+        meta={`${volume.n} submitted application${volume.n === 1 ? '' : 's'}`}
         takeaway={
           topPosition
             ? `${topPosition.title} leads with ${topPosition.count} applications.`
@@ -102,10 +75,6 @@ export async function VolumeSection({ range }: VolumeSectionProps) {
         }
         isEmpty={volume.mostAppliedAll.length === 0}
         emptyMessage="No submitted applications in this range."
-        table={{
-          headers: ['Position', 'Applications'],
-          rows: volume.mostAppliedAll.map((r) => [r.title, r.count]),
-        }}
       >
         <InsightBarChart
           data={volume.mostAppliedTop.map((r) => ({
@@ -117,7 +86,7 @@ export async function VolumeSection({ range }: VolumeSectionProps) {
 
       <InsightCard
         title="Applications Per Open Day"
-        description="Submitted applications normalised per day the position was open."
+        description="How many applications a position gets per day it's been open — lets a day-old posting and a month-old one be compared fairly."
         meta={`n = ${volume.mostAppliedPerOpenDay.length}${
           volume.droppedFromRate > 0
             ? ` · ${volume.droppedFromRate} position${volume.droppedFromRate === 1 ? '' : 's'} with fewer than 5 applications aren't shown here.`
@@ -130,13 +99,6 @@ export async function VolumeSection({ range }: VolumeSectionProps) {
         }
         isEmpty={volume.mostAppliedPerOpenDay.length === 0}
         emptyMessage="No positions with enough applications to rate in this range."
-        table={{
-          headers: ['Position', 'Per Open Day'],
-          rows: volume.mostAppliedPerOpenDay.map((r) => [
-            r.title,
-            Math.round(r.rate * 100) / 100,
-          ]),
-        }}
       >
         <InsightBarChart
           data={volume.mostAppliedPerOpenDay
@@ -150,8 +112,8 @@ export async function VolumeSection({ range }: VolumeSectionProps) {
 
       <InsightCard
         title="Submission Heatmap"
-        description="Weekday × time of day, org-local, submitted applications."
-        meta={`n = ${volume.n}`}
+        description="Which day of the week and time of day applicants submit most often, Eastern Time."
+        meta={`${volume.n} submitted application${volume.n === 1 ? '' : 's'}`}
         takeaway={
           peakCell && peakCell.count > 0
             ? `Busiest: ${WEEKDAY_LABELS[peakCell.weekday]} ${BLOCK_LABELS[peakCell.block]} (${peakCell.count} submissions).`
@@ -179,10 +141,6 @@ export async function VolumeSection({ range }: VolumeSectionProps) {
         }
         isEmpty={volume.deadlineRush.every((b) => b.count === 0)}
         emptyMessage="No submitted applications with a deadline in this range."
-        table={{
-          headers: ['Window', 'Count'],
-          rows: volume.deadlineRush.map((b) => [b.label, b.count]),
-        }}
       >
         <InsightBarChart
           data={volume.deadlineRush.map((b) => ({

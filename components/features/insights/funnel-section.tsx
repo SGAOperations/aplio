@@ -56,15 +56,6 @@ export async function FunnelSection({ range }: FunnelSectionProps) {
           }
           isEmpty={funnel.conversionByPosition.length === 0}
           emptyMessage="No positions with enough drafts in this range."
-          table={{
-            headers: ['Position', 'Starts', 'Converted', 'Rate'],
-            rows: funnel.conversionByPosition.map((r) => [
-              r.title,
-              r.starts,
-              r.converted,
-              r.rate !== null ? `${r.rate}%` : '—',
-            ]),
-          }}
         >
           <InsightBarChart
             data={funnel.conversionByPosition.map((r) => ({
@@ -86,10 +77,6 @@ export async function FunnelSection({ range }: FunnelSectionProps) {
         }
         isEmpty={funnel.abandonment.count === 0}
         emptyMessage="No abandoned drafts."
-        table={{
-          headers: ['Age', 'Count'],
-          rows: funnel.abandonment.ageBuckets.map((b) => [b.label, b.count]),
-        }}
       >
         <InsightBarChart
           data={funnel.abandonment.ageBuckets.map((b) => ({
@@ -110,14 +97,6 @@ export async function FunnelSection({ range }: FunnelSectionProps) {
         }
         isEmpty={funnel.dropoff.length === 0}
         emptyMessage="No abandoned drafts with enough volume in this range."
-        table={{
-          headers: ['Position', 'Stopped before', 'Count'],
-          rows: funnel.dropoff.map((d) => [
-            d.title,
-            d.nextQuestionLabel ?? 'Finished all visible questions',
-            d.count,
-          ]),
-        }}
       >
         <InsightBarChart
           data={funnel.dropoff.map((d) => ({
@@ -138,15 +117,6 @@ export async function FunnelSection({ range }: FunnelSectionProps) {
         }
         isEmpty={funnel.formLengthVsConversion.length === 0}
         emptyMessage="No positions with enough drafts in this range."
-        table={{
-          headers: ['Position', 'Required Questions', 'Conversion', 'n'],
-          rows: funnel.formLengthVsConversion.map((r) => [
-            r.title,
-            r.requiredQuestionCount,
-            `${r.conversionRate}%`,
-            r.starts,
-          ]),
-        }}
       >
         <InsightScatterChart
           data={funnel.formLengthVsConversion.map((r) => ({
