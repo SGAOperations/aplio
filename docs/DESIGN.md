@@ -51,11 +51,11 @@ Any change to a brand/status token must keep ≥4.5:1 contrast against its paire
 - **Spacing:** Tailwind 4-point scale. Card padding `p-6` (compact `p-4`); stack gaps `gap-4`/`gap-6`; form field gap `gap-2`. Be consistent rather than pixel-tuning.
 - **Page width tiers:** every route inside the app shell picks exactly one tier for its top-level container. `app-shell.tsx` supplies only `p-6`, so the page owns the width.
 
-  | Tier           | Container classes   | Use for                                                                                                                                          |
-  | -------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-  | **Full-bleed** | none (no `max-w`)   | list, table and dashboard pages — `/`, `/positions`, `/manage/positions`, `/users`, `/manage/applications`, `/applications`, `/global-questions` |
-  | **Wide**       | `mx-auto max-w-5xl` | two-column review/detail pages — `/manage/applications/[id]`, `/applications/[id]`, `/manage/positions/[id]/edit`                                |
-  | **Narrow**     | `mx-auto max-w-2xl` | single-column forms and reading views — `/profile`, `/positions/[id]/apply`                                                                      |
+  | Tier           | Container classes   | Use for                                                                                                                                                       |
+  | -------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | **Full-bleed** | none (no `max-w`)   | list, table and dashboard pages — `/`, `/positions`, `/manage/positions`, `/users`, `/manage/applications`, `/applications`, `/global-questions`, `/insights` |
+  | **Wide**       | `mx-auto max-w-5xl` | two-column review/detail pages — `/manage/applications/[id]`, `/applications/[id]`, `/manage/positions/[id]/edit`                                             |
+  | **Narrow**     | `mx-auto max-w-2xl` | single-column forms and reading views — `/profile`, `/positions/[id]/apply`                                                                                   |
 
   There is no fourth tier: `max-w-6xl`/`4xl`/`3xl` on a page container is a bug. Inside a full-bleed page, constraining an individual prose block (`max-w-2xl` on a description) is correct and not a tier violation — see `/positions/[id]`. A route's `loading.tsx` must use the same tier as its `page.tsx`, or the skeleton shifts on resolve. Routes outside the app shell (`(legal)`, `login`) set their own width.
 
@@ -71,6 +71,7 @@ Any change to a brand/status token must keep ≥4.5:1 contrast against its paire
 - **Section sub-nav.** A page section opts into the sidebar's in-page nav by giving its outermost `<section>` an `id` plus `data-section-nav="<Label>"` (matching its visible heading) and `scroll-mt-6`. The sidebar discovers these from the DOM under the active nav item — nothing to register elsewhere, and a group that never renders (e.g. an empty position status) contributes nothing. Fewer than two opted-in sections on a page renders no sub-nav. This is secondary navigation only — never the sole way to reach a section; every opted-in section must also be reachable by scrolling. The highlighted item is the last section whose top has crossed the middle of the scroll area. At the top of the page it is the first section, at the bottom the last, and after a click the clicked section until the user scrolls again.
 - **Status dots.** Always `StatusDot` / `ApplicationStatusDot` / `EmailStatusDot` — never a hand-rolled span. `size-2` everywhere except the position stat cluster, which uses `size-1.5`. Decorative (`aria-hidden`), always beside a text label.
 - **Table filters.** `MultiSelect` (`components/ui/multi-select.tsx`, Popover + Command) is the one filter dropdown for `DataTableToolbar` — single or multi-value, searchable or not — never a bespoke `Select`-based filter per call site.
+- **Charts.** shadcn `chart` (`components/ui/chart.tsx`) + Recharts only — no hand-rolled SVG, no second charting library. Series colours come only through a `ChartConfig`'s `color: 'var(--chart-N)'`, `chart-1`…`chart-5` in order. Every chart is a `<figure>`: title, one-line description, its `n`/coverage meta, the chart, and (where meaningful) a `<figcaption>` takeaway — a print-the-value table or legend is the colour-free channel for a chart that needs one, never colour alone, but it is not mandatory on every card. A heatmap (e.g. `/insights`' submission heatmap) is a CSS grid with the value printed in every cell, not a Recharts component.
 
 ## 6. Iconography
 
