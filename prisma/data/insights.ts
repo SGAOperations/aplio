@@ -464,71 +464,27 @@ export async function getReviewSpeedInsights(
 
 // ─── Pipeline (#6, #7, #13, #14, T2) ────────────────────────────────────────
 
-const OUTCOME_LABELS = {
-  accepted: 'Accepted',
-  rejected: 'Rejected',
-  withdrawn: 'Withdrawn',
-} as const;
-
-function outcomeBucket(status: string): string {
-  if (status === 'accepted' || status === 'rejected' || status === 'withdrawn')
-    return OUTCOME_LABELS[status];
-  return 'Still open';
-}
-
 export async function getPipelineInsights(
   range: InsightsRange,
 ): Promise<PipelineInsights> {
   const createdAt = Prisma.sql`e."createdAt"`;
   const eventRangeFilter = Prisma.sql`${rangeStartFilter(createdAt, range.start)} ${rangeEndFilter(createdAt, range.end)}`;
-  const submittedAt = Prisma.sql`a."submittedAt"`;
-  const submissionRangeFilter = Prisma.sql`${rangeStartFilter(submittedAt, range.start)} ${rangeEndFilter(submittedAt, range.end)}`;
 
-  const [matrixRows, outcomeRows, withdrawalRows, resubmissionRows] =
-    await Promise.all([
-      prisma.$queryRaw<{ from: string; to: string; count: bigint }[]>`
-        SELECT e."from"::text AS "from", e."to"::text AS "to", count(*)::int AS count
-        FROM "ApplicationStatusEvent" e
-        JOIN "Application" a ON a.id = e."applicationId" AND a."deletedAt" IS NULL
-        JOIN "Position" p ON p.id = a."positionId" AND p."deletedAt" IS NULL
-        JOIN "User" u ON u.id = a."userId" AND u."deletedAt" IS NULL
-        WHERE e."from" IS NOT NULL AND e."from" <> 'draft'::"ApplicationStatus" ${eventRangeFilter}
-        GROUP BY 1, 2
-      `,
-      prisma.$queryRaw<
-        { positionId: string; title: string; status: string; count: bigint }[]
-      >`
-        SELECT p.id AS "positionId", p.title, a.status::text AS status, count(*)::int AS count
-        FROM "Application" a
-        JOIN "Position" p ON p.id = a."positionId" AND p."deletedAt" IS NULL
-        JOIN "User" u ON u.id = a."userId" AND u."deletedAt" IS NULL
-        WHERE a."deletedAt" IS NULL AND a."submittedAt" IS NOT NULL ${submissionRangeFilter}
-        GROUP BY p.id, p.title, a.status
-      `,
-      prisma.$queryRaw<{ from: string; actor: string; count: bigint }[]>`
-        SELECT e."from"::text AS "from",
-               (CASE WHEN e."changedById" = a."userId" THEN 'applicant' ELSE 'admin' END) AS actor,
-               count(*)::int AS count
-        FROM "ApplicationStatusEvent" e
-        JOIN "Application" a ON a.id = e."applicationId" AND a."deletedAt" IS NULL
-        JOIN "Position" p ON p.id = a."positionId" AND p."deletedAt" IS NULL
-        JOIN "User" u ON u.id = a."userId" AND u."deletedAt" IS NULL
-        WHERE e."from" IS NOT NULL AND e."to" = 'withdrawn'::"ApplicationStatus" ${eventRangeFilter}
-        GROUP BY 1, 2
-      `,
-      prisma.$queryRaw<{ count: bigint }[]>`
-        SELECT count(*)::int AS count
-        FROM "ApplicationStatusEvent" e
-        JOIN "Application" a ON a.id = e."applicationId" AND a."deletedAt" IS NULL
-        JOIN "Position" p ON p.id = a."positionId" AND p."deletedAt" IS NULL
-        JOIN "User" u ON u.id = a."userId" AND u."deletedAt" IS NULL
-        WHERE e."from" = 'withdrawn'::"ApplicationStatus" AND e."to" = 'applied'::"ApplicationStatus" ${eventRangeFilter}
-      `,
-    ]);
+  const matrixRows = await prisma.$queryRaw<
+    { from: string; to: string; count: bigint }[]
+  >`
+    SELECT e."from"::text AS "from", e."to"::text AS "to", count(*)::int AS count
+    FROM "ApplicationStatusEvent" e
+    JOIN "Application" a ON a.id = e."applicationId" AND a."deletedAt" IS NULL
+    JOIN "Position" p ON p.id = a."positionId" AND p."deletedAt" IS NULL
+    JOIN "User" u ON u.id = a."userId" AND u."deletedAt" IS NULL
+    WHERE e."from" IS NOT NULL AND e."from" <> 'draft'::"ApplicationStatus" ${eventRangeFilter}
+    GROUP BY 1, 2
+  `;
 
   const transitionMatrix = matrixRows.map((r) => ({
-    from: r.from as PipelineInsights['transitionMatrix'][number]['from'],
-    to: r.to as PipelineInsights['transitionMatrix'][number]['to'],
+    from: r.from as $Enums.ApplicationStatus,
+    to: r.to as $Enums.ApplicationStatus,
     count: Number(r.count),
   }));
 
@@ -542,51 +498,11 @@ export async function getPipelineInsights(
     if (kind !== 'offPath') reviewerEventCount += cell.count;
   }
 
-  const outcomeMixTotals = new Map<string, number>();
-  const byPosition = new Map<
-    string,
-    { title: string; counts: Record<string, number>; total: number }
-  >();
-  for (const row of outcomeRows) {
-    const bucket = outcomeBucket(row.status);
-    const count = Number(row.count);
-    outcomeMixTotals.set(bucket, (outcomeMixTotals.get(bucket) ?? 0) + count);
-
-    const entry = byPosition.get(row.positionId) ?? {
-      title: row.title,
-      counts: {},
-      total: 0,
-    };
-    entry.counts[bucket] = (entry.counts[bucket] ?? 0) + count;
-    entry.total += count;
-    byPosition.set(row.positionId, entry);
-  }
-
-  const outcomeMixByPosition = [...byPosition.entries()]
-    .map(([positionId, v]) => ({ positionId, ...v }))
-    .filter((row) => row.total >= INSIGHTS_MIN_SAMPLE)
-    .sort((a, b) => b.total - a.total)
-    .slice(0, INSIGHTS_CHART_MAX_ROWS);
-
-  const withdrawalTiming = withdrawalRows.map((r) => ({
-    from: r.from as $Enums.ApplicationStatus,
-    actor: r.actor as 'applicant' | 'admin',
-    count: Number(r.count),
-  }));
-
   return {
     n: transitionMatrix.reduce((sum, c) => sum + c.count, 0),
-    transitionMatrix,
     backwardCount,
     decisionFlipCount,
     reviewerEventCount,
-    outcomeMix: [...outcomeMixTotals.entries()].map(([status, count]) => ({
-      status,
-      count,
-    })),
-    outcomeMixByPosition,
-    withdrawalTiming,
-    resubmissionCount: Number(resubmissionRows[0]?.count ?? 0),
   };
 }
 

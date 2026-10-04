@@ -275,7 +275,7 @@ describe('empty range', () => {
     expect(volume.mostAppliedAll).toEqual([]);
     expect(reviewSpeed.timeToDecision.n).toBe(0);
     expect(reviewSpeed.timeToDecision.medianHours).toBeNull();
-    expect(pipeline.transitionMatrix).toEqual([]);
+    expect(pipeline.n).toBe(0);
     expect(funnel.conversion).toEqual({ starts: 0, converted: 0, rate: null });
     expect(questions.answerRates.every((r) => r.total === 0)).toBe(true);
     expect(applicants.totalSubmitted).toBe(0);
@@ -355,14 +355,13 @@ describe('getReviewSpeedInsights (2001 range)', () => {
 });
 
 describe('getPipelineInsights (2001 range)', () => {
-  it('excludes the soft-deleted application from the transition matrix', async () => {
+  it('excludes the soft-deleted application from the event total', async () => {
     const pipeline = await getPipelineInsights(RANGE_2001);
-    const cell = pipeline.transitionMatrix.find(
-      (c) => c.from === 'applied' && c.to === 'accepted',
-    );
-    // reversedApp, flipApp and resubmitApp each contribute one applied ->
-    // accepted event; deletedApp's identical event must not add a fourth.
-    expect(cell?.count).toBe(3);
+    // reversedApp (2 events), flipApp (2), resubmitApp (3, excluding its
+    // draft -> applied event) = 7 on-path events; deletedApp's identical
+    // applied -> accepted event must not add an 8th.
+    expect(pipeline.n).toBe(7);
+    expect(pipeline.reviewerEventCount).toBe(7);
   });
 
   it('classifies accepted -> reviewing as backward and accepted -> rejected as a flip', async () => {

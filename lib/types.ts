@@ -734,31 +734,11 @@ export interface ReviewSpeedInsights {
   timeToComplete: DurationSummary;
 }
 
-export interface TransitionCell {
-  from: $Enums.ApplicationStatus;
-  to: $Enums.ApplicationStatus;
-  count: number;
-}
-
 export interface PipelineInsights {
   n: number;
-  transitionMatrix: TransitionCell[];
   backwardCount: number;
   decisionFlipCount: number;
   reviewerEventCount: number;
-  outcomeMix: { status: string; count: number }[];
-  outcomeMixByPosition: {
-    positionId: string;
-    title: string;
-    counts: Record<string, number>;
-    total: number;
-  }[];
-  withdrawalTiming: {
-    from: $Enums.ApplicationStatus;
-    actor: 'applicant' | 'admin';
-    count: number;
-  }[];
-  resubmissionCount: number;
 }
 
 export interface FunnelInsights {
