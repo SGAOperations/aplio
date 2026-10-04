@@ -693,22 +693,6 @@ export interface AttentionInsights {
       ageDays: number;
     }[];
   };
-  undeliveredDecisions: {
-    applicationId: string;
-    to: string;
-    name: string;
-    positionTitle: string;
-    status: $Enums.ApplicationStatus;
-    emailStatus: $Enums.EmailStatus;
-    bounceType: string | null;
-    error: string | null;
-  }[];
-  closingSoon: {
-    positionId: string;
-    title: string;
-    closesAt: Date;
-    submittedCount: number;
-  }[];
 }
 
 export interface PositionCountRow {
@@ -868,17 +852,4 @@ export interface PositionInsights {
     medianDecisionHours: number | null;
     decisionN: number;
   }[];
-}
-
-export interface EmailInsights {
-  deliveryByTemplate: { template: string; status: string; count: number }[];
-  bounceByType: { bounceType: string; count: number }[];
-  bounceErrors: { error: string; count: number }[];
-  lag: {
-    n: number;
-    medianMinutes: number | null;
-    p95Minutes: number | null;
-    cancelledCount: number;
-  };
-  historyStart: Date;
 }

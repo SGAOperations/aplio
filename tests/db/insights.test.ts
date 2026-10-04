@@ -12,7 +12,6 @@ import type { Application, Position, User } from '@/prisma/client';
 import {
   getApplicantInsights,
   getAttentionInsights,
-  getEmailInsights,
   getFunnelInsights,
   getInsightsHistoryStart,
   getPipelineInsights,
@@ -262,7 +261,6 @@ describe('empty range', () => {
       questions,
       applicants,
       positions,
-      email,
     ] = await Promise.all([
       getVolumeInsights(EMPTY_RANGE_1990),
       getReviewSpeedInsights(EMPTY_RANGE_1990),
@@ -271,7 +269,6 @@ describe('empty range', () => {
       getQuestionInsights(EMPTY_RANGE_1990),
       getApplicantInsights(EMPTY_RANGE_1990),
       getPositionInsights(EMPTY_RANGE_1990),
-      getEmailInsights(EMPTY_RANGE_1990),
     ]);
 
     expect(volume.n).toBe(0);
@@ -284,15 +281,12 @@ describe('empty range', () => {
     expect(applicants.totalSubmitted).toBe(0);
     expect(applicants.uniqueApplicants).toBe(0);
     expect(positions.zeroApplicationPositions).toEqual([]);
-    expect(email.deliveryByTemplate).toEqual([]);
   });
 });
 
 describe('getAttentionInsights (not range-bound)', () => {
   let untouchedApp: Application;
   let softDeletedUntouchedApp: Application;
-  let bouncedDecisionApp: Application;
-  let closingSoonPosition: Position;
 
   beforeAll(async () => {
     const untouchedApplicant = await createTestUser();
@@ -312,33 +306,6 @@ describe('getAttentionInsights (not range-bound)', () => {
         deletedById: admin.id,
       },
     );
-
-    const bouncedApplicant = await createTestUser({
-      email: 'vitest-bounced@example.com',
-    });
-    bouncedDecisionApp = await createTestApplication(
-      bouncedApplicant,
-      position,
-      { status: 'accepted', submittedAt: new Date() },
-    );
-    await prisma.emailLog.create({
-      data: {
-        to: 'vitest-bounced@example.com',
-        userId: bouncedApplicant.id,
-        applicationId: bouncedDecisionApp.id,
-        template: 'application_accepted',
-        subject: 'x',
-        status: 'bounced',
-        bounceType: 'Permanent',
-        error: 'mailbox does not exist',
-      },
-    });
-
-    closingSoonPosition = await createTestPosition(admin, {
-      managers: [manager],
-      status: 'open',
-      closesAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-    });
   });
 
   it('counts untouched submitted applications and excludes soft-deleted ones', async () => {
@@ -353,18 +320,6 @@ describe('getAttentionInsights (not range-bound)', () => {
     const oldestIds = attention.agingQueue.oldest.map((r) => r.applicationId);
     expect(oldestIds).not.toContain(softDeletedUntouchedApp.id);
     expect(untouchedApp.status).toBe('applied');
-  });
-
-  it('surfaces a bounced decision email under undelivered decisions', async () => {
-    const attention = await getAttentionInsights();
-    const ids = attention.undeliveredDecisions.map((r) => r.applicationId);
-    expect(ids).toContain(bouncedDecisionApp.id);
-  });
-
-  it('lists a position closing within the window', async () => {
-    const attention = await getAttentionInsights();
-    const ids = attention.closingSoon.map((r) => r.positionId);
-    expect(ids).toContain(closingSoonPosition.id);
   });
 });
 

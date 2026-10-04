@@ -7,11 +7,8 @@ import type { $Enums } from '@/prisma/client';
 
 import {
   CHOICE_TYPES,
-  DEADLINE_SOON_DAYS,
-  DECISION_EMAIL_TEMPLATES,
   INSIGHTS_ABANDONED_DRAFT_DAYS,
   INSIGHTS_CHART_MAX_ROWS,
-  INSIGHTS_EMAIL_HISTORY_START,
   INSIGHTS_MIN_SAMPLE,
   INSIGHTS_OLDEST_LIST_SIZE,
   INSIGHTS_OTHER_POSITIONS_LABEL,
@@ -32,7 +29,6 @@ import {
   median,
   meetsSample,
   percent,
-  percentile,
   summarizeDurationHours,
 } from '@/lib/insights';
 import { prisma } from '@/lib/prisma';
@@ -41,7 +37,6 @@ import type {
   ApplicantInsights,
   AttentionInsights,
   ChoiceDistributionQuestion,
-  EmailInsights,
   FunnelInsights,
   InsightsRange,
   PipelineInsights,
@@ -106,107 +101,51 @@ export async function hasAnySubmittedApplication(): Promise<boolean> {
 // ─── Needs Attention (not range-bound — a stuck application never ages out) ─
 
 export async function getAttentionInsights(): Promise<AttentionInsights> {
-  const [untouchedRows, agingRows, undeliveredRows, closingSoonRows] =
-    await Promise.all([
-      prisma.$queryRaw<{ count: bigint; oldestDays: number | null }[]>`
-        SELECT count(*)::int AS count,
-               (extract(epoch FROM max(now() - a."submittedAt")) / 86400)::float8 AS "oldestDays"
-        FROM "Application" a
-        JOIN "Position" p ON p.id = a."positionId" AND p."deletedAt" IS NULL
-        JOIN "User" u ON u.id = a."userId" AND u."deletedAt" IS NULL
-        WHERE a."deletedAt" IS NULL
-          AND a."submittedAt" IS NOT NULL
-          AND a.status = 'applied'::"ApplicationStatus"
-      `,
-      prisma.$queryRaw<
-        {
-          applicationId: string;
-          applicantName: string | null;
-          userName: string | null;
-          userEmail: string;
-          positionTitle: string;
-          status: string;
-          ageDays: number;
-        }[]
-      >`
-        WITH last_real_event AS (
-          SELECT e."applicationId", max(e."createdAt") AS "lastAt"
-          FROM "ApplicationStatusEvent" e
-          WHERE e."from" IS NOT NULL
-          GROUP BY e."applicationId"
-        )
-        SELECT a.id AS "applicationId",
-               a."applicantName",
-               u.name AS "userName",
-               u.email AS "userEmail",
-               p.title AS "positionTitle",
-               a.status::text AS status,
-               (extract(epoch FROM (now() - GREATEST(COALESCE(lre."lastAt", a."submittedAt"), a."submittedAt"))) / 86400)::float8 AS "ageDays"
-        FROM "Application" a
-        JOIN "Position" p ON p.id = a."positionId" AND p."deletedAt" IS NULL
-        JOIN "User" u ON u.id = a."userId" AND u."deletedAt" IS NULL
-        LEFT JOIN last_real_event lre ON lre."applicationId" = a.id
-        WHERE a."deletedAt" IS NULL
-          AND a."submittedAt" IS NOT NULL
-          AND a.status IN (${Prisma.join(UNRESOLVED_APPLICATION_STATUSES)})
-        ORDER BY "ageDays" DESC
-      `,
-      prisma.$queryRaw<
-        {
-          applicationId: string;
-          to: string;
-          applicantName: string | null;
-          userName: string | null;
-          userEmail: string;
-          positionTitle: string;
-          status: string;
-          emailStatus: string;
-          bounceType: string | null;
-          error: string | null;
-        }[]
-      >`
-        SELECT a.id AS "applicationId",
-               el."to",
-               a."applicantName",
-               u.name AS "userName",
-               u.email AS "userEmail",
-               p.title AS "positionTitle",
-               a.status::text AS status,
-               el.status::text AS "emailStatus",
-               el."bounceType",
-               el.error
-        FROM "EmailLog" el
-        JOIN "Application" a ON a.id = el."applicationId" AND a."deletedAt" IS NULL
-        JOIN "Position" p ON p.id = a."positionId" AND p."deletedAt" IS NULL
-        JOIN "User" u ON u.id = a."userId" AND u."deletedAt" IS NULL
-        WHERE el.template IN (${Prisma.join(Object.values(DECISION_EMAIL_TEMPLATES))})
-          AND el.status IN ('bounced', 'failed', 'suppressed')
-          AND a.status IN ('accepted', 'rejected')
-        ORDER BY el."createdAt" DESC
-      `,
-      prisma.$queryRaw<
-        {
-          positionId: string;
-          title: string;
-          closesAt: Date;
-          submittedCount: bigint;
-        }[]
-      >`
-        SELECT p.id AS "positionId",
-               p.title,
-               p."closesAt",
-               (
-                 SELECT count(*)::int FROM "Application" a2
-                 WHERE a2."positionId" = p.id AND a2."deletedAt" IS NULL AND a2."submittedAt" IS NOT NULL
-               ) AS "submittedCount"
-        FROM "Position" p
-        WHERE p."deletedAt" IS NULL
-          AND p.status = 'open'::"PositionStatus"
-          AND p."closesAt" > now()
-          AND p."closesAt" <= now() + (${DEADLINE_SOON_DAYS} || ' days')::interval
-        ORDER BY p."closesAt" ASC
-      `,
-    ]);
+  const [untouchedRows, agingRows] = await Promise.all([
+    prisma.$queryRaw<{ count: bigint; oldestDays: number | null }[]>`
+      SELECT count(*)::int AS count,
+             (extract(epoch FROM max(now() - a."submittedAt")) / 86400)::float8 AS "oldestDays"
+      FROM "Application" a
+      JOIN "Position" p ON p.id = a."positionId" AND p."deletedAt" IS NULL
+      JOIN "User" u ON u.id = a."userId" AND u."deletedAt" IS NULL
+      WHERE a."deletedAt" IS NULL
+        AND a."submittedAt" IS NOT NULL
+        AND a.status = 'applied'::"ApplicationStatus"
+    `,
+    prisma.$queryRaw<
+      {
+        applicationId: string;
+        applicantName: string | null;
+        userName: string | null;
+        userEmail: string;
+        positionTitle: string;
+        status: string;
+        ageDays: number;
+      }[]
+    >`
+      WITH last_real_event AS (
+        SELECT e."applicationId", max(e."createdAt") AS "lastAt"
+        FROM "ApplicationStatusEvent" e
+        WHERE e."from" IS NOT NULL
+        GROUP BY e."applicationId"
+      )
+      SELECT a.id AS "applicationId",
+             a."applicantName",
+             u.name AS "userName",
+             u.email AS "userEmail",
+             p.title AS "positionTitle",
+             a.status::text AS status,
+             (extract(epoch FROM (now() - GREATEST(COALESCE(lre."lastAt", a."submittedAt"), a."submittedAt"))) / 86400)::float8 AS "ageDays"
+      FROM "Application" a
+      JOIN "Position" p ON p.id = a."positionId" AND p."deletedAt" IS NULL
+      JOIN "User" u ON u.id = a."userId" AND u."deletedAt" IS NULL
+      LEFT JOIN last_real_event lre ON lre."applicationId" = a.id
+      WHERE a."deletedAt" IS NULL
+        AND a."submittedAt" IS NOT NULL
+        AND a.status IN (${Prisma.join(UNRESOLVED_APPLICATION_STATUSES)})
+      ORDER BY "ageDays" DESC
+    `,
+  ]);
 
   const untouched = untouchedRows[0] ?? { count: 0n, oldestDays: null };
   const agingAll = agingRows.map((r) => ({
@@ -236,27 +175,6 @@ export async function getAttentionInsights(): Promise<AttentionInsights> {
           ageDays: r.ageDays,
         })),
     },
-    undeliveredDecisions: undeliveredRows.map((r) => ({
-      applicationId: r.applicationId,
-      to: r.to,
-      name: getDisplayName({
-        applicantName: r.applicantName,
-        user: { name: r.userName, email: r.userEmail },
-      }),
-      positionTitle: r.positionTitle,
-      status:
-        r.status as AttentionInsights['undeliveredDecisions'][number]['status'],
-      emailStatus:
-        r.emailStatus as AttentionInsights['undeliveredDecisions'][number]['emailStatus'],
-      bounceType: r.bounceType,
-      error: r.error,
-    })),
-    closingSoon: closingSoonRows.map((r) => ({
-      positionId: r.positionId,
-      title: r.title,
-      closesAt: r.closesAt,
-      submittedCount: Number(r.submittedCount),
-    })),
   };
 }
 
@@ -1330,78 +1248,5 @@ export async function getPositionInsights(
       unresolved: Number(r.unresolved),
     })),
     reviewerThroughput,
-  };
-}
-
-// ─── Email (#24, #25, #26) ──────────────────────────────────────────────────
-
-export async function getEmailInsights(
-  range: InsightsRange,
-): Promise<EmailInsights> {
-  const createdAt = Prisma.sql`el."createdAt"`;
-  const rangeFilter = Prisma.sql`${rangeStartFilter(createdAt, range.start)} ${rangeEndFilter(createdAt, range.end)}`;
-
-  const [
-    deliveryRows,
-    bounceTypeRows,
-    bounceErrorRows,
-    lagRows,
-    cancelledRows,
-  ] = await Promise.all([
-    prisma.$queryRaw<{ template: string; status: string; count: bigint }[]>`
-      SELECT el.template::text AS template, el.status::text AS status, count(*)::int AS count
-      FROM "EmailLog" el
-      WHERE true ${rangeFilter}
-      GROUP BY 1, 2
-    `,
-    prisma.$queryRaw<{ bounceType: string; count: bigint }[]>`
-      SELECT COALESCE(NULLIF(btrim(el."bounceType"), ''), 'Unknown') AS "bounceType", count(*)::int AS count
-      FROM "EmailLog" el
-      WHERE el.status = 'bounced'::"EmailStatus" ${rangeFilter}
-      GROUP BY 1
-    `,
-    prisma.$queryRaw<{ error: string; count: bigint }[]>`
-      SELECT COALESCE(NULLIF(btrim(el.error), ''), 'Unknown') AS error, count(*)::int AS count
-      FROM "EmailLog" el
-      WHERE el.status IN ('failed', 'bounced') AND el.error IS NOT NULL ${rangeFilter}
-      GROUP BY 1
-      ORDER BY count DESC
-      LIMIT 10
-    `,
-    prisma.$queryRaw<{ minutes: number }[]>`
-      SELECT (extract(epoch FROM (el."sentAt" - el."scheduledAt")) / 60)::float8 AS minutes
-      FROM "EmailLog" el
-      WHERE el."scheduledAt" IS NOT NULL AND el."sentAt" IS NOT NULL ${rangeFilter}
-    `,
-    prisma.$queryRaw<{ count: bigint }[]>`
-      SELECT count(*)::int AS count
-      FROM "EmailLog" el
-      WHERE el.status = 'cancelled'::"EmailStatus" ${rangeFilter}
-    `,
-  ]);
-
-  const lagMinutes = lagRows.map((r) => r.minutes);
-
-  return {
-    deliveryByTemplate: deliveryRows.map((r) => ({
-      template: r.template,
-      status: r.status,
-      count: Number(r.count),
-    })),
-    bounceByType: bounceTypeRows.map((r) => ({
-      bounceType: r.bounceType,
-      count: Number(r.count),
-    })),
-    bounceErrors: bounceErrorRows.map((r) => ({
-      error: r.error,
-      count: Number(r.count),
-    })),
-    lag: {
-      n: lagMinutes.length,
-      medianMinutes: median(lagMinutes),
-      p95Minutes: percentile(lagMinutes, 0.95),
-      cancelledCount: Number(cancelledRows[0]?.count ?? 0),
-    },
-    historyStart: INSIGHTS_EMAIL_HISTORY_START,
   };
 }
