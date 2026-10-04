@@ -1497,5 +1497,3 @@ export const INSIGHTS_OTHER_POSITIONS_LABEL = 'All other positions';
 
 // Per-position and per-question charts cap at this many rows; the data table shows the rest.
 export const INSIGHTS_CHART_MAX_ROWS = 10;
-
-export const INSIGHTS_EMAIL_HISTORY_START = new Date('2026-08-24T00:00:00Z');
