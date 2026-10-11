@@ -15,6 +15,7 @@ import type {
 } from '@/prisma/client';
 import { getApplicationStatusHistory } from '@/prisma/data/applications';
 
+import { emitPostHogLog, flushPostHogLogs } from '@/instrumentation';
 import {
   requireAdmin,
   requireManagerOrAdmin,
@@ -536,6 +537,12 @@ export async function submitApplication(
 
   if (isError(result)) return result;
 
+  emitPostHogLog('application submitted', {
+    operation: 'submit_application',
+    application_status: 'applied',
+  });
+  after(flushPostHogLogs);
+
   // Fires on withdrawn -> applied too, since resubmission runs this same path.
   after(() =>
     sendApplicationReceipt({
@@ -640,6 +647,13 @@ export async function updateApplicationStatus(
   });
 
   if (result && 'error' in result) return result;
+
+  emitPostHogLog('application review status updated', {
+    operation: 'update_application_status',
+    target_status: status,
+    override,
+  });
+  after(flushPostHogLogs);
 
   // Covers the quick actions, the override Select, and undo alike.
   after(() => dispatchDecisionEmail({ recipient: recipient!, status }));

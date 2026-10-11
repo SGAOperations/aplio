@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { z } from 'zod/v4';
+import posthog from 'posthog-js';
 
 import { checkSignInAllowed, isOtpResendAllowed } from '@/prisma/actions/auth';
 
@@ -143,6 +144,7 @@ export function LoginView({ copy, otpLink }: LoginViewProps) {
     }
 
     setCapturedEmail(data.email);
+    posthog.capture('login_otp_requested');
     toast.success('Code sent.');
     setStep('otp');
   }
@@ -181,9 +183,11 @@ export function LoginView({ copy, otpLink }: LoginViewProps) {
 
   async function handleOtpSubmit(data: OtpFormValues) {
     const result = await verifyCode(capturedEmail, data.otp);
-    if (result.success)
+    if (result.success) {
+      posthog.capture('login_completed');
       // /login decides the destination — name form or onward redirect.
       startTransition(() => router.refresh());
+    }
     else failOtp(result.error);
   }
 

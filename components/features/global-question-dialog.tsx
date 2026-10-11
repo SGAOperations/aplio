@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 
 import { toast } from 'sonner';
+import posthog from 'posthog-js';
 import type { z } from 'zod/v4';
 
 import {
@@ -189,6 +190,12 @@ export function GlobalQuestionDialog({
       toast.error(result.error);
       return false;
     }
+    posthog.capture('global_question_saved', {
+      operation: isEditing ? 'updated' : 'created',
+      question_type: data.type,
+      required: data.required,
+      allows_other: data.allowOther,
+    });
     toast.success(isEditing ? 'Question updated' : 'Question created');
     return true;
   }

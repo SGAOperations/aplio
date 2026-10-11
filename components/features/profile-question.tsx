@@ -1,6 +1,7 @@
 'use client';
 
 import { Controller, useForm, useWatch } from 'react-hook-form';
+import posthog from 'posthog-js';
 
 import { updateGlobalAnswer } from '@/prisma/actions/profile';
 import type { GlobalAnswer, GlobalQuestion } from '@/prisma/client';
@@ -52,6 +53,10 @@ export function ProfileQuestion({
           onSave={async (v) => {
             const result = await updateGlobalAnswer(question.id, v);
             if (isError(result)) throw new ActionError(result.error);
+            posthog.capture('profile_answer_saved', {
+              question_type: question.type,
+              required: question.required,
+            });
           }}
           onSaved={(v) => reset({ value: v })}
         />

@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 
 import { toast } from 'sonner';
+import posthog from 'posthog-js';
 
 import {
   deleteDraftApplication,
@@ -141,6 +142,7 @@ export function MyApplicationRowActions({
                     toast.error(result.error);
                     return;
                   }
+                  posthog.capture('application_withdrawn');
                   toast.success('Application withdrawn');
                   setOpen(false);
                 } catch {

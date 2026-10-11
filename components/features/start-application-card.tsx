@@ -3,6 +3,7 @@
 import { useTransition } from 'react';
 
 import { toast } from 'sonner';
+import posthog from 'posthog-js';
 
 import { createDraftApplication } from '@/prisma/actions/applications';
 
@@ -31,6 +32,9 @@ export function StartApplicationCard({
           toast.error(result.error);
           return;
         }
+        posthog.capture('application_started', {
+          draft_restored: hasDeletedDraft,
+        });
         toast.success(
           hasDeletedDraft
             ? 'Your saved answers are back'

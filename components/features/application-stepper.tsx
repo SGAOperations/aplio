@@ -6,6 +6,7 @@ import { type RefObject, useMemo, useRef, useState } from 'react';
 import { type Control, Controller, useForm, useWatch } from 'react-hook-form';
 
 import { toast } from 'sonner';
+import posthog from 'posthog-js';
 
 import {
   createOrUpdateApplicationAnswer,
@@ -398,6 +399,11 @@ export function ApplicationStepper({
         setError('root', { message: result.error });
         toast.error(result.error);
       } else {
+        posthog.capture('application_submitted', {
+          is_resubmission: isResubmit,
+          global_question_count: globalQuestions.length,
+          position_question_count: positionQuestions.length,
+        });
         toast.success(
           isResubmit ? 'Application resubmitted' : 'Application submitted',
         );

@@ -1,10 +1,19 @@
 type Header = { key: string; value: string };
 
 export function buildContentSecurityPolicy(isDevelopment: boolean): string {
-  const scriptSrc = isDevelopment
-    ? `'self' 'unsafe-inline' 'unsafe-eval'`
-    : `'self' 'unsafe-inline'`;
-  const connectSrc = isDevelopment ? `'self' ws: wss:` : `'self'`;
+  const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST;
+  const posthogAssetsHost = posthogHost
+    ? new URL(posthogHost).origin.replace('.i.', '-assets.i.')
+    : undefined;
+  const scriptSrc = [
+    isDevelopment ? `'self' 'unsafe-inline' 'unsafe-eval'` : `'self' 'unsafe-inline'`,
+    posthogAssetsHost,
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const connectSrc = [isDevelopment ? `'self' ws: wss:` : `'self'`, posthogHost]
+    .filter(Boolean)
+    .join(' ');
 
   const directives = [
     `default-src 'self'`,
@@ -17,6 +26,7 @@ export function buildContentSecurityPolicy(isDevelopment: boolean): string {
     `img-src 'self' data: blob:`,
     `font-src 'self'`,
     `connect-src ${connectSrc}`,
+    `worker-src blob:`,
     `frame-src 'self' blob:`,
   ];
   if (!isDevelopment) directives.push('upgrade-insecure-requests');

@@ -1,5 +1,8 @@
 'use client';
 
+import { useEffect } from 'react';
+import posthog from 'posthog-js';
+
 import { inter } from '@/lib/fonts';
 import { cn } from '@/lib/utils';
 
@@ -12,7 +15,11 @@ interface GlobalErrorProps {
   reset: () => void;
 }
 
-export default function GlobalError({ reset }: GlobalErrorProps) {
+export default function GlobalError({ error, reset }: GlobalErrorProps) {
+  useEffect(() => {
+    posthog.captureException(error);
+  }, [error]);
+
   return (
     <html lang="en">
       <body className={cn('w-full font-sans antialiased', inter.variable)}>

@@ -1,6 +1,7 @@
 'use client';
 
 import { unstable_rethrow, useRouter } from 'next/navigation';
+import posthog from 'posthog-js';
 import { useTransition } from 'react';
 
 import { toast } from 'sonner';
@@ -24,6 +25,7 @@ export function DeactivatedSignOut() {
           toast.error(result.error);
           return;
         }
+        posthog.reset();
         toast.success('Signed out.');
         router.push('/login');
       } catch (error) {

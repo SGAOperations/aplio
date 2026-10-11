@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 
 import { toast } from 'sonner';
+import posthog from 'posthog-js';
 
 import { updateApplicationStatus } from '@/prisma/actions/applications';
 import type { $Enums } from '@/prisma/client';
@@ -80,6 +81,12 @@ export function useApplicationStatusMove({
           toast.error(result.error);
           return;
         }
+
+        posthog.capture('application_status_changed', {
+          previous_status: currentStatus,
+          status: target,
+          is_override: options.override ?? false,
+        });
 
         // Gmail-style Undo: revert to the pre-decision status via the same override path.
         const revertTarget =

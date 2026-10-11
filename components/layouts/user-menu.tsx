@@ -2,6 +2,7 @@
 
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
+import posthog from 'posthog-js';
 import { unstable_rethrow, useRouter } from 'next/navigation';
 import { useTransition } from 'react';
 
@@ -57,8 +58,9 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
       if (isBypass) {
         try {
           await logoutBypassUser();
+          posthog.reset();
+          router.push('/login/bypass');
         } catch (error) {
-          // Let Next's redirect signal through; only a real failure toasts.
           unstable_rethrow(error);
           toast.error('Could not sign out. Please try again.');
         }
@@ -70,6 +72,7 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
           toast.error(result.error);
           return;
         }
+        posthog.reset();
         toast.success('Signed out.');
         router.push('/login');
       } catch (error) {
