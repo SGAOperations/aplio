@@ -5,9 +5,9 @@ import { useCallback, useEffect, useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import posthog from 'posthog-js';
 import { toast } from 'sonner';
 import { z } from 'zod/v4';
-import posthog from 'posthog-js';
 
 import { checkSignInAllowed, isOtpResendAllowed } from '@/prisma/actions/auth';
 
@@ -187,8 +187,7 @@ export function LoginView({ copy, otpLink }: LoginViewProps) {
       posthog.capture('login_completed');
       // /login decides the destination — name form or onward redirect.
       startTransition(() => router.refresh());
-    }
-    else failOtp(result.error);
+    } else failOtp(result.error);
   }
 
   // Strip the one-time code from the URL so it can't linger in history or a referrer.

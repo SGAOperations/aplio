@@ -1,8 +1,8 @@
 'use client';
 
+import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import { useEffect } from 'react';
 
-import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import posthog from 'posthog-js';
 
 import { ThemeProvider } from '@/components/providers/theme-provider';
@@ -38,11 +38,7 @@ export function PostHogIdentity({
   role,
 }: PostHogIdentityProps) {
   useEffect(() => {
-    posthog.identify(userId, {
-      email,
-      ...(name ? { name } : {}),
-      role,
-    });
+    posthog.identify(userId, { email, ...(name ? { name } : {}), role });
   }, [email, name, role, userId]);
 
   return null;

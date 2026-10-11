@@ -1,12 +1,12 @@
 import 'server-only';
 
+import { SeverityNumber } from '@opentelemetry/api-logs';
+import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
+import { resourceFromAttributes } from '@opentelemetry/resources';
 import {
   BatchLogRecordProcessor,
   LoggerProvider,
 } from '@opentelemetry/sdk-logs';
-import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
-import { SeverityNumber } from '@opentelemetry/api-logs';
-import { resourceFromAttributes } from '@opentelemetry/resources';
 
 const projectToken = process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
 const host = process.env.NEXT_PUBLIC_POSTHOG_HOST;

@@ -1,6 +1,7 @@
 'use client';
 
 import { Controller, useForm, useWatch } from 'react-hook-form';
+
 import posthog from 'posthog-js';
 
 import { updateGlobalAnswer } from '@/prisma/actions/profile';

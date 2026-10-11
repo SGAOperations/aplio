@@ -4,8 +4,8 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 
-import { toast } from 'sonner';
 import posthog from 'posthog-js';
+import { toast } from 'sonner';
 
 import { createPosition } from '@/prisma/actions/position-actions';
 

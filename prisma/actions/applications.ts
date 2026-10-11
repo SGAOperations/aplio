@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
 
+import { emitPostHogLog, flushPostHogLogs } from '@/instrumentation';
 import { z } from 'zod/v4';
 
 import { Prisma } from '@/prisma/client';
@@ -15,7 +16,6 @@ import type {
 } from '@/prisma/client';
 import { getApplicationStatusHistory } from '@/prisma/data/applications';
 
-import { emitPostHogLog, flushPostHogLogs } from '@/instrumentation';
 import {
   requireAdmin,
   requireManagerOrAdmin,

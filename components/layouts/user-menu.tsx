@@ -2,11 +2,11 @@
 
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
-import posthog from 'posthog-js';
 import { unstable_rethrow, useRouter } from 'next/navigation';
 import { useTransition } from 'react';
 
 import { ChevronUp, Monitor, Moon, Sun, SunMoon } from 'lucide-react';
+import posthog from 'posthog-js';
 import { toast } from 'sonner';
 
 import { signOutUser } from '@/prisma/actions/auth';

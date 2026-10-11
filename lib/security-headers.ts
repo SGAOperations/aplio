@@ -6,7 +6,9 @@ export function buildContentSecurityPolicy(isDevelopment: boolean): string {
     ? new URL(posthogHost).origin.replace('.i.', '-assets.i.')
     : undefined;
   const scriptSrc = [
-    isDevelopment ? `'self' 'unsafe-inline' 'unsafe-eval'` : `'self' 'unsafe-inline'`,
+    isDevelopment
+      ? `'self' 'unsafe-inline' 'unsafe-eval'`
+      : `'self' 'unsafe-inline'`,
     posthogAssetsHost,
   ]
     .filter(Boolean)

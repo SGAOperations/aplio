@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import { type RefObject, useMemo, useRef, useState } from 'react';
 import { type Control, Controller, useForm, useWatch } from 'react-hook-form';
 
-import { toast } from 'sonner';
 import posthog from 'posthog-js';
+import { toast } from 'sonner';
 
 import {
   createOrUpdateApplicationAnswer,

@@ -1,9 +1,9 @@
 'use client';
 
 import { unstable_rethrow, useRouter } from 'next/navigation';
-import posthog from 'posthog-js';
 import { useTransition } from 'react';
 
+import posthog from 'posthog-js';
 import { toast } from 'sonner';
 
 import { signOutDeactivatedSession } from '@/prisma/actions/auth';

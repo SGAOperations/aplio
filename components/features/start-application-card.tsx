@@ -2,8 +2,8 @@
 
 import { useTransition } from 'react';
 
-import { toast } from 'sonner';
 import posthog from 'posthog-js';
+import { toast } from 'sonner';
 
 import { createDraftApplication } from '@/prisma/actions/applications';
 
