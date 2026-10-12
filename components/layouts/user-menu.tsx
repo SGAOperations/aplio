@@ -6,6 +6,7 @@ import { unstable_rethrow, useRouter } from 'next/navigation';
 import { useTransition } from 'react';
 
 import { ChevronUp, Monitor, Moon, Sun, SunMoon } from 'lucide-react';
+import posthog from 'posthog-js';
 import { toast } from 'sonner';
 
 import { signOutUser } from '@/prisma/actions/auth';
@@ -57,8 +58,9 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
       if (isBypass) {
         try {
           await logoutBypassUser();
+          posthog.reset();
+          router.push('/login/bypass');
         } catch (error) {
-          // Let Next's redirect signal through; only a real failure toasts.
           unstable_rethrow(error);
           toast.error('Could not sign out. Please try again.');
         }
@@ -70,6 +72,7 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
           toast.error(result.error);
           return;
         }
+        posthog.reset();
         toast.success('Signed out.');
         router.push('/login');
       } catch (error) {

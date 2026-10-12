@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react';
 
+import posthog from 'posthog-js';
 import { toast } from 'sonner';
 import type { z } from 'zod/v4';
 
@@ -40,6 +41,7 @@ export function CreateUserDialog({ trigger }: CreateUserDialogProps) {
       toast.error(result.error);
       return false;
     }
+    posthog.capture('user_created', { is_admin: data.isAdmin });
     toast.success(data.isAdmin ? 'Admin user created.' : 'User created.');
     return true;
   }

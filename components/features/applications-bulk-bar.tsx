@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 
+import posthog from 'posthog-js';
 import { toast } from 'sonner';
 
 import {
@@ -112,6 +113,11 @@ export function ApplicationsBulkBar({
         }
 
         const { updated, skipped, reversions } = result;
+        posthog.capture('application_status_bulk_updated', {
+          status,
+          updated_count: updated,
+          skipped_count: skipped,
+        });
         // Gmail-style safety net, same as the single-move toast — only a
         // decision has an email to undo.
         const canUndo = isDecision && reversions.length > 0;

@@ -3,6 +3,7 @@
 import { unstable_rethrow, useRouter } from 'next/navigation';
 import { useTransition } from 'react';
 
+import posthog from 'posthog-js';
 import { toast } from 'sonner';
 
 import { signOutDeactivatedSession } from '@/prisma/actions/auth';
@@ -24,6 +25,7 @@ export function DeactivatedSignOut() {
           toast.error(result.error);
           return;
         }
+        posthog.reset();
         toast.success('Signed out.');
         router.push('/login');
       } catch (error) {
