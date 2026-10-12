@@ -68,6 +68,4 @@ export async function logoutBypassUser() {
 
   const cookieStore = await cookies();
   cookieStore.delete('dev-bypass-user-id');
-
-  redirect('/login/bypass');
 }

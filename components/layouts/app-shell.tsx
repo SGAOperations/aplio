@@ -13,6 +13,7 @@ import { ActivityPanel } from '@/components/features/activity-panel';
 import { AppFooter } from '@/components/layouts/app-footer';
 import { MobileNav } from '@/components/layouts/mobile-nav';
 import { Sidebar } from '@/components/layouts/sidebar';
+import { PostHogIdentity } from '@/components/providers';
 
 export async function AppShell({ children }: { children: ReactNode }) {
   const user = await getOptionalUser();
@@ -56,6 +57,14 @@ export async function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex h-dvh w-full overflow-hidden">
+      {user && identity && (
+        <PostHogIdentity
+          userId={user.id}
+          email={user.email}
+          name={user.name}
+          role={identity.roleLabel}
+        />
+      )}
       <Sidebar
         isAdmin={isAdmin}
         identity={identity}

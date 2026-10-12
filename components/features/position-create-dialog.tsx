@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 
+import posthog from 'posthog-js';
 import { toast } from 'sonner';
 
 import { createPosition } from '@/prisma/actions/position-actions';
@@ -189,6 +190,11 @@ export function PositionCreateDialog({
       toast.error(result.error);
       return false;
     }
+
+    posthog.capture('position_created', {
+      created_by_admin: isAdmin,
+      manager_count: data.managerEmails.length,
+    });
 
     if (isAdmin || data.managerEmails.includes(currentUser.primaryEmail)) {
       toast.success('Position created');

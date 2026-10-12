@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 
+import posthog from 'posthog-js';
 import { toast } from 'sonner';
 
 import {
@@ -141,6 +142,7 @@ export function MyApplicationRowActions({
                     toast.error(result.error);
                     return;
                   }
+                  posthog.capture('application_withdrawn');
                   toast.success('Application withdrawn');
                   setOpen(false);
                 } catch {

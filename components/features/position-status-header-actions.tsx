@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 
+import posthog from 'posthog-js';
 import { toast } from 'sonner';
 
 import { updatePositionStatus } from '@/prisma/actions/position-actions';
@@ -101,6 +102,10 @@ export function PositionStatusHeaderActions({
           return;
         }
         const action = POSITION_TRANSITION_ACTIONS[currentStatus][target];
+        posthog.capture('position_status_changed', {
+          previous_status: currentStatus,
+          status: target,
+        });
         toast.success(action?.successToast ?? 'Position updated');
       } catch (error) {
         console.error(error);
