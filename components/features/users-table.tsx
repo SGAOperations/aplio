@@ -474,7 +474,6 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
             caption="Users"
             defaultSort={{ key: 'roles', direction: 'asc' }}
             noMatchMessage="No users match your filters."
-            tableClassName="table-fixed [&]:w-auto"
             mobileCard={(user) => {
               const isSelf = user.id === currentUserId;
               const isManager = getUserRoleTokens(user).includes('manager');
