@@ -75,7 +75,7 @@ export function toOrgDayString(date: Date): string {
 
 // Calendar-date arithmetic on the Y/M/D triple — never on a resolved instant,
 // so a DST transition inside the shifted range can't shift the day count.
-function shiftOrgDay(day: string, deltaDays: number): string {
+export function shiftOrgDay(day: string, deltaDays: number): string {
   const [year, month, date] = parseOrgDay(day);
   const shifted = new Date(Date.UTC(year, month - 1, date + deltaDays));
   return [

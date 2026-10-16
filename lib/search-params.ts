@@ -15,12 +15,15 @@ import {
   FILTER_PARAM_MAX_LENGTH,
   FILTER_PARAM_MAX_VALUES,
   FILTER_QUERY_MAX_LENGTH,
+  INSIGHTS_DEFAULT_RANGE,
+  INSIGHTS_RANGE_PRESETS,
   USER_ROLE_FILTER_VALUES,
 } from '@/lib/constants';
 import type {
   ApplicationFilters,
   ApplicationSort,
   EmailLogFilters,
+  InsightsRangePreset,
 } from '@/lib/types';
 
 // Allow-list enum arrays in canonical order, deduped; eq lets nuqs skip no-op writes.
@@ -167,3 +170,40 @@ export const usersUrlKeys: UrlKeys<typeof usersSearchParams> = {
   roles: 'role',
   positionIds: 'position',
 };
+
+// Accepts only a real calendar date — rejects '2026-02-30' (regex-valid,
+// calendar-invalid) the same way it rejects 'garbage'.
+const parseAsOrgDay = createParser<string>({
+  parse: (value) => {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (!match) return null;
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const date = Number(match[3]);
+    const asDate = new Date(Date.UTC(year, month - 1, date));
+    if (
+      asDate.getUTCFullYear() !== year ||
+      asDate.getUTCMonth() !== month - 1 ||
+      asDate.getUTCDate() !== date
+    )
+      return null;
+    return value;
+  },
+  serialize: (value) => value,
+});
+
+const parseAsInsightsRangePreset = createParser<InsightsRangePreset>({
+  parse: (value) =>
+    (INSIGHTS_RANGE_PRESETS as readonly string[]).includes(value)
+      ? (value as InsightsRangePreset)
+      : null,
+  serialize: (value) => value,
+}).withDefault(INSIGHTS_DEFAULT_RANGE);
+
+export const insightsSearchParams = {
+  range: parseAsInsightsRangePreset,
+  from: parseAsOrgDay,
+  to: parseAsOrgDay,
+};
+
+export const loadInsightsSearchParams = createLoader(insightsSearchParams);

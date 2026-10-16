@@ -1,7 +1,7 @@
 import { FolderKanban } from 'lucide-react';
 
 import { CONCEPT_ICONS } from '@/lib/icons';
-import type { NavItem } from '@/lib/types';
+import type { NavGroup, NavItem } from '@/lib/types';
 
 export const homeNavItem: NavItem = {
   href: '/',
@@ -43,7 +43,27 @@ export const settingsNavItems: NavItem[] = [
     icon: CONCEPT_ICONS.question,
   },
   { href: '/emails', label: 'Email Log', icon: CONCEPT_ICONS.email },
+  { href: '/insights', label: 'Insights', icon: CONCEPT_ICONS.insights },
 ];
 
 // Positions only: the others are auth-gated and would bounce to login.
 export const anonymousNavItems: NavItem[] = [positionsNavItem];
+
+/** Pure so it's testable without rendering — Manage/Settings groups, empty ones dropped. */
+export function buildNavGroups(options: {
+  canReviewApplications: boolean;
+  isAdmin: boolean;
+}): NavGroup[] {
+  return [
+    {
+      id: 'nav-group-manage',
+      label: 'Manage',
+      items: options.canReviewApplications ? manageReviewerNavItems : [],
+    },
+    {
+      id: 'nav-group-settings',
+      label: 'Settings',
+      items: options.isAdmin ? settingsNavItems : [],
+    },
+  ].filter((group) => group.items.length > 0);
+}

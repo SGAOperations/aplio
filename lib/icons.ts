@@ -10,6 +10,7 @@ import {
   CalendarCheck,
   CalendarClock,
   CalendarX,
+  ChartColumn,
   Check,
   ChevronDown,
   CircleCheck,
@@ -70,7 +71,8 @@ type Concept =
   | 'profile'
   | 'activity'
   | 'deadline'
-  | 'email';
+  | 'email'
+  | 'insights';
 
 export const CONCEPT_ICONS: Record<Concept, LucideIcon> = {
   home: House,
@@ -83,6 +85,7 @@ export const CONCEPT_ICONS: Record<Concept, LucideIcon> = {
   activity: Activity,
   deadline: CalendarClock,
   email: Mail,
+  insights: ChartColumn,
 };
 
 // Past reads "over" (crossed-out calendar), not "scheduled" like the rest.

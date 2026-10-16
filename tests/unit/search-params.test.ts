@@ -14,6 +14,7 @@ import {
   emailLogUrlKeys,
   loadApplicationsSearchParams,
   loadEmailLogSearchParams,
+  loadInsightsSearchParams,
   usersSearchParams,
   usersUrlKeys,
 } from '@/lib/search-params';
@@ -167,6 +168,35 @@ describe('loadEmailLogSearchParams', () => {
     expect(loadEmailLogSearchParams('status=bounced').statuses).toEqual([
       'bounced',
     ]);
+  });
+});
+
+describe('loadInsightsSearchParams', () => {
+  it('defaults to the 90-day preset with no from/to', () => {
+    expect(loadInsightsSearchParams('')).toEqual({
+      range: '90d',
+      from: null,
+      to: null,
+    });
+  });
+
+  it('parses a valid custom range', () => {
+    expect(
+      loadInsightsSearchParams('range=custom&from=2026-01-01&to=2026-02-01'),
+    ).toEqual({ range: 'custom', from: '2026-01-01', to: '2026-02-01' });
+  });
+
+  it('rejects a calendar-invalid date', () => {
+    expect(loadInsightsSearchParams('from=2026-02-30').from).toBeNull();
+  });
+
+  it('rejects garbage', () => {
+    expect(loadInsightsSearchParams('from=garbage').from).toBeNull();
+    expect(loadInsightsSearchParams('to=').to).toBeNull();
+  });
+
+  it('falls back to the default preset for an unknown range value', () => {
+    expect(loadInsightsSearchParams('range=bogus').range).toBe('90d');
   });
 });
 

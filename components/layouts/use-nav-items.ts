@@ -7,9 +7,8 @@ import type { NavGroup, NavIdentity, NavItem } from '@/lib/types';
 import {
   anonymousNavItems,
   applyNavItems,
+  buildNavGroups,
   homeNavItem,
-  manageReviewerNavItems,
-  settingsNavItems,
 } from '@/components/layouts/nav-items';
 
 interface UseNavItemsOptions {
@@ -39,18 +38,7 @@ export function useNavItems({
     : anonymousNavItems;
 
   const groups: NavGroup[] = identity
-    ? [
-        {
-          id: 'nav-group-manage',
-          label: 'Manage',
-          items: canReviewApplications ? manageReviewerNavItems : [],
-        },
-        {
-          id: 'nav-group-settings',
-          label: 'Settings',
-          items: isAdmin ? settingsNavItems : [],
-        },
-      ].filter((group) => group.items.length > 0)
+    ? buildNavGroups({ canReviewApplications, isAdmin })
     : [];
 
   // Anonymous visitors land on /positions; authenticated users go to the dashboard.
