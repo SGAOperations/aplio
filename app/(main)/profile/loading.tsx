@@ -1,3 +1,6 @@
+import { isSlackConfigured } from '@/lib/slack/config';
+
+import { SlackConnectionCardSkeleton } from '@/components/features/slack-connection-card';
 import { PageHeaderSkeleton } from '@/components/layouts/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -6,6 +9,8 @@ export default function ProfileLoading() {
     <div className="mx-auto max-w-2xl">
       <div className="flex flex-col gap-6">
         <PageHeaderSkeleton titleWidth="w-24" />
+
+        {isSlackConfigured() && <SlackConnectionCardSkeleton />}
 
         {/* Edit toggle skeleton */}
         <div className="flex justify-end">

@@ -40,6 +40,10 @@ Open `.env.local` and fill in the required variables:
 | `RESEND_FROM_EMAIL`     | Verified sender address in Resend (e.g. `noreply@yourdomain.com`)                                                                                                                                        |
 | `RESEND_WEBHOOK_SECRET` | Signing secret for the Resend webhook that reports delivery events (Resend dashboard → the webhook)                                                                                                      |
 | `CRON_SECRET`           | Bearer secret Vercel Cron sends as `Authorization: Bearer …`; verified by the manager-digest cron routes. Set it in the Vercel project env (`openssl rand -base64 32`) or both routes reject every call. |
+| `SLACK_CLIENT_ID`       | Slack app's OAuth client ID. Register the app's redirect URL as `<base>/api/auth/callback/slack`. Unset hides the Slack card on `/profile` entirely.                                                     |
+| `SLACK_CLIENT_SECRET`   | Slack app's OAuth client secret.                                                                                                                                                                         |
+| `SLACK_TEAM_ID`         | The SGA workspace's Slack team id — a callback from any other workspace is refused.                                                                                                                      |
+| `SLACK_BOT_TOKEN`       | Bot token (`xoxb-…`) used for `chat.postMessage`/`users.info`/`users.lookupByEmail`; needs the `users:read` scope.                                                                                       |
 
 > **Note:** Prisma CLI commands (`prisma:migrate`, `prisma:seed`) read from `.env`; Next.js reads `.env.local`. Both files are gitignored. For local development you can keep the same values in both.
 

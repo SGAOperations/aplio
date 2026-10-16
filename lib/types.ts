@@ -628,3 +628,7 @@ export type WeeklyDigestRecipient = {
   statusCounts: WeeklyDigestStatusCount[];
   openPositions: Pick<ManagerDigestPosition, 'positionId' | 'title'>[];
 };
+
+export type ConnectSlackResult =
+  | { status: 'redirect'; url: string }
+  | { status: 'connected' };

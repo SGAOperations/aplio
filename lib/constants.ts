@@ -1199,6 +1199,35 @@ export const ACCOUNT_DEACTIVATED_ERROR_CODE = 'ACCOUNT_DEACTIVATED';
 export const ACCOUNT_DEACTIVATED_MESSAGE =
   'Your account has been deactivated. Please contact an administrator.';
 
+export const SLACK_PROVIDER_ID = 'slack';
+
+// Shared between lib/auth/slack-link.ts (what it returns) and
+// SLACK_CONNECT_ERROR_MESSAGES (how /profile explains it).
+export const SLACK_CONNECT_ERROR = {
+  wrongWorkspace: 'slack_wrong_workspace',
+  alreadyLinked: 'slack_already_linked',
+  signInDisabled: 'slack_sign_in_disabled',
+  profileInvalid: 'slack_profile_invalid',
+} as const;
+
+export const SLACK_CONNECT_GENERIC_MESSAGE =
+  "We couldn't connect your Slack account. Please try again.";
+
+const SLACK_ALREADY_LINKED_MESSAGE =
+  'That Slack account is already connected to another Aplio account.';
+
+// Codes that can reach /profile?slack=error&error=<code> — our own
+// SLACK_CONNECT_ERROR codes plus Better Auth's own OAuth error codes. Any
+// other code (including slack_sign_in_disabled/slack_profile_invalid, which
+// the UI can't trigger) falls back to SLACK_CONNECT_GENERIC_MESSAGE.
+export const SLACK_CONNECT_ERROR_MESSAGES: Record<string, string> = {
+  [SLACK_CONNECT_ERROR.wrongWorkspace]:
+    "That Slack account isn't in the SGA workspace. Sign in to Slack with your SGA account and try again.",
+  [SLACK_CONNECT_ERROR.alreadyLinked]: SLACK_ALREADY_LINKED_MESSAGE,
+  access_denied: 'You cancelled the Slack connection. Nothing was changed.',
+  account_already_linked_to_different_user: SLACK_ALREADY_LINKED_MESSAGE,
+};
+
 // Shared between the checkSignInAllowed server action and LoginView's email step resolver.
 export const signInEmailSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
