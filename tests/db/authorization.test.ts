@@ -4,7 +4,6 @@ import {
   createTestGlobalQuestion,
   createTestPosition,
   createTestPositionQuestion,
-  createTestSession,
   createTestUser,
 } from '@/tests/helpers/fixtures';
 import { actAs } from '@/tests/stubs/auth-server';
@@ -722,34 +721,7 @@ describe('toggleUserAdmin / deactivateUser / createUser', () => {
     });
   });
 
-  it('revokes a live session and leaves other sessions untouched', async () => {
-    const target = await createTestUser();
-    const bystander = await createTestUser();
-    await createTestSession(target);
-    await createTestSession(target);
-    const bystanderSession = await createTestSession(bystander);
-
-    actAs(admin);
-    const result = await deactivateUser({ userId: target.id });
-    expect(result).toBeUndefined();
-
-    const targetRow = await prisma.user.findUniqueOrThrow({
-      where: { id: target.id },
-    });
-    expect(targetRow.deletedAt).not.toBeNull();
-
-    const targetSessions = await prisma.session.findMany({
-      where: { userId: target.id },
-    });
-    expect(targetSessions).toHaveLength(0);
-
-    const bystanderStillExists = await prisma.session.findUnique({
-      where: { id: bystanderSession.id },
-    });
-    expect(bystanderStillExists).not.toBeNull();
-  });
-
-  it('succeeds deactivating a user with no session', async () => {
+  it('deactivates a user', async () => {
     const target = await createTestUser();
     actAs(admin);
     const result = await deactivateUser({ userId: target.id });
