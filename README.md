@@ -8,7 +8,7 @@ Aplio is an internal recruiting and application platform. Admins and managers cr
 | -------------- | -------------------------------------------------- |
 | Framework      | Next.js 16 (App Router, React 19, Turbopack)       |
 | Database / ORM | Prisma 7 (`@prisma/adapter-pg`) · Neon Postgres    |
-| Auth           | Better Auth (self-hosted, email OTP)               |
+| Auth           | SGAuth SSO (`@nusgaops/sgauth`)                    |
 | Styling        | Tailwind CSS 4 · shadcn/ui (Radix, new-york style) |
 | Language       | TypeScript (strict)                                |
 | Validation     | zod 4 · react-hook-form                            |
@@ -34,7 +34,8 @@ Open `.env.local` and fill in the required variables:
 | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `DATABASE_URL`          | Postgres connection string (pooled). Local Docker: `postgresql://admin:admin@localhost:5432/aplio`                                                                                                       |
 | `DIRECT_URL`            | Direct (non-pooled) connection string. Local Docker: same as `DATABASE_URL`                                                                                                                              |
-| `BETTER_AUTH_SECRET`    | Signs session cookies. At least 32 characters: `openssl rand -base64 32`                                                                                                                                 |
+| `SGAUTH_URL`            | SGAuth origin. Dev and previews: `https://auth-dev.northeasternsga.com`; production: `https://auth.northeasternsga.com`                                                                                  |
+| `SGAUTH_COOKIE_NAME`    | SGAuth session cookie name, when not the production default. Dev and previews: `__Secure-sgauth-dev.session_token`                                                                                       |
 | `BETTER_AUTH_URL`       | Production only, pinned to the real domain. Preview/local derive it from `VERCEL_URL`, else `http://localhost:3000`. Also governs the absolute URLs (logo, sign-in link) in outgoing email.              |
 | `RESEND_API_KEY`        | Resend API key for transactional email delivery                                                                                                                                                          |
 | `RESEND_FROM_EMAIL`     | Verified sender address in Resend (e.g. `noreply@yourdomain.com`)                                                                                                                                        |
