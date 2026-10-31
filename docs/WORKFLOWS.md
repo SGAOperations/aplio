@@ -168,7 +168,7 @@ Anyone not signed in. The only routes they can use are `/positions`, `/positions
   - **Use a different email** returns to the email step and clears the code.
   - Invalid or expired code from the link → falls through to the ordinary OTP step with the email pre-captured and the inline error already set; **Send a new code** and **Use a different email** are both available.
   - Malformed or partial link params (bad email, non-6-digit otp, missing param) → the ordinary email step, with the address prefilled if it was valid.
-- **End state** — a session exists, and `User.lastLoginAt` is stamped (`recordSignIn`, run from the session-create `after` hook — a blocked sign-in never reaches it). A user row is created on first sign-in if the email was not already invited ([AD-7](#ad-7-create-a-user)). The user goes to the name form if they have no name, otherwise to the sanitized `redirectTo`.
+- **End state** — a session exists, and `User.lastLoginAt` is stamped (`recordSignIn`, run from the session-create `after` hook — a blocked sign-in never reaches it). A user row is created on first sign-in if the email was not already invited ([AD-7](#ad-7-create-a-user)). The user goes to the name form if they have no name, otherwise to the sanitized `redirectTo`. When dual write is configured (`SGAUTH_URL`, `APLIO_DUAL_WRITE_SECRET`, `APLIO_READ_CUTOVER_AT`, all or none), a newly created row is also provisioned in SGAuth after it commits (`dualWriteSignup`, via `after()`), and the returned id is stored in `User.sgauthUserId`; a failed call is logged by user id and never blocks the sign-in.
 
 ### AN-5 Request a new code
 
@@ -673,7 +673,7 @@ An admin is a **manager on every position**: every [Position manager](#position-
   - The email belongs to a deactivated account → **"That email belongs to a deactivated account. Reactivating requires a direct database change — contact engineering."** Deactivation intentionally keeps the email so it is not freed for reuse.
   - Invalid email → "Enter a valid email address."
   - Non-admin → throws; the page is `requireAdminOr404`.
-- **End state** — a `User` row exists before that person has ever signed in; their first OTP sign-in resolves to this row rather than creating a new one, so the admin flag and name survive.
+- **End state** — a `User` row exists before that person has ever signed in; their first OTP sign-in resolves to this row rather than creating a new one, so the admin flag and name survive. The new row is dual-written to SGAuth the same way as a first sign-in ([AN-4](#an-4-sign-in-with-an-email-code)).
 
 ### AD-8 Grant or revoke admin
 

@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { nextCookies } from 'better-auth/next-js';
+import { after } from 'next/server';
 
 import { prismaAdapter } from '@better-auth/prisma-adapter';
 import { betterAuth } from 'better-auth';
@@ -11,6 +12,7 @@ import {
   assertSessionUserActive,
   recordSignIn,
 } from '@/lib/auth/session-hooks';
+import { dualWriteSignup } from '@/lib/auth/sgauth-dual-write';
 import { getBaseUrl } from '@/lib/base-url';
 import { sendEmail } from '@/lib/email/resend';
 import { otpEmail } from '@/lib/email/templates';
@@ -60,6 +62,15 @@ export const auth = betterAuth({
         before: async (user) => ({
           data: { name: user.name.trim() || undefined },
         }),
+        after: async (user) => {
+          after(() =>
+            dualWriteSignup({
+              id: user.id,
+              email: user.email,
+              name: user.name || null,
+            }),
+          );
+        },
       },
     },
     session: {
