@@ -1,12 +1,17 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 
 import { z } from 'zod/v4';
 
 import { Prisma } from '@/prisma/client';
 
 import { requireAdmin } from '@/lib/auth/guards';
+import {
+  type DualWriteUser,
+  dualWriteSignup,
+} from '@/lib/auth/sgauth-dual-write';
 import { createUserSchema } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 
@@ -101,14 +106,16 @@ export async function createUser(input: unknown): Promise<ActionError | void> {
 
   // Verified in better-auth's sign-in/email-otp route: it matches this row
   // by exact email before ever inserting, so it's found here, never duplicated.
+  let created: DualWriteUser;
   try {
-    await prisma.user.create({
+    created = await prisma.user.create({
       data: {
         email,
         ...(name ? { name } : {}),
         isAdmin,
         createdById: admin.id,
       },
+      select: { id: true, email: true, name: true },
     });
   } catch (error) {
     // Soft-deleted rows keep their email, so a deactivated address collides too.
@@ -121,5 +128,6 @@ export async function createUser(input: unknown): Promise<ActionError | void> {
     throw error;
   }
 
+  after(() => dualWriteSignup(created));
   revalidatePath('/users');
 }
