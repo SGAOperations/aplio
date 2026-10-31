@@ -2,7 +2,11 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
-import { getDeactivatedSessionUser, getOptionalUser } from '@/lib/auth/server';
+import {
+  getDeactivatedSessionUser,
+  getOptionalUser,
+  sgauthLogoutUrl,
+} from '@/lib/auth/server';
 import { ACTION_ICONS } from '@/lib/icons';
 
 import { DeactivatedSignOut } from '@/components/features/deactivated-sign-out';
@@ -18,7 +22,7 @@ export default async function AccountDeactivatedPage() {
   if (activeUser) redirect('/positions');
 
   const deactivatedUser = await getDeactivatedSessionUser();
-  if (!deactivatedUser) redirect('/login');
+  if (!deactivatedUser) redirect('/positions');
 
   return (
     <div className="flex w-full max-w-sm flex-col items-center gap-4 text-center">
@@ -38,7 +42,7 @@ export default async function AccountDeactivatedPage() {
         Signed in as {deactivatedUser.email}
       </p>
       <div className="flex w-full flex-col gap-2">
-        <DeactivatedSignOut />
+        <DeactivatedSignOut logoutHref={sgauthLogoutUrl()} />
         <Button variant="ghost" asChild className="w-full">
           <Link href="/positions">
             <ACTION_ICONS.goTo />

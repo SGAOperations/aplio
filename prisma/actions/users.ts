@@ -65,20 +65,14 @@ export async function deactivateUser(
     return { error: 'You cannot deactivate your own account.' };
 
   // Leaves the email intact, so it isn't freed for reuse by a new signup.
-  await prisma.$transaction(async (tx) => {
-    const result = await tx.user.updateMany({
-      where: { id: userId, deletedAt: null },
-      data: { deletedAt: new Date(), deletedById: user.id },
-    });
-
-    // Not reachable from the freshly-rendered admin list → unexpected → throw.
-    if (result.count === 0)
-      throw new Error('User not found or already deactivated');
-
-    // Deletes rather than expires — reactivation can't resurrect a session
-    // on a device the user no longer controls.
-    await tx.session.deleteMany({ where: { userId } });
+  const result = await prisma.user.updateMany({
+    where: { id: userId, deletedAt: null },
+    data: { deletedAt: new Date(), deletedById: user.id },
   });
+
+  // Not reachable from the freshly-rendered admin list → unexpected → throw.
+  if (result.count === 0)
+    throw new Error('User not found or already deactivated');
 
   revalidatePath('/users');
 }
@@ -104,8 +98,7 @@ export async function createUser(input: unknown): Promise<ActionError | void> {
         }
       : { error: 'A user with this email already exists.' };
 
-  // Verified in better-auth's sign-in/email-otp route: it matches this row
-  // by exact email before ever inserting, so it's found here, never duplicated.
+  // Linked to its SGAuth account by address on first sign-in, never duplicated.
   let created: DualWriteUser;
   try {
     created = await prisma.user.create({

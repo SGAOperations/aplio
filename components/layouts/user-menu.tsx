@@ -9,12 +9,11 @@ import { ChevronUp, Monitor, Moon, Sun, SunMoon } from 'lucide-react';
 import posthog from 'posthog-js';
 import { toast } from 'sonner';
 
-import { signOutUser } from '@/prisma/actions/auth';
 import { logoutBypassUser } from '@/prisma/services/dev-bypass';
 
 import { ACTION_ICONS, CONCEPT_ICONS } from '@/lib/icons';
 import type { NavIdentity } from '@/lib/types';
-import { displayUserName, getUserName, isError } from '@/lib/utils';
+import { displayUserName, getUserName } from '@/lib/utils';
 
 import { EditNameDialog } from '@/components/features/edit-name-dialog';
 import {
@@ -43,7 +42,7 @@ const THEME_OPTIONS = [
 ] as const;
 
 export function UserMenu({ identity, onNavigate }: UserMenuProps) {
-  const { email, roleLabel, isBypass } = identity;
+  const { email, roleLabel, isBypass, logoutHref } = identity;
   const displayName = displayUserName(identity);
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -66,21 +65,10 @@ export function UserMenu({ identity, onNavigate }: UserMenuProps) {
         }
         return;
       }
-      try {
-        const result = await signOutUser();
-        if (isError(result)) {
-          toast.error(result.error);
-          return;
-        }
-        posthog.reset();
-        toast.success('Signed out.');
-        router.push('/login');
-      } catch (error) {
-        // Lets an expired-session NEXT_REDIRECT reach Next instead of failing below.
-        unstable_rethrow(error);
-        console.error('Sign-out failed unexpectedly', error);
-        toast.error('Something went wrong. Please try again.');
-      }
+      if (!logoutHref) return;
+      posthog.reset();
+      // SGAuth ends the session for every SGA product, then returns here.
+      window.location.assign(logoutHref);
     });
   }
 
