@@ -57,10 +57,12 @@ describe('dev-bypass cookie consumer', () => {
     vi.unstubAllEnvs();
   });
 
-  describe.each(['undefined', 'production', 'test'] as const)(
-    'when VERCEL_ENV is %s (bypass disallowed)',
+  describe.each(['undefined', 'production', 'preview'] as const)(
+    'when VERCEL_ENV is %s on a deployment (bypass disallowed)',
     (envValue) => {
       beforeEach(() => {
+        vi.stubEnv('NODE_ENV', 'production');
+        vi.stubEnv('ALLOW_DEV_BYPASS', undefined);
         vi.stubEnv(
           'VERCEL_ENV',
           envValue === 'undefined' ? undefined : envValue,
@@ -84,28 +86,28 @@ describe('dev-bypass cookie consumer', () => {
     },
   );
 
-  describe.each(['development', 'preview'] as const)(
-    'when VERCEL_ENV is %s (bypass allowed)',
-    (envValue) => {
-      beforeEach(() => {
-        vi.stubEnv('VERCEL_ENV', envValue);
-      });
+  describe.each([
+    ['local development', 'development', 'development', undefined],
+    ['an opted-in preview', 'production', 'preview', '1'],
+  ] as const)('on %s (bypass allowed)', (_label, nodeEnv, vercelEnv, flag) => {
+    beforeEach(() => {
+      vi.stubEnv('NODE_ENV', nodeEnv);
+      vi.stubEnv('VERCEL_ENV', vercelEnv);
+      vi.stubEnv('ALLOW_DEV_BYPASS', flag);
+    });
 
-      it('getIsBypass is true', async () => {
-        expect(await getIsBypass()).toBe(true);
-      });
+    it('getIsBypass is true', async () => {
+      expect(await getIsBypass()).toBe(true);
+    });
 
-      it('getOptionalUser returns the cookie user', async () => {
-        expect(await getOptionalUser()).toEqual(FIXTURE_USER);
-      });
+    it('getOptionalUser returns the cookie user', async () => {
+      expect(await getOptionalUser()).toEqual(FIXTURE_USER);
+    });
 
-      it('getCurrentUser redirects to /login/bypass with no cookie', async () => {
-        cookieValue = undefined;
-        mockFindUnique.mockResolvedValue(null);
-        await expect(getCurrentUser()).rejects.toThrow(
-          'REDIRECT:/login/bypass',
-        );
-      });
-    },
-  );
+    it('getCurrentUser redirects to /login/bypass with no cookie', async () => {
+      cookieValue = undefined;
+      mockFindUnique.mockResolvedValue(null);
+      await expect(getCurrentUser()).rejects.toThrow('REDIRECT:/login/bypass');
+    });
+  });
 });

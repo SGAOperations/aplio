@@ -165,14 +165,14 @@ export function isError<T>(result: ResponseType<T>): result is ErrorType {
 export class ActionError extends Error {}
 
 /**
- * Default-DENY: an unset VERCEL_ENV also describes production off Vercel.
- * Single gate for issuing and accepting the bypass cookie; preview stays allowed by design.
+ * Local dev, or a preview that opts in with ALLOW_DEV_BYPASS=1; never production.
+ * Single gate for issuing and accepting the bypass cookie.
  */
 export function isBypassAllowed(): boolean {
-  return (
-    process.env.VERCEL_ENV === 'development' ||
-    process.env.VERCEL_ENV === 'preview'
-  );
+  const { VERCEL_ENV, NODE_ENV, ALLOW_DEV_BYPASS } = process.env;
+  const isLocalDev = VERCEL_ENV === 'development' && NODE_ENV === 'development';
+  const isOptedInPreview = VERCEL_ENV === 'preview' && ALLOW_DEV_BYPASS === '1';
+  return isLocalDev || isOptedInPreview;
 }
 
 export function toStringArray(v: unknown): string[] {

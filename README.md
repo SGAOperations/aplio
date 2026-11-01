@@ -148,7 +148,7 @@ Every `preview` deployment, apply-dev included, sits behind an in-app password g
 
 ### Dev bypass
 
-`isBypassAllowed()` (`lib/utils.ts`) is the single gate for both issuing and accepting the `dev-bypass-user-id` cookie, keyed off `VERCEL_ENV`. It's deliberately true for `preview`: each preview runs against its own per-PR Neon branch (never production data), and bypass login is the only practical way to exercise every role there without minting real OTP sessions. Locally, set `VERCEL_ENV=development` (see `.env.example`) or `/login/bypass` 404s.
+`isBypassAllowed()` (`lib/utils.ts`) is the single gate for both issuing and accepting the `dev-bypass-user-id` cookie. It is true locally (`VERCEL_ENV=development` in your `.env` under `npm run dev`), and on a `preview` deployment only where `ALLOW_DEV_BYPASS=1` is set, as on apply-dev, which sits behind the preview gate. It is never true in production. Local SGAuth sign-in instead needs `http://aplio.sga.localhost:3000` against SGAuth on `http://auth.sga.localhost:3000`; see the SGAuth repo's `docs/ENVIRONMENTS.md`.
 
 ## Project structure
 

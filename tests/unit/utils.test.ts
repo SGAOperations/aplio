@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   ACTIVITY_MAX_ITEMS,
@@ -1597,26 +1597,48 @@ describe('getUserRoleRank', () => {
 
 describe('isBypassAllowed', () => {
   afterEach(() => {
-    delete process.env.VERCEL_ENV;
+    vi.unstubAllEnvs();
   });
 
   it('defaults to deny when VERCEL_ENV is unset', () => {
-    delete process.env.VERCEL_ENV;
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.stubEnv('VERCEL_ENV', undefined);
     expect(isBypassAllowed()).toBe(false);
   });
 
-  it('allows development', () => {
-    process.env.VERCEL_ENV = 'development';
+  it('allows local development', () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.stubEnv('VERCEL_ENV', 'development');
     expect(isBypassAllowed()).toBe(true);
   });
 
-  it('allows preview', () => {
-    process.env.VERCEL_ENV = 'preview';
+  it('denies a production build even with VERCEL_ENV=development', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('VERCEL_ENV', 'development');
+    expect(isBypassAllowed()).toBe(false);
+  });
+
+  it.each(['preview', 'production'])('denies the deployed %s env', (env) => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('VERCEL_ENV', env);
+    vi.stubEnv('ALLOW_DEV_BYPASS', undefined);
+    expect(isBypassAllowed()).toBe(false);
+  });
+
+  it('allows a preview that opts in with ALLOW_DEV_BYPASS=1', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('VERCEL_ENV', 'preview');
+    vi.stubEnv('ALLOW_DEV_BYPASS', '1');
     expect(isBypassAllowed()).toBe(true);
   });
 
-  it('denies production', () => {
-    process.env.VERCEL_ENV = 'production';
+  it.each([
+    ['production', 'production'],
+    ['an unset env', undefined],
+  ])('ignores ALLOW_DEV_BYPASS on %s', (_label, env) => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('VERCEL_ENV', env);
+    vi.stubEnv('ALLOW_DEV_BYPASS', '1');
     expect(isBypassAllowed()).toBe(false);
   });
 });
