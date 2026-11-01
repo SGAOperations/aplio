@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   ACTIVITY_MAX_ITEMS,
@@ -1597,26 +1597,30 @@ describe('getUserRoleRank', () => {
 
 describe('isBypassAllowed', () => {
   afterEach(() => {
-    delete process.env.VERCEL_ENV;
+    vi.unstubAllEnvs();
   });
 
   it('defaults to deny when VERCEL_ENV is unset', () => {
-    delete process.env.VERCEL_ENV;
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.stubEnv('VERCEL_ENV', undefined);
     expect(isBypassAllowed()).toBe(false);
   });
 
-  it('allows development', () => {
-    process.env.VERCEL_ENV = 'development';
+  it('allows local development', () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.stubEnv('VERCEL_ENV', 'development');
     expect(isBypassAllowed()).toBe(true);
   });
 
-  it('allows preview', () => {
-    process.env.VERCEL_ENV = 'preview';
-    expect(isBypassAllowed()).toBe(true);
+  it('denies a production build even with VERCEL_ENV=development', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('VERCEL_ENV', 'development');
+    expect(isBypassAllowed()).toBe(false);
   });
 
-  it('denies production', () => {
-    process.env.VERCEL_ENV = 'production';
+  it.each(['preview', 'production'])('denies the deployed %s env', (env) => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('VERCEL_ENV', env);
     expect(isBypassAllowed()).toBe(false);
   });
 });

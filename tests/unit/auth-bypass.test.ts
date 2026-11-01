@@ -57,10 +57,11 @@ describe('dev-bypass cookie consumer', () => {
     vi.unstubAllEnvs();
   });
 
-  describe.each(['undefined', 'production', 'test'] as const)(
-    'when VERCEL_ENV is %s (bypass disallowed)',
+  describe.each(['undefined', 'production', 'preview'] as const)(
+    'when VERCEL_ENV is %s on a deployment (bypass disallowed)',
     (envValue) => {
       beforeEach(() => {
+        vi.stubEnv('NODE_ENV', 'production');
         vi.stubEnv(
           'VERCEL_ENV',
           envValue === 'undefined' ? undefined : envValue,
@@ -84,10 +85,11 @@ describe('dev-bypass cookie consumer', () => {
     },
   );
 
-  describe.each(['development', 'preview'] as const)(
-    'when VERCEL_ENV is %s (bypass allowed)',
+  describe.each(['development'] as const)(
+    'when VERCEL_ENV is %s locally (bypass allowed)',
     (envValue) => {
       beforeEach(() => {
+        vi.stubEnv('NODE_ENV', 'development');
         vi.stubEnv('VERCEL_ENV', envValue);
       });
 

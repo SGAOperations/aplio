@@ -165,13 +165,13 @@ export function isError<T>(result: ResponseType<T>): result is ErrorType {
 export class ActionError extends Error {}
 
 /**
- * Default-DENY: an unset VERCEL_ENV also describes production off Vercel.
- * Single gate for issuing and accepting the bypass cookie; preview stays allowed by design.
+ * Local only: no Vercel deployment runs with VERCEL_ENV=development, and every
+ * build is NODE_ENV=production. Single gate for issuing and accepting the bypass cookie.
  */
 export function isBypassAllowed(): boolean {
   return (
-    process.env.VERCEL_ENV === 'development' ||
-    process.env.VERCEL_ENV === 'preview'
+    process.env.VERCEL_ENV === 'development' &&
+    process.env.NODE_ENV === 'development'
   );
 }
 

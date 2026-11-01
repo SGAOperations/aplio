@@ -144,7 +144,7 @@ Seeded dates are offsets from the moment the reset runs, so they drift afterward
 
 ### Dev bypass
 
-`isBypassAllowed()` (`lib/utils.ts`) is the single gate for both issuing and accepting the `dev-bypass-user-id` cookie, keyed off `VERCEL_ENV`. It's deliberately true for `preview`: each preview runs against its own per-PR Neon branch (never production data), and bypass login is the only practical way to exercise every role there without minting real OTP sessions. Locally, set `VERCEL_ENV=development` (see `.env.example`) or `/login/bypass` 404s.
+`isBypassAllowed()` (`lib/utils.ts`) is the single gate for both issuing and accepting the `dev-bypass-user-id` cookie. It is true only locally: `VERCEL_ENV=development` (set it in your `.env`) under `npm run dev` (`NODE_ENV=development`). Every deployment, previews and the dev branch domain included, signs in through SGAuth only. Local SGAuth sign-in instead needs `http://aplio.sga.localhost:3000` against SGAuth on `http://auth.sga.localhost:3000`; see the SGAuth repo's `docs/ENVIRONMENTS.md`.
 
 ## Project structure
 
