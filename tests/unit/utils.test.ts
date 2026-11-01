@@ -1621,6 +1621,24 @@ describe('isBypassAllowed', () => {
   it.each(['preview', 'production'])('denies the deployed %s env', (env) => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.stubEnv('VERCEL_ENV', env);
+    vi.stubEnv('ALLOW_DEV_BYPASS', undefined);
+    expect(isBypassAllowed()).toBe(false);
+  });
+
+  it('allows a preview that opts in with ALLOW_DEV_BYPASS=1', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('VERCEL_ENV', 'preview');
+    vi.stubEnv('ALLOW_DEV_BYPASS', '1');
+    expect(isBypassAllowed()).toBe(true);
+  });
+
+  it.each([
+    ['production', 'production'],
+    ['an unset env', undefined],
+  ])('ignores ALLOW_DEV_BYPASS on %s', (_label, env) => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('VERCEL_ENV', env);
+    vi.stubEnv('ALLOW_DEV_BYPASS', '1');
     expect(isBypassAllowed()).toBe(false);
   });
 });

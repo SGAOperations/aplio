@@ -39,7 +39,7 @@ Behaviour shared by many workflows is stated once under [Cross-cutting behaviour
 
 `getCurrentUser()` (`lib/auth/server.ts`) resolves the caller or redirects. An anonymous caller goes to SGAuth's sign-in with the absolute URL of the path they asked for (or `/login/bypass?redirectTo=…` where bypass is allowed); the path comes from the `x-current-path` header that `proxy.ts` sets on every matched request, and is built by `withRedirectTo`. `sanitizeRedirectTo` accepts only a single-leading-slash in-app path, rejects `..` traversal and any `/login*` self-reference, and strips Next's internal `_rsc` / `_next*` params; anything else falls back to `/`. After sign-in, SGAuth returns the user to that destination.
 
-When `isBypassAllowed()` is true (local `npm run dev` only, never a deployment) the base is `/login/bypass` instead of SGAuth.
+When `isBypassAllowed()` is true (local `npm run dev`, or a preview with `ALLOW_DEV_BYPASS=1`; never production) the base is `/login/bypass` instead of SGAuth.
 
 ### XC-2 Name gate
 
@@ -162,7 +162,7 @@ Anyone not signed in. The only routes they can use are `/positions`, `/positions
   - A deactivated Aplio row → `/login/deactivated` ([XC-7](#xc-7-deactivated-account)). SGAuth signs the person in; deactivation is Aplio-only.
   - An address already linked to a different SGAuth user → not taken over; the request throws to the global boundary.
   - SGAuth unreachable → the SDK serves a cached session for up to its stale window, otherwise treats the caller as signed out.
-  - Locally, where bypass is allowed, `/login` shows **Sign in with SGA** and the bypass link instead of redirecting ([AN-8](#an-8-dev-bypass-sign-in)).
+  - Where bypass is allowed (local dev, opted-in previews), `/login` shows **Sign in with SGA** and the bypass link instead of redirecting ([AN-8](#an-8-dev-bypass-sign-in)).
 - **End state** — an SGAuth session and a linked Aplio row. The first request of each new SGAuth session stamps `User.lastLoginAt`, and a blank Aplio name takes SGAuth's name. The user lands on the sanitized `redirectTo`.
 
 ### AN-5 Request a new code (retired)
@@ -191,7 +191,7 @@ Retired with the move to SGAuth: Aplio no longer sends sign-in codes. Code and p
 - **Trigger** — `/login/bypass`, or the "switch user via bypass login" link shown under the `/login` form when `isBypassAllowed()`.
 - **Happy path** — three buttons (Admin, Applicant, Position Manager) each submit `loginAsBypassUser` (`prisma/services/dev-bypass.ts`), which sets the `dev-bypass-user-id` cookie that `resolveUser` checks ahead of the real session, then lands on the sanitized `redirectTo`.
 - **Failure / edge**
-  - `isBypassAllowed()` false → `notFound()`. This is the env gate that keeps the route impossible on every deployment, previews included.
+  - `isBypassAllowed()` false → `notFound()`. This is the env gate that keeps the route impossible in production and on any preview without `ALLOW_DEV_BYPASS=1`.
   - "Sign in with real auth" returns to `/login` carrying the same `redirectTo`.
 - **End state** — a bypass session indistinguishable from a real one to the rest of the app; a deactivated bypass row still routes to `/login/deactivated` ([XC-7](#xc-7-deactivated-account)).
 
