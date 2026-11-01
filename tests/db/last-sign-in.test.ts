@@ -136,11 +136,15 @@ describe('resolveSgauthUser', () => {
     expect(user.name).toBe('Ada Lovelace');
   });
 
-  it('mirrors the aplio-admin position onto isAdmin', async () => {
+  it.each([
+    'student-body-president',
+    'executive-vice-president',
+    'vice-president-of-operational-affairs',
+  ])('mirrors the %s position onto isAdmin', async (position) => {
     const existing = await createTestUser();
 
     const promoted = await resolveSgauthUser(
-      sgaSession({ email: existing.email, positions: ['aplio-admin'] }),
+      sgaSession({ email: existing.email, positions: [position] }),
     );
     expect(promoted.isAdmin).toBe(true);
 
@@ -151,8 +155,11 @@ describe('resolveSgauthUser', () => {
   });
 
   it('does not grant admin for other positions or SGAuth admin', async () => {
-    const session = sgaSession({ positions: ['vp-finance'] });
+    const session = sgaSession({
+      positions: ['vice-president-of-academic-affairs', 'senator'],
+    });
     session.user.isAdmin = true;
+    session.user.isPrimaryAdmin = true;
 
     const user = await resolveSgauthUser(session);
     expect(user.isAdmin).toBe(false);

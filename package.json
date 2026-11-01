@@ -31,7 +31,6 @@
   },
   "prisma": {
     "seed": "npx tsx --env-file=.env prisma/seed.ts",
-    "export:aplio-admins": "npx tsx --env-file=.env scripts/export-aplio-admins.ts",
     "backfill:sgauth-ids": "npx tsx --env-file=.env scripts/backfill-sgauth-ids.ts"
   },
   "dependencies": {

@@ -1378,5 +1378,10 @@ export const PIPELINE_SUMMARY_STATUSES = [
 export const NU_EMAIL_REQUIREMENT =
   'Applying needs an SGA account with your Northeastern email address (@northeastern.edu).';
 
-// SGAuth position whose holders are Aplio admins; managers stay an Aplio relation.
-export const APLIO_ADMIN_POSITION = 'aplio-admin';
+// SGAuth positions whose holders are Aplio admins. SGAuth admin grants nothing
+// here, and position managers stay an Aplio relation.
+export const APLIO_ADMIN_POSITIONS = [
+  'student-body-president',
+  'executive-vice-president',
+  'vice-president-of-operational-affairs',
+] as const;

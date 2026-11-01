@@ -12,7 +12,7 @@ import {
   type DualWriteUser,
   dualWriteSignup,
 } from '@/lib/auth/sgauth-dual-write';
-import { APLIO_ADMIN_POSITION, createUserSchema } from '@/lib/constants';
+import { createUserSchema } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 
 const toggleAdminSchema = z.object({
@@ -45,7 +45,8 @@ export async function toggleUserAdmin(
   });
   if (target?.sgauthUserId)
     return {
-      error: `Admin access is managed in SGAuth. Add or remove the ${APLIO_ADMIN_POSITION} position there.`,
+      error:
+        "Admin access comes from holding an SGA executive position in SGAuth, so it can't be changed here.",
     };
 
   const result = await prisma.user.updateMany({

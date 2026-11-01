@@ -723,7 +723,7 @@ describe('toggleUserAdmin / deactivateUser / createUser', () => {
     });
     expect(result).toEqual({
       error:
-        'Admin access is managed in SGAuth. Add or remove the aplio-admin position there.',
+        "Admin access comes from holding an SGA executive position in SGAuth, so it can't be changed here.",
     });
     const unchanged = await prisma.user.findUniqueOrThrow({
       where: { id: target.id },
