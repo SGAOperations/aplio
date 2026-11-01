@@ -21,7 +21,7 @@ Behaviour shared by many workflows is stated once under [Cross-cutting behaviour
 
 ## Table of contents
 
-**[Cross-cutting behaviours](#cross-cutting-behaviours)** — [XC-1](#xc-1-sign-in-gate-and-the-redirectto-round-trip) · [XC-2](#xc-2-name-gate) · [XC-3](#xc-3-profile-completeness) · [XC-4](#xc-4-denial-shape) · [XC-5](#xc-5-errors-and-feedback) · [XC-6](#xc-6-rate-limiting) · [XC-7](#xc-7-deactivated-account) · [XC-8](#xc-8-applicant-facing-status-grouping) · [XC-9](#xc-9-applicant-email) · [XC-10](#xc-10-manager-digests) · [XC-11](#xc-11-activity-panel)
+**[Cross-cutting behaviours](#cross-cutting-behaviours)** — [XC-1](#xc-1-sign-in-gate-and-the-redirectto-round-trip) · [XC-2](#xc-2-name-gate) · [XC-3](#xc-3-profile-completeness) · [XC-4](#xc-4-denial-shape) · [XC-5](#xc-5-errors-and-feedback) · [XC-6](#xc-6-rate-limiting) · [XC-7](#xc-7-deactivated-account) · [XC-8](#xc-8-applicant-facing-status-grouping) · [XC-9](#xc-9-applicant-email) · [XC-10](#xc-10-manager-digests) · [XC-11](#xc-11-activity-panel) · [XC-12](#xc-12-preview-gate)
 
 **[Anonymous (AN)](#anonymous-an)** — [AN-1](#an-1-browse-positions) · [AN-2](#an-2-view-a-position) · [AN-3](#an-3-start-applying-from-a-position) · [AN-4](#an-4-sign-in-with-sgauth) · [AN-5](#an-5-request-a-new-code-retired) · [AN-6](#an-6-set-your-name-on-first-sign-in) · [AN-7](#an-7-read-the-legal-pages) · [AN-8](#an-8-dev-bypass-sign-in)
 
@@ -113,6 +113,12 @@ A `Sheet` reachable from every authenticated page, not just the dashboard — to
 - **Group headings** — only for a viewer with a reviewer group at all. "Your applications" first, then "Positions you manage" (manager) or "All positions" (admin); a group with no items is omitted. A plain applicant (no reviewer group) sees one flat list with no heading at all.
 - **Empty** — only when every visible group is empty: "No recent activity" plus a scope-specific description ("Updates to your applications will show up here." / "…and new applications to the positions you manage will show up here." / "…and new applications across all positions will show up here.").
 - **Freshness** — the panel lives in the shared layout, so Next keeps it across client-side navigations. It refreshes on a hard load, `router.refresh()`, or any server action whose `revalidatePath`/`revalidateTag` covers the layout — not on a plain link navigation. There is no unread state, badge, or mark-as-read, so this cannot tell a manager that something changed without them opening it and reading it.
+
+### XC-12 Preview gate
+
+On a non-production deployment (`VERCEL_ENV=preview`, which includes apply-dev), `proxy.ts` sends every browser request to `/preview-gate` until the visitor enters `APLIO_PREVIEW_GATE_PASSWORD`. A correct password (`unlockPreviewGate`, compared in constant time, 10 attempts per 15 minutes per client) sets a signed, HttpOnly `__Host-aplio.preview-gate` cookie for 7 days, then returns the visitor to the path they asked for. Rotating the password invalidates every cookie. The Resend webhook and the two digest crons are exempt, since each checks its own secret. Prefetches are gated too. A preview with no password refuses every gated request (503) unless `APLIO_PREVIEW_GATE=off`. Production and local dev never show the gate.
+
+- **Failure / edge** — wrong password → **"That password isn't right."**; too many attempts → **"Too many attempts. Try again in a few minutes."** Both re-render the gate with the destination kept.
 
 ---
 
