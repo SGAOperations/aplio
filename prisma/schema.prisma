@@ -61,8 +61,6 @@ enum EmailTemplateKey {
 
 model User {
   id            String    @id @default(uuid(7))
-  // Nullable during the Neon Auth cutover; dropped once no row depends on it.
-  neonAuthId    String?   @unique
   sgauthUserId  String?   @unique
   email         String    @unique
   name          String?
