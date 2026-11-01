@@ -33,7 +33,8 @@ export default async function SignInPage({
     redirect('/login/deactivated');
 
   // Must match isBypassAllowed, so the affordance and the action agree.
-  if (!user && !isBypassAllowed()) redirect(sgauthLoginUrl(safeTo));
+  const loginHref = await sgauthLoginUrl(safeTo);
+  if (!user && !isBypassAllowed()) redirect(loginHref);
 
   return (
     <div className="flex w-full max-w-sm flex-col items-center gap-4">
@@ -42,7 +43,7 @@ export default async function SignInPage({
       ) : (
         <div className="flex w-full flex-col gap-2">
           <Button className="w-full" asChild>
-            <a href={sgauthLoginUrl(safeTo)}>Sign in with SGA</a>
+            <a href={loginHref}>Sign in with SGA</a>
           </Button>
           <Button variant="outline" className="w-full" asChild>
             <Link href={withRedirectTo('/login/bypass', redirectTo)}>
