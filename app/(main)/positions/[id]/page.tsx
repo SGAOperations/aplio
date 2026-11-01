@@ -6,8 +6,9 @@ import type { User } from '@/prisma/client';
 import { getPositionDetail } from '@/prisma/data/positions';
 
 import { getOptionalManagerAccess } from '@/lib/auth/guards';
-import { requireName } from '@/lib/auth/server';
+import { requireName, sgauthSignUpUrl } from '@/lib/auth/server';
 import { getBaseUrl } from '@/lib/base-url';
+import { NU_EMAIL_REQUIREMENT } from '@/lib/constants';
 import { ACTION_ICONS, CONCEPT_ICONS, STATE_ICONS } from '@/lib/icons';
 import type { PositionDetail } from '@/lib/types';
 import { getPositionAvailability, markdownToPlainText } from '@/lib/utils';
@@ -65,6 +66,9 @@ export default async function PublicPositionDetailPage({
   const isAuthenticated = view.user !== null;
   const availability = getPositionAvailability(position);
   const isAccepting = availability === 'accepting';
+  const applyPath = `/positions/${id}/apply`;
+  const signUpHref =
+    isAccepting && !isAuthenticated ? await sgauthSignUpUrl(applyPath) : null;
   const opensAtPast =
     position.status === 'draft' &&
     position.opensAt !== null &&
@@ -135,22 +139,32 @@ export default async function PublicPositionDetailPage({
         </div>
       )}
 
+      {signUpHref && (
+        <p className="text-muted-foreground text-sm">{NU_EMAIL_REQUIREMENT}</p>
+      )}
       <div className="flex flex-wrap items-center gap-3">
         {isAccepting &&
           (isAuthenticated ? (
             <Button asChild>
-              <Link href={`/positions/${id}/apply`}>
+              <Link href={applyPath}>
                 <ACTION_ICONS.submit />
                 Apply now
               </Link>
             </Button>
           ) : (
-            <Button asChild>
-              <Link href={`/login?redirectTo=/positions/${id}/apply`}>
-                <ACTION_ICONS.submit />
-                Apply
-              </Link>
-            </Button>
+            <>
+              <Button asChild>
+                <Link href={`/login?redirectTo=${applyPath}`}>
+                  <ACTION_ICONS.submit />
+                  Sign in to apply
+                </Link>
+              </Button>
+              {signUpHref && (
+                <Button asChild variant="outline">
+                  <a href={signUpHref}>Create an account</a>
+                </Button>
+              )}
+            </>
           ))}
         {canManage && (
           <>

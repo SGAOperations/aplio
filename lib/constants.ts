@@ -1373,3 +1373,7 @@ export const PIPELINE_SUMMARY_STATUSES = [
   ...APPLICATION_PIPELINE_STATUSES,
   'withdrawn',
 ] as const satisfies $Enums.ApplicationStatus[];
+
+// Every student has one; there is no domain exception for applicants.
+export const NU_EMAIL_REQUIREMENT =
+  'Applying needs an SGA account with your Northeastern email address (@northeastern.edu).';
