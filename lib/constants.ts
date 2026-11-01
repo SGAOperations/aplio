@@ -1191,23 +1191,6 @@ export const nameSchema = z.object({
     ),
 });
 
-// Shared with lib/auth/config.ts's session-create hook so the client can
-// branch on this specific refusal instead of a generic OTP failure.
-export const ACCOUNT_DEACTIVATED_ERROR_CODE = 'ACCOUNT_DEACTIVATED';
-
-// Shared between checkSignInAllowed and LoginView's OTP failure so the copy can't drift between surfaces.
-export const ACCOUNT_DEACTIVATED_MESSAGE =
-  'Your account has been deactivated. Please contact an administrator.';
-
-// Shared between the checkSignInAllowed server action and LoginView's email step resolver.
-export const signInEmailSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-});
-
-// Shared by LoginView's countdown and isOtpResendAllowed so they can't drift.
-// Keep below the /login "up to 5 minutes" note and OTP_EXPIRY_SECONDS in lib/auth/config.ts.
-export const OTP_RESEND_COOLDOWN_SECONDS = 180;
-
 export const STATUS_BADGE_VARIANT_TO_DOT: Record<BadgeVariant, string> = {
   info: 'bg-info',
   warning: 'bg-warning',
@@ -1390,3 +1373,15 @@ export const PIPELINE_SUMMARY_STATUSES = [
   ...APPLICATION_PIPELINE_STATUSES,
   'withdrawn',
 ] as const satisfies $Enums.ApplicationStatus[];
+
+// Every student has one; there is no domain exception for applicants.
+export const NU_EMAIL_REQUIREMENT =
+  'Applying needs an SGA account with your Northeastern email address (@northeastern.edu).';
+
+// SGAuth positions whose holders are Aplio admins. SGAuth admin grants nothing
+// here, and position managers stay an Aplio relation.
+export const APLIO_ADMIN_POSITIONS = [
+  'student-body-president',
+  'executive-vice-president',
+  'vice-president-of-operational-affairs',
+] as const;

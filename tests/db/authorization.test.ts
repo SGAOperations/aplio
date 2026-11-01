@@ -4,10 +4,10 @@ import {
   createTestGlobalQuestion,
   createTestPosition,
   createTestPositionQuestion,
-  createTestSession,
   createTestUser,
 } from '@/tests/helpers/fixtures';
 import { actAs } from '@/tests/stubs/auth-server';
+import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
@@ -714,6 +714,23 @@ describe('toggleUserAdmin / deactivateUser / createUser', () => {
     expect(result).toEqual({ error: 'You cannot change your own admin role.' });
   });
 
+  it('refuses to change admin on an SGAuth-linked account', async () => {
+    const target = await createTestUser({ sgauthUserId: randomUUID() });
+    actAs(admin);
+    const result = await toggleUserAdmin({
+      userId: target.id,
+      makeAdmin: true,
+    });
+    expect(result).toEqual({
+      error:
+        "Admin access comes from holding an SGA executive position in SGAuth, so it can't be changed here.",
+    });
+    const unchanged = await prisma.user.findUniqueOrThrow({
+      where: { id: target.id },
+    });
+    expect(unchanged.isAdmin).toBe(false);
+  });
+
   it('refuses an admin deactivating their own account', async () => {
     actAs(admin);
     const result = await deactivateUser({ userId: admin.id });
@@ -722,34 +739,7 @@ describe('toggleUserAdmin / deactivateUser / createUser', () => {
     });
   });
 
-  it('revokes a live session and leaves other sessions untouched', async () => {
-    const target = await createTestUser();
-    const bystander = await createTestUser();
-    await createTestSession(target);
-    await createTestSession(target);
-    const bystanderSession = await createTestSession(bystander);
-
-    actAs(admin);
-    const result = await deactivateUser({ userId: target.id });
-    expect(result).toBeUndefined();
-
-    const targetRow = await prisma.user.findUniqueOrThrow({
-      where: { id: target.id },
-    });
-    expect(targetRow.deletedAt).not.toBeNull();
-
-    const targetSessions = await prisma.session.findMany({
-      where: { userId: target.id },
-    });
-    expect(targetSessions).toHaveLength(0);
-
-    const bystanderStillExists = await prisma.session.findUnique({
-      where: { id: bystanderSession.id },
-    });
-    expect(bystanderStillExists).not.toBeNull();
-  });
-
-  it('succeeds deactivating a user with no session', async () => {
+  it('deactivates a user', async () => {
     const target = await createTestUser();
     actAs(admin);
     const result = await deactivateUser({ userId: target.id });

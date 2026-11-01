@@ -2,7 +2,7 @@
 
 Every pipeline agent (plan, impl, review, revise) must read this document before working. It defines the quality bar for this codebase beyond the conventions in `CLAUDE.md`. Plans must account for these standards per feature, implementations must follow them, and review findings may cite sections of this document the same way they cite the plan.
 
-Stack context: Next.js App Router, Prisma, Tailwind CSS 4, shadcn/ui, Better Auth (`lib/auth/server.ts`), TypeScript strict, zod, react-hook-form.
+Stack context: Next.js App Router, Prisma, Tailwind CSS 4, shadcn/ui, SGAuth SSO via `@nusgaops/sgauth` (`lib/auth/server.ts`), TypeScript strict, zod, react-hook-form.
 
 ## 1. Architecture
 

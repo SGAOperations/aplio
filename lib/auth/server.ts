@@ -1,11 +1,13 @@
+import { getServerSession, loginUrl, logoutUrl } from '@nusgaops/sgauth/next';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
 
 import type { User } from '@/prisma/client';
 
-import { auth } from '@/lib/auth/config';
-import { withRedirectTo } from '@/lib/auth/redirect';
+import { requestOrigin, withRedirectTo } from '@/lib/auth/redirect';
+import { resolveSgauthUser } from '@/lib/auth/session-hooks';
+import { getBaseUrl } from '@/lib/base-url';
 import { prisma } from '@/lib/prisma';
 import { isBypassAllowed } from '@/lib/utils';
 
@@ -14,7 +16,6 @@ type UserResolution =
   | { status: 'deactivated'; user: User }
   | { status: 'anonymous' };
 
-// Better Auth owns the User row, so the session id is the row id.
 const resolveUser = cache(
   async function resolveUser(): Promise<UserResolution> {
     if (isBypassAllowed()) {
@@ -30,13 +31,10 @@ const resolveUser = cache(
       }
     }
 
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session?.user) return { status: 'anonymous' };
+    const session = await getServerSession();
+    if (!session) return { status: 'anonymous' };
 
-    const row = await prisma.user.findUnique({
-      where: { id: session.user.id },
-    });
-    if (!row) return { status: 'anonymous' };
+    const row = await resolveSgauthUser(session);
     return row.deletedAt
       ? { status: 'deactivated', user: row }
       : { status: 'active', user: row };
@@ -70,6 +68,28 @@ export async function currentPath(): Promise<string | null> {
   return (await headers()).get('x-current-path');
 }
 
+async function appOrigin(): Promise<string> {
+  const requestHeaders = await headers();
+  return requestOrigin((name) => requestHeaders.get(name)) ?? getBaseUrl();
+}
+
+// SGAuth validates the return URL against its product registry.
+export async function sgauthLoginUrl(path: string | null): Promise<string> {
+  return loginUrl(`${await appOrigin()}${path ?? '/'}`);
+}
+
+// The SDK builds no sign-up URL; SGAuth's /sign-up takes `redirect` like /login.
+export async function sgauthSignUpUrl(path: string | null): Promise<string> {
+  const url = new URL(await sgauthLoginUrl(path));
+  url.pathname = url.pathname.replace(/\/login$/, '/sign-up');
+  return url.toString();
+}
+
+// A plain <a>, never a prefetching <Link>: a prefetch would sign the user out.
+export async function sgauthLogoutUrl(): Promise<string> {
+  return logoutUrl(`${await appOrigin()}/positions`);
+}
+
 // Cached, so layout and page share one round-trip per render pass.
 export const getCurrentUser = cache(
   async function getCurrentUser(): Promise<User> {
@@ -77,11 +97,12 @@ export const getCurrentUser = cache(
     if (resolution.status === 'active') return resolution.user;
 
     // Routing, not denial: a live session for a deactivated row goes to the
-    // explanatory screen instead of silently bouncing back to /login forever.
+    // explanatory screen instead of silently bouncing back to sign-in forever.
     if (resolution.status === 'deactivated') redirect('/login/deactivated');
 
-    const base = isBypassAllowed() ? '/login/bypass' : '/login';
-    redirect(withRedirectTo(base, await currentPath()));
+    const path = await currentPath();
+    if (isBypassAllowed()) redirect(withRedirectTo('/login/bypass', path));
+    redirect(await sgauthLoginUrl(path));
   },
 );
 

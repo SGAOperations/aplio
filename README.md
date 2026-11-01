@@ -8,7 +8,7 @@ Aplio is an internal recruiting and application platform. Admins and managers cr
 | -------------- | -------------------------------------------------- |
 | Framework      | Next.js 16 (App Router, React 19, Turbopack)       |
 | Database / ORM | Prisma 7 (`@prisma/adapter-pg`) · Neon Postgres    |
-| Auth           | Better Auth (self-hosted, email OTP)               |
+| Auth           | SGAuth SSO (`@nusgaops/sgauth`)                    |
 | Styling        | Tailwind CSS 4 · shadcn/ui (Radix, new-york style) |
 | Language       | TypeScript (strict)                                |
 | Validation     | zod 4 · react-hook-form                            |
@@ -34,7 +34,8 @@ Open `.env.local` and fill in the required variables:
 | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `DATABASE_URL`          | Postgres connection string (pooled). Local Docker: `postgresql://admin:admin@localhost:5432/aplio`                                                                                                       |
 | `DIRECT_URL`            | Direct (non-pooled) connection string. Local Docker: same as `DATABASE_URL`                                                                                                                              |
-| `BETTER_AUTH_SECRET`    | Signs session cookies. At least 32 characters: `openssl rand -base64 32`                                                                                                                                 |
+| `SGAUTH_URL`            | SGAuth origin. Dev and previews: `https://auth-dev.northeasternsga.com`; production: `https://auth.northeasternsga.com`                                                                                  |
+| `SGAUTH_COOKIE_NAME`    | SGAuth session cookie name, when not the production default. Dev and previews: `__Secure-sgauth-dev.session_token`                                                                                       |
 | `BETTER_AUTH_URL`       | Production only, pinned to the real domain. Preview/local derive it from `VERCEL_URL`, else `http://localhost:3000`. Also governs the absolute URLs (logo, sign-in link) in outgoing email.              |
 | `RESEND_API_KEY`        | Resend API key for transactional email delivery                                                                                                                                                          |
 | `RESEND_FROM_EMAIL`     | Verified sender address in Resend (e.g. `noreply@yourdomain.com`)                                                                                                                                        |
@@ -141,9 +142,13 @@ To refresh `dev`'s data:
 
 Seeded dates are offsets from the moment the reset runs, so they drift afterwards (a position closing "today" becomes closed the next day) — refresh again whenever the states stop matching their labels.
 
+### Preview gate
+
+Every `preview` deployment, apply-dev included, sits behind an in-app password gate (`lib/preview-gate.ts`, `/preview-gate`), the same pattern SGAuth uses on auth-dev. Set `APLIO_PREVIEW_GATE_PASSWORD` in the Vercel preview environment. Without it a preview refuses requests, unless `APLIO_PREVIEW_GATE=off` because that deployment relies on Vercel Deployment Protection instead. Production and local dev never see the gate.
+
 ### Dev bypass
 
-`isBypassAllowed()` (`lib/utils.ts`) is the single gate for both issuing and accepting the `dev-bypass-user-id` cookie, keyed off `VERCEL_ENV`. It's deliberately true for `preview`: each preview runs against its own per-PR Neon branch (never production data), and bypass login is the only practical way to exercise every role there without minting real OTP sessions. Locally, set `VERCEL_ENV=development` (see `.env.example`) or `/login/bypass` 404s.
+`isBypassAllowed()` (`lib/utils.ts`) is the single gate for both issuing and accepting the `dev-bypass-user-id` cookie. It is true locally (`VERCEL_ENV=development` in your `.env` under `npm run dev`), and on a `preview` deployment only where `ALLOW_DEV_BYPASS=1` is set, as on apply-dev, which sits behind the preview gate. It is never true in production. Local SGAuth sign-in instead needs `http://aplio.sga.localhost:3000` against SGAuth on `http://auth.sga.localhost:3000`; see the SGAuth repo's `docs/ENVIRONMENTS.md`.
 
 ## Project structure
 

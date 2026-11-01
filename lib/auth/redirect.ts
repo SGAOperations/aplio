@@ -55,3 +55,26 @@ export function withRedirectTo(
 
   return `${base}?redirectTo=${encodeURIComponent(sanitized)}`;
 }
+
+const HOST = /^[a-z0-9.-]+(:\d{1,5})?$/i;
+
+// The origin the browser actually used — a deployment's VERCEL_URL is never the
+// branch domain SGAuth's cookie and product registry are scoped to.
+export function requestOrigin(
+  getHeader: (name: string) => string | null,
+): string | null {
+  const first = (name: string) => getHeader(name)?.split(',')[0]?.trim();
+  const host = first('x-forwarded-host') || first('host');
+  if (!host || !HOST.test(host)) return null;
+
+  const forwardedProto = first('x-forwarded-proto');
+  const hostname = host.split(':')[0] ?? host;
+  const isLocal = hostname === 'localhost' || hostname.endsWith('.localhost');
+  const proto =
+    forwardedProto === 'http' || forwardedProto === 'https'
+      ? forwardedProto
+      : isLocal
+        ? 'http'
+        : 'https';
+  return `${proto}://${host}`;
+}

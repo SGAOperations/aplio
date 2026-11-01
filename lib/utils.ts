@@ -165,14 +165,14 @@ export function isError<T>(result: ResponseType<T>): result is ErrorType {
 export class ActionError extends Error {}
 
 /**
- * Default-DENY: an unset VERCEL_ENV also describes production off Vercel.
- * Single gate for issuing and accepting the bypass cookie; preview stays allowed by design.
+ * Local dev, or a preview that opts in with ALLOW_DEV_BYPASS=1; never production.
+ * Single gate for issuing and accepting the bypass cookie.
  */
 export function isBypassAllowed(): boolean {
-  return (
-    process.env.VERCEL_ENV === 'development' ||
-    process.env.VERCEL_ENV === 'preview'
-  );
+  const { VERCEL_ENV, NODE_ENV, ALLOW_DEV_BYPASS } = process.env;
+  const isLocalDev = VERCEL_ENV === 'development' && NODE_ENV === 'development';
+  const isOptedInPreview = VERCEL_ENV === 'preview' && ALLOW_DEV_BYPASS === '1';
+  return isLocalDev || isOptedInPreview;
 }
 
 export function toStringArray(v: unknown): string[] {
@@ -836,14 +836,6 @@ export function getEmailLogTimestamp(row: {
 /** `Permanent`/`Transient` as-is; any other provider string passes through; blank/null → `null`. */
 export function formatBounceType(bounceType: string | null): string | null {
   return bounceType?.trim() || null;
-}
-
-/** `m:ss`, always minutes-and-seconds (never a bare second count); negative clamps to `0:00`. */
-export function formatCountdown(seconds: number): string {
-  const clamped = Math.max(0, Math.ceil(seconds));
-  const minutes = Math.floor(clamped / 60);
-  const rest = clamped % 60;
-  return `${minutes}:${String(rest).padStart(2, '0')}`;
 }
 
 interface RoleTokenInput {

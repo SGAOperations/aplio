@@ -1,12 +1,17 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 
 import { z } from 'zod/v4';
 
 import { Prisma } from '@/prisma/client';
 
 import { requireAdmin } from '@/lib/auth/guards';
+import {
+  type DualWriteUser,
+  dualWriteSignup,
+} from '@/lib/auth/sgauth-dual-write';
 import { createUserSchema } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 
@@ -32,6 +37,17 @@ export async function toggleUserAdmin(
   // An admin cannot change their own admin role — defense in depth beyond the UI guard.
   if (userId === user.id)
     return { error: 'You cannot change your own admin role.' };
+
+  // Linked accounts take admin from SGAuth on every request; a write here would be undone.
+  const target = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { sgauthUserId: true },
+  });
+  if (target?.sgauthUserId)
+    return {
+      error:
+        "Admin access comes from holding an SGA executive position in SGAuth, so it can't be changed here.",
+    };
 
   const result = await prisma.user.updateMany({
     where: { id: userId, deletedAt: null },
@@ -60,20 +76,14 @@ export async function deactivateUser(
     return { error: 'You cannot deactivate your own account.' };
 
   // Leaves the email intact, so it isn't freed for reuse by a new signup.
-  await prisma.$transaction(async (tx) => {
-    const result = await tx.user.updateMany({
-      where: { id: userId, deletedAt: null },
-      data: { deletedAt: new Date(), deletedById: user.id },
-    });
-
-    // Not reachable from the freshly-rendered admin list → unexpected → throw.
-    if (result.count === 0)
-      throw new Error('User not found or already deactivated');
-
-    // Deletes rather than expires — reactivation can't resurrect a session
-    // on a device the user no longer controls.
-    await tx.session.deleteMany({ where: { userId } });
+  const result = await prisma.user.updateMany({
+    where: { id: userId, deletedAt: null },
+    data: { deletedAt: new Date(), deletedById: user.id },
   });
+
+  // Not reachable from the freshly-rendered admin list → unexpected → throw.
+  if (result.count === 0)
+    throw new Error('User not found or already deactivated');
 
   revalidatePath('/users');
 }
@@ -99,16 +109,17 @@ export async function createUser(input: unknown): Promise<ActionError | void> {
         }
       : { error: 'A user with this email already exists.' };
 
-  // Verified in better-auth's sign-in/email-otp route: it matches this row
-  // by exact email before ever inserting, so it's found here, never duplicated.
+  // Linked to its SGAuth account by address on first sign-in, never duplicated.
+  let created: DualWriteUser;
   try {
-    await prisma.user.create({
+    created = await prisma.user.create({
       data: {
         email,
         ...(name ? { name } : {}),
         isAdmin,
         createdById: admin.id,
       },
+      select: { id: true, email: true, name: true },
     });
   } catch (error) {
     // Soft-deleted rows keep their email, so a deactivated address collides too.
@@ -121,5 +132,6 @@ export async function createUser(input: unknown): Promise<ActionError | void> {
     throw error;
   }
 
+  after(() => dualWriteSignup(created));
   revalidatePath('/users');
 }

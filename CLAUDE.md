@@ -10,12 +10,11 @@ These are the always-true rules for this repo. Depth lives in dedicated docs —
 
 ## Tech Stack
 
-Next.js 16 (App Router, React 19) · Prisma 7 · Tailwind CSS 4 · shadcn/ui (Radix) · TypeScript strict · zod 4 · react-hook-form · Neon/Better Auth (`lib/auth/server.ts`).
+Next.js 16 (App Router, React 19) · Prisma 7 · Tailwind CSS 4 · shadcn/ui (Radix) · TypeScript strict · zod 4 · react-hook-form · Neon · SGAuth SSO via `@nusgaops/sgauth` (`lib/auth/server.ts`).
 
 ## Architecture (the load-bearing rules — `docs/ENGINEERING.md` has the full bar)
 
 - **IMPORTANT: routes under `app/api/` are forbidden except for the ones allowlisted here.** Mutations are Server Actions; a route earns a line below only when it needs something an action cannot have, and a new route is a rule change that appends to this list.
-  - `app/api/auth/[...path]/route.ts` — Better Auth needs a reachable HTTP endpoint.
   - `app/api/webhooks/resend/route.ts` — Resend signs the **raw** request body, which a server action never sees.
   - `app/api/cron/manager-daily-digest/route.ts` and `app/api/cron/manager-weekly-digest/route.ts` — Vercel Cron needs an HTTP trigger on a schedule, which a server action cannot have. **Each route runs exactly the one digest its path names — these are not a job runner; a third job needs its own route, its own line, and its own justification.**
 - **Mutations are Server Actions** in `prisma/actions/`, each with `'use server'`, an auth check, and zod validation. They return **`void` / the relevant data on success, `{ error }` for a user-facing failure, and `throw` for unexpected ones — never `{ ok }`** (`docs/ENGINEERING.md` §4). Decision test: _would you show this exact sentence to the user, and can they act on it?_ **yes → `{ error }`, no → throw**.

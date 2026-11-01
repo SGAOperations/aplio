@@ -263,9 +263,8 @@ export function PositionCard({
                             Apply
                           </Link>
                         ) : (
-                          <Link
-                            href={`/login?redirectTo=/positions/${position.id}/apply`}
-                          >
+                          // The detail page states the Northeastern-email requirement first.
+                          <Link href={`/positions/${position.id}`}>
                             <ACTION_ICONS.submit />
                             Apply
                           </Link>

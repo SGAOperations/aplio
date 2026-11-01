@@ -528,8 +528,10 @@ export interface NavIdentity {
   name: string | null;
   email: string;
   roleLabel: string;
-  // Routes Log out to logoutBypassUser() instead of authClient.signOut().
+  // Routes Log out to logoutBypassUser() instead of SGAuth's sign-out.
   isBypass: boolean;
+  // SGAuth's sign-out URL; null for a bypass session, which signs out locally.
+  logoutHref: string | null;
 }
 
 // Rank order (Admin, Manager) — a user can hold both; badges/filters use every

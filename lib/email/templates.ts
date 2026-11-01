@@ -91,65 +91,6 @@ export interface EmailTemplate {
   text: string;
 }
 
-export interface OtpEmailOptions {
-  code: string;
-  signInUrl: string;
-  expiresInMinutes?: number;
-}
-
-// Author-written HTML, never user input — safe to interpolate unescaped.
-const OTP_FOOTER = `You&#39;re receiving this because a sign-in was requested for your Aplio account.<br />
-              Didn&#39;t request this? You can safely ignore it.`;
-
-export function otpEmail({
-  code,
-  signInUrl,
-  expiresInMinutes,
-}: OtpEmailOptions): EmailTemplate {
-  const safeCode = escapeHtml(code);
-  const safeSignInUrl = escapeHtml(signInUrl);
-  const expiryLine = expiresInMinutes
-    ? `This code expires in ${expiresInMinutes} minute${expiresInMinutes === 1 ? '' : 's'}.`
-    : '';
-
-  const content = `
-    <h1 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#09090b;">Your access code</h1>
-    <p style="margin:0 0 24px;font-size:14px;color:#71717a;">Enter this code to sign in to your Aplio account — or use the button below to sign in directly. It is single-use and will expire shortly.</p>
-    <table width="100%" cellpadding="0" cellspacing="0" style="border:2px solid #D41B2C;border-radius:6px;margin-bottom:24px;">
-      <tr>
-        <td style="padding:20px;text-align:center;">
-          <span style="font-size:36px;font-weight:700;letter-spacing:0.2em;color:#09090b;font-family:'Courier New',monospace;">${safeCode}</span>
-        </td>
-      </tr>
-    </table>
-    <div style="text-align:center;margin-bottom:24px;">
-      <a href="${safeSignInUrl}" style="display:inline-block;background-color:#D41B2C;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:6px;font-size:14px;font-weight:600;letter-spacing:0.01em;">Sign in to Aplio</a>
-    </div>
-    <p style="margin:0 0 24px;font-size:12px;color:#71717a;">Button not working? Copy this link into your browser:<br /><span style="color:#09090b;word-break:break-all;">${safeSignInUrl}</span></p>
-    ${expiryLine ? `<p style="margin:0;font-size:13px;color:#71717a;">${expiryLine}</p>` : ''}
-  `;
-
-  const textLines = [
-    'Your Aplio access code',
-    '',
-    `Code: ${code}`,
-    `Or open this link to sign in: ${signInUrl}`,
-    ...(expiryLine ? [expiryLine] : []),
-    '',
-    'If you did not request this code, you can ignore this email.',
-  ];
-
-  return {
-    subject: 'Your Aplio access code',
-    html: emailLayout({
-      title: 'Your Aplio access code',
-      content,
-      footer: OTP_FOOTER,
-    }),
-    text: textLines.join('\n'),
-  };
-}
-
 export const APPLICANT_EMAIL_FOOTER =
   'You&#39;re receiving this because you applied for a position through Aplio.';
 
