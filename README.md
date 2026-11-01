@@ -142,6 +142,10 @@ To refresh `dev`'s data:
 
 Seeded dates are offsets from the moment the reset runs, so they drift afterwards (a position closing "today" becomes closed the next day) — refresh again whenever the states stop matching their labels.
 
+### Preview gate
+
+Every `preview` deployment, apply-dev included, sits behind an in-app password gate (`lib/preview-gate.ts`, `/preview-gate`), the same pattern SGAuth uses on auth-dev. Set `APLIO_PREVIEW_GATE_PASSWORD` in the Vercel preview environment. Without it a preview refuses requests, unless `APLIO_PREVIEW_GATE=off` because that deployment relies on Vercel Deployment Protection instead. Production and local dev never see the gate.
+
 ### Dev bypass
 
 `isBypassAllowed()` (`lib/utils.ts`) is the single gate for both issuing and accepting the `dev-bypass-user-id` cookie. It is true locally (`VERCEL_ENV=development` in your `.env` under `npm run dev`), and on a `preview` deployment only where `ALLOW_DEV_BYPASS=1` is set, as on apply-dev, which sits behind the preview gate. It is never true in production. Local SGAuth sign-in instead needs `http://aplio.sga.localhost:3000` against SGAuth on `http://auth.sga.localhost:3000`; see the SGAuth repo's `docs/ENVIRONMENTS.md`.

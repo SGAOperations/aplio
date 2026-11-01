@@ -47,7 +47,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
       email: user.email,
       roleLabel,
       isBypass,
-      logoutHref: isBypass ? null : sgauthLogoutUrl(),
+      logoutHref: isBypass ? null : await sgauthLogoutUrl(),
     };
 
     const scope: ActivityScope = user.isAdmin

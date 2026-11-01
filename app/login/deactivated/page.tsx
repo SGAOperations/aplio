@@ -42,7 +42,7 @@ export default async function AccountDeactivatedPage() {
         Signed in as {deactivatedUser.email}
       </p>
       <div className="flex w-full flex-col gap-2">
-        <DeactivatedSignOut logoutHref={sgauthLogoutUrl()} />
+        <DeactivatedSignOut logoutHref={await sgauthLogoutUrl()} />
         <Button variant="ghost" asChild className="w-full">
           <Link href="/positions">
             <ACTION_ICONS.goTo />
