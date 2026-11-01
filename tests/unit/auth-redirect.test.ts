@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   DEFAULT_REDIRECT,
+  requestOrigin,
   safeRedirectTo,
   sanitizeRedirectTo,
   withRedirectTo,
@@ -150,5 +151,47 @@ describe('withRedirectTo', () => {
   it('omits the param on self-reference', () => {
     expect(withRedirectTo('/login', '/login')).toBe('/login');
     expect(withRedirectTo('/profile', '/profile')).toBe('/profile');
+  });
+});
+
+describe('requestOrigin', () => {
+  const from = (values: Record<string, string>) => (name: string) =>
+    values[name] ?? null;
+
+  it('prefers the forwarded host and proto', () => {
+    expect(
+      requestOrigin(
+        from({
+          host: 'aplio-staging.vercel.app',
+          'x-forwarded-host': 'apply-dev.northeasternsga.com',
+          'x-forwarded-proto': 'https',
+        }),
+      ),
+    ).toBe('https://apply-dev.northeasternsga.com');
+  });
+
+  it('takes the first value of a forwarded list', () => {
+    expect(
+      requestOrigin(
+        from({
+          'x-forwarded-host': 'apply.northeasternsga.com, proxy.internal',
+          'x-forwarded-proto': 'https,http',
+        }),
+      ),
+    ).toBe('https://apply.northeasternsga.com');
+  });
+
+  it('defaults to http for localhost hosts and https elsewhere', () => {
+    expect(requestOrigin(from({ host: 'aplio.sga.localhost:3000' }))).toBe(
+      'http://aplio.sga.localhost:3000',
+    );
+    expect(requestOrigin(from({ host: 'apply.northeasternsga.com' }))).toBe(
+      'https://apply.northeasternsga.com',
+    );
+  });
+
+  it('rejects a malformed host and a missing one', () => {
+    expect(requestOrigin(from({ host: 'evil.com/path' }))).toBeNull();
+    expect(requestOrigin(from({}))).toBeNull();
   });
 });

@@ -5,7 +5,7 @@ import { cache } from 'react';
 
 import type { User } from '@/prisma/client';
 
-import { withRedirectTo } from '@/lib/auth/redirect';
+import { requestOrigin, withRedirectTo } from '@/lib/auth/redirect';
 import { resolveSgauthUser } from '@/lib/auth/session-hooks';
 import { getBaseUrl } from '@/lib/base-url';
 import { prisma } from '@/lib/prisma';
@@ -68,14 +68,19 @@ export async function currentPath(): Promise<string | null> {
   return (await headers()).get('x-current-path');
 }
 
+async function appOrigin(): Promise<string> {
+  const requestHeaders = await headers();
+  return requestOrigin((name) => requestHeaders.get(name)) ?? getBaseUrl();
+}
+
 // SGAuth validates the return URL against its product registry.
-export function sgauthLoginUrl(path: string | null): string {
-  return loginUrl(`${getBaseUrl()}${path ?? '/'}`);
+export async function sgauthLoginUrl(path: string | null): Promise<string> {
+  return loginUrl(`${await appOrigin()}${path ?? '/'}`);
 }
 
 // A plain <a>, never a prefetching <Link>: a prefetch would sign the user out.
-export function sgauthLogoutUrl(): string {
-  return logoutUrl(`${getBaseUrl()}/positions`);
+export async function sgauthLogoutUrl(): Promise<string> {
+  return logoutUrl(`${await appOrigin()}/positions`);
 }
 
 // Cached, so layout and page share one round-trip per render pass.
@@ -90,7 +95,7 @@ export const getCurrentUser = cache(
 
     const path = await currentPath();
     if (isBypassAllowed()) redirect(withRedirectTo('/login/bypass', path));
-    redirect(sgauthLoginUrl(path));
+    redirect(await sgauthLoginUrl(path));
   },
 );
 
