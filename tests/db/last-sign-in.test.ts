@@ -65,6 +65,7 @@ function sgaSession(
     email?: string;
     name?: string;
     createdAt?: Date;
+    positions?: string[];
   } = {},
 ): SgaSession {
   return {
@@ -77,7 +78,7 @@ function sgaSession(
       isAdmin: false,
       isPrimaryAdmin: false,
     },
-    positions: [],
+    positions: (overrides.positions ?? []).map((key) => ({ key, name: key })),
     session: {
       id: randomUUID(),
       createdAt: (overrides.createdAt ?? new Date()).toISOString(),
@@ -133,6 +134,35 @@ describe('resolveSgauthUser', () => {
     );
 
     expect(user.name).toBe('Ada Lovelace');
+  });
+
+  it.each([
+    'student-body-president',
+    'executive-vice-president',
+    'vice-president-of-operational-affairs',
+  ])('mirrors the %s position onto isAdmin', async (position) => {
+    const existing = await createTestUser();
+
+    const promoted = await resolveSgauthUser(
+      sgaSession({ email: existing.email, positions: [position] }),
+    );
+    expect(promoted.isAdmin).toBe(true);
+
+    const demoted = await resolveSgauthUser(
+      sgaSession({ id: promoted.sgauthUserId!, email: existing.email }),
+    );
+    expect(demoted.isAdmin).toBe(false);
+  });
+
+  it('does not grant admin for other positions or SGAuth admin', async () => {
+    const session = sgaSession({
+      positions: ['vice-president-of-academic-affairs', 'senator'],
+    });
+    session.user.isAdmin = true;
+    session.user.isPrimaryAdmin = true;
+
+    const user = await resolveSgauthUser(session);
+    expect(user.isAdmin).toBe(false);
   });
 
   it('returns a deactivated row unstamped', async () => {

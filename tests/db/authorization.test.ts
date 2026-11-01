@@ -7,6 +7,7 @@ import {
   createTestUser,
 } from '@/tests/helpers/fixtures';
 import { actAs } from '@/tests/stubs/auth-server';
+import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
@@ -711,6 +712,23 @@ describe('toggleUserAdmin / deactivateUser / createUser', () => {
       makeAdmin: false,
     });
     expect(result).toEqual({ error: 'You cannot change your own admin role.' });
+  });
+
+  it('refuses to change admin on an SGAuth-linked account', async () => {
+    const target = await createTestUser({ sgauthUserId: randomUUID() });
+    actAs(admin);
+    const result = await toggleUserAdmin({
+      userId: target.id,
+      makeAdmin: true,
+    });
+    expect(result).toEqual({
+      error:
+        "Admin access comes from holding an SGA executive position in SGAuth, so it can't be changed here.",
+    });
+    const unchanged = await prisma.user.findUniqueOrThrow({
+      where: { id: target.id },
+    });
+    expect(unchanged.isAdmin).toBe(false);
   });
 
   it('refuses an admin deactivating their own account', async () => {

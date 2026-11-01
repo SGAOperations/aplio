@@ -38,6 +38,17 @@ export async function toggleUserAdmin(
   if (userId === user.id)
     return { error: 'You cannot change your own admin role.' };
 
+  // Linked accounts take admin from SGAuth on every request; a write here would be undone.
+  const target = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { sgauthUserId: true },
+  });
+  if (target?.sgauthUserId)
+    return {
+      error:
+        "Admin access comes from holding an SGA executive position in SGAuth, so it can't be changed here.",
+    };
+
   const result = await prisma.user.updateMany({
     where: { id: userId, deletedAt: null },
     data: { isAdmin: makeAdmin, updatedById: user.id },
