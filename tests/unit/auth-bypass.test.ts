@@ -34,11 +34,14 @@ vi.mock('@/lib/prisma', () => ({
   },
 }));
 
-vi.mock('@/lib/auth/config', () => ({
-  auth: {
-    api: { getSession: (...args: unknown[]) => mockGetSession(...args) },
-  },
+vi.mock('@nusgaops/sgauth/next', () => ({
+  getServerSession: () => mockGetSession(),
+  loginUrl: (redirect: string) =>
+    `https://auth.test/login?redirect=${redirect}`,
+  logoutUrl: () => 'https://auth.test/logout',
 }));
+
+vi.mock('@/lib/auth/session-hooks', () => ({ resolveSgauthUser: vi.fn() }));
 
 const { getCurrentUser, getIsBypass, getOptionalUser } =
   await import('@/lib/auth/server');
@@ -73,8 +76,10 @@ describe('dev-bypass cookie consumer', () => {
         expect(mockFindUnique).not.toHaveBeenCalled();
       });
 
-      it('getCurrentUser redirects to /login', async () => {
-        await expect(getCurrentUser()).rejects.toThrow('REDIRECT:/login');
+      it('getCurrentUser redirects to SGAuth sign-in', async () => {
+        await expect(getCurrentUser()).rejects.toThrow(
+          'REDIRECT:https://auth.test/login',
+        );
       });
     },
   );

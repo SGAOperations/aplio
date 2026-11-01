@@ -2,7 +2,11 @@ import { type ReactNode, Suspense } from 'react';
 
 import { isManager } from '@/prisma/data/managers';
 
-import { getIsBypass, getOptionalUser } from '@/lib/auth/server';
+import {
+  getIsBypass,
+  getOptionalUser,
+  sgauthLogoutUrl,
+} from '@/lib/auth/server';
 import type { ActivityScope, NavIdentity } from '@/lib/types';
 
 import {
@@ -38,7 +42,13 @@ export async function AppShell({ children }: { children: ReactNode }) {
         ? 'Manager'
         : 'User';
 
-    identity = { name: user.name, email: user.email, roleLabel, isBypass };
+    identity = {
+      name: user.name,
+      email: user.email,
+      roleLabel,
+      isBypass,
+      logoutHref: isBypass ? null : sgauthLogoutUrl(),
+    };
 
     const scope: ActivityScope = user.isAdmin
       ? 'all'

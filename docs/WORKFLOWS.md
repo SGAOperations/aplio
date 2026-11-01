@@ -23,7 +23,7 @@ Behaviour shared by many workflows is stated once under [Cross-cutting behaviour
 
 **[Cross-cutting behaviours](#cross-cutting-behaviours)** — [XC-1](#xc-1-sign-in-gate-and-the-redirectto-round-trip) · [XC-2](#xc-2-name-gate) · [XC-3](#xc-3-profile-completeness) · [XC-4](#xc-4-denial-shape) · [XC-5](#xc-5-errors-and-feedback) · [XC-6](#xc-6-rate-limiting) · [XC-7](#xc-7-deactivated-account) · [XC-8](#xc-8-applicant-facing-status-grouping) · [XC-9](#xc-9-applicant-email) · [XC-10](#xc-10-manager-digests) · [XC-11](#xc-11-activity-panel)
 
-**[Anonymous (AN)](#anonymous-an)** — [AN-1](#an-1-browse-positions) · [AN-2](#an-2-view-a-position) · [AN-3](#an-3-start-applying-from-a-position) · [AN-4](#an-4-sign-in-with-an-email-code) · [AN-5](#an-5-request-a-new-code) · [AN-6](#an-6-set-your-name-on-first-sign-in) · [AN-7](#an-7-read-the-legal-pages) · [AN-8](#an-8-dev-bypass-sign-in)
+**[Anonymous (AN)](#anonymous-an)** — [AN-1](#an-1-browse-positions) · [AN-2](#an-2-view-a-position) · [AN-3](#an-3-start-applying-from-a-position) · [AN-4](#an-4-sign-in-with-sgauth) · [AN-5](#an-5-request-a-new-code-retired) · [AN-6](#an-6-set-your-name-on-first-sign-in) · [AN-7](#an-7-read-the-legal-pages) · [AN-8](#an-8-dev-bypass-sign-in)
 
 **[Applicant (AP)](#applicant-ap)** — [AP-1](#ap-1-see-your-dashboard) · [AP-2](#ap-2-answer-profile-questions) · [AP-3](#ap-3-change-your-name) · [AP-4](#ap-4-return-to-an-interrupted-flow) · [AP-5](#ap-5-start-an-application) · [AP-6](#ap-6-answer-application-questions) · [AP-7](#ap-7-customize-or-revert-profile-answers) · [AP-8](#ap-8-upload-or-remove-a-file-answer) · [AP-9](#ap-9-submit-an-application) · [AP-10](#ap-10-track-your-applications) · [AP-11](#ap-11-view-one-of-your-applications) · [AP-12](#ap-12-preview-or-download-your-own-file-answer) · [AP-13](#ap-13-withdraw-an-application) · [AP-14](#ap-14-edit-and-resubmit-a-withdrawn-application) · [AP-15](#ap-15-delete-a-draft) · [AP-16](#ap-16-sign-out) · [AP-17](#ap-17-see-which-positions-youve-already-applied-to)
 
@@ -37,7 +37,7 @@ Behaviour shared by many workflows is stated once under [Cross-cutting behaviour
 
 ### XC-1 Sign-in gate and the `redirectTo` round-trip
 
-`getCurrentUser()` (`lib/auth/server.ts`) resolves the caller or redirects. An anonymous caller goes to `/login?redirectTo=<the path they asked for>`; the path comes from the `x-current-path` header that `proxy.ts` sets on every matched request, and is built by `withRedirectTo`. `sanitizeRedirectTo` accepts only a single-leading-slash in-app path, rejects `..` traversal and any `/login*` self-reference, and strips Next's internal `_rsc` / `_next*` params; anything else falls back to `/`. After sign-in, `/login` sends the user to that destination.
+`getCurrentUser()` (`lib/auth/server.ts`) resolves the caller or redirects. An anonymous caller goes to SGAuth's sign-in with the absolute URL of the path they asked for (or `/login/bypass?redirectTo=…` where bypass is allowed); the path comes from the `x-current-path` header that `proxy.ts` sets on every matched request, and is built by `withRedirectTo`. `sanitizeRedirectTo` accepts only a single-leading-slash in-app path, rejects `..` traversal and any `/login*` self-reference, and strips Next's internal `_rsc` / `_next*` params; anything else falls back to `/`. After sign-in, SGAuth returns the user to that destination.
 
 When `isBypassAllowed()` is true (dev only) the base is `/login/bypass` instead of `/login`.
 
@@ -73,7 +73,7 @@ Every action gives a `sonner` toast: a success toast, the returned `{ error }` v
 
 ### XC-7 Deactivated account
 
-A live session whose `User` row has been soft-deleted resolves as `deactivated`, not anonymous. `getCurrentUser()` redirects it to `/login/deactivated` — "Account deactivated", the signed-in email, a sign-out button (`signOutDeactivatedSession`) and a link to `/positions`. Sign-in is refused before the code is sent ([AN-4](#an-4-sign-in-with-an-email-code)) with `ACCOUNT_DEACTIVATED_MESSAGE`: **"Your account has been deactivated. Please contact an administrator."**
+A live session whose `User` row has been soft-deleted resolves as `deactivated`, not anonymous. `getCurrentUser()` redirects it to `/login/deactivated` — "Account deactivated", the signed-in email, a sign-out link to SGAuth ([AP-16](#ap-16-sign-out)) and a link to `/positions`. SGAuth still signs the person in; the block is Aplio's ([AN-4](#an-4-sign-in-with-sgauth)).
 
 ### XC-8 Applicant-facing status grouping
 
@@ -148,40 +148,30 @@ Anyone not signed in. The only routes they can use are `/positions`, `/positions
 ### AN-3 Start applying from a position
 
 - **Trigger** — the **Apply** button on `/positions/[id]`, shown only while the position is accepting applications.
-- **Happy path** — anonymous visitors get a link to `/login?redirectTo=/positions/[id]/apply`. `/login` detects the apply destination and swaps its copy to "Continue Your Application" · "Enter your email to continue your application. We'll send you a one-time code." After sign-in ([AN-4](#an-4-sign-in-with-an-email-code)) and the name step ([AN-6](#an-6-set-your-name-on-first-sign-in)) the user lands on the apply page ([AP-5](#ap-5-start-an-application)).
+- **Happy path** — anonymous visitors get a link to `/login?redirectTo=/positions/[id]/apply`. `/login` sends them on to SGAuth with the apply page as the return URL. After sign-in ([AN-4](#an-4-sign-in-with-sgauth)) and the name step ([AN-6](#an-6-set-your-name-on-first-sign-in)) the user lands on the apply page ([AP-5](#ap-5-start-an-application)).
 - **Failure / edge**
   - Already signed in → the button links straight to `/positions/[id]/apply`; the label is **Apply now**.
   - Position not accepting → no button at all; the close/open date is shown instead.
 - **End state** — no record written; the user is one sign-in away from a draft.
 
-### AN-4 Sign in with an email code
+### AN-4 Sign in with SGAuth
 
-- **Trigger** — the email step on `/login`, any redirect from [XC-1](#xc-1-sign-in-gate-and-the-redirectto-round-trip), or the sign-in link/button in the OTP email (`/login?email=<address>&otp=<code>`).
-- **Happy path** — the email is validated against `signInEmailSchema`; `checkSignInAllowed` rejects deactivated accounts before any mail is sent; `isOtpResendAllowed` enforces the server-side cooldown; then `authClient.emailOtp.sendVerificationOtp`. Toast **"Code sent."** and the view switches to the 6-digit `InputOTP` step ("Check your inbox for a one-time code. Delivery can take up to 5 minutes."). The code auto-submits at 6 digits via `authClient.signIn.emailOtp`, then `router.refresh()` hands the destination decision back to `/login`.
-- **Happy path — email link** — `/login` parses `email`/`otp` via `parseOtpLinkParams`; `LoginView` shows a "Signing you in…" panel, strips both params from the URL (`history.replaceState`) before calling `authClient.signIn.emailOtp` client-side with them, then `router.refresh()` — the same code path a typed code takes, so the rate limit, the 600s expiry and the 3-attempt cap all apply unchanged. Works on a device that never saw the email step, since the link carries the email itself. `redirectTo` is deliberately not carried in the link.
+- **Trigger** — **Sign in** in the sidebar, any redirect from [XC-1](#xc-1-sign-in-gate-and-the-redirectto-round-trip), or `/login`.
+- **Happy path** — `/login` redirects to SGAuth's sign-in (`sgauthLoginUrl`, built on the SDK's `loginUrl`) with the absolute return URL. SGAuth owns the whole sign-in: password or first-time set-password email, verification, and its own rate limits. Back on Aplio, `getServerSession()` validates the SGAuth cookie and `resolveSgauthUser` maps it to the Aplio `User` row: by `sgauthUserId`, else an unlinked row with the same address (case-insensitive) is linked once, else a new row is created from SGAuth's email and name.
 - **Failure / edge**
-  - Invalid email → inline field error "Please enter a valid email address"; nothing is sent.
-  - Deactivated account → toast with `ACCOUNT_DEACTIVATED_MESSAGE`; stays on the email step ([XC-7](#xc-7-deactivated-account)).
-  - `checkSignInAllowed` throws → toast **"Couldn't send the code. Please try again."**; stays on the email step.
-  - Send fails or is rate-limited → the mapped message from `getOtpSendErrorMessage`; stays on the email step.
-  - Wrong or expired code → inline error under the OTP field from `getOtpVerifyErrorMessage`; the account-deactivated error code maps to `ACCOUNT_DEACTIVATED_MESSAGE` instead. Fewer than 6 digits → "Please enter the 6-digit code".
-  - **Use a different email** returns to the email step and clears the code.
-  - Invalid or expired code from the link → falls through to the ordinary OTP step with the email pre-captured and the inline error already set; **Send a new code** and **Use a different email** are both available.
-  - Malformed or partial link params (bad email, non-6-digit otp, missing param) → the ordinary email step, with the address prefilled if it was valid.
-- **End state** — a session exists, and `User.lastLoginAt` is stamped (`recordSignIn`, run from the session-create `after` hook — a blocked sign-in never reaches it). A user row is created on first sign-in if the email was not already invited ([AD-7](#ad-7-create-a-user)). The user goes to the name form if they have no name, otherwise to the sanitized `redirectTo`. When dual write is configured (`SGAUTH_URL`, `APLIO_DUAL_WRITE_SECRET`, `APLIO_READ_CUTOVER_AT`, all or none), a newly created row is also provisioned in SGAuth after it commits (`dualWriteSignup`, via `after()`), and the returned id is stored in `User.sgauthUserId`; a failed call is logged by user id and never blocks the sign-in.
+  - A deactivated Aplio row → `/login/deactivated` ([XC-7](#xc-7-deactivated-account)). SGAuth signs the person in; deactivation is Aplio-only.
+  - An address already linked to a different SGAuth user → not taken over; the request throws to the global boundary.
+  - SGAuth unreachable → the SDK serves a cached session for up to its stale window, otherwise treats the caller as signed out.
+  - Bypass-allowed deployments show **Sign in with SGA** and the bypass link instead of redirecting ([AN-8](#an-8-dev-bypass-sign-in)).
+- **End state** — an SGAuth session and a linked Aplio row. The first request of each new SGAuth session stamps `User.lastLoginAt`, and a blank Aplio name takes SGAuth's name. The user lands on the sanitized `redirectTo`.
 
-### AN-5 Request a new code
+### AN-5 Request a new code (retired)
 
-- **Trigger** — **Send a new code** on the OTP step.
-- **Happy path** — same `sendCode` path as [AN-4](#an-4-sign-in-with-an-email-code); the code field resets and toast **"New code sent."**
-- **Failure / edge**
-  - Within the cooldown → the button is disabled and counts down (`Send a new code (2:53)`); `OTP_RESEND_COOLDOWN_SECONDS` is 180. The countdown is display only — `isOtpResendAllowed` reads the stored OTP's `createdAt` server-side, so a tampered or skewed client timer still gets the 429 message.
-  - Send fails → error toast; the previous code remains valid until it expires.
-- **End state** — a fresh OTP; the cooldown restarts.
+Retired with the move to SGAuth: Aplio no longer sends sign-in codes. Code and password emails are SGAuth's.
 
 ### AN-6 Set your name on first sign-in
 
-- **Trigger** — landing on `/login` with a session but no name, either straight after [AN-4](#an-4-sign-in-with-an-email-code) or via [XC-2](#xc-2-name-gate).
+- **Trigger** — landing on `/login` with a session but no name, via [XC-2](#xc-2-name-gate). Rare: SGAuth names are required, and a blank Aplio name is filled from SGAuth at sign-in ([AN-4](#an-4-sign-in-with-sgauth)).
 - **Happy path** — `NameField` posts to `setUserName`, which validates with the shared `nameSchema` (trimmed, 1–`NAME_MAX_LENGTH` = 100 chars) and writes scoped to the calling user. Toast **"Name saved"**, then on to the sanitized `redirectTo`.
 - **Failure / edge**
   - Empty or whitespace-only → **"Enter your full name."** (the same string is both the zod message and the action's returned error).
@@ -394,13 +384,11 @@ Any signed-in user. Every user is an applicant; manager and admin capabilities a
 
 ### AP-16 Sign out
 
-- **Trigger** — **Sign out** in the user menu (or on `/login/deactivated`).
-- **Happy path** — `signOutUser` ends the Better Auth session and revalidates the layout. Toast **"Signed out."**
+- **Trigger** — **Log out** in the user menu, or **Sign out** on `/login/deactivated`.
+- **Happy path** — a plain link (never a prefetching `<Link>`) to SGAuth's sign-out (`sgauthLogoutUrl`), after `posthog.reset()`. SGAuth ends the session for every SGA product and returns the user to `/positions`.
 - **Failure / edge**
-  - Sign-out fails upstream → **"Could not sign out. Please try again."** The upstream cause is logged server-side because the browser cannot see it.
-  - A deactivated session uses `signOutDeactivatedSession` instead — `signOutUser` cannot serve it, because its own `getCurrentUser()` call would bounce the caller back to `/login/deactivated`.
-  - The action deliberately does not `redirect()`; it is awaited from an event handler, where a redirect would read as a failure.
-- **End state** — anonymous. The user keeps browsing `/positions`.
+  - A bypass session signs out locally through `logoutBypassUser()` and goes to `/login/bypass`.
+- **End state** — anonymous on every SGA product. The user keeps browsing `/positions`.
 
 ### AP-17 See which positions you've already applied to
 
@@ -667,13 +655,13 @@ An admin is a **manager on every position**: every [Position manager](#position-
 ### AD-7 Create a user
 
 - **Trigger** — **Create user** on `/users` ("Manage platform accounts and admin access.").
-- **Happy path** — `createUser` (behind `requireAdmin`) lowercases the email — Better Auth lowercases before its case-sensitive lookup, so a mixed-case invite would miss it and create a second, non-admin row — and inserts the user with the optional name and admin flag. Toast **"User created."**, or **"Admin user created."** when the admin box was checked.
+- **Happy path** — `createUser` (behind `requireAdmin`) lowercases the email and inserts the user with the optional name and admin flag. Toast **"User created."**, or **"Admin user created."** when the admin box was checked.
 - **Failure / edge**
   - Email already in use → **"A user with this email already exists."** The pre-check is racy; the `P2002` catch is what actually guarantees uniqueness, and it returns the same message.
   - The email belongs to a deactivated account → **"That email belongs to a deactivated account. Reactivating requires a direct database change — contact engineering."** Deactivation intentionally keeps the email so it is not freed for reuse.
   - Invalid email → "Enter a valid email address."
   - Non-admin → throws; the page is `requireAdminOr404`.
-- **End state** — a `User` row exists before that person has ever signed in; their first OTP sign-in resolves to this row rather than creating a new one, so the admin flag and name survive. The new row is dual-written to SGAuth the same way as a first sign-in ([AN-4](#an-4-sign-in-with-an-email-code)).
+- **End state** — a `User` row exists before that person has ever signed in; their first SGAuth sign-in links this row by address rather than creating a new one, so the admin flag and name survive. The new row is dual-written to SGAuth the same way as a first sign-in ([AN-4](#an-4-sign-in-with-sgauth)).
 
 ### AD-8 Grant or revoke admin
 
