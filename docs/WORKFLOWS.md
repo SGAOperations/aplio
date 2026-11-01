@@ -154,8 +154,9 @@ Anyone not signed in. The only routes they can use are `/positions`, `/positions
 ### AN-3 Start applying from a position
 
 - **Trigger** — the **Apply** button on `/positions/[id]`, shown only while the position is accepting applications.
-- **Happy path** — anonymous visitors get a link to `/login?redirectTo=/positions/[id]/apply`. `/login` sends them on to SGAuth with the apply page as the return URL. After sign-in ([AN-4](#an-4-sign-in-with-sgauth)) and the name step ([AN-6](#an-6-set-your-name-on-first-sign-in)) the user lands on the apply page ([AP-5](#ap-5-start-an-application)).
+- **Happy path** — anonymous visitors first see `NU_EMAIL_REQUIREMENT`: "Applying needs an SGA account with your Northeastern email address (@northeastern.edu)." Then they get two buttons. **Sign in to apply** goes to `/login?redirectTo=/positions/[id]/apply`, which sends them on to SGAuth. **Create an account** goes straight to SGAuth's `/sign-up` (`sgauthSignUpUrl`), and SGAuth's northeastern.edu self-sign-up returns them to the apply page once they've verified. After sign-in ([AN-4](#an-4-sign-in-with-sgauth)) the user lands on the apply page ([AP-5](#ap-5-start-an-application)). An address SGAuth already knows links to the existing Aplio row, never a second one.
 - **Failure / edge**
+  - The position card's **Apply** opens this detail page for anonymous visitors, so the requirement is always shown before the redirect.
   - Already signed in → the button links straight to `/positions/[id]/apply`; the label is **Apply now**.
   - Position not accepting → no button at all; the close/open date is shown instead.
 - **End state** — no record written; the user is one sign-in away from a draft.

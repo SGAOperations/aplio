@@ -78,6 +78,13 @@ export async function sgauthLoginUrl(path: string | null): Promise<string> {
   return loginUrl(`${await appOrigin()}${path ?? '/'}`);
 }
 
+// The SDK builds no sign-up URL; SGAuth's /sign-up takes `redirect` like /login.
+export async function sgauthSignUpUrl(path: string | null): Promise<string> {
+  const url = new URL(await sgauthLoginUrl(path));
+  url.pathname = url.pathname.replace(/\/login$/, '/sign-up');
+  return url.toString();
+}
+
 // A plain <a>, never a prefetching <Link>: a prefetch would sign the user out.
 export async function sgauthLogoutUrl(): Promise<string> {
   return logoutUrl(`${await appOrigin()}/positions`);
