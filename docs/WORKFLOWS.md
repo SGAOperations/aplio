@@ -662,16 +662,18 @@ An admin is a **manager on every position**: every [Position manager](#position-
   - The email belongs to a deactivated account → **"That email belongs to a deactivated account. Reactivating requires a direct database change — contact engineering."** Deactivation intentionally keeps the email so it is not freed for reuse.
   - Invalid email → "Enter a valid email address."
   - Non-admin → throws; the page is `requireAdminOr404`.
-- **End state** — a `User` row exists before that person has ever signed in; their first SGAuth sign-in links this row by address rather than creating a new one, so the admin flag and name survive. The new row is dual-written to SGAuth the same way as a first sign-in ([AN-4](#an-4-sign-in-with-sgauth)).
+- **End state** — a `User` row exists before that person has ever signed in; their first SGAuth sign-in links this row by address rather than creating a new one, so the name survives. The admin box is provisional: from that first sign-in, `isAdmin` follows the SGAuth `aplio-admin` position ([AD-8](#ad-8-grant-or-revoke-admin)). The new row is dual-written to SGAuth the same way as a first sign-in ([AN-4](#an-4-sign-in-with-sgauth)).
 
 ### AD-8 Grant or revoke admin
 
-- **Trigger** — the admin toggle on a `/users` row, behind a confirmation.
-- **Happy path** — `toggleUserAdmin` writes scoped to a non-deactivated user. Toast **"User promoted to admin."** or **"Admin removed."**
+- **Trigger** — assigning or removing the `aplio-admin` position in SGAuth's admin UI. The `/users` toggle still works, but only for accounts not yet linked to SGAuth: never signed in through it, or bypass users.
+- **Happy path** — on the holder's next request, `resolveSgauthUser` mirrors the position onto `User.isAdmin` (`APLIO_ADMIN_POSITION`), so every guard, scope and the `/users` list follow SGAuth. A holder of other SGAuth positions, or an SGAuth platform admin, is not an Aplio admin. For an unlinked account, `toggleUserAdmin` writes the flag. Toast **"User promoted to admin."** or **"Admin removed."**
 - **Failure / edge**
+  - The `/users` toggle on an SGAuth-linked account → **"Admin access is managed in SGAuth. Add or remove the aplio-admin position there."**
   - Targeting yourself → **"You cannot change your own admin role."** — enforced server-side as well as in the UI.
   - The user was deactivated in the meantime → the action **throws** (not reachable from a freshly-rendered list) → **"Something went wrong. Please try again."**
-- **End state** — the target's `isAdmin` flips. Their nav, scope and capabilities change on their next render.
+  - An unlinked account's toggled flag is replaced by SGAuth's answer at that person's first SGAuth sign-in.
+- **End state** — `isAdmin` matches the SGAuth position as of the holder's latest request. Nav, scope and capabilities change on their next render. `npm run export:aplio-admins -- --out <file.csv>` writes the current admins as an SGAuth bulk-import CSV for the one-time handoff.
 
 ### AD-9 Deactivate a user
 

@@ -1,9 +1,10 @@
 import 'server-only';
 
-import type { SgaSession } from '@nusgaops/sgauth';
+import { type SgaSession, hasPosition } from '@nusgaops/sgauth';
 
 import { Prisma, type User } from '@/prisma/client';
 
+import { APLIO_ADMIN_POSITION } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 
 // deletedAt scope: a deactivated row must never be stamped.
@@ -50,7 +51,8 @@ async function findOrCreateUser(session: SgaSession): Promise<User> {
 }
 
 // The Aplio row for an SGAuth session, created on first sign-in. A new SGAuth
-// session stamps lastLoginAt once, and a blank Aplio name takes SGAuth's.
+// session stamps lastLoginAt once, a blank Aplio name takes SGAuth's, and
+// isAdmin mirrors the aplio-admin position so the column and DB queries agree.
 export async function resolveSgauthUser(session: SgaSession): Promise<User> {
   const user = await findOrCreateUser(session);
   if (user.deletedAt) return user;
@@ -59,13 +61,16 @@ export async function resolveSgauthUser(session: SgaSession): Promise<User> {
   const isNewSession = !user.lastLoginAt || user.lastLoginAt < sessionStart;
   const sgauthName = session.user.name.trim();
   const fillName = !user.name?.trim() && sgauthName !== '';
-  if (!isNewSession && !fillName) return user;
+  const isAdmin = hasPosition(session, APLIO_ADMIN_POSITION);
+  const syncAdmin = user.isAdmin !== isAdmin;
+  if (!isNewSession && !fillName && !syncAdmin) return user;
 
   return prisma.user.update({
     where: { id: user.id },
     data: {
       ...(isNewSession ? { lastLoginAt: new Date() } : {}),
       ...(fillName ? { name: sgauthName } : {}),
+      ...(syncAdmin ? { isAdmin } : {}),
     },
   });
 }

@@ -12,7 +12,7 @@ import {
   type DualWriteUser,
   dualWriteSignup,
 } from '@/lib/auth/sgauth-dual-write';
-import { createUserSchema } from '@/lib/constants';
+import { APLIO_ADMIN_POSITION, createUserSchema } from '@/lib/constants';
 import { prisma } from '@/lib/prisma';
 
 const toggleAdminSchema = z.object({
@@ -37,6 +37,16 @@ export async function toggleUserAdmin(
   // An admin cannot change their own admin role — defense in depth beyond the UI guard.
   if (userId === user.id)
     return { error: 'You cannot change your own admin role.' };
+
+  // Linked accounts take admin from SGAuth on every request; a write here would be undone.
+  const target = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { sgauthUserId: true },
+  });
+  if (target?.sgauthUserId)
+    return {
+      error: `Admin access is managed in SGAuth. Add or remove the ${APLIO_ADMIN_POSITION} position there.`,
+    };
 
   const result = await prisma.user.updateMany({
     where: { id: userId, deletedAt: null },

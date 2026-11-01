@@ -1377,3 +1377,6 @@ export const PIPELINE_SUMMARY_STATUSES = [
 // Every student has one; there is no domain exception for applicants.
 export const NU_EMAIL_REQUIREMENT =
   'Applying needs an SGA account with your Northeastern email address (@northeastern.edu).';
+
+// SGAuth position whose holders are Aplio admins; managers stay an Aplio relation.
+export const APLIO_ADMIN_POSITION = 'aplio-admin';
