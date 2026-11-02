@@ -85,6 +85,7 @@ async function main() {
             data: { sgauthUserId: m.sgauthId },
           }),
         ),
+        { timeout: 60_000 },
       );
       const count = written.reduce((sum, r) => sum + r.count, 0);
       console.log(`Applied: ${count} of ${plan.updates.length} set.`);

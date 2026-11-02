@@ -661,7 +661,7 @@ An admin is a **manager on every position**: every [Position manager](#position-
 
 ### AD-7 Create a user
 
-- **Trigger** — **Create user** on `/users` ("Manage platform accounts and admin access.").
+- **Trigger** — **Create user** on `/users` ("Manage platform accounts and admin access."). Hidden, and `createUser` throws, once `APLIO_READ_CUTOVER_AT` has passed.
 - **Happy path** — `createUser` (behind `requireAdmin`) lowercases the email and inserts the user with the optional name and admin flag. Toast **"User created."**, or **"Admin user created."** when the admin box was checked.
 - **Failure / edge**
   - Email already in use → **"A user with this email already exists."** The pre-check is racy; the `P2002` catch is what actually guarantees uniqueness, and it returns the same message.
@@ -672,7 +672,7 @@ An admin is a **manager on every position**: every [Position manager](#position-
 
 ### AD-8 Grant or revoke admin
 
-- **Trigger** — someone takes or leaves one of the SGA executive positions in SGAuth: `student-body-president`, `executive-vice-president` or `vice-president-of-operational-affairs` (`APLIO_ADMIN_POSITIONS`). The `/users` toggle still works, but only for accounts not yet linked to SGAuth: never signed in through it, or bypass users.
+- **Trigger** — someone takes or leaves one of the SGA executive positions in SGAuth: `student-body-president`, `executive-vice-president` or `vice-president-of-operational-affairs` (`APLIO_ADMIN_POSITIONS`). The `/users` toggle still works, but only for accounts not yet linked to SGAuth: never signed in through it, or bypass users. Once `APLIO_READ_CUTOVER_AT` has passed the toggle is hidden and `toggleUserAdmin` throws.
 - **Happy path** — on the holder's next request, `resolveSgauthUser` sets `User.isAdmin` from those positions, so every guard, scope and the `/users` list follow SGAuth. SGAuth admin and every other position, other VPs and senators included, grant nothing. Position managers are separate and stay Aplio-level ([PM-6](#pm-6-add-a-manager), [PM-7](#pm-7-remove-a-manager)). For an unlinked account, `toggleUserAdmin` writes the flag. Toast **"User promoted to admin."** or **"Admin removed."**
 - **Failure / edge**
   - The `/users` toggle on an SGAuth-linked account → **"Admin access comes from holding an SGA executive position in SGAuth, so it can't be changed here."**
@@ -683,7 +683,7 @@ An admin is a **manager on every position**: every [Position manager](#position-
 
 ### AD-9 Deactivate a user
 
-- **Trigger** — the deactivate control on a `/users` row, behind a confirmation.
+- **Trigger** — the deactivate control on a `/users` row, behind a confirmation. Hidden, and `deactivateUser` throws, once `APLIO_READ_CUTOVER_AT` has passed; deactivation then happens in SGAuth, which fails the person's SGAuth session.
 - **Happy path** — `deactivateUser` runs one transaction: soft-delete the user, then **delete** (not expire) every session they hold, so reactivation cannot resurrect a session on a device they no longer control. Toast **"User deactivated."**
 - **Failure / edge**
   - Targeting yourself → **"You cannot deactivate your own account."**
