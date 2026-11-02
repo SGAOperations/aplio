@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { getUsersForAdmin } from '@/prisma/data/users';
 
 import { requireAdminOr404 } from '@/lib/auth/guards';
+import { isSgauthCutoverPassed } from '@/lib/auth/sgauth-cutover';
 import { ACTION_ICONS } from '@/lib/icons';
 
 import { CreateUserDialog } from '@/components/features/create-user-dialog';
@@ -14,6 +15,7 @@ export const metadata: Metadata = { title: 'Users' };
 
 export default async function UsersPage() {
   const user = await requireAdminOr404();
+  const canManageAccess = !isSgauthCutoverPassed();
 
   const users = await getUsersForAdmin();
 
@@ -23,18 +25,24 @@ export default async function UsersPage() {
         title="Users"
         description="Manage platform accounts and admin access."
         actions={
-          <CreateUserDialog
-            trigger={
-              <Button>
-                <ACTION_ICONS.create />
-                Create user
-              </Button>
-            }
-          />
+          canManageAccess && (
+            <CreateUserDialog
+              trigger={
+                <Button>
+                  <ACTION_ICONS.create />
+                  Create user
+                </Button>
+              }
+            />
+          )
         }
       />
 
-      <UsersTable users={users} currentUserId={user.id} />
+      <UsersTable
+        users={users}
+        currentUserId={user.id}
+        canManageAccess={canManageAccess}
+      />
     </div>
   );
 }

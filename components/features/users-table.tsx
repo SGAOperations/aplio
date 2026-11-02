@@ -50,6 +50,7 @@ import {
 interface UsersTableProps {
   users: AdminUserListItem[];
   currentUserId: string;
+  canManageAccess: boolean;
 }
 
 // Row snapshot for a pending confirmation — captured at click time rather
@@ -100,7 +101,11 @@ function ManagedPositionsOverflow({
   );
 }
 
-export function UsersTable({ users, currentUserId }: UsersTableProps) {
+export function UsersTable({
+  users,
+  currentUserId,
+  canManageAccess,
+}: UsersTableProps) {
   const [query, setQuery] = useState('');
   // shallow: the page filters in memory over the already-fetched user list
   // and must not refetch; replace: toggling a checkbox shouldn't stack history.
@@ -137,7 +142,7 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
     setDeactivateDialogOpen(true);
   }
 
-  const COLUMNS: DataTableColumn<AdminUserListItem>[] = useMemo(
+  const ALL_COLUMNS: DataTableColumn<AdminUserListItem>[] = useMemo(
     () => [
       {
         key: 'user',
@@ -302,6 +307,14 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
       },
     ],
     [currentUserId],
+  );
+
+  const COLUMNS = useMemo(
+    () =>
+      ALL_COLUMNS.filter(
+        (column) => canManageAccess || column.key !== 'actions',
+      ),
+    [ALL_COLUMNS, canManageAccess],
   );
 
   const roleOptions = useMemo(
@@ -541,42 +554,44 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
                       ))}
                     </div>
                   )}
-                  <DataTableRowActions>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={isSelf}
-                      title={
-                        isSelf
-                          ? 'You cannot change your own admin role'
-                          : undefined
-                      }
-                      aria-disabled={isSelf}
-                      onClick={() => openAdminDialog(user)}
-                    >
-                      {user.isAdmin ? (
-                        <ACTION_ICONS.demote />
-                      ) : (
-                        <ACTION_ICONS.promote />
-                      )}
-                      {user.isAdmin ? 'Remove admin' : 'Make admin'}
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      disabled={isSelf}
-                      title={
-                        isSelf
-                          ? 'You cannot deactivate your own account'
-                          : undefined
-                      }
-                      aria-disabled={isSelf}
-                      onClick={() => openDeactivateDialog(user)}
-                    >
-                      <ACTION_ICONS.deactivate />
-                      Deactivate
-                    </Button>
-                  </DataTableRowActions>
+                  {canManageAccess && (
+                    <DataTableRowActions>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={isSelf}
+                        title={
+                          isSelf
+                            ? 'You cannot change your own admin role'
+                            : undefined
+                        }
+                        aria-disabled={isSelf}
+                        onClick={() => openAdminDialog(user)}
+                      >
+                        {user.isAdmin ? (
+                          <ACTION_ICONS.demote />
+                        ) : (
+                          <ACTION_ICONS.promote />
+                        )}
+                        {user.isAdmin ? 'Remove admin' : 'Make admin'}
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        disabled={isSelf}
+                        title={
+                          isSelf
+                            ? 'You cannot deactivate your own account'
+                            : undefined
+                        }
+                        aria-disabled={isSelf}
+                        onClick={() => openDeactivateDialog(user)}
+                      >
+                        <ACTION_ICONS.deactivate />
+                        Deactivate
+                      </Button>
+                    </DataTableRowActions>
+                  )}
                 </div>
               );
             }}
@@ -584,60 +599,68 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
         </div>
       </TooltipProvider>
 
-      <ConfirmDialog
-        open={adminDialogOpen}
-        onOpenChange={setAdminDialogOpen}
-        title={
-          adminTarget?.makeAdmin
-            ? `Make ${adminTarget.displayName} an admin?`
-            : `Remove admin from ${adminTarget?.displayName}?`
-        }
-        description={
-          adminTarget?.makeAdmin ? (
-            <>
-              Admins can manage every position, view every application, and
-              promote or deactivate other users.{' '}
-              {adminTarget.name
-                ? `${adminTarget.displayName} (${adminTarget.email})`
-                : adminTarget.displayName}{' '}
-              gets full access immediately.
-            </>
-          ) : (
-            adminTarget && (
-              <>
-                {adminTarget.name
-                  ? `${adminTarget.displayName} (${adminTarget.email})`
-                  : adminTarget.displayName}{' '}
-                will lose access to admin-only pages and keep only the positions
-                they manage.
-              </>
-            )
-          )
-        }
-        confirmLabel={adminTarget?.makeAdmin ? 'Make admin' : 'Remove admin'}
-        pendingLabel={adminTarget?.makeAdmin ? 'Making admin…' : 'Removing…'}
-        destructive={!adminTarget?.makeAdmin}
-        isPending={isTogglingAdmin}
-        onConfirm={handleToggleAdminConfirm}
-      />
+      {canManageAccess && (
+        <>
+          <ConfirmDialog
+            open={adminDialogOpen}
+            onOpenChange={setAdminDialogOpen}
+            title={
+              adminTarget?.makeAdmin
+                ? `Make ${adminTarget.displayName} an admin?`
+                : `Remove admin from ${adminTarget?.displayName}?`
+            }
+            description={
+              adminTarget?.makeAdmin ? (
+                <>
+                  Admins can manage every position, view every application, and
+                  promote or deactivate other users.{' '}
+                  {adminTarget.name
+                    ? `${adminTarget.displayName} (${adminTarget.email})`
+                    : adminTarget.displayName}{' '}
+                  gets full access immediately.
+                </>
+              ) : (
+                adminTarget && (
+                  <>
+                    {adminTarget.name
+                      ? `${adminTarget.displayName} (${adminTarget.email})`
+                      : adminTarget.displayName}{' '}
+                    will lose access to admin-only pages and keep only the
+                    positions they manage.
+                  </>
+                )
+              )
+            }
+            confirmLabel={
+              adminTarget?.makeAdmin ? 'Make admin' : 'Remove admin'
+            }
+            pendingLabel={
+              adminTarget?.makeAdmin ? 'Making admin…' : 'Removing…'
+            }
+            destructive={!adminTarget?.makeAdmin}
+            isPending={isTogglingAdmin}
+            onConfirm={handleToggleAdminConfirm}
+          />
 
-      <ConfirmDialog
-        open={deactivateDialogOpen}
-        onOpenChange={setDeactivateDialogOpen}
-        title={`Deactivate ${deactivateTarget?.displayName}?`}
-        description={
-          <>
-            {deactivateTarget?.displayName} will be signed out immediately and
-            blocked from signing back in. Reactivating requires a direct
-            database change — contact engineering.
-          </>
-        }
-        confirmLabel="Deactivate"
-        pendingLabel="Deactivating…"
-        destructive
-        isPending={isDeactivating}
-        onConfirm={handleDeactivateConfirm}
-      />
+          <ConfirmDialog
+            open={deactivateDialogOpen}
+            onOpenChange={setDeactivateDialogOpen}
+            title={`Deactivate ${deactivateTarget?.displayName}?`}
+            description={
+              <>
+                {deactivateTarget?.displayName} will be signed out immediately
+                and blocked from signing back in. Reactivating requires a direct
+                database change — contact engineering.
+              </>
+            }
+            confirmLabel="Deactivate"
+            pendingLabel="Deactivating…"
+            destructive
+            isPending={isDeactivating}
+            onConfirm={handleDeactivateConfirm}
+          />
+        </>
+      )}
     </>
   );
 }

@@ -8,6 +8,7 @@ import { z } from 'zod/v4';
 import { Prisma } from '@/prisma/client';
 
 import { requireAdmin } from '@/lib/auth/guards';
+import { isSgauthCutoverPassed } from '@/lib/auth/sgauth-cutover';
 import {
   type DualWriteUser,
   dualWriteSignup,
@@ -27,6 +28,8 @@ type ActionError = { error: string };
 export async function toggleUserAdmin(
   input: unknown,
 ): Promise<ActionError | void> {
+  if (isSgauthCutoverPassed())
+    throw new Error('Admin access is managed in SGAuth');
   const user = await requireAdmin();
 
   const parsed = toggleAdminSchema.safeParse(input);
@@ -64,6 +67,8 @@ export async function toggleUserAdmin(
 export async function deactivateUser(
   input: unknown,
 ): Promise<ActionError | void> {
+  if (isSgauthCutoverPassed())
+    throw new Error('Deactivation is managed in SGAuth');
   const user = await requireAdmin();
 
   const parsed = userIdSchema.safeParse(input);
@@ -89,6 +94,8 @@ export async function deactivateUser(
 }
 
 export async function createUser(input: unknown): Promise<ActionError | void> {
+  if (isSgauthCutoverPassed())
+    throw new Error('User creation is managed in SGAuth');
   const admin = await requireAdmin();
 
   const parsed = createUserSchema.safeParse(input);
