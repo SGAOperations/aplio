@@ -40,7 +40,7 @@
     "@hookform/resolvers": "^5.9.1",
     "@nusgaops/sgauth": "0.2.0",
     "@opentelemetry/api-logs": "^0.223.0",
-    "@opentelemetry/exporter-logs-otlp-http": "^0.223.0",
+    "@opentelemetry/exporter-logs-otlp-http": "^0.301.2",
     "@opentelemetry/resources": "^2.12.0",
     "@opentelemetry/sdk-logs": "^0.223.0",
     "@prisma/adapter-pg": "^7.10.0",
